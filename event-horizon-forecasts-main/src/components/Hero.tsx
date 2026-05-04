@@ -1,12 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, TrendingUp, Users, Zap } from "lucide-react";
+import { ArrowRight, Zap } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-
-const stats = [
-  { icon: Users,     value: "50K+",   label: "Forecasters" },
-  { icon: TrendingUp, value: "₦3.4M+", label: "Total pool" },
-  { icon: Sparkles,  value: "1,200+", label: "Resolved" },
-];
 
 export const Hero = () => {
   const { setAuthOpen } = useAuth();
@@ -31,12 +25,6 @@ export const Hero = () => {
           <span className="text-gradient">Earn from accuracy.</span>
         </h1>
 
-        {/* Sub */}
-        <p className="animate-fade-up delay-200 mt-5 text-base md:text-lg text-muted-foreground max-w-lg mx-auto leading-relaxed">
-          Take positions on events you understand and get rewarded when you're right.
-          Clear questions, transparent odds, instant payouts.
-        </p>
-
         {/* CTAs */}
         <div className="animate-fade-up delay-300 mt-9 flex flex-col sm:flex-row gap-3 justify-center">
           <Button
@@ -54,21 +42,6 @@ export const Hero = () => {
           >
             Browse Markets
           </Button>
-        </div>
-
-        {/* Stats */}
-        <div className="animate-fade-up delay-300 mt-14 flex flex-col sm:flex-row items-center justify-center gap-8 sm:gap-14">
-          {stats.map(({ icon: Icon, value, label }) => (
-            <div key={label} className="flex flex-col items-center gap-1.5">
-              <div className="flex items-center gap-2 text-2xl font-extrabold">
-                <span className="w-8 h-8 rounded-xl bg-primary/10 grid place-items-center">
-                  <Icon className="w-4 h-4 text-primary" />
-                </span>
-                {value}
-              </div>
-              <span className="text-xs text-muted-foreground font-medium">{label}</span>
-            </div>
-          ))}
         </div>
       </div>
     </section>
