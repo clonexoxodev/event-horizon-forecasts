@@ -1,3 +1,5 @@
+import { supabase } from "./supabase";
+
 export type Market = {
   id: string;
   question: string;
@@ -10,6 +12,7 @@ export type Market = {
   icon: string;
 };
 
+// Static fallback (used if Supabase table is empty or unreachable)
 export const markets: Market[] = [
   {
     id: "btc-100k",
@@ -78,6 +81,66 @@ export const markets: Market[] = [
     icon: "🤖",
   },
 ];
+
+// Fetch markets from Supabase, falls back to static list
+export const fetchMarkets = async (): Promise<Market[]> => {
+  const { data, error } = await supabase
+    .from("markets")
+    .select("*")
+    .eq("resolved", false)
+    .order("pool", { ascending: false });
+
+  if (error || !data || data.length === 0) return markets;
+
+  return data.map(m => ({
+    id: m.id,
+    question: m.question,
+    category: m.category,
+    yesPercent: m.yes_percent,
+    pool: m.pool,
+    closesIn: m.closes_in ?? "",
+    description: m.description ?? "",
+    source: m.source ?? "",
+    icon: m.icon ?? "📊",
+  }));
+};
+
+// Place a position
+export const placePosition = async (
+  userId: string,
+  marketId: string,
+  side: "YES" | "NO",
+  stake: number
+): Promise<{ error: string | null }> => {
+  const { error } = await supabase.from("positions").insert({
+    user_id: userId,
+    market_id: marketId,
+    side,
+    stake,
+  });
+
+  if (error) return { error: error.message };
+
+  // Deduct from balance
+  const { error: balErr } = await supabase.rpc("deduct_balance", {
+    user_id: userId,
+    amount: stake,
+  });
+
+  return { error: balErr?.message ?? null };
+};
+
+// Fetch user positions
+export const fetchPositions = async (userId: string) => {
+  const { data, error } = await supabase
+    .from("positions")
+    .select("*, markets(*)")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) return [];
+  return data ?? [];
+};
 
 export const formatNaira = (n: number) =>
   "₦" + (n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "K" : n.toString());

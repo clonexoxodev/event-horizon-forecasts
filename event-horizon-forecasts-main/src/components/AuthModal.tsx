@@ -3,17 +3,55 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { useState } from "react";
-import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, AlertCircle, Loader2 } from "lucide-react";
 
 export const AuthModal = () => {
-  const { authOpen, setAuthOpen, login } = useAuth();
+  const { authOpen, setAuthOpen, login, signup, loginWithGoogle } = useAuth();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [showPass, setShowPass] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const reset = () => {
+    setError(null);
+    setSuccess(null);
+    setName("");
+    setEmail("");
+    setPassword("");
+  };
+
+  const handleSubmit = async () => {
+    setError(null);
+    setSuccess(null);
+    if (!email || !password) { setError("Please fill in all fields."); return; }
+    if (mode === "signup" && !name) { setError("Please enter your name."); return; }
+
+    setLoading(true);
+    if (mode === "login") {
+      const { error } = await login(email, password);
+      if (error) setError(error);
+    } else {
+      const { error } = await signup(name, email, password);
+      if (error) setError(error);
+      else setSuccess("Account created! Check your email to confirm, then log in.");
+    }
+    setLoading(false);
+  };
+
+  const handleGoogle = async () => {
+    setLoading(true);
+    await loginWithGoogle();
+    setLoading(false);
+  };
 
   return (
-    <Dialog open={authOpen} onOpenChange={setAuthOpen}>
+    <Dialog open={authOpen} onOpenChange={(v) => { setAuthOpen(v); if (!v) reset(); }}>
       <DialogContent className="sm:max-w-[400px] rounded-2xl p-0 overflow-hidden border-border/60 shadow-elevated">
-        {/* Top accent bar */}
         <div className="h-1 bg-gradient-hero w-full" />
 
         <div className="p-6">
@@ -35,13 +73,25 @@ export const AuthModal = () => {
             {mode === "signup" && (
               <div className="relative">
                 <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                <Input placeholder="Full name" className="pl-9 h-11 rounded-xl" />
+                <Input
+                  placeholder="Full name"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  className="pl-9 h-11 rounded-xl"
+                />
               </div>
             )}
 
             <div className="relative">
               <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              <Input placeholder="Email address" type="email" className="pl-9 h-11 rounded-xl" />
+              <Input
+                placeholder="Email address"
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="pl-9 h-11 rounded-xl"
+                onKeyDown={e => e.key === "Enter" && handleSubmit()}
+              />
             </div>
 
             <div className="relative">
@@ -49,7 +99,10 @@ export const AuthModal = () => {
               <Input
                 placeholder="Password"
                 type={showPass ? "text" : "password"}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
                 className="pl-9 pr-10 h-11 rounded-xl"
+                onKeyDown={e => e.key === "Enter" && handleSubmit()}
               />
               <button
                 type="button"
@@ -66,11 +119,25 @@ export const AuthModal = () => {
               </div>
             )}
 
+            {error && (
+              <div className="flex items-center gap-2 text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="text-xs text-success bg-success-soft px-3 py-2.5 rounded-xl">
+                {success}
+              </div>
+            )}
+
             <Button
-              onClick={login}
+              onClick={handleSubmit}
+              disabled={loading}
               className="w-full h-11 bg-gradient-hero hover:opacity-90 text-white font-semibold rounded-xl shadow-sm mt-1"
             >
-              {mode === "login" ? "Log in" : "Create account"}
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : mode === "login" ? "Log in" : "Create account"}
             </Button>
 
             <div className="relative flex items-center gap-3 py-1">
@@ -82,7 +149,8 @@ export const AuthModal = () => {
             <Button
               variant="outline"
               className="w-full h-11 rounded-xl font-medium border-border hover:bg-secondary"
-              onClick={login}
+              onClick={handleGoogle}
+              disabled={loading}
             >
               <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -97,7 +165,7 @@ export const AuthModal = () => {
           <p className="text-center text-xs text-muted-foreground mt-5">
             {mode === "login" ? "New here?" : "Already have an account?"}{" "}
             <button
-              onClick={() => setMode(mode === "login" ? "signup" : "login")}
+              onClick={() => { setMode(mode === "login" ? "signup" : "login"); reset(); }}
               className="text-primary font-semibold hover:underline"
             >
               {mode === "login" ? "Create a free account" : "Log in"}
