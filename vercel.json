@@ -1,6 +1,7 @@
 {
-  "buildCommand": "cd event-horizon-forecasts-main && npm ci && npm run build",
-  "outputDirectory": "event-horizon-forecasts-main/dist",
-  "installCommand": "npm --version",
-  "framework": null
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm ci",
+  "framework": null,
+  "rootDirectory": "event-horizon-forecasts-main"
 }
