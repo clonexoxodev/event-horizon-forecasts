@@ -86,6 +86,9 @@ async function startServer() {
   }
 }
 
-startServer();
+// Only start server if not in serverless environment
+if (process.env.VERCEL !== '1') {
+  startServer();
+}
 
 export { app, io };
