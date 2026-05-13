@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
-import { Hero } from "@/components/Hero";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { MarketCard } from "@/components/MarketCard";
 import { Footer } from "@/components/Footer";
@@ -26,44 +25,43 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <Hero />
       <CategoryTabs onChange={setCategory} />
 
-      <main id="markets" className="flex-1 container py-8">
-        <div className="flex items-center justify-between mb-6">
+      <main id="markets" className="flex-1 container py-6">
+        <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-lg font-bold">
+            <h2 className="text-lg font-bold text-charcoal tracking-tight">
               {category === "Trending" ? "All Markets" : category}
             </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-[13px] text-graphite mt-0.5">
               {loading ? "Loading..." : `${filtered.length} active market${filtered.length !== 1 ? "s" : ""}`}
             </p>
           </div>
-          <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground border border-border rounded-xl px-3 py-2 hover:bg-secondary transition-smooth">
+          <button className="flex items-center gap-1.5 text-[13px] text-graphite hover:text-charcoal border border-border/40 rounded-lg px-3 py-2 hover:bg-graphite/5 transition-fast font-medium">
             <SlidersHorizontal className="w-3.5 h-3.5" />
             Filter
           </button>
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-card rounded-2xl p-5 border border-border/50 h-64 animate-pulse" />
+              <div key={i} className="bg-card rounded-xl p-4 border border-border/40 h-64 animate-shimmer" />
             ))}
           </div>
         ) : filtered.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map((m, i) => (
-              <div key={m.id} className="animate-fade-up" style={{ animationDelay: `${i * 60}ms` }}>
+              <div key={m.id} className="animate-fade-up" style={{ animationDelay: `${i * 40}ms` }}>
                 <MarketCard m={m} />
               </div>
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-secondary grid place-items-center mb-4 text-3xl">🔍</div>
-            <h3 className="font-semibold text-lg">No markets yet</h3>
-            <p className="text-sm text-muted-foreground mt-1">
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-14 h-14 rounded-xl bg-graphite/5 grid place-items-center mb-3 text-2xl border border-graphite/10">🔍</div>
+            <h3 className="font-semibold text-base text-charcoal">No markets yet</h3>
+            <p className="text-[13px] text-graphite mt-1">
               No {category} markets are live right now. Check back soon.
             </p>
           </div>
