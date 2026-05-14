@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete System Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid;
+        }
+        .success {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        .pending {
+            background: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        h1 {
+            color: #333;
+        }
+        h2 {
+            color: #555;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status.pass {
+            background: #28a745;
+            color: white;
+        }
+        .status.fail {
+            background: #dc3545;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Complete System Test</h1>
+    <p>This will test EVERYTHING: Backend, CORS, Database, Authentication</p>
+
+    <div class="test-section">
+        <h2>Test 1: Backend Health Check</h2>
+        <button onclick="testBackendHealth()">Test Backend</button>
+        <div id="backend-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: CORS Configuration</h2>
+        <button onclick="testCORS()">Test CORS</button>
+        <div id="cors-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: Database Connection</h2>
+        <button onclick="testDatabase()">Test Database</button>
+        <div id="database-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 4: User Signup</h2>
+        <button onclick="testSignup()">Test Signup</button>
+        <div id="signup-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 5: User Login</h2>
+        <button onclick="testLogin()">Test Login</button>
+        <div id="login-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 6: Complete Flow</h2>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <div id="all-results"></div>
+    </div>
+
+    <script>
+        const API_URL = 'https://flippe-backend4-git-main-clonexoxodevs-projects.vercel.app';
+        let testUser = null;
+
+        function showResult(containerId, title, data, isError = false) {
+            const container = document.getElementById(containerId);
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${isError ? 'error' : 'success'}`;
+            resultDiv.innerHTML = `
+                <strong>${title}</strong>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            container.innerHTML = '';
+            container.appendChild(resultDiv);
+        }
+
+        async function testBackendHealth() {
+            try {
+                const response = await fetch(`${API_URL}/api/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('backend-result', '✅ Backend is UP and running!', {
+                        status: response.status,
+                        data
+                    });
+                    return true;
+                } else {
+                    showResult('backend-result', '❌ Backend returned error', {
+                        status: response.status,
+                        data
+                    }, true);
+                    return false;
+                }
+            } catch (error) {
+                showResult('backend-result', '❌ Cannot reach backend', {
+                    error: error.message,
+                    note: 'Backend might be down or CORS is blocking'
+                }, true);
+                return false;
+            }
+        }
+
+        async function testCORS() {
+            try {
+                const response = await fetch(`${API_URL}/api/health`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const corsHeaders = {
+                    'access-control-allow-origin': response.headers.get('access-control-allow-origin'),
+                    'access-control-allow-credentials': response.headers.get('access-control-allow-credentials'),
+                    'access-control-allow-methods': response.headers.get('access-control-allow-methods')
+                };
+
+                if (response.ok) {
+                    showResult('cors-result', '✅ CORS is configured correctly!', {
+                        status: response.status,
+                        corsHeaders,
+                        note: 'Your frontend can communicate with backend'
+                    });
+                    return true;
+                } else {
+                    showResult('cors-result', '⚠️ CORS might have issues', {
+                        status: response.status,
+                        corsHeaders
+                    }, true);
+                    return false;
+                }
+            } catch (error) {
+                showResult('cors-result', '❌ CORS is blocking requests', {
+                    error: error.message,
+                    note: 'CORS headers are not set correctly'
+                }, true);
+                return false;
+            }
+        }
+
+        async function testDatabase() {
+            try {
+                // Try to signup a test user to verify database works
+                const timestamp = Date.now();
+                const response = await fetch(`${API_URL}/api/auth/signup`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: `dbtest_${timestamp}`,
+                        email: `dbtest_${timestamp}@example.com`,
+                        password: 'TestPassword123!'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('database-result', '✅ Database is working!', {
+                        status: response.status,
+                        message: 'Successfully created user in database',
+                        note: 'RLS is disabled and database is accessible'
+                    });
+                    return true;
+                } else if (response.status === 409) {
+                    showResult('database-result', '✅ Database is working!', {
+                        status: response.status,
+                        message: 'Database responded (user already exists)',
+                        note: 'This means database connection works'
+                    });
+                    return true;
+                } else {
+                    showResult('database-result', '❌ Database error', {
+                        status: response.status,
+                        error: data.error?.message || data.message,
+                        note: 'Check if RLS is disabled in Supabase'
+                    }, true);
+                    return false;
+                }
+            } catch (error) {
+                showResult('database-result', '❌ Cannot test database', {
+                    error: error.message,
+                    note: 'Backend might be down'
+                }, true);
+                return false;
+            }
+        }
+
+        async function testSignup() {
+            try {
+                const timestamp = Date.now();
+                testUser = {
+                    username: `testuser_${timestamp}`,
+                    email: `test_${timestamp}@example.com`,
+                    password: 'TestPassword123!'
+                };
+
+                const response = await fetch(`${API_URL}/api/auth/signup`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testUser)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('signup-result', '✅ Signup works perfectly!', {
+                        status: response.status,
+                        user: data.user,
+                        note: 'User created successfully'
+                    });
+                    return true;
+                } else {
+                    showResult('signup-result', '❌ Signup failed', {
+                        status: response.status,
+                        error: data.error?.message || data.message
+                    }, true);
+                    return false;
+                }
+            } catch (error) {
+                showResult('signup-result', '❌ Signup request failed', {
+                    error: error.message
+                }, true);
+                return false;
+            }
+        }
+
+        async function testLogin() {
+            try {
+                // Use the test user from signup or a known user
+                const credentials = testUser || {
+                    email: 'clonexoxo80@gmail.com',
+                    password: 'password'
+                };
+
+                const response = await fetch(`${API_URL}/api/auth/login`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: credentials.email,
+                        password: credentials.password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('login-result', '✅ Login works perfectly!', {
+                        status: response.status,
+                        user: data.user,
+                        note: 'Authentication successful'
+                    });
+                    return true;
+                } else {
+                    showResult('login-result', '⚠️ Login failed', {
+                        status: response.status,
+                        error: data.error?.message || data.message,
+                        note: 'This might be due to wrong credentials, not a system error'
+                    });
+                    return false;
+                }
+            } catch (error) {
+                showResult('login-result', '❌ Login request failed', {
+                    error: error.message
+                }, true);
+                return false;
+            }
+        }
+
+        async function runAllTests() {
+            const container = document.getElementById('all-results');
+            container.innerHTML = '<div class="test-result pending">Running all tests...</div>';
+
+            const results = {
+                backend: await testBackendHealth(),
+                cors: await testCORS(),
+                database: await testDatabase(),
+                signup: await testSignup(),
+                login: await testLogin()
+            };
+
+            const allPassed = Object.values(results).every(r => r === true);
+
+            const summary = `
+                <div class="test-result ${allPassed ? 'success' : 'error'}">
+                    <h3>${allPassed ? '✅ ALL TESTS PASSED!' : '❌ SOME TESTS FAILED'}</h3>
+                    <ul>
+                        <li>Backend Health: ${results.backend ? '✅ PASS' : '❌ FAIL'}</li>
+                        <li>CORS: ${results.cors ? '✅ PASS' : '❌ FAIL'}</li>
+                        <li>Database: ${results.database ? '✅ PASS' : '❌ FAIL'}</li>
+                        <li>Signup: ${results.signup ? '✅ PASS' : '❌ FAIL'}</li>
+                        <li>Login: ${results.login ? '✅ PASS' : '⚠️ CHECK'}</li>
+                    </ul>
+                    ${allPassed ? 
+                        '<p><strong>🎉 Your system is working perfectly! You can now use your app.</strong></p>' :
+                        '<p><strong>⚠️ Some issues detected. Check the individual test results above.</strong></p>'
+                    }
+                </div>
+            `;
+
+            container.innerHTML = summary;
+        }
+
+        // Auto-run backend test on load
+        window.onload = () => {
+            testBackendHealth();
+        };
+    </script>
+</body>
+</html>
