@@ -1,21 +1,38 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const supabaseUrl = process.env.SUPABASE_URL!;
-// Use SERVICE_ROLE_KEY to bypass RLS (secure because it's server-side only)
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY!;
+let supabaseInstance: SupabaseClient | null = null;
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
+function getSupabaseClient(): SupabaseClient {
+  if (supabaseInstance) {
+    return supabaseInstance;
+  }
+
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing Supabase environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ANON_KEY are required');
+  }
+
+  // Create Supabase client with service role key (bypasses RLS)
+  supabaseInstance = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+
+  return supabaseInstance;
 }
 
-// Create Supabase client with service role key (bypasses RLS)
-export const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
+// Export a getter instead of direct instance
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(target, prop) {
+    const client = getSupabaseClient();
+    return (client as any)[prop];
   }
 });
 
@@ -23,7 +40,8 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 export async function testSupabaseConnection(): Promise<boolean> {
   try {
     console.log('Testing Supabase connection...');
-    const { data, error } = await supabase
+    const client = getSupabaseClient();
+    const { data, error } = await client
       .from('users')
       .select('count')
       .limit(1);
@@ -49,7 +67,8 @@ export async function supabaseQuery<T = any>(
   filters?: any
 ): Promise<{ rows: T[]; rowCount: number }> {
   try {
-    let query = supabase.from(table);
+    const client = getSupabaseClient();
+    let query = client.from(table);
     
     switch (operation) {
       case 'select':

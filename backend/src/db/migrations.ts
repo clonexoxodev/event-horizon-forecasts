@@ -45,7 +45,7 @@ function getMigrationFiles(): Array<{ version: string; name: string; path: strin
     return files.map((file) => {
       const [version, ...nameParts] = file.replace('.sql', '').split('_');
       return {
-        version,
+        version: version || '',
         name: nameParts.join('_'),
         path: join(migrationsDir, file),
       };
@@ -64,6 +64,10 @@ async function applyMigration(migration: {
   name: string;
   path: string;
 }): Promise<void> {
+  if (!pool) {
+    throw new Error('Database pool is not initialized. Migrations require PostgreSQL.');
+  }
+
   const client = await pool.connect();
 
   try {
@@ -193,6 +197,10 @@ export async function rollbackLastMigration(): Promise<void> {
     const isConnected = await testConnection();
     if (!isConnected) {
       throw new Error('Failed to connect to database');
+    }
+
+    if (!pool) {
+      throw new Error('Database pool is not initialized. Migrations require PostgreSQL.');
     }
 
     // Ensure migrations tracking table exists
