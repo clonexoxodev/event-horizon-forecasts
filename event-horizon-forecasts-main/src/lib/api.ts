@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://flippe-backend4-git-main-clonexoxodevs-projects.vercel.app';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://flippe-backend4.vercel.app';
 
 class ApiService {
   private baseURL: string;
