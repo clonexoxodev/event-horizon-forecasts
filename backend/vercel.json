@@ -8,15 +8,35 @@
   ],
   "routes": [
     {
+      "src": "/api/(.*)",
+      "dest": "/api/index.ts"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/api/index.ts",
-      "headers": {
-        "Access-Control-Allow-Origin": "https://event-horizon-forecasts.vercel.app",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, Cookie, X-Requested-With, Accept",
-        "Access-Control-Allow-Credentials": "true",
-        "Access-Control-Expose-Headers": "Set-Cookie"
-      }
+      "dest": "/api/index.ts"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "https://event-horizon-forecasts.vercel.app"
+        },
+        {
+          "key": "Access-Control-Allow-Credentials",
+          "value": "true"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization, Cookie, X-Requested-With, Accept"
+        }
+      ]
     }
   ]
 }
