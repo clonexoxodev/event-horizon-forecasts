@@ -26,9 +26,9 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
 
   const quickAmounts = [1000, 5000, 10000, 25000];
   const numAmount = parseFloat(amount) || 0;
-  const odds = side === "YES" ? market.yesPercent : 100 - market.yesPercent;
-  const potentialPayout = numAmount > 0 ? numAmount * (100 / odds) : 0;
-  const potentialProfit = potentialPayout - numAmount;
+  const probability = side === "YES" ? market.yesPercent : 100 - market.yesPercent;
+  const projectedReturn = numAmount > 0 ? numAmount * (100 / probability) : 0;
+  const projectedProfit = projectedReturn - numAmount;
 
   const handleQuickAmount = (value: number) => {
     setAmount(value.toString());
@@ -47,8 +47,8 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
 
     // Show success toast
     toast({
-      title: "Prediction placed!",
-      description: `You bet ${formatNaira(numAmount)} on ${side}`,
+      title: "Forecast placed!",
+      description: `You staked ${formatNaira(numAmount)} on ${side}`,
     });
 
     // Reset and close after animation
@@ -82,9 +82,9 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
             >
               <CheckCircle className="w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold mb-2 text-charcoal">Prediction Placed!</h3>
+            <h3 className="text-xl font-bold mb-2 text-charcoal">Forecast Placed!</h3>
             <p className="text-sm text-graphite">
-              You bet {formatNaira(numAmount)} on {side}
+              You staked {formatNaira(numAmount)} on {side}
             </p>
             <div className={`mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${
               side === "YES" ? "bg-emerald-soft text-emerald" : "bg-coral-soft text-coral"
@@ -127,7 +127,7 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
                 }`}
               >
                 <span className={`w-2 h-2 rounded-full ${side === "YES" ? "bg-emerald" : "bg-coral"}`} />
-                Betting on {side}
+                Forecasting {side}
               </div>
             </div>
 
@@ -179,7 +179,7 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
               ))}
             </div>
 
-            {/* Payout preview */}
+            {/* Projected return preview */}
             {numAmount > 0 && (
               <div className={`rounded-xl p-4 mb-6 space-y-2 animate-fade-in border transition-all duration-500 ${
                 side === "YES" 
@@ -191,20 +191,20 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
                   <span className="font-bold text-charcoal">{formatNaira(numAmount)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-graphite">Odds</span>
-                  <span className="font-bold text-charcoal">{odds}%</span>
+                  <span className="text-graphite">Probability</span>
+                  <span className="font-bold text-charcoal">{probability}%</span>
                 </div>
                 <div className="h-px bg-border/50 my-2" />
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-charcoal">Potential payout</span>
+                  <span className="text-sm font-medium text-charcoal">Projected return</span>
                   <div className="text-right">
-                    <div className="font-extrabold text-lg text-charcoal animate-fade-in">{formatNaira(potentialPayout)}</div>
+                    <div className="font-extrabold text-lg text-charcoal animate-fade-in">{formatNaira(projectedReturn)}</div>
                     <div
                       className={`text-xs font-semibold animate-fade-in ${
                         side === "YES" ? "text-emerald" : "text-coral"
                       }`}
                     >
-                      +{formatNaira(potentialProfit)} profit
+                      +{formatNaira(projectedProfit)} profit
                     </div>
                   </div>
                 </div>
@@ -224,12 +224,12 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Placing prediction...
+                  Placing forecast...
                 </>
               ) : (
                 <>
                   <TrendingUp className="w-4 h-4 mr-2" />
-                  Confirm Prediction
+                  Confirm Forecast
                 </>
               )}
               {/* Button shimmer effect on hover */}

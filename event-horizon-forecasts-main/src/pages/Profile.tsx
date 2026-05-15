@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Header } from "@/components/Header";
+import { MobileNav } from "@/components/MobileNav";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { User, Mail, Lock, Bell, Globe, Shield } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -26,7 +28,10 @@ export default function Profile() {
   }
 
   const handleSave = () => {
-    // TODO: Implement save logic
+    // Show coming soon toast
+    toast("Coming soon", {
+      description: "Profile editing is currently in development",
+    });
     setEditing(false);
   };
 
@@ -52,7 +57,7 @@ export default function Profile() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-background pb-20 md:pb-0">
       <Header />
       <main className="flex-1 container py-10 max-w-3xl">
         <div className="mb-8">
@@ -133,7 +138,14 @@ export default function Profile() {
         {/* Security */}
         <div className="bg-off-white rounded-2xl p-6 shadow-card border border-graphite/10 mb-6">
           <h3 className="font-bold mb-4 text-charcoal">Security</h3>
-          <button className="flex items-center justify-between w-full p-4 rounded-xl hover:bg-graphite/5 transition-fast text-left border border-graphite/10">
+          <button 
+            onClick={() => {
+              toast("Coming soon", {
+                description: "Password change feature is currently in development",
+              });
+            }}
+            className="flex items-center justify-between w-full p-4 rounded-xl hover:bg-graphite/5 transition-fast text-left border border-graphite/10"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-purple/10 text-purple grid place-items-center">
                 <Lock className="w-5 h-5" />
@@ -153,7 +165,14 @@ export default function Profile() {
           <ul className="space-y-2">
             {settings.map((setting) => (
               <li key={setting.title}>
-                <button className="flex items-center justify-between w-full p-4 rounded-xl hover:bg-graphite/5 transition-fast text-left border border-graphite/10">
+                <button 
+                  onClick={() => {
+                    toast("Coming soon", {
+                      description: `${setting.title} feature is currently in development`,
+                    });
+                  }}
+                  className="flex items-center justify-between w-full p-4 rounded-xl hover:bg-graphite/5 transition-fast text-left border border-graphite/10"
+                >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-graphite/10 grid place-items-center">
                       <setting.icon className="w-5 h-5 text-graphite" />
@@ -183,6 +202,7 @@ export default function Profile() {
         </div>
       </main>
       <Footer />
+      <MobileNav />
     </div>
   );
 }

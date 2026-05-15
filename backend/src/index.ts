@@ -6,6 +6,9 @@ import { testSupabaseConnection } from './db/supabase-client.js';
 import authRoutes from './routes/auth.routes.js';
 import walletRoutes from './routes/wallet.routes.js';
 import marketRoutes from './routes/market.routes.js';
+import adminRoutes from './routes/admin.routes.js';
+import adminMarketRoutes from './routes/admin-market.routes.js';
+import notificationsRoutes from './routes/notifications.routes.js';
 
 dotenv.config();
 
@@ -25,6 +28,9 @@ app.use(cookieParser());
 app.use('/api/auth', authRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/markets', marketRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/admin/markets', adminMarketRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -36,7 +42,8 @@ app.get('/', (req, res) => {
       health: '/api/health',
       auth: '/api/auth/*',
       wallet: '/api/wallet/*',
-      markets: '/api/markets/*'
+      markets: '/api/markets/*',
+      admin: '/api/admin/*'
     }
   });
 });

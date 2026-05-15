@@ -183,12 +183,13 @@ router.get('/me', authMiddleware.authenticate, async (req: Request, res: Respons
       });
     }
 
-    // You could fetch fresh user data from database here if needed
+    // Role is already fetched fresh from database by auth middleware
     res.json({
       user: {
         id: req.user.userId,
         username: req.user.username,
-        email: req.user.email
+        email: req.user.email,
+        role: req.user.role
       }
     });
   } catch (error) {

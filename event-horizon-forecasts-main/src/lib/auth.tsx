@@ -7,6 +7,7 @@ type AuthUser = {
   username: string;
   name: string;
   balance: number;
+  role: 'user' | 'admin' | 'super_admin';
 };
 
 type AuthCtx = {
@@ -16,6 +17,16 @@ type AuthCtx = {
   signup: (name: string, email: string, password: string) => Promise<{ error: string | null }>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  hasRole: (role: 'user' | 'admin' | 'super_admin') => boolean;
+  isAdmin: () => boolean;
+  isSuperAdmin: () => boolean;
+};
+
+// Role hierarchy for comparison
+const ROLE_HIERARCHY = {
+  user: 0,
+  admin: 1,
+  super_admin: 2
 };
 
 const Ctx = createContext<AuthCtx | null>(null);
@@ -42,6 +53,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           username: response.user.username,
           name: response.user.username,
           balance: (walletResponse.wallet?.balance_ngn_kobo || 0) / 100,
+          role: response.user.role || 'user'
         };
         setUser(authUser);
         setSession({ user: authUser });
@@ -69,6 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           username: response.user.username,
           name: response.user.username,
           balance: (walletResponse.wallet?.balance_ngn_kobo || 0) / 100,
+          role: response.user.role || 'user'
         };
         setUser(authUser);
         setSession({ user: authUser });
@@ -96,8 +109,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Role utility functions
+  const hasRole = (requiredRole: 'user' | 'admin' | 'super_admin'): boolean => {
+    if (!user) return false;
+    const userRoleLevel = ROLE_HIERARCHY[user.role];
+    const requiredRoleLevel = ROLE_HIERARCHY[requiredRole];
+    return userRoleLevel >= requiredRoleLevel;
+  };
+
+  const isAdmin = (): boolean => {
+    return user?.role === 'admin' || user?.role === 'super_admin';
+  };
+
+  const isSuperAdmin = (): boolean => {
+    return user?.role === 'super_admin';
+  };
+
   return (
-    <Ctx.Provider value={{ user, session, login, signup, loginWithGoogle, logout }}>
+    <Ctx.Provider value={{ 
+      user, 
+      session, 
+      login, 
+      signup, 
+      loginWithGoogle, 
+      logout,
+      hasRole,
+      isAdmin,
+      isSuperAdmin
+    }}>
       {children}
     </Ctx.Provider>
   );

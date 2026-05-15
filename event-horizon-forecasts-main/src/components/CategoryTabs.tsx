@@ -17,7 +17,7 @@ export const CategoryTabs = ({ onChange }: { onChange?: (c: string) => void }) =
   return (
     <div className="border-b border-border/40 bg-card/60 backdrop-premium sticky top-[57px] z-30 shadow-xs">
       <div className="container">
-        <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin py-1">
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin py-1 px-1">
           {categories.map(({ label, icon: Icon }) => {
             const isActive = active === label;
             return (

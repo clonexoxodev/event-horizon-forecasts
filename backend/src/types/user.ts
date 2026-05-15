@@ -3,6 +3,7 @@ export interface User {
   username: string;
   email: string;
   password_hash: string;
+  role: 'user' | 'admin' | 'super_admin';
   profile_picture_url?: string;
   instagram_handle?: string;
   twitter_handle?: string;
@@ -20,6 +21,7 @@ export interface UserResponse {
   id: string;
   username: string;
   email: string;
+  role: 'user' | 'admin' | 'super_admin';
   profile_picture_url?: string;
   instagram_handle?: string;
   twitter_handle?: string;

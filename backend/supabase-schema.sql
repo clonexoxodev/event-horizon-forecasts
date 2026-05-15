@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
   username VARCHAR(50) UNIQUE NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
+  role VARCHAR(20) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin', 'super_admin')),
   profile_picture_url VARCHAR(500),
   instagram_handle VARCHAR(100),
   twitter_handle VARCHAR(100),
@@ -26,6 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 
 -- Wallets Table
 CREATE TABLE IF NOT EXISTS wallets (
@@ -159,3 +161,47 @@ ALTER TABLE positions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE leaderboard_entries DISABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications DISABLE ROW LEVEL SECURITY;
+
+
+-- Position Listings Table (for Sell Position feature)
+CREATE TABLE IF NOT EXISTS position_listings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  position_id UUID NOT NULL REFERENCES positions(id) ON DELETE CASCADE,
+  listing_code VARCHAR(8) UNIQUE NOT NULL,
+  asking_price BIGINT NOT NULL,
+  status VARCHAR(20) NOT NULL CHECK (status IN ('active', 'sold', 'cancelled')),
+  buyer_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  sold_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT asking_price_positive CHECK (asking_price > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_position_listings_position_id ON position_listings(position_id);
+CREATE INDEX IF NOT EXISTS idx_position_listings_listing_code ON position_listings(listing_code);
+CREATE INDEX IF NOT EXISTS idx_position_listings_status ON position_listings(status);
+CREATE INDEX IF NOT EXISTS idx_position_listings_created_at ON position_listings(created_at DESC);
+
+-- Disable RLS for position_listings
+ALTER TABLE IF EXISTS position_listings DISABLE ROW LEVEL SECURITY;
+
+-- Add comment
+COMMENT ON TABLE position_listings IS 'Stores position listings for the secondary market (sell position feature)';
+
+
+-- Migration: Add role column to existing users table (if upgrading from previous schema)
+-- This is safe to run multiple times
+DO $$ 
+BEGIN
+  -- Add role column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='role') THEN
+    ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin', 'super_admin'));
+    CREATE INDEX idx_users_role ON users(role);
+  END IF;
+  
+  -- Set primary super admin role for fehintoluwaolu@gmail.com
+  UPDATE users SET role = 'super_admin' WHERE email = 'fehintoluwaolu@gmail.com';
+END $$;
+
+-- Add comment
+COMMENT ON COLUMN users.role IS 'User role: user (default), admin (can manage markets), super_admin (can manage admins and view analytics)';

@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { Eye, EyeOff, Mail, Lock, AlertCircle, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -91,7 +92,16 @@ export default function Login() {
               </div>
 
               <div className="text-right">
-                <button type="button" className="text-xs text-primary hover:underline">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    toast({
+                      title: "Coming soon",
+                      description: "Password reset feature is currently in development",
+                    });
+                  }}
+                  className="text-xs text-primary hover:underline"
+                >
                   Forgot password?
                 </button>
               </div>
@@ -121,6 +131,11 @@ export default function Login() {
 
             {/* Google Login */}
             <Button
+              onClick={() => {
+                toast("Coming soon", {
+                  description: "Google sign-in is currently in development",
+                });
+              }}
               variant="outline"
               className="w-full h-11 rounded-xl font-medium border-border hover:bg-secondary"
               disabled={loading}

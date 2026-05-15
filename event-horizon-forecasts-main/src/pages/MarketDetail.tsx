@@ -1,25 +1,41 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Clock, ArrowLeft, TrendingUp, ExternalLink, Users, Share2, Bookmark } from "lucide-react";
+import { toast } from "sonner";
 import { Header } from "@/components/Header";
+import { MobileNav } from "@/components/MobileNav";
 import { Footer } from "@/components/Footer";
+import { PositionListings } from "@/components/PositionListings";
+import { MarketHealthIndicators } from "@/components/MarketHealthIndicators";
 import { Button } from "@/components/ui/button";
-import { PredictionModal } from "@/components/PredictionModal";
-import { markets, formatNaira } from "@/lib/markets";
+import { formatNaira } from "@/lib/markets";
 import { useAuth } from "@/lib/auth";
-import { useState } from "react";
+import { useForecastSlip } from "@/lib/forecast-slip";
+import { useMarketState } from "@/lib/market-state";
+import { AnimatedNumber } from "@/components/AnimatedNumber";
+import { useState, useEffect } from "react";
 
 const MarketDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const m = markets.find(x => x.id === id) ?? markets[0];
-  const no = 100 - m.yesPercent;
+  const { getMarket } = useMarketState();
+  const m = getMarket(id || "");
   const { user } = useAuth();
+  const { openForecastSlip } = useForecastSlip();
   const [bookmarked, setBookmarked] = useState(false);
-  const [predictionModalOpen, setPredictionModalOpen] = useState(false);
-  const [selectedSide, setSelectedSide] = useState<"YES" | "NO">("YES");
   const [activeSide, setActiveSide] = useState<"YES" | "NO" | null>(null);
 
-  const handleBet = (side: "YES" | "NO") => {
+  // Redirect if market not found
+  useEffect(() => {
+    if (!m && id) {
+      navigate("/");
+    }
+  }, [m, id, navigate]);
+
+  if (!m) {
+    return null;
+  }
+
+  const handleForecast = (side: "YES" | "NO") => {
     if (!user) {
       navigate("/signup");
       return;
@@ -27,26 +43,22 @@ const MarketDetail = () => {
     
     // Visual feedback: activate the button
     setActiveSide(side);
-    setSelectedSide(side);
     
-    // Small delay for visual feedback before opening modal
+    // Small delay for visual feedback before opening forecast slip
     setTimeout(() => {
-      setPredictionModalOpen(true);
+      openForecastSlip({
+        marketId: m.id,
+        marketQuestion: m.question,
+        marketIcon: m.icon,
+        side,
+        currentPrice: side === "YES" ? m.yesPrice : m.noPrice,
+      });
+      setActiveSide(null);
     }, 150);
   };
 
-  const handleModalClose = () => {
-    setPredictionModalOpen(false);
-    // Reset active state after modal closes
-    setTimeout(() => {
-      setActiveSide(null);
-    }, 300);
-  };
-
-  const traders = Math.floor(m.pool / 4200);
-
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-white pb-20 md:pb-0">
       <Header />
       <main className="flex-1 container py-8 max-w-2xl">
         {/* Back */}
@@ -60,7 +72,7 @@ const MarketDetail = () => {
 
         <div className="space-y-4">
           {/* Main card */}
-          <div className="bg-off-white rounded-2xl p-6 shadow-card border border-graphite/10 space-y-6">
+          <div className="bg-white rounded-xl p-6 shadow-card border border-graphite/10 space-y-6">
             {/* Top row */}
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -82,7 +94,14 @@ const MarketDetail = () => {
                 >
                   <Bookmark className={`w-4 h-4 ${bookmarked ? "fill-purple" : ""}`} />
                 </button>
-                <button className="w-9 h-9 rounded-xl grid place-items-center border border-graphite/20 text-graphite hover:text-charcoal hover:bg-graphite/5 transition-fast">
+                <button 
+                  onClick={() => {
+                    toast("Coming soon", {
+                      description: "Share feature is currently in development",
+                    });
+                  }}
+                  className="w-9 h-9 rounded-xl grid place-items-center border border-graphite/20 text-graphite hover:text-charcoal hover:bg-graphite/5 transition-fast"
+                >
                   <Share2 className="w-4 h-4" />
                 </button>
               </div>
@@ -93,18 +112,8 @@ const MarketDetail = () => {
             <p className="text-sm text-graphite leading-relaxed">{m.description}</p>
 
             {/* Stats row */}
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { icon: TrendingUp, label: "Pool size",   value: formatNaira(m.pool) },
-                { icon: Users,      label: "Traders",     value: traders.toLocaleString() },
-                { icon: Clock,      label: "Closes in",   value: m.closesIn },
-              ].map(({ icon: Icon, label, value }) => (
-                <div key={label} className="bg-graphite/5 rounded-xl p-3.5 text-center border border-graphite/10">
-                  <Icon className="w-4 h-4 text-graphite mx-auto mb-1.5" />
-                  <div className="font-bold text-base text-charcoal">{value}</div>
-                  <div className="text-xs text-graphite mt-0.5">{label}</div>
-                </div>
-              ))}
+            <div className="space-y-3">
+              <MarketHealthIndicators market={m} variant="detailed" />
             </div>
 
             {/* Progress */}
@@ -112,29 +121,29 @@ const MarketDetail = () => {
               <div className="flex justify-between text-sm font-bold mb-2.5">
                 <span className="text-emerald flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald" />
-                  YES {m.yesPercent}%
+                  YES <AnimatedNumber value={m.yesPrice} suffix="%" />
                 </span>
                 <span className="text-coral flex items-center gap-1.5">
-                  NO {no}%
+                  NO <AnimatedNumber value={m.noPrice} suffix="%" />
                   <span className="w-2 h-2 rounded-full bg-coral" />
                 </span>
               </div>
               <div className="h-3 rounded-full bg-coral-soft overflow-hidden">
                 <div
                   className="h-full bg-emerald rounded-full transition-all duration-700"
-                  style={{ width: `${m.yesPercent}%` }}
+                  style={{ width: `${m.yesPrice}%` }}
                 />
               </div>
               <div className="flex justify-between text-xs text-graphite mt-1.5">
-                <span>{Math.round(traders * m.yesPercent / 100)} traders</span>
-                <span>{Math.round(traders * no / 100)} traders</span>
+                <span>{Math.round(m.participants * m.yesPrice / 100)} traders</span>
+                <span>{Math.round(m.participants * m.noPrice / 100)} traders</span>
               </div>
             </div>
 
-            {/* Bet buttons */}
+            {/* Forecast buttons */}
             <div className="grid grid-cols-2 gap-3">
               <Button
-                onClick={() => handleBet("YES")}
+                onClick={() => handleForecast("YES")}
                 disabled={activeSide === "YES"}
                 className={`h-13 font-bold rounded-xl text-base shadow-sm transition-all duration-300 relative overflow-hidden group ${
                   activeSide === "YES"
@@ -147,13 +156,13 @@ const MarketDetail = () => {
                     <span className="w-2 h-2 rounded-full bg-white animate-ping absolute" />
                   )}
                   <TrendingUp className="w-4 h-4" />
-                  YES — {m.yesPercent}%
+                  YES — <AnimatedNumber value={m.yesPrice} suffix="%" />
                 </span>
                 {/* Hover gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
               </Button>
               <Button
-                onClick={() => handleBet("NO")}
+                onClick={() => handleForecast("NO")}
                 disabled={activeSide === "NO"}
                 className={`h-13 font-bold rounded-xl text-base shadow-sm transition-all duration-300 relative overflow-hidden group ${
                   activeSide === "NO"
@@ -166,7 +175,7 @@ const MarketDetail = () => {
                     <span className="w-2 h-2 rounded-full bg-white animate-ping absolute" />
                   )}
                   <TrendingUp className="w-4 h-4 rotate-180" />
-                  NO — {no}%
+                  NO — <AnimatedNumber value={m.noPrice} suffix="%" />
                 </span>
                 {/* Hover gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
@@ -184,7 +193,7 @@ const MarketDetail = () => {
           </div>
 
           {/* Source card */}
-          <div className="bg-off-white rounded-2xl px-5 py-4 shadow-card border border-graphite/10 flex items-center justify-between text-sm">
+          <div className="bg-white rounded-xl px-5 py-4 shadow-card border border-graphite/10 flex items-center justify-between text-sm">
             <div>
               <div className="text-xs text-graphite mb-0.5">Resolution source</div>
               <a href="#" className="flex items-center gap-1.5 font-semibold text-charcoal hover:text-purple transition-fast">
@@ -196,23 +205,16 @@ const MarketDetail = () => {
               <code className="text-xs font-mono bg-graphite/10 text-charcoal px-2 py-0.5 rounded-lg border border-graphite/20">{m.id}</code>
             </div>
           </div>
+
+          {/* Position Listings Section */}
+          <div className="mt-8">
+            <PositionListings marketId={m.id} marketStatus={m.status} />
+          </div>
         </div>
       </main>
 
-      {/* Prediction Modal */}
-      <PredictionModal
-        open={predictionModalOpen}
-        onClose={handleModalClose}
-        market={{
-          id: m.id,
-          question: m.question,
-          icon: m.icon,
-          yesPercent: m.yesPercent,
-        }}
-        side={selectedSide}
-      />
-
       <Footer />
+      <MobileNav />
     </div>
   );
 };

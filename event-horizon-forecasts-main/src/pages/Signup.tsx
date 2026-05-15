@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { Eye, EyeOff, Mail, Lock, User, AlertCircle, Loader2, CheckCircle } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -185,6 +186,11 @@ export default function Signup() {
 
                 {/* Google Signup */}
                 <Button
+                  onClick={() => {
+                    toast("Coming soon", {
+                      description: "Google sign-up is currently in development",
+                    });
+                  }}
                   variant="outline"
                   className="w-full h-11 rounded-xl font-medium border-border hover:bg-secondary"
                   disabled={loading}

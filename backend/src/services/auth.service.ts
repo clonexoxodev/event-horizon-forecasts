@@ -52,6 +52,10 @@ export class AuthService {
     const saltRounds = 12;
     const password_hash = await bcrypt.hash(userData.password, saltRounds);
 
+    // Check if this is the primary super admin email
+    const isPrimarySuperAdmin = userData.email === 'fehintoluwaolu@gmail.com';
+    const role = isPrimarySuperAdmin ? 'super_admin' : 'user';
+
     try {
       // Create user
       const { data: newUser, error: userError } = await supabase
@@ -59,7 +63,8 @@ export class AuthService {
         .insert({
           username: userData.username,
           email: userData.email,
-          password_hash: password_hash
+          password_hash: password_hash,
+          role: role
         })
         .select()
         .single();
@@ -123,6 +128,23 @@ export class AuthService {
     const isValidPassword = await bcrypt.compare(loginData.password, user.password_hash);
     if (!isValidPassword) {
       throw new Error('Invalid credentials');
+    }
+
+    // Check if this is the primary super admin email and ensure role is set
+    if (loginData.email === 'fehintoluwaolu@gmail.com' && user.role !== 'super_admin') {
+      // Update role to super_admin
+      const { data: updatedUser, error: updateError } = await supabase
+        .from('users')
+        .update({ role: 'super_admin' })
+        .eq('id', user.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Failed to update primary super admin role:', updateError);
+      } else {
+        user.role = updatedUser.role;
+      }
     }
 
     // Generate JWT token

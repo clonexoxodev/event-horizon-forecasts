@@ -112,6 +112,29 @@ class ApiService {
     return this.request(`/api/wallet/convert?amount=${amount}&from=${fromCurrency}&to=${toCurrency}`);
   }
 
+  // Admin Management (Super Admin only)
+  async addAdmin(email: string) {
+    return this.request('/api/admin/add-admin', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async removeAdmin(userId: string) {
+    return this.request('/api/admin/remove-admin', {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+  }
+
+  async listAdmins() {
+    return this.request('/api/admin/list-admins');
+  }
+
+  async getAnalytics() {
+    return this.request('/api/admin/analytics');
+  }
+
   // Health check
   async healthCheck() {
     return this.request('/api/health');
