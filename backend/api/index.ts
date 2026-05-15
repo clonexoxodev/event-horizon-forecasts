@@ -46,6 +46,8 @@ app.get('/api/health', (req: Request, res: Response) => {
     status: 'ok',
     message: 'Prediction Platform API is running',
     timestamp: new Date().toISOString(),
+    version: '2.1.0-bcryptjs',
+    bcryptVersion: 'bcryptjs',
     env: {
       supabaseConfigured: !!supabaseUrl,
       jwtConfigured: !!JWT_SECRET,
