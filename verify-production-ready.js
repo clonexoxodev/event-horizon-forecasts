@@ -69,7 +69,7 @@ async function testHealthCheck() {
       log(`   Version: ${response.data.version}`, 'blue');
       log(`   bcrypt: ${response.data.bcryptVersion}`, 'blue');
       
-      if (response.data.version === '2.1.0-bcryptjs' && response.data.bcryptVersion === 'bcryptjs') {
+      if (response.data.version === '2.2.0-cross-domain-cookies' && response.data.bcryptVersion === 'bcryptjs') {
         log('✅ Correct version deployed!', 'green');
         return true;
       } else {
