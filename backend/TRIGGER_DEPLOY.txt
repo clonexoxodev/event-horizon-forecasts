@@ -1,0 +1,3 @@
+Deployment trigger - Force Vercel to redeploy with latest fixes
+Timestamp: 2026-05-15 19:11:00
+Reason: Deploy login fixes to production
