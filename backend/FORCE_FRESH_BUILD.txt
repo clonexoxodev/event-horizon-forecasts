@@ -1,0 +1,6 @@
+Force fresh build timestamp: 2026-05-15 23:51:00
+This file forces Vercel to do a completely fresh build
+No cache, no old dependencies
+MUST use bcryptjs only
+Critical for investor demo
+Build ID: EMERGENCY-FIX-FINAL
