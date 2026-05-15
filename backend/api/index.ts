@@ -481,6 +481,395 @@ app.get('/api/auth/me', authenticate, async (req: Request, res: Response) => {
 });
 
 // ============================================================================
+// WALLET ROUTES
+// ============================================================================
+
+/**
+ * GET /api/wallet
+ * Get wallet balance
+ */
+app.get('/api/wallet', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+
+    const { data: wallet, error } = await supabase
+      .from('wallets')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (error || !wallet) {
+      return res.status(404).json({
+        error: {
+          code: 'WALLET_NOT_FOUND',
+          message: 'Wallet not found',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    res.json({
+      wallet: {
+        id: wallet.id,
+        userId: wallet.user_id,
+        balanceNgn: wallet.balance_ngn_kobo / 100,
+        balanceUsd: wallet.balance_usd_cents / 100,
+        availableNgn: wallet.available_ngn_kobo / 100,
+        availableUsd: wallet.available_usd_cents / 100
+      }
+    });
+  } catch (error) {
+    console.error('Get wallet error:', error);
+    res.status(500).json({
+      error: {
+        code: 'GET_WALLET_FAILED',
+        message: 'Failed to retrieve wallet',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+/**
+ * POST /api/wallet/deposit
+ * Deposit funds
+ */
+app.post('/api/wallet/deposit', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const { amount, currency } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_AMOUNT',
+          message: 'Amount must be greater than 0',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const validCurrency = currency || 'NGN';
+    if (validCurrency !== 'NGN' && validCurrency !== 'USD') {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_CURRENCY',
+          message: 'Currency must be NGN or USD',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    // Get current wallet
+    const { data: wallet, error: walletError } = await supabase
+      .from('wallets')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (walletError || !wallet) {
+      return res.status(404).json({
+        error: {
+          code: 'WALLET_NOT_FOUND',
+          message: 'Wallet not found',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    // Convert amount to smallest unit (kobo/cents)
+    const amountSmallestUnit = Math.round(amount * 100);
+
+    // Update wallet balance
+    const updateField = validCurrency === 'NGN' ? 'balance_ngn_kobo' : 'balance_usd_cents';
+    const availableField = validCurrency === 'NGN' ? 'available_ngn_kobo' : 'available_usd_cents';
+    
+    const { data: updatedWallet, error: updateError } = await supabase
+      .from('wallets')
+      .update({
+        [updateField]: wallet[updateField] + amountSmallestUnit,
+        [availableField]: wallet[availableField] + amountSmallestUnit
+      })
+      .eq('user_id', user.id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Wallet update error:', updateError);
+      return res.status(500).json({
+        error: {
+          code: 'DEPOSIT_FAILED',
+          message: 'Failed to process deposit',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    // Create transaction record
+    await supabase
+      .from('transactions')
+      .insert({
+        user_id: user.id,
+        wallet_id: wallet.id,
+        type: 'deposit',
+        amount_smallest_unit: amountSmallestUnit,
+        currency: validCurrency,
+        direction: 'credit',
+        status: 'completed'
+      });
+
+    res.json({
+      message: 'Deposit successful',
+      wallet: {
+        balanceNgn: updatedWallet.balance_ngn_kobo / 100,
+        balanceUsd: updatedWallet.balance_usd_cents / 100,
+        availableNgn: updatedWallet.available_ngn_kobo / 100,
+        availableUsd: updatedWallet.available_usd_cents / 100
+      }
+    });
+  } catch (error) {
+    console.error('Deposit error:', error);
+    res.status(500).json({
+      error: {
+        code: 'DEPOSIT_FAILED',
+        message: 'Failed to process deposit',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+/**
+ * POST /api/wallet/withdraw
+ * Withdraw funds
+ */
+app.post('/api/wallet/withdraw', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const { amount, currency } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_AMOUNT',
+          message: 'Amount must be greater than 0',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const validCurrency = currency || 'NGN';
+    if (validCurrency !== 'NGN' && validCurrency !== 'USD') {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_CURRENCY',
+          message: 'Currency must be NGN or USD',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    // Get current wallet
+    const { data: wallet, error: walletError } = await supabase
+      .from('wallets')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (walletError || !wallet) {
+      return res.status(404).json({
+        error: {
+          code: 'WALLET_NOT_FOUND',
+          message: 'Wallet not found',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    // Convert amount to smallest unit
+    const amountSmallestUnit = Math.round(amount * 100);
+
+    // Check sufficient balance
+    const availableField = validCurrency === 'NGN' ? 'available_ngn_kobo' : 'available_usd_cents';
+    if (wallet[availableField] < amountSmallestUnit) {
+      return res.status(422).json({
+        error: {
+          code: 'INSUFFICIENT_BALANCE',
+          message: 'Insufficient balance',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    // Update wallet balance
+    const updateField = validCurrency === 'NGN' ? 'balance_ngn_kobo' : 'balance_usd_cents';
+    
+    const { data: updatedWallet, error: updateError } = await supabase
+      .from('wallets')
+      .update({
+        [updateField]: wallet[updateField] - amountSmallestUnit,
+        [availableField]: wallet[availableField] - amountSmallestUnit
+      })
+      .eq('user_id', user.id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Wallet update error:', updateError);
+      return res.status(500).json({
+        error: {
+          code: 'WITHDRAWAL_FAILED',
+          message: 'Failed to process withdrawal',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    // Create transaction record
+    await supabase
+      .from('transactions')
+      .insert({
+        user_id: user.id,
+        wallet_id: wallet.id,
+        type: 'withdrawal',
+        amount_smallest_unit: amountSmallestUnit,
+        currency: validCurrency,
+        direction: 'debit',
+        status: 'completed'
+      });
+
+    res.json({
+      message: 'Withdrawal successful',
+      wallet: {
+        balanceNgn: updatedWallet.balance_ngn_kobo / 100,
+        balanceUsd: updatedWallet.balance_usd_cents / 100,
+        availableNgn: updatedWallet.available_ngn_kobo / 100,
+        availableUsd: updatedWallet.available_usd_cents / 100
+      }
+    });
+  } catch (error) {
+    console.error('Withdrawal error:', error);
+    res.status(500).json({
+      error: {
+        code: 'WITHDRAWAL_FAILED',
+        message: 'Failed to process withdrawal',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+/**
+ * GET /api/wallet/transactions
+ * Get transaction history
+ */
+app.get('/api/wallet/transactions', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    const { data: transactions, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error('Get transactions error:', error);
+      return res.status(500).json({
+        error: {
+          code: 'GET_TRANSACTIONS_FAILED',
+          message: 'Failed to retrieve transactions',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    res.json({
+      transactions: transactions.map(tx => ({
+        id: tx.id,
+        type: tx.type,
+        amount: tx.amount_smallest_unit / 100,
+        currency: tx.currency,
+        direction: tx.direction,
+        status: tx.status,
+        createdAt: tx.created_at
+      })),
+      pagination: {
+        limit,
+        offset,
+        count: transactions.length
+      }
+    });
+  } catch (error) {
+    console.error('Get transactions error:', error);
+    res.status(500).json({
+      error: {
+        code: 'GET_TRANSACTIONS_FAILED',
+        message: 'Failed to retrieve transactions',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+/**
+ * GET /api/wallet/convert
+ * Get currency conversion rate
+ */
+app.get('/api/wallet/convert', authenticate, async (req: Request, res: Response) => {
+  try {
+    const from = req.query.from as string;
+    const to = req.query.to as string;
+    const amount = parseFloat(req.query.amount as string);
+
+    if (!from || !to) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'from and to currencies are required',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    // Simple conversion rate (NGN to USD)
+    const NGN_TO_USD_RATE = 0.0013; // 1 NGN = 0.0013 USD (approximate)
+    const USD_TO_NGN_RATE = 1 / NGN_TO_USD_RATE;
+
+    let rate = 1;
+    let convertedAmount = amount;
+
+    if (from === 'NGN' && to === 'USD') {
+      rate = NGN_TO_USD_RATE;
+      convertedAmount = amount * NGN_TO_USD_RATE;
+    } else if (from === 'USD' && to === 'NGN') {
+      rate = USD_TO_NGN_RATE;
+      convertedAmount = amount * USD_TO_NGN_RATE;
+    }
+
+    res.json({
+      from,
+      to,
+      rate,
+      amount,
+      convertedAmount
+    });
+  } catch (error) {
+    console.error('Currency conversion error:', error);
+    res.status(500).json({
+      error: {
+        code: 'CONVERSION_FAILED',
+        message: 'Failed to convert currency',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+// ============================================================================
 // ADMIN ROUTES
 // ============================================================================
 
