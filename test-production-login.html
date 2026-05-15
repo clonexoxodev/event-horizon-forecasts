@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Production Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Production Login Test</h1>
+    
+    <div class="test-section info">
+        <h3>Test Configuration</h3>
+        <p><strong>Backend:</strong> https://flippe-backend4.vercel.app</p>
+        <p><strong>Email:</strong> fehintoluwaolu@gmail.com</p>
+        <p><strong>Password:</strong> fehin0706</p>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 1: Health Check</h3>
+        <button onclick="testHealth()">Test Health Endpoint</button>
+        <div id="health-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 2: Check User</h3>
+        <button onclick="testCheckUser()">Check User Exists</button>
+        <div id="user-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 3: Login</h3>
+        <button onclick="testLogin()">Test Login</button>
+        <div id="login-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 4: Get Wallet</h3>
+        <button onclick="testWallet()">Test Wallet (After Login)</button>
+        <div id="wallet-result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://flippe-backend4.vercel.app';
+        const TEST_EMAIL = 'fehintoluwaolu@gmail.com';
+        const TEST_PASSWORD = 'fehin0706';
+
+        async function testHealth() {
+            const resultDiv = document.getElementById('health-result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/health`);
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <p>✅ Health check successful!</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <p>❌ Health check failed!</p>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        async function testCheckUser() {
+            const resultDiv = document.getElementById('user-result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/debug/check-user`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email: TEST_EMAIL })
+                });
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <p>✅ User check successful!</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <p>❌ User check failed!</p>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        async function testLogin() {
+            const resultDiv = document.getElementById('login-result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        email: TEST_EMAIL,
+                        password: TEST_PASSWORD
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <p>✅ Login successful!</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <p>❌ Login failed! Status: ${response.status}</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <p>❌ Login request failed!</p>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        async function testWallet() {
+            const resultDiv = document.getElementById('wallet-result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/wallet`, {
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <p>✅ Wallet fetch successful!</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <p>❌ Wallet fetch failed! Status: ${response.status}</p>
+                            <p>This is expected if you haven't logged in yet.</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <p>❌ Wallet request failed!</p>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        // Auto-run health check on load
+        window.onload = () => {
+            testHealth();
+        };
+    </script>
+</body>
+</html>
