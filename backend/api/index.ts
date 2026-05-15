@@ -48,9 +48,52 @@ app.get('/api/health', (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     env: {
       supabaseConfigured: !!supabaseUrl,
-      jwtConfigured: !!JWT_SECRET
+      jwtConfigured: !!JWT_SECRET,
+      supabaseUrl: supabaseUrl ? supabaseUrl.substring(0, 30) + '...' : 'not set',
+      nodeEnv: process.env.NODE_ENV || 'not set'
     }
   });
+});
+
+// Debug endpoint - Check if user exists (temporary)
+app.post('/api/debug/check-user', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email required' });
+    }
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, email, username, created_at')
+      .eq('email', email.trim().toLowerCase())
+      .single();
+
+    if (error) {
+      return res.json({
+        exists: false,
+        error: error.message,
+        hint: 'User not found in database. Try signup first.'
+      });
+    }
+
+    res.json({
+      exists: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        createdAt: user.created_at
+      },
+      hint: 'User exists. If login fails, password might be incorrect.'
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      error: 'Failed to check user',
+      message: error.message
+    });
+  }
 });
 
 // Root route
