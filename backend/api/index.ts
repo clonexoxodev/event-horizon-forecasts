@@ -496,6 +496,92 @@ app.post('/api/auth/logout', (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/auth/reset-password
+ * Reset password for any user (temporary solution for broken passwords)
+ */
+app.post('/api/auth/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    // Validate input
+    if (!email || !newPassword) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Email and new password are required',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Password must be at least 8 characters long',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    // Find user
+    const { data: user, error: findError } = await supabase
+      .from('users')
+      .select('id, email, username')
+      .eq('email', email.trim().toLowerCase())
+      .single();
+
+    if (findError || !user) {
+      return res.status(404).json({
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: 'User not found',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    // Hash new password
+    const newPasswordHash = await bcrypt.hash(newPassword, 12);
+
+    // Update password
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ password_hash: newPasswordHash })
+      .eq('id', user.id);
+
+    if (updateError) {
+      console.error('Password update error:', updateError);
+      return res.status(500).json({
+        error: {
+          code: 'UPDATE_FAILED',
+          message: 'Failed to update password',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully. You can now login with your new password.',
+      user: {
+        email: user.email,
+        username: user.username
+      }
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({
+      error: {
+        code: 'RESET_FAILED',
+        message: 'Failed to reset password',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+/**
  * GET /api/auth/me
  * Get current user
  */

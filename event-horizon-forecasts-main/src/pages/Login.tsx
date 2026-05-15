@@ -92,18 +92,12 @@ export default function Login() {
               </div>
 
               <div className="text-right">
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    toast({
-                      title: "Coming soon",
-                      description: "Password reset feature is currently in development",
-                    });
-                  }}
+                <Link 
+                  to="/reset-password"
                   className="text-xs text-primary hover:underline"
                 >
                   Forgot password?
-                </button>
+                </Link>
               </div>
 
               {error && (
