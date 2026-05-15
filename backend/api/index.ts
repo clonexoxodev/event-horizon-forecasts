@@ -53,6 +53,23 @@ app.get('/api/health', (req: Request, res: Response) => {
   });
 });
 
+// Root route
+app.get('/', (req: Request, res: Response) => {
+  res.json({
+    message: 'Flippe Prediction Platform API',
+    status: 'running',
+    version: '2.0.0',
+    endpoints: {
+      health: '/api/health',
+      signup: '/api/auth/signup',
+      login: '/api/auth/login',
+      logout: '/api/auth/logout',
+      me: '/api/auth/me',
+      admin: '/api/admin/*'
+    }
+  });
+});
+
 // Root API info
 app.get('/api', (req: Request, res: Response) => {
   res.json({
@@ -787,6 +804,6 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 });
 
 // Vercel serverless handler
-export default async (req: VercelRequest, res: VercelResponse) => {
-  return app(req as any, res as any);
+export default (req: VercelRequest, res: VercelResponse) => {
+  app(req as any, res as any);
 };
