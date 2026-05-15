@@ -45,14 +45,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await apiService.login({ email, password });
       if (response.user) {
-        // Fetch wallet info
-        const walletResponse = await apiService.getWallet();
+        // Try to fetch wallet info, but don't fail login if it fails
+        let balance = 0;
+        try {
+          const walletResponse = await apiService.getWallet();
+          balance = (walletResponse.wallet?.balanceNgn || 0);
+        } catch (walletError) {
+          console.warn('Failed to fetch wallet, using default balance:', walletError);
+          // Continue with login even if wallet fetch fails
+        }
+        
         const authUser: AuthUser = {
           id: response.user.id,
           email: response.user.email,
           username: response.user.username,
           name: response.user.username,
-          balance: (walletResponse.wallet?.balance_ngn_kobo || 0) / 100,
+          balance: balance,
           role: response.user.role || 'user'
         };
         setUser(authUser);

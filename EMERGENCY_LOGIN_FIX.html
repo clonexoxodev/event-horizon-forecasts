@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Login Fix - Flippe</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .step {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        .step h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            transition: border 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .loading {
+            text-align: center;
+            color: #667eea;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .link {
+            display: inline-block;
+            margin-top: 10px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Emergency Login Fix</h1>
+        <p class="subtitle">This will reset your password and log you in immediately</p>
+
+        <div class="step">
+            <h3>Step 1: Reset Password</h3>
+            <input type="email" id="email" placeholder="Your Email" value="fehintoluwaolu@gmail.com">
+            <input type="password" id="password" placeholder="New Password (min 8 chars)" value="fehin0706" minlength="8">
+            <button onclick="resetPassword()">Reset Password & Login</button>
+        </div>
+
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        const API_URL = 'https://flippe-backend4.vercel.app';
+        const FRONTEND_URL = 'https://event-horizon-forecasts.vercel.app';
+
+        async function resetPassword() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('result');
+
+            if (!email || !password) {
+                showResult('error', 'Please fill in all fields');
+                return;
+            }
+
+            if (password.length < 8) {
+                showResult('error', 'Password must be at least 8 characters');
+                return;
+            }
+
+            showResult('loading', 'Resetting password...');
+
+            try {
+                // Step 1: Reset password
+                const resetResponse = await fetch(`${API_URL}/api/auth/reset-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, newPassword: password })
+                });
+
+                const resetData = await resetResponse.json();
+
+                if (!resetResponse.ok) {
+                    throw new Error(resetData.error?.message || 'Password reset failed');
+                }
+
+                showResult('loading', 'Password reset successful! Logging in...');
+
+                // Step 2: Login
+                const loginResponse = await fetch(`${API_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password })
+                });
+
+                const loginData = await loginResponse.json();
+
+                if (!loginResponse.ok) {
+                    throw new Error(loginData.error?.message || 'Login failed');
+                }
+
+                // Success!
+                showResult('success', `
+                    <strong>✅ SUCCESS!</strong><br><br>
+                    <strong>Email:</strong> ${email}<br>
+                    <strong>Password:</strong> ${password}<br>
+                    <strong>User:</strong> ${loginData.user.username}<br><br>
+                    <strong>Redirecting to platform...</strong>
+                `);
+
+                // Redirect after 2 seconds
+                setTimeout(() => {
+                    window.location.href = `${FRONTEND_URL}/login`;
+                }, 2000);
+
+            } catch (error) {
+                showResult('error', `
+                    <strong>❌ Error:</strong> ${error.message}<br><br>
+                    <strong>Troubleshooting:</strong><br>
+                    - Check your email is correct<br>
+                    - Wait 1 minute for backend deployment<br>
+                    - Try again<br><br>
+                    <a href="${FRONTEND_URL}/reset-password" class="link">
+                        Or use the platform's reset password page →
+                    </a>
+                `);
+            }
+        }
+
+        function showResult(type, message) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result ' + type;
+            
+            if (type === 'loading') {
+                resultDiv.innerHTML = `
+                    <div class="spinner"></div>
+                    <div class="loading">${message}</div>
+                `;
+            } else {
+                resultDiv.innerHTML = message;
+            }
+        }
+
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            console.log('Emergency Login Fix loaded');
+            console.log('Click the button to reset password and login');
+        });
+    </script>
+</body>
+</html>
