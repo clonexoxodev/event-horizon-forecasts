@@ -1,0 +1,3 @@
+Force deployment timestamp: 2026-05-15 21:47:00
+Reason: Ensure bcryptjs changes are deployed
+Critical: Investor demo imminent
