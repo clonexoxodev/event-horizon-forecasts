@@ -66,7 +66,7 @@ app.post('/api/debug/check-user', async (req: Request, res: Response) => {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, email, username, created_at')
+      .select('id, email, username, created_at, password_hash')
       .eq('email', email.trim().toLowerCase())
       .single();
 
@@ -78,20 +78,31 @@ app.post('/api/debug/check-user', async (req: Request, res: Response) => {
       });
     }
 
+    // Check password hash format
+    const hashStatus = user.password_hash && user.password_hash.startsWith('$2b$12$') && user.password_hash.length > 50
+      ? 'Valid bcrypt hash'
+      : 'Invalid or missing hash';
+
     res.json({
       exists: true,
       user: {
         id: user.id,
         email: user.email,
         username: user.username,
-        createdAt: user.created_at
+        createdAt: user.created_at,
+        hashStatus: hashStatus,
+        hashLength: user.password_hash ? user.password_hash.length : 0
       },
-      hint: 'User exists. If login fails, password might be incorrect.'
+      hint: hashStatus === 'Valid bcrypt hash' 
+        ? 'User exists with valid password hash. If login fails, password might be incorrect.'
+        : 'User exists but password hash is invalid. Run fix-password-now.js script.'
     });
   } catch (error: any) {
+    console.error('Check user error:', error);
     res.status(500).json({
       error: 'Failed to check user',
-      message: error.message
+      message: error.message,
+      stack: error.stack
     });
   }
 });
@@ -407,13 +418,25 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
     }
 
     // Find user
+    console.log('Fetching user from database...');
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('*')
       .eq('email', email.trim().toLowerCase())
       .single();
 
-    if (userError || !user) {
+    if (userError) {
+      console.log('Database error:', userError);
+      return res.status(401).json({
+        error: {
+          code: 'INVALID_CREDENTIALS',
+          message: 'Invalid email or password',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    if (!user) {
       console.log('User not found:', email);
       return res.status(401).json({
         error: {
@@ -424,18 +447,35 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
       });
     }
 
+    console.log('User found, verifying password...');
+    
     // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password_hash);
-    if (!isValidPassword) {
-      console.log('Invalid password for:', email);
-      return res.status(401).json({
+    try {
+      const isValidPassword = await bcrypt.compare(password, user.password_hash);
+      console.log('Password verification result:', isValidPassword);
+      
+      if (!isValidPassword) {
+        console.log('Invalid password for:', email);
+        return res.status(401).json({
+          error: {
+            code: 'INVALID_CREDENTIALS',
+            message: 'Invalid email or password',
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
+    } catch (bcryptError: any) {
+      console.error('Bcrypt error:', bcryptError);
+      return res.status(500).json({
         error: {
-          code: 'INVALID_CREDENTIALS',
-          message: 'Invalid email or password',
+          code: 'INTERNAL_ERROR',
+          message: 'Password verification failed',
           timestamp: new Date().toISOString()
         }
       });
     }
+
+    console.log('Password verified, generating JWT...');
 
     // Generate JWT
     const token = jwt.sign(
@@ -447,6 +487,8 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
       JWT_SECRET,
       { expiresIn: '24h' }
     );
+
+    console.log('JWT generated, setting cookie...');
 
     // Set cookie
     res.cookie('auth_token', token, {
@@ -467,12 +509,14 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
       },
       message: 'Login successful'
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       error: {
         code: 'INTERNAL_ERROR',
         message: 'An error occurred during login',
+        details: error.message,
         timestamp: new Date().toISOString()
       }
     });
