@@ -46,8 +46,9 @@ app.get('/api/health', (req: Request, res: Response) => {
     status: 'ok',
     message: 'Prediction Platform API is running',
     timestamp: new Date().toISOString(),
-    version: '2.1.0-bcryptjs',
+    version: '2.2.0-cross-domain-cookies',
     bcryptVersion: 'bcryptjs',
+    cookieSettings: 'sameSite=none, secure=true',
     env: {
       supabaseConfigured: !!supabaseUrl,
       jwtConfigured: !!JWT_SECRET,
@@ -372,8 +373,8 @@ app.post('/api/auth/signup', async (req: Request, res: Response) => {
     // Set cookie
     res.cookie('auth_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: true, // Always true for cross-domain cookies
+      sameSite: 'none', // Required for cross-domain cookies
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     });
 
@@ -495,8 +496,8 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
     // Set cookie
     res.cookie('auth_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: true, // Always true for cross-domain cookies
+      sameSite: 'none', // Required for cross-domain cookies
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     });
 
@@ -532,8 +533,8 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
 app.post('/api/auth/logout', (req: Request, res: Response) => {
   res.clearCookie('auth_token', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax'
+    secure: true, // Always true for cross-domain cookies
+    sameSite: 'none' // Required for cross-domain cookies
   });
 
   res.json({
