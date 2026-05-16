@@ -46,7 +46,7 @@ app.get('/api/health', (req: Request, res: Response) => {
     status: 'ok',
     message: 'Prediction Platform API is running',
     timestamp: new Date().toISOString(),
-    version: '2.2.0-cross-domain-cookies',
+    version: '2.3.0-role-in-auth-response',
     bcryptVersion: 'bcryptjs',
     cookieSettings: 'sameSite=none, secure=true',
     env: {
@@ -383,7 +383,8 @@ app.post('/api/auth/signup', async (req: Request, res: Response) => {
       user: {
         id: newUser.id,
         username: newUser.username,
-        email: newUser.email
+        email: newUser.email,
+        role: newUser.role || 'user' // Include role in response
       },
       message: 'User registered successfully'
     });
@@ -508,7 +509,8 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        role: user.role || 'user' // Include role in response
       },
       message: 'Login successful'
     });
