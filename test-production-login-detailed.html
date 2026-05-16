@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Detailed Production Login Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background: #4f46e5;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f9f9f9;
+            border-left: 3px solid #6366f1;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Detailed Production Login Test</h1>
+    
+    <div class="test-section info">
+        <h3>Test Configuration</h3>
+        <p><strong>Backend:</strong> https://flippe-backend4.vercel.app</p>
+        <p><strong>Email:</strong> fehintoluwaolu@gmail.com</p>
+        <p><strong>Password:</strong> fehin0706</p>
+        <p><strong>Expected:</strong> Login should work with cross-domain cookies</p>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 1: Health Check</h3>
+        <button onclick="testHealth()">Run Health Check</button>
+        <div id="health-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 2: Login Test (Detailed)</h3>
+        <button onclick="testLoginDetailed()">Test Login with Full Details</button>
+        <div id="login-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 3: Check Cookies</h3>
+        <button onclick="checkCookies()">Check Browser Cookies</button>
+        <div id="cookie-result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://flippe-backend4.vercel.app';
+        const TEST_EMAIL = 'fehintoluwaolu@gmail.com';
+        const TEST_PASSWORD = 'fehin0706';
+
+        async function testHealth() {
+            const resultDiv = document.getElementById('health-result');
+            resultDiv.innerHTML = '<div class="step">Testing...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/health`);
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="success step">
+                        <p>✅ Health check successful!</p>
+                        <p><strong>Version:</strong> ${data.version}</p>
+                        <p><strong>bcrypt:</strong> ${data.bcryptVersion}</p>
+                        <p><strong>Cookie Settings:</strong> ${data.cookieSettings || 'Not specified'}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error step">
+                        <p>❌ Health check failed!</p>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        async function testLoginDetailed() {
+            const resultDiv = document.getElementById('login-result');
+            resultDiv.innerHTML = '<div class="step">Testing login...</div>';
+            
+            try {
+                console.log('🔵 Starting login request...');
+                console.log('URL:', `${API_BASE}/api/auth/login`);
+                console.log('Credentials:', { email: TEST_EMAIL, password: '***' });
+                
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include', // CRITICAL: Include cookies
+                    body: JSON.stringify({
+                        email: TEST_EMAIL,
+                        password: TEST_PASSWORD
+                    })
+                });
+                
+                console.log('🔵 Response status:', response.status);
+                console.log('🔵 Response headers:', [...response.headers.entries()]);
+                
+                const data = await response.json();
+                console.log('🔵 Response data:', data);
+                
+                // Check for Set-Cookie header
+                const setCookie = response.headers.get('set-cookie');
+                console.log('🔵 Set-Cookie header:', setCookie);
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success step">
+                            <p>✅ Login successful!</p>
+                            <p><strong>User:</strong> ${data.user.username}</p>
+                            <p><strong>Email:</strong> ${data.user.email}</p>
+                            <p><strong>Message:</strong> ${data.message}</p>
+                            <h4>Response Details:</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                            <h4>Response Headers:</h4>
+                            <pre>${[...response.headers.entries()].map(([k, v]) => k + ': ' + v).join('\n')}</pre>
+                            <p><strong>Note:</strong> Check the "Check Cookies" section to verify the cookie was set.</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error step">
+                            <p>❌ Login failed! Status: ${response.status}</p>
+                            <p><strong>Error Code:</strong> ${data.error?.code || 'Unknown'}</p>
+                            <p><strong>Error Message:</strong> ${data.error?.message || data.message || 'Unknown error'}</p>
+                            <h4>Full Response:</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                            <h4>Response Headers:</h4>
+                            <pre>${[...response.headers.entries()].map(([k, v]) => k + ': ' + v).join('\n')}</pre>
+                            <h4>Possible Issues:</h4>
+                            <ul>
+                                <li>Password might be incorrect</li>
+                                <li>Backend might not have the latest code</li>
+                                <li>Database password hash might be wrong</li>
+                                <li>CORS or cookie settings issue</li>
+                            </ul>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('🔴 Login error:', error);
+                resultDiv.innerHTML = `
+                    <div class="error step">
+                        <p>❌ Login request failed!</p>
+                        <pre>${error.message}\n\n${error.stack}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        function checkCookies() {
+            const resultDiv = document.getElementById('cookie-result');
+            
+            const cookies = document.cookie.split(';').map(c => c.trim()).filter(c => c);
+            
+            if (cookies.length === 0) {
+                resultDiv.innerHTML = `
+                    <div class="error step">
+                        <p>❌ No cookies found!</p>
+                        <p>This means the backend didn't set the auth_token cookie, or the browser blocked it.</p>
+                        <h4>Possible reasons:</h4>
+                        <ul>
+                            <li>Cross-domain cookie settings not working</li>
+                            <li>Browser blocking third-party cookies</li>
+                            <li>sameSite=none not properly configured</li>
+                            <li>secure flag not set correctly</li>
+                        </ul>
+                    </div>
+                `;
+            } else {
+                const hasAuthToken = cookies.some(c => c.startsWith('auth_token='));
+                
+                if (hasAuthToken) {
+                    resultDiv.innerHTML = `
+                        <div class="success step">
+                            <p>✅ Auth token cookie found!</p>
+                            <h4>All Cookies:</h4>
+                            <pre>${cookies.join('\n')}</pre>
+                            <p><strong>Note:</strong> The auth_token cookie is set correctly!</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error step">
+                            <p>⚠️ Cookies found, but no auth_token!</p>
+                            <h4>Available Cookies:</h4>
+                            <pre>${cookies.join('\n')}</pre>
+                            <p>The backend should set an 'auth_token' cookie after successful login.</p>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // Auto-run health check on load
+        window.onload = () => {
+            testHealth();
+        };
+    </script>
+</body>
+</html>

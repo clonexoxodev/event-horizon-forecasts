@@ -1,4 +1,5 @@
-// Flippe Platform v2.1.0 - Production Ready with bcryptjs
+// Flippe Platform v2.2.0 - Production Ready with cross-domain cookies
+// Last updated: 2026-05-16 00:30 UTC - Cross-domain cookie fix deployed
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
