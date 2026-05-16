@@ -36,15 +36,27 @@ class ApiService {
           if (errorData.error?.code === 'USERNAME_EXISTS') {
             throw new Error('This username is already taken. Please choose a different one.');
           }
+          if (errorData.error?.code === 'ALREADY_ADMIN') {
+            throw new Error(errorData.error?.message || 'User already has admin privileges.');
+          }
           throw new Error(errorData.error?.message || 'This account already exists. Please log in instead.');
         }
         
         if (response.status === 401) {
-          throw new Error('Invalid email or password. Please try again.');
+          // Check if this is an auth endpoint error or a generic auth error
+          if (errorData.error?.code === 'INVALID_CREDENTIALS') {
+            throw new Error('Invalid email or password. Please try again.');
+          }
+          // For other 401 errors, use the actual error message
+          throw new Error(errorData.error?.message || 'Authentication required. Please log in again.');
         }
         
         if (response.status === 400) {
           throw new Error(errorData.error?.message || 'Invalid input. Please check your information.');
+        }
+        
+        if (response.status === 403) {
+          throw new Error(errorData.error?.message || 'You do not have permission to perform this action.');
         }
         
         throw new Error(errorData.error?.message || errorData.message || `HTTP error! status: ${response.status}`);

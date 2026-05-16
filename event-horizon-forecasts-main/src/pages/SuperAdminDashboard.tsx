@@ -54,14 +54,26 @@ export default function SuperAdminDashboard() {
 
   const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newAdminEmail.trim()) {
+    
+    // Trim the email
+    const email = newAdminEmail.trim();
+    
+    // Validate email is not empty
+    if (!email) {
       toast.error('Please enter an email address');
+      return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error('Please enter a valid email address');
       return;
     }
 
     try {
       setAddingAdmin(true);
-      await apiService.addAdmin(newAdminEmail);
+      await apiService.addAdmin(email);
       toast.success('Admin added successfully');
       setNewAdminEmail('');
       fetchData(); // Refresh admin list
@@ -223,13 +235,14 @@ export default function SuperAdminDashboard() {
                 type="email"
                 value={newAdminEmail}
                 onChange={(e) => setNewAdminEmail(e.target.value)}
-                placeholder="admin@example.com"
-                className="flex-1 px-4 py-3 border border-graphite/20 rounded-xl bg-white text-charcoal placeholder:text-graphite/50 focus:border-purple focus:ring-4 focus:ring-purple/10 transition-fast"
+                placeholder="user@example.com"
+                required
+                className="flex-1 px-4 py-3 border border-graphite/20 rounded-xl bg-white text-charcoal placeholder:text-graphite/50 focus:border-purple focus:ring-4 focus:ring-purple/10 transition-fast disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={addingAdmin}
               />
               <button
                 type="submit"
-                disabled={addingAdmin}
+                disabled={addingAdmin || !newAdminEmail.trim()}
                 className="px-6 py-3 bg-purple text-white rounded-xl font-semibold shadow-sm hover:bg-purple/90 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-fast"
               >
                 {addingAdmin ? 'Adding...' : 'Add Admin'}
