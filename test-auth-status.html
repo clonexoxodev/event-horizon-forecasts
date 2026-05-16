@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Authentication Status</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Authentication Status Test</h1>
+    
+    <div class="test-section info">
+        <h3>Instructions</h3>
+        <p>This page will test if you're properly authenticated.</p>
+        <p><strong>Make sure you're logged in first!</strong></p>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 1: Check Cookies</h3>
+        <button onclick="checkCookies()">Check Browser Cookies</button>
+        <div id="cookie-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 2: Test /api/auth/me</h3>
+        <button onclick="testAuthMe()">Test Authentication</button>
+        <div id="auth-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 3: Test /api/admin/list-admins</h3>
+        <button onclick="testListAdmins()">Test Admin Endpoint</button>
+        <div id="admin-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 4: Login Again</h3>
+        <button onclick="testLogin()">Login with Your Credentials</button>
+        <div id="login-result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://flippe-backend4.vercel.app';
+
+        function checkCookies() {
+            const resultDiv = document.getElementById('cookie-result');
+            const cookies = document.cookie.split(';').map(c => c.trim()).filter(c => c);
+            
+            if (cookies.length === 0) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <p>❌ No cookies found!</p>
+                        <p>You are NOT logged in. Please login first.</p>
+                    </div>
+                `;
+            } else {
+                const hasAuthToken = cookies.some(c => c.startsWith('auth_token='));
+                
+                if (hasAuthToken) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <p>✅ Auth token cookie found!</p>
+                            <h4>All Cookies:</h4>
+                            <pre>${cookies.join('\n')}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <p>⚠️ Cookies found, but no auth_token!</p>
+                            <h4>Available Cookies:</h4>
+                            <pre>${cookies.join('\n')}</pre>
+                            <p>You need to login to get an auth_token cookie.</p>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        async function testAuthMe() {
+            const resultDiv = document.getElementById('auth-result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/me`, {
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <p>✅ Authentication successful!</p>
+                            <h4>Your User Data:</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                            <p><strong>Role:</strong> ${data.user?.role || 'Not set'}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <p>❌ Authentication failed! Status: ${response.status}</p>
+                            <h4>Error:</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                            <p>This means you're NOT logged in or your session expired.</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <p>❌ Request failed!</p>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        async function testListAdmins() {
+            const resultDiv = document.getElementById('admin-result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/list-admins`, {
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <p>✅ Admin endpoint accessible!</p>
+                            <h4>Admins:</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <p>❌ Admin endpoint failed! Status: ${response.status}</p>
+                            <h4>Error:</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                            <p><strong>Possible reasons:</strong></p>
+                            <ul>
+                                <li>Not logged in</li>
+                                <li>Not a super_admin</li>
+                                <li>Session expired</li>
+                            </ul>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <p>❌ Request failed!</p>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        async function testLogin() {
+            const resultDiv = document.getElementById('login-result');
+            resultDiv.innerHTML = '<p>Logging in...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        email: 'fehintoluwaolu@gmail.com',
+                        password: 'fehin0706'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <p>✅ Login successful!</p>
+                            <h4>User Data:</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                            <p><strong>Role:</strong> ${data.user?.role || 'Not returned'}</p>
+                            <p><strong>Now run Test 1, 2, and 3 again!</strong></p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <p>❌ Login failed! Status: ${response.status}</p>
+                            <h4>Error:</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <p>❌ Login request failed!</p>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        // Auto-run cookie check on load
+        window.onload = () => {
+            checkCookies();
+        };
+    </script>
+</body>
+</html>
