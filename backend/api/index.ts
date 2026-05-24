@@ -33,18 +33,23 @@ const clearAuthCookieOptions = {
   secure: isProduction,
   sameSite: isProduction ? 'none' as const : 'lax' as const
 };
+const defaultAllowedOrigins = [
+  'https://event-horizon-forecasts.vercel.app',
+  'http://localhost:8080',
+  'http://localhost:3000',
+  'http://localhost:5173'
+];
+const allowedOrigins = (process.env.FRONTEND_URL || process.env.FRONTEND_URLS || defaultAllowedOrigins.join(','))
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 // Create Express app
 const app = express();
 
 // CORS - Allow your frontend
 app.use(cors({
-  origin: [
-    'https://event-horizon-forecasts.vercel.app',
-    'http://localhost:8080',
-    'http://localhost:3000',
-    'http://localhost:5173'
-  ],
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],

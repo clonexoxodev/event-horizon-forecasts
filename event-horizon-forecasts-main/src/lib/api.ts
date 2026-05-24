@@ -1,4 +1,50 @@
-const API_BASE_URL = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '')).replace(/\/$/, '');
+const LOCAL_API_URL = 'http://localhost:5000';
+const API_URL_ENV_NAME = 'VITE_API_URL';
+
+const normalizeApiBaseUrl = () => {
+  const configuredUrl = import.meta.env.VITE_API_URL?.trim();
+
+  if (!configuredUrl) {
+    if (import.meta.env.DEV) {
+      return { baseUrl: LOCAL_API_URL };
+    }
+
+    return {
+      baseUrl: '',
+      error: `${API_URL_ENV_NAME} is required in production. Set it to your backend URL, for example https://flippe-backend4.vercel.app.`,
+    };
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(configuredUrl);
+  } catch {
+    return {
+      baseUrl: '',
+      error: `${API_URL_ENV_NAME} must be a full http(s) URL. Received: ${configuredUrl}`,
+    };
+  }
+
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    return {
+      baseUrl: '',
+      error: `${API_URL_ENV_NAME} must start with http:// or https://.`,
+    };
+  }
+
+  const normalizedUrl = parsedUrl.origin + parsedUrl.pathname.replace(/\/$/, '');
+
+  if (import.meta.env.PROD && typeof window !== 'undefined' && normalizedUrl === window.location.origin) {
+    return {
+      baseUrl: '',
+      error: `${API_URL_ENV_NAME} points to the frontend domain (${window.location.origin}). Set it to the backend API domain instead.`,
+    };
+  }
+
+  return { baseUrl: normalizedUrl };
+};
+
+const apiConfig = normalizeApiBaseUrl();
 
 export type UserRole = 'user' | 'admin' | 'super_admin';
 
@@ -30,15 +76,21 @@ type WalletResponse = {
 
 class ApiService {
   private baseURL: string;
+  private configError?: string;
 
   constructor() {
-    this.baseURL = API_BASE_URL;
+    this.baseURL = apiConfig.baseUrl;
+    this.configError = apiConfig.error;
   }
 
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
+    if (this.configError) {
+      throw new Error(this.configError);
+    }
+
     const url = `${this.baseURL}${endpoint}`;
     
     const config: RequestInit = {

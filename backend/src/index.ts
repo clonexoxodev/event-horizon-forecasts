@@ -13,11 +13,21 @@ import notificationsRoutes from './routes/notifications.routes.js';
 dotenv.config();
 
 const app = express();
+const defaultAllowedOrigins = [
+  'http://localhost:8080',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://event-horizon-forecasts.vercel.app',
+];
+const allowedOrigins = (process.env.FRONTEND_URL || process.env.FRONTEND_URLS || defaultAllowedOrigins.join(','))
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 // Middleware
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: allowedOrigins,
     credentials: true,
   })
 );
