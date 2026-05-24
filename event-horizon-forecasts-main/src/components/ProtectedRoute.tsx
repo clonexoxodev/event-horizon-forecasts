@@ -13,7 +13,15 @@ export const ProtectedRoute = ({
   requiredRole = 'user',
   redirectTo = '/'
 }: ProtectedRouteProps) => {
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-sm text-muted-foreground">Checking your session...</div>
+      </div>
+    );
+  }
 
   // Check if user is authenticated
   if (!user) {

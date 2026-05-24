@@ -1,19 +1,27 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import { UserRepository } from '../repositories/user.repository.js';
-import { WalletRepository } from '../repositories/wallet.repository.js';
-import { CreateUserRequest, LoginRequest, AuthResponse, UserResponse } from '../types/user.js';
+import { CreateUserRequest, LoginRequest, AuthResponse } from '../types/user.js';
 import { supabase } from '../db/supabase-client.js';
+
+dotenv.config();
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
 
 export class AuthService {
   private userRepository: UserRepository;
-  private walletRepository: WalletRepository;
   private jwtSecret: string;
 
   constructor() {
     this.userRepository = new UserRepository();
-    this.walletRepository = new WalletRepository();
-    this.jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
+    this.jwtSecret = requireEnv('JWT_SECRET');
   }
 
   /**
@@ -53,7 +61,7 @@ export class AuthService {
     const password_hash = await bcrypt.hash(userData.password, saltRounds);
 
     // Check if this is the primary super admin email
-    const isPrimarySuperAdmin = userData.email === 'fehintoluwaolu@gmail.com';
+    const isPrimarySuperAdmin = userData.email.toLowerCase() === 'fehintoluwaolu@gmail.com';
     const role = isPrimarySuperAdmin ? 'super_admin' : 'user';
 
     try {
@@ -61,8 +69,8 @@ export class AuthService {
       const { data: newUser, error: userError } = await supabase
         .from('users')
         .insert({
-          username: userData.username,
-          email: userData.email,
+          username: userData.username.trim(),
+          email: userData.email.trim().toLowerCase(),
           password_hash: password_hash,
           role: role
         })
@@ -117,7 +125,7 @@ export class AuthService {
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
-      .eq('email', loginData.email)
+      .eq('email', loginData.email.trim().toLowerCase())
       .single();
 
     if (error || !user) {
@@ -131,7 +139,7 @@ export class AuthService {
     }
 
     // Check if this is the primary super admin email and ensure role is set
-    if (loginData.email === 'fehintoluwaolu@gmail.com' && user.role !== 'super_admin') {
+    if (loginData.email.trim().toLowerCase() === 'fehintoluwaolu@gmail.com' && user.role !== 'super_admin') {
       // Update role to super_admin
       const { data: updatedUser, error: updateError } = await supabase
         .from('users')

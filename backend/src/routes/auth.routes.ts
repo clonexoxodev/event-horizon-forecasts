@@ -5,6 +5,18 @@ import { authMiddleware } from '../middleware/auth.middleware.js';
 
 const router = Router();
 const authService = new AuthService();
+const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+const authCookieOptions = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? 'none' as const : 'lax' as const,
+  maxAge: 24 * 60 * 60 * 1000
+};
+const clearAuthCookieOptions = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? 'none' as const : 'lax' as const
+};
 
 /**
  * POST /api/auth/signup
@@ -18,12 +30,7 @@ router.post('/signup', async (req: Request, res: Response) => {
     const authResponse = await authService.register(userData);
 
     // Set httpOnly cookie
-    res.cookie('auth_token', authResponse.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    });
+    res.cookie('auth_token', authResponse.token, authCookieOptions);
 
     // Return user data (without token in response body for security)
     res.status(201).json({
@@ -91,12 +98,7 @@ router.post('/login', async (req: Request, res: Response) => {
     const authResponse = await authService.login(loginData);
 
     // Set httpOnly cookie
-    res.cookie('auth_token', authResponse.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    });
+    res.cookie('auth_token', authResponse.token, authCookieOptions);
 
     // Return user data
     res.json({
@@ -146,11 +148,7 @@ router.post('/login', async (req: Request, res: Response) => {
 router.post('/logout', (req: Request, res: Response) => {
   try {
     // Clear httpOnly cookie
-    res.clearCookie('auth_token', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
-    });
+    res.clearCookie('auth_token', clearAuthCookieOptions);
 
     res.json({
       message: 'Logout successful'

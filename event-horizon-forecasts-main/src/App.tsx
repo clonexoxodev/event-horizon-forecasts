@@ -14,7 +14,6 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index.tsx";
 import Login from "./pages/Login.tsx";
 import Signup from "./pages/Signup.tsx";
-import ResetPassword from "./pages/ResetPassword.tsx";
 import MarketDetail from "./pages/MarketDetail.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import Wallet from "./pages/Wallet.tsx";
@@ -110,7 +109,6 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/market/:id" element={<MarketDetail />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/wallet" element={<Wallet />} />

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { apiService } from "./api";
+import { apiService, AuthUserResponse, UserRole } from "./api";
 
 type AuthUser = {
   id: string;
@@ -7,143 +7,179 @@ type AuthUser = {
   username: string;
   name: string;
   balance: number;
-  role: 'user' | 'admin' | 'super_admin';
+  role: UserRole;
 };
 
 type AuthCtx = {
   user: AuthUser | null;
-  session: any | null;
+  session: { user: AuthUser } | null;
+  isLoading: boolean;
+  authOpen: boolean;
+  setAuthOpen: (open: boolean) => void;
+  refreshUser: () => Promise<void>;
   login: (email: string, password: string) => Promise<{ error: string | null }>;
   signup: (name: string, email: string, password: string) => Promise<{ error: string | null }>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
-  hasRole: (role: 'user' | 'admin' | 'super_admin') => boolean;
+  hasRole: (role: UserRole) => boolean;
   isAdmin: () => boolean;
   isSuperAdmin: () => boolean;
 };
 
-// Role hierarchy for comparison
-const ROLE_HIERARCHY = {
+const ROLE_HIERARCHY: Record<UserRole, number> = {
   user: 0,
   admin: 1,
-  super_admin: 2
+  super_admin: 2,
 };
 
 const Ctx = createContext<AuthCtx | null>(null);
 
+const walletBalanceFromResponse = (wallet: Awaited<ReturnType<typeof apiService.getWallet>>["wallet"]): number => {
+  if (typeof wallet.balanceNgn === "number") return wallet.balanceNgn;
+  if (typeof wallet.balanceNgnKobo === "number") return wallet.balanceNgnKobo / 100;
+  return 0;
+};
+
+const toAuthUser = (user: AuthUserResponse, balance?: number): AuthUser => ({
+  id: user.id,
+  email: user.email,
+  username: user.username,
+  name: user.username,
+  balance: typeof balance === "number" ? balance : user.balance ?? 0,
+  role: user.role || "user",
+});
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [session, setSession] = useState<any | null>(null);
+  const [session, setSession] = useState<{ user: AuthUser } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [authOpen, setAuthOpen] = useState(false);
+
+  const applyUser = async (apiUser: AuthUserResponse) => {
+    let balance = apiUser.balance ?? 0;
+
+    try {
+      const walletResponse = await apiService.getWallet();
+      balance = walletBalanceFromResponse(walletResponse.wallet);
+    } catch (walletError) {
+      console.warn("Failed to fetch wallet during auth refresh:", walletError);
+    }
+
+    const authUser = toAuthUser(apiUser, balance);
+    setUser(authUser);
+    setSession({ user: authUser });
+  };
+
+  const clearUser = () => {
+    setUser(null);
+    setSession(null);
+  };
+
+  const refreshUser = async () => {
+    try {
+      const response = await apiService.getCurrentUser();
+      await applyUser(response.user);
+    } catch {
+      clearUser();
+    }
+  };
 
   useEffect(() => {
-    // Check if user is already logged in by checking for auth cookie
-    // We'll skip the initial wallet check since it requires authentication
-    // The user will be set after successful login/signup
+    let cancelled = false;
+
+    const restoreSession = async () => {
+      setIsLoading(true);
+      try {
+        const response = await apiService.getCurrentUser();
+        if (!cancelled) {
+          await applyUser(response.user);
+        }
+      } catch {
+        if (!cancelled) {
+          clearUser();
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    restoreSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await apiService.login({ email, password });
-      if (response.user) {
-        // Try to fetch wallet info, but don't fail login if it fails
-        let balance = 0;
-        try {
-          const walletResponse = await apiService.getWallet();
-          balance = (walletResponse.wallet?.balanceNgn || 0);
-        } catch (walletError) {
-          console.warn('Failed to fetch wallet, using default balance:', walletError);
-          // Continue with login even if wallet fetch fails
-        }
-        
-        const authUser: AuthUser = {
-          id: response.user.id,
-          email: response.user.email,
-          username: response.user.username,
-          name: response.user.username,
-          balance: balance,
-          role: response.user.role || 'user'
-        };
-        setUser(authUser);
-        setSession({ user: authUser });
-        return { error: null };
-      }
-      return { error: 'Login failed' };
+      const response = await apiService.login({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+      await applyUser(response.user);
+      setAuthOpen(false);
+      return { error: null };
     } catch (error: any) {
-      return { error: error.message || 'Login failed' };
+      clearUser();
+      return { error: error.message || "Login failed" };
     }
   };
 
   const signup = async (name: string, email: string, password: string) => {
     try {
-      const response = await apiService.signup({ 
-        username: name, 
-        email, 
-        password 
+      const response = await apiService.signup({
+        username: name.trim(),
+        email: email.trim().toLowerCase(),
+        password,
       });
-      if (response.user) {
-        // Fetch wallet info
-        const walletResponse = await apiService.getWallet();
-        const authUser: AuthUser = {
-          id: response.user.id,
-          email: response.user.email,
-          username: response.user.username,
-          name: response.user.username,
-          balance: (walletResponse.wallet?.balance_ngn_kobo || 0) / 100,
-          role: response.user.role || 'user'
-        };
-        setUser(authUser);
-        setSession({ user: authUser });
-        return { error: null };
-      }
-      return { error: 'Signup failed' };
+      await applyUser(response.user);
+      setAuthOpen(false);
+      return { error: null };
     } catch (error: any) {
-      return { error: error.message || 'Signup failed' };
+      clearUser();
+      return { error: error.message || "Signup failed" };
     }
   };
 
   const loginWithGoogle = async () => {
-    // Google OAuth not implemented yet
-    console.log('Google OAuth not implemented');
+    throw new Error("Google sign-in is not available yet.");
   };
 
   const logout = async () => {
     try {
       await apiService.logout();
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
     } finally {
-      setUser(null);
-      setSession(null);
+      clearUser();
     }
   };
 
-  // Role utility functions
-  const hasRole = (requiredRole: 'user' | 'admin' | 'super_admin'): boolean => {
+  const hasRole = (requiredRole: UserRole): boolean => {
     if (!user) return false;
-    const userRoleLevel = ROLE_HIERARCHY[user.role];
-    const requiredRoleLevel = ROLE_HIERARCHY[requiredRole];
-    return userRoleLevel >= requiredRoleLevel;
+    return ROLE_HIERARCHY[user.role] >= ROLE_HIERARCHY[requiredRole];
   };
 
-  const isAdmin = (): boolean => {
-    return user?.role === 'admin' || user?.role === 'super_admin';
-  };
-
-  const isSuperAdmin = (): boolean => {
-    return user?.role === 'super_admin';
-  };
+  const isAdmin = (): boolean => hasRole("admin");
+  const isSuperAdmin = (): boolean => hasRole("super_admin");
 
   return (
-    <Ctx.Provider value={{ 
-      user, 
-      session, 
-      login, 
-      signup, 
-      loginWithGoogle, 
+    <Ctx.Provider value={{
+      user,
+      session,
+      isLoading,
+      authOpen,
+      setAuthOpen,
+      refreshUser,
+      login,
+      signup,
+      loginWithGoogle,
       logout,
       hasRole,
       isAdmin,
-      isSuperAdmin
+      isSuperAdmin,
     }}>
       {children}
     </Ctx.Provider>

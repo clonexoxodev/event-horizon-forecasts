@@ -55,19 +55,18 @@ app.get('/api/health', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-// Start server with database connection check
+// Start server first so local health checks work even if Supabase is slow.
 async function startServer() {
   try {
-    // Test Supabase connection
-    const dbConnected = await testSupabaseConnection();
-    if (!dbConnected) {
-      console.error('Failed to connect to Supabase. Please check your Supabase configuration.');
-      // Don't exit - continue with server startup
-    }
-
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`Supabase client ready`);
+    });
+
+    void testSupabaseConnection().then((dbConnected) => {
+      if (!dbConnected) {
+        console.error('Failed to connect to Supabase. Please check your Supabase configuration.');
+      }
     });
   } catch (error) {
     console.error('Failed to start server:', error);

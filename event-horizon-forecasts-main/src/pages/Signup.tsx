@@ -39,8 +39,8 @@ export default function Signup() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long.");
       return;
     }
 
@@ -50,17 +50,20 @@ export default function Signup() {
     }
 
     setLoading(true);
-    const { error: signupError } = await signup(username, email, password);
-    setLoading(false);
+    try {
+      const { error: signupError } = await signup(username, email, password);
 
-    if (signupError) {
-      setError(signupError);
-    } else {
-      setSuccess(true);
-      // Automatically redirect to home after successful signup
-      setTimeout(() => {
-        navigate("/");
-      }, 1500);
+      if (signupError) {
+        setError(signupError);
+      } else {
+        setSuccess(true);
+        // Automatically redirect to home after successful signup
+        setTimeout(() => {
+          navigate("/");
+        }, 1500);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 

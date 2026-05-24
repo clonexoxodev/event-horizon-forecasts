@@ -22,12 +22,6 @@ import { CreateMarketModal } from "@/components/admin/CreateMarketModal";
 import { EditMarketModal } from "@/components/admin/EditMarketModal";
 import { toast } from "sonner";
 
-// Super admin emails
-const SUPER_ADMIN_EMAILS = [
-  "fehintoluwaolu@gmail.com",
-  "oluwasinaayomifetuga@gmail.com"
-];
-
 type Market = {
   id: string;
   question: string;
@@ -44,7 +38,7 @@ type Market = {
 };
 
 const Admin = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,9 +47,7 @@ const Admin = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
-
-  // Check if user is admin
-  const isAdmin = user && SUPER_ADMIN_EMAILS.includes(user.email.toLowerCase());
+  const userIsAdmin = isAdmin();
 
   useEffect(() => {
     if (!user) {
@@ -63,14 +55,14 @@ const Admin = () => {
       return;
     }
 
-    if (!isAdmin) {
+    if (!userIsAdmin) {
       navigate("/");
       return;
     }
 
     // Load markets
     loadMarkets();
-  }, [user, isAdmin, navigate]);
+  }, [user, userIsAdmin, navigate]);
 
   const loadMarkets = async () => {
     setLoading(true);
@@ -123,7 +115,7 @@ const Admin = () => {
     return matchesSearch && matchesStatus;
   });
 
-  if (!user || !isAdmin) {
+  if (!user || !userIsAdmin) {
     return null;
   }
 

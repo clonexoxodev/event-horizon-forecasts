@@ -1,11 +1,7 @@
 import { Pool, PoolConfig } from 'pg';
 import dotenv from 'dotenv';
-import * as sqlite from './sqlite-connection';
 
 dotenv.config();
-
-// Use SQLite for local development, PostgreSQL for production
-const USE_SQLITE = process.env.NODE_ENV === 'development' && !process.env.DATABASE_URL?.includes('postgres');
 
 // Database connection configuration
 const poolConfig: PoolConfig = process.env.DATABASE_URL 
@@ -27,23 +23,17 @@ Object.assign(poolConfig, {
   connectionTimeoutMillis: 5000, // Return an error after 5 seconds if connection cannot be established
 });
 
-// Create connection pool (only for PostgreSQL)
-const pool = USE_SQLITE ? null : new Pool(poolConfig);
+// Create connection pool
+const pool = new Pool(poolConfig);
 
-// Handle pool errors (only for PostgreSQL)
-if (pool) {
-  pool.on('error', (err) => {
-    console.error('Unexpected error on idle client', err);
-    process.exit(-1);
-  });
-}
+// Handle pool errors
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+  process.exit(-1);
+});
 
 // Test database connection
 export async function testConnection(): Promise<boolean> {
-  if (USE_SQLITE) {
-    return await sqlite.testConnection();
-  }
-
   try {
     console.log('Attempting to connect to PostgreSQL...');
     console.log('Connection config:', {
@@ -53,7 +43,7 @@ export async function testConnection(): Promise<boolean> {
       user: poolConfig.user ? poolConfig.user.substring(0, 10) + '...' : 'using connection string'
     });
     
-    const client = await pool!.connect();
+    const client = await pool.connect();
     const result = await client.query('SELECT NOW()');
     console.log('PostgreSQL connected successfully at:', result.rows[0].now);
     client.release();
@@ -75,16 +65,12 @@ export async function query<T = any>(
   text: string,
   params?: any[]
 ): Promise<{ rows: T[]; rowCount: number }> {
-  if (USE_SQLITE) {
-    return await sqlite.query<T>(text, params);
-  }
-
   const maxRetries = 3;
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const result = await pool!.query(text, params);
+      const result = await pool.query(text, params);
       return {
         rows: result.rows,
         rowCount: result.rowCount || 0,
@@ -113,11 +99,7 @@ export async function query<T = any>(
 export async function transaction<T>(
   callback: (client: any) => Promise<T>
 ): Promise<T> {
-  if (USE_SQLITE) {
-    return await sqlite.transaction(callback);
-  }
-
-  const client = await pool!.connect();
+  const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
@@ -134,20 +116,13 @@ export async function transaction<T>(
 
 // Get a client from the pool for manual transaction management
 export async function getClient() {
-  if (USE_SQLITE) {
-    return await sqlite.initializeDatabase();
-  }
-  return await pool!.connect();
+  return await pool.connect();
 }
 
 // Close all connections in the pool
 export async function closePool(): Promise<void> {
-  if (USE_SQLITE) {
-    await sqlite.closeDatabase();
-  } else if (pool) {
-    await pool.end();
-  }
+  await pool.end();
   console.log('Database connections closed');
 }
 
-export default USE_SQLITE ? sqlite : pool;
+export default pool;

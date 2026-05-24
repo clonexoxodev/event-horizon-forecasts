@@ -8,6 +8,8 @@ node_modules/
 .env.development.local
 .env.test.local
 .env.production.local
+.envnotepad*
+.envPORT=*
 
 # Build outputs
 dist/
@@ -39,6 +41,11 @@ lerna-debug.log*
 coverage/
 *.lcov
 .nyc_output
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
 
 # Temporary files
 *.tmp

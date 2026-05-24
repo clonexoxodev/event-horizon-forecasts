@@ -1,4 +1,32 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://flippe-backend4.vercel.app';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '')).replace(/\/$/, '');
+
+export type UserRole = 'user' | 'admin' | 'super_admin';
+
+export type AuthUserResponse = {
+  id: string;
+  email: string;
+  username: string;
+  role: UserRole;
+  balance?: number;
+};
+
+type AuthResponse = {
+  user: AuthUserResponse;
+  message?: string;
+};
+
+type WalletResponse = {
+  wallet: {
+    balanceNgn?: number;
+    balanceUsd?: number;
+    availableNgn?: number;
+    availableUsd?: number;
+    balanceNgnKobo?: number;
+    balanceUsdCents?: number;
+    availableNgnKobo?: number;
+    availableUsdCents?: number;
+  };
+};
 
 class ApiService {
   private baseURL: string;
@@ -62,9 +90,15 @@ class ApiService {
         throw new Error(errorData.error?.message || errorData.message || `HTTP error! status: ${response.status}`);
       }
 
+      if (response.status === 204) {
+        return undefined as T;
+      }
+
       return await response.json();
-    } catch (error) {
-      console.error('API request failed:', error);
+    } catch (error: any) {
+      if (error instanceof TypeError) {
+        throw new Error('Unable to reach the server. Please check your connection and try again.');
+      }
       throw error;
     }
   }
@@ -74,8 +108,8 @@ class ApiService {
     username: string;
     email: string;
     password: string;
-  }) {
-    return this.request('/api/auth/signup', {
+  }): Promise<AuthResponse> {
+    return this.request<AuthResponse>('/api/auth/signup', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
@@ -84,11 +118,15 @@ class ApiService {
   async login(credentials: {
     email: string;
     password: string;
-  }) {
-    return this.request('/api/auth/login', {
+  }): Promise<AuthResponse> {
+    return this.request<AuthResponse>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
+  }
+
+  async getCurrentUser(): Promise<AuthResponse> {
+    return this.request<AuthResponse>('/api/auth/me');
   }
 
   async logout() {
@@ -98,8 +136,8 @@ class ApiService {
   }
 
   // Wallet
-  async getWallet() {
-    return this.request('/api/wallet');
+  async getWallet(): Promise<WalletResponse> {
+    return this.request<WalletResponse>('/api/wallet');
   }
 
   async deposit(amount: number, currency: string = 'NGN') {

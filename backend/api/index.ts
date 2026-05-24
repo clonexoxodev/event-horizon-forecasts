@@ -6,13 +6,33 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { createClient } from '@supabase/supabase-js';
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
 // Initialize Supabase
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseUrl = requireEnv('SUPABASE_URL');
+const supabaseKey = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // JWT Secret
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-production';
+const JWT_SECRET = requireEnv('JWT_SECRET');
+const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+const authCookieOptions = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? 'none' as const : 'lax' as const,
+  maxAge: 24 * 60 * 60 * 1000
+};
+const clearAuthCookieOptions = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? 'none' as const : 'lax' as const
+};
 
 // Create Express app
 const app = express();
@@ -56,58 +76,6 @@ app.get('/api/health', (req: Request, res: Response) => {
       nodeEnv: process.env.NODE_ENV || 'not set'
     }
   });
-});
-
-// Debug endpoint - Check if user exists (temporary)
-app.post('/api/debug/check-user', async (req: Request, res: Response) => {
-  try {
-    const { email } = req.body;
-    
-    if (!email) {
-      return res.status(400).json({ error: 'Email required' });
-    }
-
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, email, username, created_at, password_hash')
-      .eq('email', email.trim().toLowerCase())
-      .single();
-
-    if (error) {
-      return res.json({
-        exists: false,
-        error: error.message,
-        hint: 'User not found in database. Try signup first.'
-      });
-    }
-
-    // Check password hash format
-    const hashStatus = user.password_hash && user.password_hash.startsWith('$2b$12$') && user.password_hash.length > 50
-      ? 'Valid bcrypt hash'
-      : 'Invalid or missing hash';
-
-    res.json({
-      exists: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        createdAt: user.created_at,
-        hashStatus: hashStatus,
-        hashLength: user.password_hash ? user.password_hash.length : 0
-      },
-      hint: hashStatus === 'Valid bcrypt hash' 
-        ? 'User exists with valid password hash. If login fails, password might be incorrect.'
-        : 'User exists but password hash is invalid. Run fix-password-now.js script.'
-    });
-  } catch (error: any) {
-    console.error('Check user error:', error);
-    res.status(500).json({
-      error: 'Failed to check user',
-      message: error.message,
-      stack: error.stack
-    });
-  }
 });
 
 // Root route
@@ -168,7 +136,7 @@ const authenticate = async (req: Request, res: Response, next: NextFunction) => 
     // Fetch user from database to get current role
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, email, role, balance_ngn_kobo')
+      .select('id, username, email, role')
       .eq('id', decoded.userId)
       .single();
 
@@ -188,7 +156,7 @@ const authenticate = async (req: Request, res: Response, next: NextFunction) => 
       username: user.username,
       email: user.email,
       role: user.role || 'user',
-      balance: user.balance_ngn_kobo || 0
+      balance: 0
     };
 
     next();
@@ -244,6 +212,31 @@ const requireRole = (requiredRole: string) => {
 // Primary super admin email
 const PRIMARY_SUPER_ADMIN_EMAIL = 'fehintoluwaolu@gmail.com';
 
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+const normalizeUsername = (username: string) => username.trim();
+
+const toAuthUser = (user: any, balance: number = 0) => ({
+  id: user.id,
+  username: user.username,
+  email: user.email,
+  role: user.role || 'user',
+  balance
+});
+
+const signAuthToken = (user: any) => jwt.sign(
+  {
+    userId: user.id,
+    username: user.username,
+    email: user.email
+  },
+  JWT_SECRET,
+  { expiresIn: '24h' }
+);
+
+const setAuthCookie = (res: Response, token: string) => {
+  res.cookie('auth_token', token, authCookieOptions);
+};
+
 /**
  * POST /api/auth/signup
  * Register a new user
@@ -251,9 +244,11 @@ const PRIMARY_SUPER_ADMIN_EMAIL = 'fehintoluwaolu@gmail.com';
 app.post('/api/auth/signup', async (req: Request, res: Response) => {
   try {
     const { username, email, password } = req.body;
+    const normalizedUsername = typeof username === 'string' ? normalizeUsername(username) : '';
+    const normalizedEmail = typeof email === 'string' ? normalizeEmail(email) : '';
 
     // Validate input
-    if (!username || username.length < 3) {
+    if (!normalizedUsername || normalizedUsername.length < 3) {
       return res.status(400).json({
         error: {
           code: 'VALIDATION_ERROR',
@@ -263,7 +258,17 @@ app.post('/api/auth/signup', async (req: Request, res: Response) => {
       });
     }
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (normalizedUsername.length > 50 || !/^[a-zA-Z0-9_]+$/.test(normalizedUsername)) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Username can only contain letters, numbers, and underscores',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       return res.status(400).json({
         error: {
           code: 'VALIDATION_ERROR',
@@ -284,42 +289,72 @@ app.post('/api/auth/signup', async (req: Request, res: Response) => {
     }
 
     // Check if user exists
-    const { data: existingUser } = await supabase
+    const { data: existingEmail, error: emailCheckError } = await supabase
       .from('users')
-      .select('id, email, username')
-      .or(`email.eq.${email},username.eq.${username}`)
-      .single();
+      .select('id')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
 
-    if (existingUser) {
-      if (existingUser.email === email) {
-        return res.status(409).json({
-          error: {
-            code: 'EMAIL_EXISTS',
-            message: 'An account with this email already exists',
-            timestamp: new Date().toISOString()
-          }
-        });
-      } else {
-        return res.status(409).json({
-          error: {
-            code: 'USERNAME_EXISTS',
-            message: 'This username is already taken',
-            timestamp: new Date().toISOString()
-          }
-        });
-      }
+    if (emailCheckError) {
+      console.error('Email lookup error:', emailCheckError);
+      return res.status(500).json({
+        error: {
+          code: 'REGISTRATION_FAILED',
+          message: 'Failed to validate account details',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    if (existingEmail) {
+      return res.status(409).json({
+        error: {
+          code: 'EMAIL_EXISTS',
+          message: 'An account with this email already exists',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const { data: existingUsername, error: usernameCheckError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', normalizedUsername)
+      .maybeSingle();
+
+    if (usernameCheckError) {
+      console.error('Username lookup error:', usernameCheckError);
+      return res.status(500).json({
+        error: {
+          code: 'REGISTRATION_FAILED',
+          message: 'Failed to validate account details',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    if (existingUsername) {
+      return res.status(409).json({
+        error: {
+          code: 'USERNAME_EXISTS',
+          message: 'This username is already taken',
+          timestamp: new Date().toISOString()
+        }
+      });
     }
 
     // Hash password
     const password_hash = await bcrypt.hash(password, 12);
+    const role = normalizedEmail === PRIMARY_SUPER_ADMIN_EMAIL ? 'super_admin' : 'user';
 
     // Create user
     const { data: newUser, error: userError } = await supabase
       .from('users')
       .insert({
-        username: username.trim(),
-        email: email.trim().toLowerCase(),
-        password_hash
+        username: normalizedUsername,
+        email: normalizedEmail,
+        password_hash,
+        role
       })
       .select()
       .single();
@@ -360,32 +395,14 @@ app.post('/api/auth/signup', async (req: Request, res: Response) => {
     }
 
     // Generate JWT
-    const token = jwt.sign(
-      {
-        userId: newUser.id,
-        username: newUser.username,
-        email: newUser.email
-      },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    const token = signAuthToken(newUser);
 
     // Set cookie
-    res.cookie('auth_token', token, {
-      httpOnly: true,
-      secure: true, // Always true for cross-domain cookies
-      sameSite: 'none', // Required for cross-domain cookies
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    });
+    setAuthCookie(res, token);
 
     // Return success
     res.status(201).json({
-      user: {
-        id: newUser.id,
-        username: newUser.username,
-        email: newUser.email,
-        role: newUser.role || 'user' // Include role in response
-      },
+      user: toAuthUser(newUser, 0),
       message: 'User registered successfully'
     });
   } catch (error) {
@@ -407,11 +424,10 @@ app.post('/api/auth/signup', async (req: Request, res: Response) => {
 app.post('/api/auth/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
-
-    console.log('Login attempt for:', email);
+    const normalizedEmail = typeof email === 'string' ? normalizeEmail(email) : '';
 
     // Validate input
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return res.status(400).json({
         error: {
           code: 'VALIDATION_ERROR',
@@ -422,15 +438,13 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
     }
 
     // Find user
-    console.log('Fetching user from database...');
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('*')
-      .eq('email', email.trim().toLowerCase())
+      .eq('email', normalizedEmail)
       .single();
 
     if (userError) {
-      console.log('Database error:', userError);
       return res.status(401).json({
         error: {
           code: 'INVALID_CREDENTIALS',
@@ -441,7 +455,6 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
     }
 
     if (!user) {
-      console.log('User not found:', email);
       return res.status(401).json({
         error: {
           code: 'INVALID_CREDENTIALS',
@@ -450,16 +463,12 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
         }
       });
     }
-
-    console.log('User found, verifying password...');
     
     // Verify password
     try {
       const isValidPassword = await bcrypt.compare(password, user.password_hash);
-      console.log('Password verification result:', isValidPassword);
       
       if (!isValidPassword) {
-        console.log('Invalid password for:', email);
         return res.status(401).json({
           error: {
             code: 'INVALID_CREDENTIALS',
@@ -479,39 +488,30 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
       });
     }
 
-    console.log('Password verified, generating JWT...');
+    if (normalizedEmail === PRIMARY_SUPER_ADMIN_EMAIL && user.role !== 'super_admin') {
+      const { data: updatedUser, error: roleError } = await supabase
+        .from('users')
+        .update({ role: 'super_admin' })
+        .eq('id', user.id)
+        .select()
+        .single();
+
+      if (roleError) {
+        console.error('Failed to update primary super admin role:', roleError);
+      } else {
+        user.role = updatedUser.role;
+      }
+    }
 
     // Generate JWT
-    const token = jwt.sign(
-      {
-        userId: user.id,
-        username: user.username,
-        email: user.email
-      },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    console.log('JWT generated, setting cookie...');
+    const token = signAuthToken(user);
 
     // Set cookie
-    res.cookie('auth_token', token, {
-      httpOnly: true,
-      secure: true, // Always true for cross-domain cookies
-      sameSite: 'none', // Required for cross-domain cookies
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    });
-
-    console.log('Login successful for:', email);
+    setAuthCookie(res, token);
 
     // Return success
     res.json({
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role || 'user' // Include role in response
-      },
+      user: toAuthUser(user),
       message: 'Login successful'
     });
   } catch (error: any) {
@@ -533,101 +533,11 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
  * Logout user
  */
 app.post('/api/auth/logout', (req: Request, res: Response) => {
-  res.clearCookie('auth_token', {
-    httpOnly: true,
-    secure: true, // Always true for cross-domain cookies
-    sameSite: 'none' // Required for cross-domain cookies
-  });
+  res.clearCookie('auth_token', clearAuthCookieOptions);
 
   res.json({
     message: 'Logout successful'
   });
-});
-
-/**
- * POST /api/auth/reset-password
- * Reset password for any user (temporary solution for broken passwords)
- */
-app.post('/api/auth/reset-password', async (req: Request, res: Response) => {
-  try {
-    const { email, newPassword } = req.body;
-
-    // Validate input
-    if (!email || !newPassword) {
-      return res.status(400).json({
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Email and new password are required',
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
-
-    if (newPassword.length < 8) {
-      return res.status(400).json({
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Password must be at least 8 characters long',
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
-
-    // Find user
-    const { data: user, error: findError } = await supabase
-      .from('users')
-      .select('id, email, username')
-      .eq('email', email.trim().toLowerCase())
-      .single();
-
-    if (findError || !user) {
-      return res.status(404).json({
-        error: {
-          code: 'USER_NOT_FOUND',
-          message: 'User not found',
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
-
-    // Hash new password
-    const newPasswordHash = await bcrypt.hash(newPassword, 12);
-
-    // Update password
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({ password_hash: newPasswordHash })
-      .eq('id', user.id);
-
-    if (updateError) {
-      console.error('Password update error:', updateError);
-      return res.status(500).json({
-        error: {
-          code: 'UPDATE_FAILED',
-          message: 'Failed to update password',
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Password reset successfully. You can now login with your new password.',
-      user: {
-        email: user.email,
-        username: user.username
-      }
-    });
-  } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(500).json({
-      error: {
-        code: 'RESET_FAILED',
-        message: 'Failed to reset password',
-        timestamp: new Date().toISOString()
-      }
-    });
-  }
 });
 
 /**
@@ -637,15 +547,14 @@ app.post('/api/auth/reset-password', async (req: Request, res: Response) => {
 app.get('/api/auth/me', authenticate, async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
+    const { data: wallet } = await supabase
+      .from('wallets')
+      .select('balance_ngn_kobo')
+      .eq('user_id', user.id)
+      .maybeSingle();
 
     res.json({
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        balance: user.balance
-      }
+      user: toAuthUser(user, wallet?.balance_ngn_kobo ? wallet.balance_ngn_kobo / 100 : 0)
     });
   } catch (error) {
     res.status(401).json({

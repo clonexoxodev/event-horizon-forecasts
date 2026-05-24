@@ -26,13 +26,16 @@ export default function Login() {
     }
 
     setLoading(true);
-    const { error: loginError } = await login(email, password);
-    setLoading(false);
+    try {
+      const { error: loginError } = await login(email, password);
 
-    if (loginError) {
-      setError(loginError);
-    } else {
-      navigate("/");
+      if (loginError) {
+        setError(loginError);
+      } else {
+        navigate("/");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -89,15 +92,6 @@ export default function Login() {
                 >
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
-              </div>
-
-              <div className="text-right">
-                <Link 
-                  to="/reset-password"
-                  className="text-xs text-primary hover:underline"
-                >
-                  Forgot password?
-                </Link>
               </div>
 
               {error && (

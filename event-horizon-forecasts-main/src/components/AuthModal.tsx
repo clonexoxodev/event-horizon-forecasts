@@ -29,24 +29,33 @@ export const AuthModal = () => {
     setError(null);
     setSuccess(null);
     if (!email || !password) { setError("Please fill in all fields."); return; }
-    if (mode === "signup" && !name) { setError("Please enter your name."); return; }
+    if (mode === "signup" && !name) { setError("Please enter a username."); return; }
+    if (mode === "signup" && password.length < 8) { setError("Password must be at least 8 characters long."); return; }
 
     setLoading(true);
-    if (mode === "login") {
-      const { error } = await login(email, password);
-      if (error) setError(error);
-    } else {
-      const { error } = await signup(name, email, password);
-      if (error) setError(error);
-      else setSuccess("Account created! Check your email to confirm, then log in.");
+    try {
+      if (mode === "login") {
+        const { error } = await login(email, password);
+        if (error) setError(error);
+      } else {
+        const { error } = await signup(name, email, password);
+        if (error) setError(error);
+        else setSuccess("Account created successfully.");
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleGoogle = async () => {
     setLoading(true);
-    await loginWithGoogle();
-    setLoading(false);
+    try {
+      await loginWithGoogle();
+    } catch (error: any) {
+      setError(error.message || "Google sign-in is not available yet.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -74,7 +83,7 @@ export const AuthModal = () => {
               <div className="relative">
                 <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 <Input
-                  placeholder="Full name"
+                  placeholder="Username"
                   value={name}
                   onChange={e => setName(e.target.value)}
                   className="pl-9 h-11 rounded-xl"
@@ -112,12 +121,6 @@ export const AuthModal = () => {
                 {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-
-            {mode === "login" && (
-              <div className="text-right">
-                <button className="text-xs text-primary hover:underline">Forgot password?</button>
-              </div>
-            )}
 
             {error && (
               <div className="flex items-center gap-2 text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">

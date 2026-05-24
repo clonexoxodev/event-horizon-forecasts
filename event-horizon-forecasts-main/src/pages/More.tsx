@@ -2,6 +2,7 @@ import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
 import { Link, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import {
   LayoutDashboard,
   Bell,
@@ -15,26 +16,25 @@ import {
 import { useNotifications } from "@/lib/notification-context";
 
 export default function More() {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin, isLoading } = useAuth();
   const { unreadCount } = useNotifications();
   const navigate = useNavigate();
+  const userIsAdmin = isAdmin();
 
-  if (!user) {
-    navigate("/login");
-    return null;
-  }
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate("/login");
+    }
+  }, [isLoading, user, navigate]);
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
-  // Check if user is admin
-  const SUPER_ADMIN_EMAILS = [
-    "fehintoluwaolu@gmail.com",
-    "oluwasinaayomifetuga@gmail.com"
-  ];
-  const isAdmin = user && SUPER_ADMIN_EMAILS.includes(user.email.toLowerCase());
+  if (isLoading || !user) {
+    return null;
+  }
 
   const menuSections = [
     {
@@ -81,7 +81,7 @@ export default function More() {
   ];
 
   // Add admin section if user is admin
-  if (isAdmin) {
+  if (userIsAdmin) {
     menuSections.push({
       title: "Admin",
       items: [
