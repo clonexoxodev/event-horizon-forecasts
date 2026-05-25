@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import multer from 'multer';
 import { createClient } from '@supabase/supabase-js';
 
 function requireEnv(name: string): string {
@@ -67,6 +68,31 @@ app.use(cors({
 
 app.use(express.json());
 app.use(cookieParser());
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (_req, file, cb) => {
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'video/mp4',
+      'video/webm',
+      'video/quicktime'
+    ];
+
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+      return;
+    }
+
+    cb(new Error('Only JPEG, PNG, GIF, WebP, MP4, WebM, and MOV files are allowed.'));
+  },
+  limits: {
+    fileSize: 30 * 1024 * 1024
+  }
+});
 
 // Request logging
 app.use((req, res, next) => {
@@ -132,7 +158,9 @@ app.get('/api', (req: Request, res: Response) => {
 // Auth middleware for protected routes
 const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const token = req.cookies.auth_token;
+    const authHeader = req.headers.authorization;
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    const token = req.cookies.auth_token || bearerToken;
 
     if (!token) {
       return res.status(401).json({
@@ -417,6 +445,7 @@ app.post('/api/auth/signup', async (req: Request, res: Response) => {
     // Return success
     res.status(201).json({
       user: toAuthUser(newUser, 0),
+      token,
       message: 'User registered successfully'
     });
   } catch (error) {
@@ -526,6 +555,7 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
     // Return success
     res.json({
       user: toAuthUser(user),
+      token,
       message: 'Login successful'
     });
   } catch (error: any) {
@@ -666,6 +696,12 @@ const normalizeMarket = (market: any, positionCount = 0) => {
     noPrice,
     closeTime,
     status: status === 'open' ? 'active' : status,
+    imageUrl: market.image_url || null,
+    videoUrl: market.video_url || null,
+    image_url: market.image_url || null,
+    video_url: market.video_url || null,
+    isTrending: Boolean(market.is_trending),
+    is_trending: Boolean(market.is_trending),
     priceHistory: []
   };
 };
@@ -1855,6 +1891,382 @@ app.get('/api/admin/analytics', authenticate, requireRole('super_admin'), async 
         timestamp: new Date().toISOString()
       }
     });
+  }
+});
+
+const normalizeAdminMarket = (market: any) => ({
+  id: market.id,
+  question: market.question,
+  description: market.description,
+  category: market.category || 'General',
+  status: market.status || market.state || 'active',
+  market_type: market.market_type || 'binary',
+  yes_label: market.yes_label || 'YES',
+  no_label: market.no_label || 'NO',
+  yes_price: Number(market.yes_price || 50),
+  no_price: Number(market.no_price || 50),
+  close_date: market.close_date || market.closes_at,
+  resolution_date: market.resolution_date,
+  resolution_source: market.resolution_source,
+  resolution_instructions: market.resolution_instructions,
+  outcome: market.outcome,
+  pool_amount_smallest_unit: Number(market.pool_amount_smallest_unit || 0),
+  participant_count: Number(market.participant_count || 0),
+  currency: market.currency || 'NGN',
+  image_url: market.image_url,
+  video_url: market.video_url,
+  is_trending: Boolean(market.is_trending),
+  min_position_smallest_unit: Number(market.min_position_smallest_unit || 0),
+  max_position_smallest_unit: Number(market.max_position_smallest_unit || 0),
+  created_by: market.created_by,
+  created_at: market.created_at,
+  updated_at: market.updated_at
+});
+
+const legacyStateFor = (status: string) => {
+  if (status === 'active') return 'active';
+  if (status === 'resolved') return 'resolved';
+  return 'closed';
+};
+
+const canManageMarket = (user: any, market: any) => (
+  user.role === 'super_admin' || market.created_by === user.id
+);
+
+/**
+ * GET /api/admin/markets
+ * List admin markets.
+ */
+app.get('/api/admin/markets', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const status = typeof req.query.status === 'string' ? req.query.status : '';
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+
+    let query = supabase
+      .from('markets')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (status && status !== 'all') {
+      query = query.eq('status', status);
+    }
+
+    if (search) {
+      query = query.ilike('question', `%${search}%`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const markets = (data || []).map(normalizeAdminMarket);
+    res.json({
+      success: true,
+      markets,
+      pagination: {
+        total: markets.length,
+        page: 1,
+        limit: markets.length,
+        pages: 1
+      }
+    });
+  } catch (error: any) {
+    console.error('Admin markets list error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'ADMIN_MARKETS_FAILED',
+        message: 'Could not load admin markets',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+/**
+ * POST /api/admin/markets/upload-media
+ * Upload an admin market image or short video to Supabase Storage.
+ */
+app.post('/api/admin/markets/upload-media', authenticate, requireRole('admin'), (req: Request, res: Response, next: NextFunction) => {
+  upload.single('media')(req, res, (uploadError: any) => {
+    if (uploadError) {
+      const isFileSizeError = uploadError.code === 'LIMIT_FILE_SIZE';
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: isFileSizeError ? 'FILE_TOO_LARGE' : 'INVALID_FILE',
+          message: isFileSizeError ? 'Media file must be under 30MB.' : uploadError.message,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+    next();
+  });
+}, async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'NO_FILE_UPLOADED',
+          message: 'Choose an image or short video first.',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const mediaType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
+    const bucket = mediaType === 'video' ? 'market-videos' : 'market-images';
+    const extension = req.file.originalname.split('.').pop() || (mediaType === 'video' ? 'mp4' : 'jpg');
+    const safeName = `${mediaType}-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+
+    const { error } = await supabase.storage
+      .from(bucket)
+      .upload(safeName, req.file.buffer, {
+        contentType: req.file.mimetype,
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (error) {
+      console.error('Admin media upload error:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'UPLOAD_FAILED',
+          message: `Could not upload ${mediaType}. Check the ${bucket} Supabase Storage bucket.`,
+          details: error.message,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(safeName);
+
+    res.json({
+      success: true,
+      media_type: mediaType,
+      url: publicUrlData.publicUrl,
+      [`${mediaType}_url`]: publicUrlData.publicUrl
+    });
+  } catch (error: any) {
+    console.error('Admin media upload route error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'UPLOAD_FAILED',
+        message: 'Could not upload media',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+/**
+ * POST /api/admin/markets
+ * Create an admin market.
+ */
+app.post('/api/admin/markets', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const question = String(req.body.question || '').trim();
+    const category = String(req.body.category || 'General').trim();
+    const closeDate = req.body.close_date || req.body.closes_at;
+    const yesPrice = Number(req.body.yes_price ?? 50);
+    const noPrice = Number(req.body.no_price ?? 100 - yesPrice);
+    const status = String(req.body.status || 'active');
+    const imageUrl = req.body.image_url || null;
+    const videoUrl = req.body.video_url || null;
+
+    if (!question) {
+      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Question is required.' } });
+    }
+
+    if (!imageUrl && !videoUrl) {
+      return res.status(400).json({ success: false, error: { code: 'MEDIA_REQUIRED', message: 'Add an image or short video before creating the market.' } });
+    }
+
+    if (!Number.isFinite(yesPrice) || !Number.isFinite(noPrice) || yesPrice + noPrice !== 100) {
+      return res.status(400).json({ success: false, error: { code: 'PRICE_SUM_INVALID', message: 'YES and NO prices must add up to 100.' } });
+    }
+
+    const { data: market, error } = await supabase
+      .from('markets')
+      .insert({
+        question,
+        description: req.body.description || null,
+        category,
+        country_filter: req.body.country_filter || null,
+        market_type: req.body.market_type || 'binary',
+        yes_label: req.body.yes_label || 'YES',
+        no_label: req.body.no_label || 'NO',
+        yes_price: yesPrice,
+        no_price: noPrice,
+        close_date: closeDate,
+        closes_at: closeDate,
+        resolution_date: req.body.resolution_date || closeDate,
+        resolution_source: req.body.resolution_source || null,
+        resolution_instructions: req.body.resolution_instructions || null,
+        status,
+        state: legacyStateFor(status),
+        currency: req.body.currency || 'NGN',
+        image_url: imageUrl,
+        video_url: videoUrl,
+        is_trending: Boolean(req.body.is_trending),
+        min_position_smallest_unit: Number(req.body.min_position_smallest_unit || 100),
+        max_position_smallest_unit: Number(req.body.max_position_smallest_unit || 0) || null,
+        created_by: user.id,
+        pool_amount_smallest_unit: 0,
+        yes_pool_smallest_unit: 0,
+        no_pool_smallest_unit: 0,
+        participant_count: 0
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({
+      success: true,
+      market: normalizeAdminMarket(market)
+    });
+  } catch (error: any) {
+    console.error('Admin market create error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'CREATE_MARKET_FAILED',
+        message: 'Could not create market',
+        details: error.message,
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+app.put('/api/admin/markets/:marketId', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const { data: existingMarket, error: findError } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('id', req.params.marketId)
+      .single();
+
+    if (findError || !existingMarket) {
+      return res.status(404).json({ success: false, error: { code: 'MARKET_NOT_FOUND', message: 'Market not found.' } });
+    }
+
+    if (!canManageMarket(user, existingMarket)) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Admins can only edit markets they created.' } });
+    }
+
+    const updateData: any = { ...req.body };
+    if (updateData.close_date) updateData.closes_at = updateData.close_date;
+    if (updateData.status) updateData.state = legacyStateFor(updateData.status);
+
+    const { data: market, error } = await supabase
+      .from('markets')
+      .update(updateData)
+      .eq('id', req.params.marketId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, market: normalizeAdminMarket(market) });
+  } catch (error: any) {
+    console.error('Admin market update error:', error);
+    res.status(500).json({ success: false, error: { code: 'UPDATE_MARKET_FAILED', message: 'Could not update market.' } });
+  }
+});
+
+app.patch('/api/admin/markets/:marketId/status', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const { data: existingMarket, error: findError } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('id', req.params.marketId)
+      .single();
+
+    if (findError || !existingMarket) {
+      return res.status(404).json({ success: false, error: { code: 'MARKET_NOT_FOUND', message: 'Market not found.' } });
+    }
+
+    if (!canManageMarket(user, existingMarket)) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Admins can only change markets they created.' } });
+    }
+
+    if (req.body.status === 'resolved' && user.role !== 'super_admin') {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Only super admins can resolve markets.' } });
+    }
+
+    const updateData: any = {
+      status: req.body.status,
+      state: legacyStateFor(req.body.status)
+    };
+    if (req.body.outcome) updateData.outcome = req.body.outcome;
+    if (req.body.resolution_source) updateData.resolution_source = req.body.resolution_source;
+    if (req.body.status === 'resolved') updateData.resolved_at = new Date().toISOString();
+
+    const { data: market, error } = await supabase
+      .from('markets')
+      .update(updateData)
+      .eq('id', req.params.marketId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, market: normalizeAdminMarket(market) });
+  } catch (error: any) {
+    console.error('Admin market status error:', error);
+    res.status(500).json({ success: false, error: { code: 'STATUS_MARKET_FAILED', message: 'Could not change market status.' } });
+  }
+});
+
+app.get('/api/admin/users', authenticate, requireRole('super_admin'), async (_req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, email, username, role, created_at')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json({ users: data || [] });
+  } catch (error: any) {
+    console.error('Admin users error:', error);
+    res.status(500).json({ error: { code: 'ADMIN_USERS_FAILED', message: 'Could not load users.' } });
+  }
+});
+
+app.get('/api/admin/transactions', authenticate, requireRole('super_admin'), async (_req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+    res.json({
+      transactions: (data || []).map((tx) => ({
+        id: tx.id,
+        userId: tx.user_id,
+        walletId: tx.wallet_id,
+        type: tx.type,
+        amount: toAmount(tx.amount_smallest_unit),
+        amountSmallestUnit: tx.amount_smallest_unit,
+        currency: tx.currency,
+        direction: tx.direction,
+        referenceId: tx.reference_id,
+        referenceType: tx.reference_type,
+        status: tx.status,
+        metadata: tx.metadata,
+        createdAt: tx.created_at
+      }))
+    });
+  } catch (error: any) {
+    console.error('Admin transactions error:', error);
+    res.status(500).json({ error: { code: 'ADMIN_TRANSACTIONS_FAILED', message: 'Could not load transactions.' } });
   }
 });
 

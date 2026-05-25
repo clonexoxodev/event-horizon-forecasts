@@ -58,6 +58,7 @@ export type AuthUserResponse = {
 
 type AuthResponse = {
   user: AuthUserResponse;
+  token?: string;
   message?: string;
 };
 
@@ -82,6 +83,12 @@ export type ApiMarket = {
   confidence?: number;
   volatility?: number;
   liquidity?: number;
+  imageUrl?: string | null;
+  videoUrl?: string | null;
+  image_url?: string | null;
+  video_url?: string | null;
+  isTrending?: boolean;
+  is_trending?: boolean;
   priceHistory?: Array<{ timestamp: string; yesPrice: number; noPrice: number }>;
 };
 
@@ -222,10 +229,27 @@ const toSmallestUnit = (amount: number) => Math.round(Number(amount) * 100);
 class ApiService {
   private baseURL: string;
   private configError?: string;
+  private authTokenKey = 'flippe_auth_token';
 
   constructor() {
     this.baseURL = apiConfig.baseUrl;
     this.configError = apiConfig.error;
+  }
+
+  setAuthToken(token?: string | null) {
+    if (typeof window === 'undefined') return;
+
+    if (token) {
+      window.localStorage.setItem(this.authTokenKey, token);
+      return;
+    }
+
+    window.localStorage.removeItem(this.authTokenKey);
+  }
+
+  private getAuthToken() {
+    if (typeof window === 'undefined') return '';
+    return window.localStorage.getItem(this.authTokenKey) || '';
   }
 
   private async request<T>(
@@ -239,9 +263,11 @@ class ApiService {
     const url = `${this.baseURL}${endpoint}`;
 
     const isFormData = options.body instanceof FormData;
+    const token = this.getAuthToken();
     const config: RequestInit = {
       headers: {
         ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       },
       credentials: 'include',
@@ -271,6 +297,7 @@ class ApiService {
           if (errorData.error?.code === 'INVALID_CREDENTIALS') {
             throw new Error('Invalid email or password. Please try again.');
           }
+          this.setAuthToken(null);
           throw new Error(errorData.error?.message || 'Authentication required. Please log in again.');
         }
 

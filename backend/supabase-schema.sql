@@ -102,14 +102,44 @@ UPDATE markets SET close_date = COALESCE(close_date, closes_at);
 CREATE INDEX IF NOT EXISTS idx_markets_status ON markets(status);
 CREATE INDEX IF NOT EXISTS idx_markets_created_by ON markets(created_by);
 
--- Storage buckets needed by admin media upload:
--- 1. Create a public bucket named market-images.
--- 2. Create a public bucket named market-videos.
--- 3. Backend uploads must use the Supabase service role key only.
--- Example storage policies if clients ever read directly:
--- CREATE POLICY "Public market image read" ON storage.objects FOR SELECT USING (bucket_id = 'market-images');
--- CREATE POLICY "Public market video read" ON storage.objects FOR SELECT USING (bucket_id = 'market-videos');
--- Do not allow public INSERT/UPDATE/DELETE. Uploads should go through the backend admin API.
+-- Storage buckets needed by admin media upload.
+-- Uploads go through the backend service-role API. Public read is enabled so
+-- market images/videos display on the frontend.
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES
+  ('market-images', 'market-images', true, 10485760, ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp']),
+  ('market-videos', 'market-videos', true, 31457280, ARRAY['video/mp4', 'video/webm', 'video/quicktime'])
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'storage'
+      AND tablename = 'objects'
+      AND policyname = 'Public market image read'
+  ) THEN
+    CREATE POLICY "Public market image read"
+      ON storage.objects
+      FOR SELECT
+      USING (bucket_id = 'market-images');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'storage'
+      AND tablename = 'objects'
+      AND policyname = 'Public market video read'
+  ) THEN
+    CREATE POLICY "Public market video read"
+      ON storage.objects
+      FOR SELECT
+      USING (bucket_id = 'market-videos');
+  END IF;
+END $$;
 
 -- Positions Table
 CREATE TABLE IF NOT EXISTS positions (

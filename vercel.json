@@ -2,5 +2,11 @@
   "buildCommand": "cd event-horizon-forecasts-main && npm install && npm run build",
   "outputDirectory": "event-horizon-forecasts-main/dist",
   "installCommand": "echo 'Skipping root install'",
-  "framework": null
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }

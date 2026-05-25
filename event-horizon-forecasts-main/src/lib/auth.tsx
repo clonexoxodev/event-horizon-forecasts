@@ -84,6 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const response = await apiService.getCurrentUser();
       await applyUser(response.user);
     } catch {
+      apiService.setAuthToken(null);
       clearUser();
     }
   };
@@ -122,10 +123,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email: email.trim().toLowerCase(),
         password,
       });
+      apiService.setAuthToken(response.token);
       await applyUser(response.user);
       setAuthOpen(false);
       return { error: null };
     } catch (error: any) {
+      apiService.setAuthToken(null);
       clearUser();
       return { error: error.message || "Login failed" };
     }
@@ -138,10 +141,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email: email.trim().toLowerCase(),
         password,
       });
+      apiService.setAuthToken(response.token);
       await applyUser(response.user);
       setAuthOpen(false);
       return { error: null };
     } catch (error: any) {
+      apiService.setAuthToken(null);
       clearUser();
       return { error: error.message || "Signup failed" };
     }
@@ -157,6 +162,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
+      apiService.setAuthToken(null);
       clearUser();
     }
   };
