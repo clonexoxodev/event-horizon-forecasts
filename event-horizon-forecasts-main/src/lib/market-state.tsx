@@ -1,9 +1,9 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, ReactNode, useCallback, Dispatch, SetStateAction } from "react";
 import { Market, updateMarketPricing } from "./markets";
 
 type MarketStateContextType = {
   markets: Market[];
-  setMarkets: (markets: Market[]) => void;
+  setMarkets: Dispatch<SetStateAction<Market[]>>;
   updateMarket: (marketId: string, side: "YES" | "NO", amount: number, userId: string) => void;
   getMarket: (marketId: string) => Market | undefined;
 };

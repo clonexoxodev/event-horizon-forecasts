@@ -1,303 +1,325 @@
-import { Search, User, Bell, X, ChevronDown, Wallet, Briefcase, LayoutDashboard, HelpCircle, Settings, LogOut, Shield, UserCog } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Bell, Flame, Gift, Home, Loader2, Search, Shield, Tag, User, Wallet } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
 import { useNotifications } from "@/lib/notification-context";
 import { formatNaira } from "@/lib/markets";
-import { useState, useRef, useEffect } from "react";
+import apiService, { type ApiMarket, type ApiSearchUser } from "@/lib/api";
+
+const navItems = [
+  { to: "/", label: "Home", icon: Home },
+  { to: "/markets", label: "Trending", icon: Flame },
+  { to: "/wallet", label: "Wallet", icon: Wallet },
+  { to: "/activity", label: "Activity", icon: Bell },
+  { to: "/profile", label: "Profile", icon: User },
+];
 
 export const Header = () => {
-  const { user, logout, isAdmin, isSuperAdmin } = useAuth();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
   const { unreadCount } = useNotifications();
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const adminPath = isSuperAdmin() ? "/super-admin" : "/admin";
+  const searchRef = useRef<HTMLDivElement>(null);
+  const [query, setQuery] = useState("");
+  const [markets, setMarkets] = useState<ApiMarket[]>([]);
+  const [users, setUsers] = useState<ApiSearchUser[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
-  // Close dropdown when clicking outside
+  const categories = useMemo(() => {
+    const known = ["Sports", "Music", "Crypto", "Politics", "Entertainment", "Finance", "Technology"];
+    const marketCategories = markets.map((market) => market.category).filter(Boolean);
+    return Array.from(new Set([...known, ...marketCategories]));
+  }, [markets]);
+
+  const filteredMarkets = useMemo(() => {
+    if (query.trim().length < 2) return [];
+    const normalized = query.toLowerCase();
+    return markets
+      .filter((market) =>
+        market.question.toLowerCase().includes(normalized) ||
+        market.category.toLowerCase().includes(normalized)
+      )
+      .slice(0, 5);
+  }, [markets, query]);
+
+  const filteredCategories = useMemo(() => {
+    if (query.trim().length < 2) return [];
+    const normalized = query.toLowerCase();
+    return categories.filter((category) => category.toLowerCase().includes(normalized)).slice(0, 5);
+  }, [categories, query]);
+
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(false);
+    const loadMarkets = async () => {
+      try {
+        const response = await apiService.getMarkets();
+        setMarkets(response.markets || []);
+      } catch {
+        setMarkets([]);
       }
     };
 
-    if (dropdownOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
+    loadMarkets();
+  }, []);
+
+  useEffect(() => {
+    if (query.trim().length < 2) {
+      setUsers([]);
+      return;
     }
 
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [dropdownOpen]);
+    const timeout = window.setTimeout(async () => {
+      setSearching(true);
+      try {
+        const response = await apiService.searchUsers(query.trim());
+        setUsers(response.users || []);
+      } catch {
+        setUsers([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 250);
 
-  const handleLogout = () => {
-    logout();
-    setDropdownOpen(false);
-    navigate("/login");
+    return () => window.clearTimeout(timeout);
+  }, [query]);
+
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setSearchOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
+
+  const goToSearch = (path: string) => {
+    setSearchOpen(false);
+    setQuery("");
+    navigate(path);
   };
 
   return (
-    <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/80 border-b border-graphite/10 shadow-xs">
-      <div className="container max-w-[1280px] mx-auto py-3 px-4 sm:px-6 flex items-center gap-3">
-        {/* Logo */}
-        <Link
-          to="/"
-          className="font-bold text-xl tracking-tight shrink-0 flex items-center gap-0.5 hover:opacity-80 transition-fast text-charcoal"
-        >
-          Flippe<span className="text-purple text-2xl leading-none">.</span>
+    <>
+    <aside className="fixed left-0 top-0 z-50 hidden h-screen w-64 border-r border-white/10 bg-[#070a14]/95 p-5 backdrop-blur-2xl xl:block">
+      <Link to="/" className="mb-8 flex items-center gap-2">
+        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-violet-500/20 text-violet-200 shadow-[0_0_24px_rgba(139,92,246,0.35)]">
+          F
+        </div>
+        <span className="text-2xl font-extrabold tracking-tight text-white">Flippe</span>
+      </Link>
+      <nav className="space-y-1">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.to === "/"}
+            className={({ isActive }) =>
+              `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition ${
+                isActive
+                  ? "bg-violet-500/20 text-violet-100 shadow-[0_0_24px_rgba(139,92,246,0.16)]"
+                  : "text-slate-400 hover:bg-white/5 hover:text-white"
+              }`
+            }
+          >
+            <item.icon className="h-5 w-5" />
+            {item.label}
+          </NavLink>
+        ))}
+        {(isAdmin() || isSuperAdmin()) && (
+          <NavLink
+            to={adminPath}
+            className={({ isActive }) =>
+              `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition ${
+                isActive
+                  ? "bg-violet-500/20 text-violet-100 shadow-[0_0_24px_rgba(139,92,246,0.16)]"
+                  : "text-slate-400 hover:bg-white/5 hover:text-white"
+              }`
+            }
+          >
+            <Shield className="h-5 w-5" />
+            Admin
+          </NavLink>
+        )}
+      </nav>
+      <div className="absolute bottom-5 left-5 right-5 rounded-3xl border border-white/10 bg-white/[0.055] p-4">
+        <Gift className="mb-3 h-6 w-6 text-violet-300" />
+        <div className="text-sm font-black text-white">Invite and earn</div>
+        <div className="mt-1 text-xs text-slate-500">Share Flippe with friends</div>
+      </div>
+    </aside>
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-[#070a14]/85 backdrop-blur-2xl">
+      <div className="mx-auto flex max-w-[1320px] flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
+        <Link to="/" className="flex items-center gap-2 shrink-0">
+          <div className="grid h-9 w-9 place-items-center rounded-2xl bg-violet-500/20 text-violet-200 shadow-[0_0_24px_rgba(139,92,246,0.35)]">
+            F
+          </div>
+          <span className="text-xl font-extrabold tracking-tight text-white">
+            Flippe
+          </span>
         </Link>
 
-        {/* Desktop search - centered */}
-        <div className="relative flex-1 max-w-md mx-auto hidden sm:block">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-graphite pointer-events-none" />
+        <nav className="ml-3 hidden items-center gap-1 lg:flex">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === "/"}
+              className={({ isActive }) =>
+                `flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                  isActive
+                    ? "bg-violet-500/20 text-violet-200"
+                    : "text-slate-400 hover:bg-white/5 hover:text-white"
+                }`
+              }
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </NavLink>
+          ))}
+          {(isAdmin() || isSuperAdmin()) && (
+            <NavLink
+              to={adminPath}
+              className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-400 transition hover:bg-white/5 hover:text-white"
+            >
+              <Shield className="h-4 w-4" />
+              Admin
+            </NavLink>
+          )}
+        </nav>
+
+        <div ref={searchRef} className="relative order-last w-full md:order-none md:ml-auto md:max-w-md md:flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <Input
-            placeholder="Search markets..."
-            className="pl-9 h-9 bg-graphite/5 border-graphite/10 focus:border-purple/30 focus:bg-white rounded-xl text-sm transition-fast placeholder:text-graphite/60"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setSearchOpen(true);
+            }}
+            onFocus={() => setSearchOpen(true)}
+            placeholder="Search markets, topics, people..."
+            className="h-10 rounded-2xl border-white/10 bg-white/5 pl-9 text-sm text-white placeholder:text-slate-500 focus:border-violet-400/40 focus:ring-violet-500/20"
           />
-        </div>
-
-        {/* Mobile search toggle */}
-        {searchOpen && (
-          <div className="absolute inset-x-0 top-0 z-50 flex items-center gap-2 px-4 h-[56px] bg-card border-b border-border/40 sm:hidden shadow-sm">
-            <Search className="w-4 h-4 text-graphite shrink-0" />
-            <Input
-              autoFocus
-              placeholder="Search markets..."
-              className="flex-1 h-9 border-none bg-transparent focus-visible:ring-0 text-sm p-0"
-            />
-            <button onClick={() => setSearchOpen(false)} className="text-graphite hover:text-charcoal transition-micro">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        )}
-
-        <div className="flex items-center gap-2 shrink-0 ml-auto">
-          {/* Mobile search icon */}
-          <button
-            onClick={() => setSearchOpen(true)}
-            className="sm:hidden w-9 h-9 rounded-xl grid place-items-center text-graphite hover:text-charcoal hover:bg-graphite/6 transition-micro"
-          >
-            <Search className="w-[18px] h-[18px]" />
-          </button>
-
-          {user ? (
-            <>
-              {/* Balance chip - desktop only */}
-              <div className="hidden sm:flex items-center gap-2 px-3 h-9 rounded-xl bg-purple/10 border border-purple/20 text-sm font-semibold text-purple">
-                <span className="w-1.5 h-1.5 rounded-full bg-purple animate-pulse" />
-                {formatNaira(user.balance)}
-              </div>
-
-              {/* Notifications - desktop only */}
-              <NavLink
-                to="/notifications"
-                className={({ isActive }) =>
-                  `hidden sm:grid relative w-9 h-9 rounded-xl place-items-center transition-micro ${
-                    isActive
-                      ? "bg-purple/10 text-purple"
-                      : "text-graphite hover:text-charcoal hover:bg-graphite/6"
-                  }`
-                }
-              >
-                <Bell className="w-[18px] h-[18px]" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-purple text-white text-[10px] font-bold flex items-center justify-center">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                )}
-              </NavLink>
-
-              {/* Profile dropdown - desktop only */}
-              <div className="hidden sm:block relative" ref={dropdownRef}>
-                <button
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className={`flex items-center gap-1.5 h-9 pl-1.5 pr-2.5 rounded-xl transition-micro ${
-                    dropdownOpen
-                      ? "bg-purple/10 text-purple"
-                      : "text-graphite hover:text-charcoal hover:bg-graphite/6"
-                  }`}
-                >
-                  <div className="w-6 h-6 rounded-full bg-charcoal text-off-white grid place-items-center">
-                    <User className="w-3.5 h-3.5" />
-                  </div>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
-                </button>
-
-                {/* Dropdown menu */}
-                {dropdownOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-elevated border border-graphite/10 overflow-hidden">
-                    <div className="p-3 border-b border-graphite/10">
-                      <div className="font-semibold text-charcoal text-sm">{user.username}</div>
-                      <div className="text-xs text-graphite mt-0.5">{user.email}</div>
-                    </div>
-                    
-                    <div className="py-1">
-                      <NavLink
-                        to="/wallet"
-                        onClick={() => setDropdownOpen(false)}
-                        className={({ isActive }) =>
-                          `flex items-center gap-3 px-3 py-2.5 text-sm transition-micro ${
-                            isActive
-                              ? "bg-purple/10 text-purple font-semibold"
-                              : "text-charcoal hover:bg-graphite/6"
-                          }`
-                        }
-                      >
-                        <Wallet className="w-4 h-4" />
-                        Wallet
-                      </NavLink>
-                      
-                      <NavLink
-                        to="/portfolio"
-                        onClick={() => setDropdownOpen(false)}
-                        className={({ isActive }) =>
-                          `flex items-center gap-3 px-3 py-2.5 text-sm transition-micro ${
-                            isActive
-                              ? "bg-purple/10 text-purple font-semibold"
-                              : "text-charcoal hover:bg-graphite/6"
-                          }`
-                        }
-                      >
-                        <Briefcase className="w-4 h-4" />
-                        Portfolio
-                      </NavLink>
-                      
-                      <NavLink
-                        to="/dashboard"
-                        onClick={() => setDropdownOpen(false)}
-                        className={({ isActive }) =>
-                          `flex items-center gap-3 px-3 py-2.5 text-sm transition-micro ${
-                            isActive
-                              ? "bg-purple/10 text-purple font-semibold"
-                              : "text-charcoal hover:bg-graphite/6"
-                          }`
-                        }
-                      >
-                        <LayoutDashboard className="w-4 h-4" />
-                        Dashboard
-                      </NavLink>
-                      
-                      <NavLink
-                        to="/notifications"
-                        onClick={() => setDropdownOpen(false)}
-                        className={({ isActive }) =>
-                          `flex items-center gap-3 px-3 py-2.5 text-sm transition-micro ${
-                            isActive
-                              ? "bg-purple/10 text-purple font-semibold"
-                              : "text-charcoal hover:bg-graphite/6"
-                          }`
-                        }
-                      >
-                        <Bell className="w-4 h-4" />
-                        <span className="flex-1">Notifications</span>
-                        {unreadCount > 0 && (
-                          <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-purple text-white text-[10px] font-bold flex items-center justify-center">
-                            {unreadCount > 9 ? "9+" : unreadCount}
-                          </span>
-                        )}
-                      </NavLink>
-                    </div>
-
-                    <div className="border-t border-graphite/10 py-1">
-                      {/* Admin links - only show for admin or super_admin */}
-                      {isAdmin() && (
-                        <NavLink
-                          to="/admin"
-                          onClick={() => setDropdownOpen(false)}
-                          className={({ isActive }) =>
-                            `flex items-center gap-3 px-3 py-2.5 text-sm transition-micro ${
-                              isActive
-                                ? "bg-purple/10 text-purple font-semibold"
-                                : "text-charcoal hover:bg-graphite/6"
-                            }`
-                          }
-                        >
-                          <UserCog className="w-4 h-4" />
-                          Admin
-                        </NavLink>
-                      )}
-                      
-                      {/* Super Admin link - only show for super_admin */}
-                      {isSuperAdmin() && (
-                        <NavLink
-                          to="/super-admin"
-                          onClick={() => setDropdownOpen(false)}
-                          className={({ isActive }) =>
-                            `flex items-center gap-3 px-3 py-2.5 text-sm transition-micro ${
-                              isActive
-                                ? "bg-purple/10 text-purple font-semibold"
-                                : "text-charcoal hover:bg-graphite/6"
-                            }`
-                          }
-                        >
-                          <Shield className="w-4 h-4" />
-                          Super Admin
-                        </NavLink>
-                      )}
-                      
-                      <NavLink
-                        to="/support"
-                        onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-3 px-3 py-2.5 text-sm text-charcoal hover:bg-graphite/6 transition-micro"
-                      >
-                        <HelpCircle className="w-4 h-4" />
-                        Support
-                      </NavLink>
-                      
-                      <NavLink
-                        to="/profile"
-                        onClick={() => setDropdownOpen(false)}
-                        className={({ isActive }) =>
-                          `flex items-center gap-3 px-3 py-2.5 text-sm transition-micro ${
-                            isActive
-                              ? "bg-purple/10 text-purple font-semibold"
-                              : "text-charcoal hover:bg-graphite/6"
-                          }`
-                        }
-                      >
-                        <Settings className="w-4 h-4" />
-                        Settings
-                      </NavLink>
-                    </div>
-
-                    <div className="border-t border-graphite/10 py-1">
-                      <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-coral hover:bg-coral-soft transition-fast"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Log out
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              <Link to="/login">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-graphite hover:text-charcoal hover:bg-graphite/6 rounded-xl text-sm font-semibold h-9"
-                >
-                  Log in
-                </Button>
-              </Link>
-              <Link to="/signup">
-                <Button
-                  size="sm"
-                  className="bg-purple text-white hover:bg-purple/90 rounded-xl shadow-sm font-semibold text-sm h-9 transition-fast"
-                >
-                  Sign up free
-                </Button>
-              </Link>
-            </>
+          {searchOpen && query.trim().length >= 2 && (
+            <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-3xl border border-white/10 bg-[#080b16]/98 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-2xl">
+              {searching && (
+                <div className="flex items-center gap-2 px-3 py-2 text-sm text-slate-400">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Searching...
+                </div>
+              )}
+              {!searching && filteredMarkets.length === 0 && filteredCategories.length === 0 && users.length === 0 && (
+                <div className="px-3 py-5 text-center text-sm text-slate-500">
+                  No results found.
+                </div>
+              )}
+              {filteredMarkets.length > 0 && (
+                <SearchGroup label="Markets">
+                  {filteredMarkets.map((market) => (
+                    <button key={market.id} onClick={() => goToSearch(`/market/${market.id}`)} className="w-full rounded-2xl px-3 py-2 text-left transition hover:bg-white/5">
+                      <div className="line-clamp-1 text-sm font-black text-white">{market.question}</div>
+                      <div className="mt-1 text-xs text-slate-500">{market.category} · {formatNaira(market.totalPool)}</div>
+                    </button>
+                  ))}
+                </SearchGroup>
+              )}
+              {filteredCategories.length > 0 && (
+                <SearchGroup label="Categories">
+                  {filteredCategories.map((category) => (
+                    <button key={category} onClick={() => goToSearch(`/markets?category=${encodeURIComponent(category)}`)} className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-sm font-bold text-slate-300 transition hover:bg-white/5 hover:text-white">
+                      <Tag className="h-4 w-4 text-violet-300" />
+                      {category}
+                    </button>
+                  ))}
+                </SearchGroup>
+              )}
+              {users.length > 0 && (
+                <SearchGroup label="Users">
+                  {users.map((item) => (
+                    <button key={item.id} onClick={() => goToSearch(`/profile?user=${encodeURIComponent(item.username)}`)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition hover:bg-white/5">
+                      <div className="grid h-8 w-8 place-items-center rounded-full bg-violet-500/20 text-xs font-black text-violet-200">{item.username.charAt(0).toUpperCase()}</div>
+                      <div>
+                        <div className="text-sm font-black text-white">@{item.username}</div>
+                        <div className="text-xs capitalize text-slate-500">{item.role.replace("_", " ")}</div>
+                      </div>
+                    </button>
+                  ))}
+                </SearchGroup>
+              )}
+            </div>
           )}
         </div>
+
+        {user ? (
+          <div className="flex items-center gap-2">
+            <Link
+              to="/wallet"
+              className="hidden rounded-xl bg-violet-500 px-3 py-2 text-sm font-bold text-white shadow-[0_0_22px_rgba(139,92,246,0.35)] transition hover:bg-violet-400 sm:block"
+            >
+              Add Money
+            </Link>
+            <Link
+              to="/wallet"
+              className="hidden rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-emerald-300 sm:block"
+            >
+              {formatNaira(user.balance)}
+            </Link>
+            <Link
+              to="/activity"
+              className="relative grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300"
+            >
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </Link>
+            {(isAdmin() || isSuperAdmin()) && (
+              <Link
+                to={adminPath}
+                title="Admin dashboard"
+                className="flex h-10 items-center gap-2 rounded-xl border border-violet-300/20 bg-violet-500/15 px-3 text-sm font-black text-violet-100 shadow-[0_0_22px_rgba(139,92,246,0.18)] transition hover:bg-violet-500/25"
+              >
+                <Shield className="h-4 w-4" />
+                <span className="hidden sm:inline">Admin</span>
+              </Link>
+            )}
+            <Link
+              to="/profile"
+              className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-500 text-sm font-extrabold text-white"
+            >
+              {user.username?.charAt(0).toUpperCase() || "U"}
+            </Link>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Link to="/login">
+              <Button variant="ghost" className="rounded-xl text-slate-300 hover:bg-white/5 hover:text-white">
+                Log in
+              </Button>
+            </Link>
+            <Link to="/signup">
+              <Button className="rounded-xl bg-violet-500 text-white hover:bg-violet-400">
+                Sign up
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
     </header>
+    </>
   );
 };
+
+const SearchGroup = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div className="py-1">
+    <div className="px-3 pb-1 pt-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-600">
+      {label}
+    </div>
+    {children}
+  </div>
+);

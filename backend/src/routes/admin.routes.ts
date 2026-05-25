@@ -292,4 +292,78 @@ router.get('/analytics', authMiddleware.authenticate, requireRole('super_admin')
   }
 });
 
+/**
+ * GET /api/admin/users
+ * View users (super_admin only)
+ */
+router.get('/users', authMiddleware.authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+  try {
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('id, email, username, role, created_at')
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    res.json({ users: users || [] });
+  } catch (error) {
+    console.error('List users error:', error);
+    res.status(500).json({
+      error: {
+        code: 'LIST_USERS_FAILED',
+        message: 'Failed to list users',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+/**
+ * GET /api/admin/transactions
+ * View transactions (super_admin only)
+ */
+router.get('/transactions', authMiddleware.authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+  try {
+    const { data: transactions, error } = await supabase
+      .from('transactions')
+      .select('id, user_id, wallet_id, type, amount_smallest_unit, currency, direction, reference_id, reference_type, status, metadata, created_at')
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    res.json({
+      transactions: (transactions || []).map((transaction) => ({
+        id: transaction.id,
+        userId: transaction.user_id,
+        walletId: transaction.wallet_id,
+        type: transaction.type,
+        amount: Number(transaction.amount_smallest_unit || 0) / 100,
+        amountSmallestUnit: transaction.amount_smallest_unit,
+        currency: transaction.currency,
+        direction: transaction.direction,
+        referenceId: transaction.reference_id,
+        referenceType: transaction.reference_type,
+        status: transaction.status,
+        metadata: transaction.metadata,
+        createdAt: transaction.created_at
+      }))
+    });
+  } catch (error) {
+    console.error('List transactions error:', error);
+    res.status(500).json({
+      error: {
+        code: 'LIST_TRANSACTIONS_FAILED',
+        message: 'Failed to list transactions',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
 export default router;

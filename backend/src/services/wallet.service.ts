@@ -116,7 +116,8 @@ export class WalletService {
   }
 
   /**
-   * Process deposit - adds funds to wallet
+   * Process deposit request. Money is not added until a payment provider or
+   * admin approval confirms the payment.
    */
   async processDeposit(
     userId: string,
@@ -130,16 +131,6 @@ export class WalletService {
     const wallet = await this.getWallet(userId);
 
     return await this.walletRepository.withTransaction(async (client) => {
-      // Update wallet balance
-      const updatedWallet = await this.walletRepository.incrementBalanceInTransaction(
-        client,
-        userId,
-        depositRequest.currency,
-        depositRequest.amount_smallest_unit,
-        true // increment both total and available balance
-      );
-
-      // Create transaction record
       const transaction = await this.transactionRepository.createInTransaction(client, {
         user_id: userId,
         wallet_id: wallet.id,
@@ -147,19 +138,22 @@ export class WalletService {
         amount_smallest_unit: depositRequest.amount_smallest_unit,
         currency: depositRequest.currency,
         direction: 'IN',
-        status: 'completed',
+        status: 'pending',
         metadata: {
           method: depositRequest.method,
+          paymentStatus: 'manual_pending',
+          note: 'Waiting for payment confirmation',
           ...depositRequest.metadata
         }
       });
 
-      return { wallet: updatedWallet, transaction };
+      return { wallet, transaction };
     });
   }
 
   /**
-   * Process withdrawal - removes funds from wallet
+   * Process withdrawal request. Available balance is reserved while the request
+   * is pending; total balance changes only when an approval flow settles it.
    */
   async processWithdrawal(
     userId: string,
@@ -189,8 +183,7 @@ export class WalletService {
     }
 
     return await this.walletRepository.withTransaction(async (client) => {
-      // Update wallet balance (decrement both total and available)
-      const updatedWallet = await this.walletRepository.decrementBalanceInTransaction(
+      const updatedWallet = await this.walletRepository.decrementAvailableBalanceInTransaction(
         client,
         userId,
         withdrawalRequest.currency,
@@ -205,9 +198,11 @@ export class WalletService {
         amount_smallest_unit: withdrawalRequest.amount_smallest_unit,
         currency: withdrawalRequest.currency,
         direction: 'OUT',
-        status: 'completed',
+        status: 'pending',
         metadata: {
           destination: withdrawalRequest.destination,
+          withdrawalStatus: 'pending_review',
+          note: 'Money reserved while withdrawal is reviewed',
           ...withdrawalRequest.metadata
         }
       });

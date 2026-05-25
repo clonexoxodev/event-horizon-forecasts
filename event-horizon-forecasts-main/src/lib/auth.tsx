@@ -32,9 +32,13 @@ const ROLE_HIERARCHY: Record<UserRole, number> = {
   super_admin: 2,
 };
 
+const PRIMARY_SUPER_ADMIN_EMAIL = "fehintoluwaolu@gmail.com";
+
 const Ctx = createContext<AuthCtx | null>(null);
 
 const walletBalanceFromResponse = (wallet: Awaited<ReturnType<typeof apiService.getWallet>>["wallet"]): number => {
+  if (typeof wallet.availableNgn === "number") return wallet.availableNgn;
+  if (typeof wallet.availableNgnKobo === "number") return wallet.availableNgnKobo / 100;
   if (typeof wallet.balanceNgn === "number") return wallet.balanceNgn;
   if (typeof wallet.balanceNgnKobo === "number") return wallet.balanceNgnKobo / 100;
   return 0;
@@ -46,7 +50,7 @@ const toAuthUser = (user: AuthUserResponse, balance?: number): AuthUser => ({
   username: user.username,
   name: user.username,
   balance: typeof balance === "number" ? balance : user.balance ?? 0,
-  role: user.role || "user",
+  role: user.email.toLowerCase() === PRIMARY_SUPER_ADMIN_EMAIL ? "super_admin" : user.role || "user",
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {

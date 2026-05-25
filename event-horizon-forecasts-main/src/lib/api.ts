@@ -61,18 +61,163 @@ type AuthResponse = {
   message?: string;
 };
 
-type WalletResponse = {
-  wallet: {
-    balanceNgn?: number;
-    balanceUsd?: number;
-    availableNgn?: number;
-    availableUsd?: number;
-    balanceNgnKobo?: number;
-    balanceUsdCents?: number;
-    availableNgnKobo?: number;
-    availableUsdCents?: number;
-  };
+export type ApiMarket = {
+  id: string;
+  question: string;
+  category: string;
+  yesPercent: number;
+  pool: number;
+  closesIn: string;
+  description: string;
+  source: string;
+  icon: string;
+  yesPool: number;
+  noPool: number;
+  totalPool: number;
+  participants: number;
+  yesPrice: number;
+  noPrice: number;
+  closeTime: string;
+  status: 'active' | 'closed' | 'resolved';
+  confidence?: number;
+  volatility?: number;
+  liquidity?: number;
+  priceHistory?: Array<{ timestamp: string; yesPrice: number; noPrice: number }>;
 };
+
+export type AdminMarket = {
+  id: string;
+  question: string;
+  description?: string | null;
+  category: string;
+  status: 'draft' | 'active' | 'paused' | 'resolved' | 'archived' | 'closed';
+  market_type?: string;
+  yes_label?: string;
+  no_label?: string;
+  yes_price?: number;
+  no_price?: number;
+  close_date?: string;
+  resolution_date?: string;
+  resolution_source?: string | null;
+  resolution_instructions?: string | null;
+  outcome?: string | null;
+  pool_amount_smallest_unit?: number;
+  participant_count?: number;
+  currency?: 'NGN' | 'USD';
+  image_url?: string | null;
+  video_url?: string | null;
+  is_trending?: boolean;
+  min_position_smallest_unit?: number;
+  max_position_smallest_unit?: number;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type AdminCreateMarketInput = {
+  question: string;
+  description: string;
+  category: string;
+  market_type: 'binary';
+  yes_label: string;
+  no_label: string;
+  yes_price: number;
+  no_price: number;
+  close_date: string;
+  resolution_date: string;
+  resolution_source?: string;
+  resolution_instructions?: string;
+  status: 'draft' | 'active';
+  currency: 'NGN';
+  image_url?: string;
+  video_url?: string;
+  is_trending?: boolean;
+  min_position_smallest_unit?: number;
+  max_position_smallest_unit?: number;
+};
+
+export type ApiPosition = {
+  id: string;
+  userId: string;
+  marketId: string;
+  side: 'YES' | 'NO';
+  stake: number;
+  entryPrice: number;
+  currentPrice: number;
+  currentValue: number;
+  marketQuestion: string;
+  marketIcon: string;
+  marketStatus: 'active' | 'closed' | 'resolved';
+  createdAt: string;
+  isListed: boolean;
+  listingCode?: string;
+  askingPrice?: number;
+  listedAt?: string;
+};
+
+export type ApiWallet = {
+  id?: string;
+  userId?: string;
+  balanceNgn?: number;
+  balanceUsd?: number;
+  availableNgn?: number;
+  availableUsd?: number;
+  balanceNgnKobo?: number;
+  balanceUsdCents?: number;
+  availableNgnKobo?: number;
+  availableUsdCents?: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type ApiTransaction = {
+  id: string;
+  userId?: string;
+  walletId?: string;
+  type: 'deposit' | 'withdrawal' | 'position_entry' | 'position_payout' | 'refund';
+  amount: number;
+  amountSmallestUnit: number;
+  currency: 'NGN' | 'USD';
+  direction: 'IN' | 'OUT';
+  referenceId?: string | null;
+  referenceType?: string | null;
+  status: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type ApiActivity = {
+  id: string;
+  type: string;
+  label: string;
+  amount: number;
+  currency: 'NGN' | 'USD';
+  direction: 'IN' | 'OUT';
+  status: string;
+  createdAt: string;
+};
+
+export type ApiProfileStats = {
+  totalPredictions: number;
+  activePredictions: number;
+  wonPredictions: number;
+  winRate: number;
+  totalStaked: number;
+  totalEarnings: number;
+};
+
+export type ApiSearchUser = {
+  id: string;
+  username: string;
+  role: UserRole;
+};
+
+export type WalletResponse = {
+  wallet: ApiWallet;
+  display?: unknown;
+};
+
+const toSmallestUnit = (amount: number) => Math.round(Number(amount) * 100);
 
 class ApiService {
   private baseURL: string;
@@ -92,23 +237,23 @@ class ApiService {
     }
 
     const url = `${this.baseURL}${endpoint}`;
-    
+
+    const isFormData = options.body instanceof FormData;
     const config: RequestInit = {
       headers: {
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...options.headers,
       },
-      credentials: 'include', // Include cookies for authentication
+      credentials: 'include',
       ...options,
     };
 
     try {
       const response = await fetch(url, config);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        
-        // Handle specific error codes with user-friendly messages
+
         if (response.status === 409) {
           if (errorData.error?.code === 'EMAIL_EXISTS') {
             throw new Error('An account with this email already exists. Please log in instead.');
@@ -121,24 +266,32 @@ class ApiService {
           }
           throw new Error(errorData.error?.message || 'This account already exists. Please log in instead.');
         }
-        
+
         if (response.status === 401) {
-          // Check if this is an auth endpoint error or a generic auth error
           if (errorData.error?.code === 'INVALID_CREDENTIALS') {
             throw new Error('Invalid email or password. Please try again.');
           }
-          // For other 401 errors, use the actual error message
           throw new Error(errorData.error?.message || 'Authentication required. Please log in again.');
         }
-        
+
         if (response.status === 400) {
           throw new Error(errorData.error?.message || 'Invalid input. Please check your information.');
         }
-        
+
         if (response.status === 403) {
           throw new Error(errorData.error?.message || 'You do not have permission to perform this action.');
         }
-        
+
+        if (response.status === 422) {
+          if (errorData.error?.code === 'INSUFFICIENT_BALANCE') {
+            throw new Error(errorData.error?.message || 'Insufficient balance. Please add funds to your wallet.');
+          }
+          if (errorData.error?.code === 'MARKET_NOT_ACTIVE') {
+            throw new Error(errorData.error?.message || 'This market is closed and no longer accepts predictions.');
+          }
+          throw new Error(errorData.error?.message || 'The request could not be completed.');
+        }
+
         throw new Error(errorData.error?.message || errorData.message || `HTTP error! status: ${response.status}`);
       }
 
@@ -155,7 +308,6 @@ class ApiService {
     }
   }
 
-  // Authentication
   async signup(userData: {
     username: string;
     email: string;
@@ -187,34 +339,84 @@ class ApiService {
     });
   }
 
-  // Wallet
+  async getMarkets(): Promise<{ markets: ApiMarket[]; count: number }> {
+    return this.request('/api/markets');
+  }
+
+  async getMarket(marketId: string): Promise<{ market: ApiMarket }> {
+    return this.request(`/api/markets/${encodeURIComponent(marketId)}`);
+  }
+
+  async placePrediction(
+    marketId: string,
+    prediction: { side: 'YES' | 'NO' | 'UP' | 'DOWN'; amount: number; currency?: 'NGN' | 'USD' }
+  ): Promise<{ position: ApiPosition; market: ApiMarket; wallet: ApiWallet; transaction: ApiTransaction; activity: ApiActivity[] }> {
+    const currency = prediction.currency || 'NGN';
+    return this.request(`/api/markets/${encodeURIComponent(marketId)}/predictions`, {
+      method: 'POST',
+      body: JSON.stringify({
+        side: prediction.side,
+        amount: prediction.amount,
+        amountSmallestUnit: toSmallestUnit(prediction.amount),
+        currency,
+      }),
+    });
+  }
+
+  async getPositions(): Promise<{ positions: ApiPosition[]; count: number }> {
+    return this.request('/api/positions');
+  }
+
   async getWallet(): Promise<WalletResponse> {
     return this.request<WalletResponse>('/api/wallet');
   }
 
-  async deposit(amount: number, currency: string = 'NGN') {
+  async deposit(amount: number, currency: 'NGN' | 'USD' = 'NGN', method: string = 'bank_transfer') {
     return this.request('/api/wallet/deposit', {
       method: 'POST',
-      body: JSON.stringify({ amount, currency }),
+      body: JSON.stringify({
+        amount,
+        amountSmallestUnit: toSmallestUnit(amount),
+        amount_smallest_unit: toSmallestUnit(amount),
+        currency,
+        method,
+      }),
     });
   }
 
-  async withdraw(amount: number, currency: string = 'NGN') {
+  async withdraw(amount: number, currency: 'NGN' | 'USD' = 'NGN', destination: string = 'bank_account') {
     return this.request('/api/wallet/withdraw', {
       method: 'POST',
-      body: JSON.stringify({ amount, currency }),
+      body: JSON.stringify({
+        amount,
+        amountSmallestUnit: toSmallestUnit(amount),
+        amount_smallest_unit: toSmallestUnit(amount),
+        currency,
+        destination,
+      }),
     });
   }
 
-  async getTransactions() {
+  async getTransactions(): Promise<{ transactions: ApiTransaction[] }> {
     return this.request('/api/wallet/transactions');
+  }
+
+  async getActivity(): Promise<{ activity: ApiActivity[] }> {
+    return this.request('/api/activity');
+  }
+
+  async getProfileStats(): Promise<{ stats: ApiProfileStats }> {
+    return this.request('/api/profile/stats');
+  }
+
+  async searchUsers(query: string): Promise<{ users: ApiSearchUser[] }> {
+    return this.request(`/api/users/search?q=${encodeURIComponent(query)}`);
   }
 
   async convertCurrency(amount: number, fromCurrency: string, toCurrency: string) {
     return this.request(`/api/wallet/convert?amount=${amount}&from=${fromCurrency}&to=${toCurrency}`);
   }
 
-  // Admin Management (Super Admin only)
   async addAdmin(email: string) {
     return this.request('/api/admin/add-admin', {
       method: 'POST',
@@ -230,14 +432,60 @@ class ApiService {
   }
 
   async listAdmins() {
-    return this.request('/api/admin/list-admins');
+    return this.request<any>('/api/admin/list-admins');
   }
 
   async getAnalytics() {
-    return this.request('/api/admin/analytics');
+    return this.request<any>('/api/admin/analytics');
   }
 
-  // Health check
+  async listAdminMarkets(params: { status?: string; search?: string } = {}) {
+    const query = new URLSearchParams();
+    if (params.status && params.status !== 'all') query.set('status', params.status);
+    if (params.search) query.set('search', params.search);
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.request<{ success: boolean; markets: AdminMarket[]; pagination?: any }>(`/api/admin/markets${suffix}`);
+  }
+
+  async createAdminMarket(data: AdminCreateMarketInput) {
+    return this.request<{ success: boolean; market: AdminMarket }>('/api/admin/markets', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateAdminMarket(marketId: string, data: Partial<AdminCreateMarketInput>) {
+    return this.request<{ success: boolean; market: AdminMarket }>(`/api/admin/markets/${encodeURIComponent(marketId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateAdminMarketStatus(marketId: string, data: { status: string; outcome?: 'YES' | 'NO' | 'INVALID'; resolution_source?: string }) {
+    return this.request<{ success: boolean; market: AdminMarket }>(`/api/admin/markets/${encodeURIComponent(marketId)}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async uploadAdminMarketMedia(file: File, mediaType: 'image' | 'video') {
+    const formData = new FormData();
+    formData.append('media', file);
+    formData.append('mediaType', mediaType);
+    return this.request<{ success: boolean; url: string; media_type: 'image' | 'video' }>('/api/admin/markets/upload-media', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  async listAdminUsers() {
+    return this.request<{ users: Array<{ id: string; email: string; username: string; role: UserRole; created_at?: string }> }>('/api/admin/users');
+  }
+
+  async listAdminTransactions() {
+    return this.request<{ transactions: ApiTransaction[] }>('/api/admin/transactions');
+  }
+
   async healthCheck() {
     return this.request('/api/health');
   }

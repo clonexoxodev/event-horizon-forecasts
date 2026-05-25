@@ -100,7 +100,11 @@ router.post('/deposit', async (req: Request, res: Response) => {
     }
 
     const userId = req.user.userId;
-    const depositRequest: DepositRequest = req.body;
+    const depositRequest: DepositRequest = {
+      ...req.body,
+      amount_smallest_unit: req.body.amount_smallest_unit || req.body.amountSmallestUnit || Math.round(Number(req.body.amount || 0) * 100),
+      method: req.body.method || 'bank_transfer'
+    };
 
     // Validate required fields
     if (!depositRequest.amount_smallest_unit || !depositRequest.currency || !depositRequest.method) {
@@ -140,7 +144,7 @@ router.post('/deposit', async (req: Request, res: Response) => {
     const result = await walletService.processDeposit(userId, depositRequest);
 
     res.status(201).json({
-      message: 'Deposit processed successfully',
+      message: 'Add money request saved',
       wallet: {
         id: result.wallet.id,
         userId: result.wallet.user_id,
@@ -153,6 +157,7 @@ router.post('/deposit', async (req: Request, res: Response) => {
       transaction: {
         id: result.transaction.id,
         type: result.transaction.type,
+        amount: result.transaction.amount_smallest_unit / 100,
         amountSmallestUnit: result.transaction.amount_smallest_unit,
         currency: result.transaction.currency,
         direction: result.transaction.direction,
@@ -210,7 +215,11 @@ router.post('/withdraw', async (req: Request, res: Response) => {
     }
 
     const userId = req.user.userId;
-    const withdrawalRequest: WithdrawalRequest = req.body;
+    const withdrawalRequest: WithdrawalRequest = {
+      ...req.body,
+      amount_smallest_unit: req.body.amount_smallest_unit || req.body.amountSmallestUnit || Math.round(Number(req.body.amount || 0) * 100),
+      destination: req.body.destination || 'bank_account'
+    };
 
     // Validate required fields
     if (!withdrawalRequest.amount_smallest_unit || !withdrawalRequest.currency || !withdrawalRequest.destination) {
@@ -238,7 +247,7 @@ router.post('/withdraw', async (req: Request, res: Response) => {
     const result = await walletService.processWithdrawal(userId, withdrawalRequest);
 
     res.status(201).json({
-      message: 'Withdrawal processed successfully',
+      message: 'Withdrawal request saved',
       wallet: {
         id: result.wallet.id,
         userId: result.wallet.user_id,
@@ -251,6 +260,7 @@ router.post('/withdraw', async (req: Request, res: Response) => {
       transaction: {
         id: result.transaction.id,
         type: result.transaction.type,
+        amount: result.transaction.amount_smallest_unit / 100,
         amountSmallestUnit: result.transaction.amount_smallest_unit,
         currency: result.transaction.currency,
         direction: result.transaction.direction,
@@ -403,6 +413,7 @@ router.get('/transactions', async (req: Request, res: Response) => {
         userId: tx.user_id,
         walletId: tx.wallet_id,
         type: tx.type,
+        amount: tx.amount_smallest_unit / 100,
         amountSmallestUnit: tx.amount_smallest_unit,
         currency: tx.currency,
         direction: tx.direction,

@@ -129,18 +129,8 @@ const Dashboard = () => {
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8 animate-fade-up">
           {stats.map((s, index) => {
             const hasLink = !!s.link;
-            const CardWrapper = hasLink ? Link : "div";
-            const cardProps = hasLink ? { to: s.link } : {};
-            
-            return (
-              <CardWrapper
-                key={s.label}
-                {...cardProps}
-                className={`bg-white rounded-xl p-6 border border-graphite/10 shadow-card transition-normal ${
-                  hasLink ? "cursor-pointer hover:shadow-elevated hover:-translate-y-0.5" : ""
-                }`}
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
+            const cardContent = (
+              <>
                 <div className={`w-10 h-10 rounded-xl grid place-items-center mb-3 ${s.color}`}>
                   <s.icon className="w-5 h-5" />
                 </div>
@@ -149,7 +139,26 @@ const Dashboard = () => {
                 <div className="text-xs mt-1.5 text-graphite">
                   {s.subtitle}
                 </div>
-              </CardWrapper>
+              </>
+            );
+
+            return hasLink ? (
+              <Link
+                key={s.label}
+                to={s.link}
+                className="bg-white rounded-xl p-6 border border-graphite/10 shadow-card transition-normal cursor-pointer hover:shadow-elevated hover:-translate-y-0.5"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                {cardContent}
+              </Link>
+            ) : (
+              <div
+                key={s.label}
+                className="bg-white rounded-xl p-6 border border-graphite/10 shadow-card transition-normal"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                {cardContent}
+              </div>
             );
           })}
         </div>

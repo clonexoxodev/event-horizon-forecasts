@@ -1,16 +1,16 @@
 import { useState } from "react";
-import { X, TrendingUp, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { AlertCircle, CheckCircle, Loader2, TrendingUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
 import { toast } from "sonner";
-import { useAuth } from "@/lib/auth";
 
 type ForecastSelection = {
   marketId: string;
   marketQuestion: string;
   marketIcon: string;
-  side: "YES" | "NO";
+  side: "YES" | "NO" | "UP" | "DOWN";
   currentPrice: number;
 };
 
@@ -27,46 +27,43 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
   const { user } = useAuth();
 
   const quickAmounts = [1000, 5000, 10000, 25000];
-  const numAmount = parseFloat(amount) || 0;
+  const numAmount = Number.parseFloat(amount) || 0;
   const probability = selection?.currentPrice || 50;
-  const projectedReturn = numAmount > 0 ? numAmount * (100 / probability) : 0;
+  const projectedReturn = numAmount > 0 ? numAmount * (100 / Math.max(1, probability)) : 0;
   const projectedProfit = projectedReturn - numAmount;
-
   const userBalance = user?.balance || 0;
   const insufficientBalance = numAmount > userBalance;
-
-  const handleQuickAmount = (value: number) => {
-    setAmount(value.toString());
-  };
+  const isPositiveSide = selection?.side === "YES" || selection?.side === "UP";
 
   const handleConfirm = async () => {
     if (!selection || numAmount <= 0) {
-      toast.error("Please enter a valid amount");
+      toast.error("Enter a valid amount.");
+      return;
+    }
+
+    if (!user) {
+      toast.error("Login required. Please sign in first.");
       return;
     }
 
     if (insufficientBalance) {
-      toast.error("Insufficient funds. Please add funds to your wallet.");
+      toast.error("Insufficient balance. Add money to continue.");
       return;
     }
 
     setLoading(true);
-
     try {
       await onConfirm(selection, numAmount);
-      
       setSuccess(true);
-      
-      toast.success(`Forecast placed! You staked ${formatNaira(numAmount)} on ${selection.side}`);
-
-      // Reset and close after animation
+      toast.success(`Prediction placed: ${selection.side} with ${formatNaira(numAmount)}`);
       setTimeout(() => {
         setSuccess(false);
+        setLoading(false);
         setAmount("");
         onClose();
-      }, 2000);
+      }, 1400);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to place forecast");
+      toast.error(error instanceof Error ? error.message : "Server error. Please try again.");
       setLoading(false);
     }
   };
@@ -80,316 +77,175 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
 
   return (
     <>
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 bg-charcoal/60 backdrop-blur-sm z-40 animate-fade-in"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Mobile: Bottom Sheet */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl shadow-elevated animate-slide-up max-h-[85vh] overflow-y-auto">
-        {/* Handle */}
-        <div className="flex justify-center pt-3 pb-2">
-          <div className="w-10 h-1 rounded-full bg-graphite/30" />
+      <div className="fixed bottom-0 left-0 right-0 z-50 max-h-[88vh] overflow-y-auto rounded-t-[2rem] border border-white/10 bg-[#080b16] shadow-[0_-24px_80px_rgba(0,0,0,0.55)] md:bottom-auto md:left-auto md:top-0 md:h-screen md:w-[460px] md:rounded-none md:border-l">
+        <div className="flex justify-center pt-3 md:hidden">
+          <div className="h-1 w-10 rounded-full bg-white/20" />
         </div>
 
         {success ? (
           <SuccessState selection={selection} amount={numAmount} />
         ) : (
-          <ForecastContent
-            selection={selection}
-            amount={amount}
-            setAmount={setAmount}
-            numAmount={numAmount}
-            probability={probability}
-            projectedReturn={projectedReturn}
-            projectedProfit={projectedProfit}
-            quickAmounts={quickAmounts}
-            handleQuickAmount={handleQuickAmount}
-            handleConfirm={handleConfirm}
-            handleClear={handleClear}
-            loading={loading}
-            userBalance={userBalance}
-            insufficientBalance={insufficientBalance}
-          />
-        )}
-      </div>
+          <div className="space-y-5 p-5 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-violet-300">Confirm</p>
+                <h2 className="mt-1 text-2xl font-black text-white">Place prediction</h2>
+              </div>
+              <button
+                onClick={handleClear}
+                disabled={loading}
+                className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 disabled:opacity-50"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
-      {/* Desktop: Right Panel */}
-      <div className="hidden md:block fixed right-0 top-0 bottom-0 w-[480px] bg-card shadow-elevated z-50 animate-slide-left overflow-y-auto border-l border-border/40">
-        {success ? (
-          <SuccessState selection={selection} amount={numAmount} />
-        ) : (
-          <ForecastContent
-            selection={selection}
-            amount={amount}
-            setAmount={setAmount}
-            numAmount={numAmount}
-            probability={probability}
-            projectedReturn={projectedReturn}
-            projectedProfit={projectedProfit}
-            quickAmounts={quickAmounts}
-            handleQuickAmount={handleQuickAmount}
-            handleConfirm={handleConfirm}
-            handleClear={handleClear}
-            loading={loading}
-            userBalance={userBalance}
-            insufficientBalance={insufficientBalance}
-          />
+            <div className="rounded-3xl border border-white/10 bg-white/[0.055] p-4">
+              <div className="flex items-start gap-3">
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/10 text-2xl">
+                  {selection.marketIcon}
+                </div>
+                <div className="min-w-0">
+                  <div className="line-clamp-3 text-sm font-black leading-snug text-white">
+                    {selection.marketQuestion}
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className={`rounded-full px-3 py-1 text-xs font-black ${isPositiveSide ? "bg-emerald-400/10 text-emerald-300" : "bg-red-400/10 text-red-300"}`}>
+                      {selection.side}
+                    </span>
+                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs font-bold text-slate-400">
+                      {Math.round(probability)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <InfoCard label="Wallet balance" value={formatNaira(userBalance)} />
+              <InfoCard label="Current price" value={`${Math.round(probability)}%`} />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                Amount
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-slate-500">
+                  NGN
+                </span>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                  disabled={loading}
+                  className={`h-14 rounded-2xl border-2 bg-white/[0.055] pl-14 text-xl font-black text-white placeholder:text-slate-600 focus:border-violet-400 ${
+                    insufficientBalance && numAmount > 0 ? "border-red-400" : "border-white/10"
+                  }`}
+                />
+                {insufficientBalance && numAmount > 0 && (
+                  <AlertCircle className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-red-300" />
+                )}
+              </div>
+              {insufficientBalance && numAmount > 0 && (
+                <p className="mt-2 text-xs font-bold text-red-300">Insufficient balance.</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-4 gap-2">
+              {quickAmounts.map((value) => (
+                <button
+                  key={value}
+                  onClick={() => setAmount(value.toString())}
+                  disabled={loading}
+                  className={`h-11 rounded-2xl border text-sm font-black transition ${
+                    amount === value.toString()
+                      ? isPositiveSide
+                        ? "border-emerald-300/40 bg-emerald-400/20 text-emerald-200"
+                        : "border-red-300/40 bg-red-400/20 text-red-200"
+                      : "border-white/10 bg-white/[0.055] text-slate-300 hover:bg-white/10"
+                  }`}
+                >
+                  {formatNaira(value).replace(".00", "")}
+                </button>
+              ))}
+            </div>
+
+            {numAmount > 0 && !insufficientBalance && (
+              <div className="rounded-3xl border border-violet-300/20 bg-violet-400/10 p-4">
+                <Row label="You enter" value={formatNaira(numAmount)} />
+                <Row label="Possible return" value={formatNaira(projectedReturn)} />
+                <Row label="Possible profit" value={`+${formatNaira(projectedProfit)}`} highlight />
+              </div>
+            )}
+
+            <Button
+              onClick={handleConfirm}
+              disabled={loading || numAmount <= 0 || insufficientBalance}
+              className={`h-13 w-full rounded-2xl text-base font-black text-white shadow-lg transition ${
+                isPositiveSide
+                  ? "bg-emerald-500 hover:bg-emerald-400"
+                  : "bg-red-500 hover:bg-red-400"
+              } disabled:opacity-50`}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <TrendingUp className="mr-2 h-5 w-5" />
+                  Confirm {selection.side}
+                </>
+              )}
+            </Button>
+
+            <button
+              onClick={handleClear}
+              disabled={loading}
+              className="w-full text-sm font-bold text-slate-500 transition hover:text-white disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
         )}
       </div>
     </>
   );
 };
 
-// Success State Component
-const SuccessState = ({ selection, amount }: { selection: ForecastSelection; amount: number }) => (
-  <div className="p-8 text-center animate-fade-in">
-    <div
-      className={`w-20 h-20 rounded-full mx-auto mb-6 grid place-items-center animate-bounce-slow ${
-        selection.side === "YES" ? "bg-emerald-soft text-emerald" : "bg-coral-soft text-coral"
-      }`}
-    >
-      <CheckCircle className="w-10 h-10" />
+const SuccessState = ({ selection, amount }: { selection: ForecastSelection; amount: number }) => {
+  const isPositiveSide = selection.side === "YES" || selection.side === "UP";
+
+  return (
+    <div className="grid min-h-[420px] place-items-center p-8 text-center">
+      <div>
+        <div className={`mx-auto mb-6 grid h-20 w-20 place-items-center rounded-full ${isPositiveSide ? "bg-emerald-400/10 text-emerald-300" : "bg-red-400/10 text-red-300"}`}>
+          <CheckCircle className="h-10 w-10" />
+        </div>
+        <h3 className="text-2xl font-black text-white">Prediction placed</h3>
+        <p className="mt-2 text-sm text-slate-400">
+          You entered {formatNaira(amount)} on {selection.side}.
+        </p>
+      </div>
     </div>
-    <h3 className="text-2xl font-bold mb-2 text-charcoal">Forecast Placed!</h3>
-    <p className="text-sm text-graphite mb-6">
-      You staked {formatNaira(amount)} on {selection.side}
-    </p>
-    <div
-      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${
-        selection.side === "YES" ? "bg-emerald-soft text-emerald" : "bg-coral-soft text-coral"
-      }`}
-    >
-      <span
-        className={`w-2 h-2 rounded-full animate-pulse ${
-          selection.side === "YES" ? "bg-emerald" : "bg-coral"
-        }`}
-      />
-      Position active
-    </div>
+  );
+};
+
+const InfoCard = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
+    <div className="text-xs font-bold text-slate-500">{label}</div>
+    <div className="mt-1 text-base font-black text-white">{value}</div>
   </div>
 );
 
-// Forecast Content Component
-const ForecastContent = ({
-  selection,
-  amount,
-  setAmount,
-  numAmount,
-  probability,
-  projectedReturn,
-  projectedProfit,
-  quickAmounts,
-  handleQuickAmount,
-  handleConfirm,
-  handleClear,
-  loading,
-  userBalance,
-  insufficientBalance,
-}: {
-  selection: ForecastSelection;
-  amount: string;
-  setAmount: (value: string) => void;
-  numAmount: number;
-  probability: number;
-  projectedReturn: number;
-  projectedProfit: number;
-  quickAmounts: number[];
-  handleQuickAmount: (value: number) => void;
-  handleConfirm: () => void;
-  handleClear: () => void;
-  loading: boolean;
-  userBalance: number;
-  insufficientBalance: boolean;
-}) => (
-  <div className="p-6 space-y-6">
-    {/* Header */}
-    <div className="flex items-center justify-between">
-      <h2 className="text-xl font-bold text-charcoal">Forecast Slip</h2>
-      <button
-        onClick={handleClear}
-        disabled={loading}
-        className="w-9 h-9 rounded-xl grid place-items-center text-graphite hover:text-charcoal hover:bg-graphite/8 transition-fast disabled:opacity-50"
-      >
-        <X className="w-5 h-5" />
-      </button>
-    </div>
-
-    {/* Selected Market */}
-    <div className="p-4 rounded-xl bg-off-white border border-graphite/10 space-y-3">
-      <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-xl bg-white shadow-sm grid place-items-center text-2xl flex-shrink-0">
-          {selection.marketIcon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-sm line-clamp-2 leading-snug text-charcoal">
-            {selection.marketQuestion}
-          </h3>
-        </div>
-      </div>
-
-      {/* Selected Side & Current Price */}
-      <div className="flex items-center justify-between">
-        <div
-          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-sm ${
-            selection.side === "YES"
-              ? "bg-emerald-soft text-emerald border border-emerald/20"
-              : "bg-coral-soft text-coral border border-coral/20"
-          }`}
-        >
-          <span className={`w-2 h-2 rounded-full ${selection.side === "YES" ? "bg-emerald" : "bg-coral"}`} />
-          Forecasting {selection.side}
-        </div>
-        <div className="text-right">
-          <div className="text-xs text-graphite">Current price</div>
-          <div className="text-sm font-bold text-charcoal">{probability}%</div>
-        </div>
-      </div>
-    </div>
-
-    {/* Current Balance */}
-    <div className="p-4 rounded-xl bg-purple/5 border border-purple/10">
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-graphite font-medium">Current Balance</span>
-        <span className="text-lg font-bold text-purple">{formatNaira(userBalance)}</span>
-      </div>
-    </div>
-
-    {/* Amount Input */}
-    <div>
-      <label className="text-xs font-semibold text-graphite uppercase tracking-wider mb-2 block">
-        Amount to Stake
-      </label>
-      <div className="relative group">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-graphite font-bold text-lg transition-colors group-focus-within:text-purple">
-          ₦
-        </span>
-        <Input
-          type="number"
-          placeholder="0"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          disabled={loading}
-          className={`pl-9 h-14 text-xl font-bold rounded-xl border-2 focus:border-purple transition-all duration-300 focus:shadow-lg focus:shadow-purple/10 ${
-            insufficientBalance && numAmount > 0 ? "border-coral focus:border-coral" : ""
-          }`}
-        />
-        {insufficientBalance && numAmount > 0 && (
-          <div className="absolute right-4 top-1/2 -translate-y-1/2">
-            <AlertCircle className="w-5 h-5 text-coral" />
-          </div>
-        )}
-      </div>
-      {insufficientBalance && numAmount > 0 && (
-        <p className="text-xs text-coral mt-2 flex items-center gap-1 font-medium">
-          <AlertCircle className="w-3 h-3" />
-          Insufficient balance
-        </p>
-      )}
-    </div>
-
-    {/* Preset Amount Buttons */}
-    <div>
-      <label className="text-xs font-semibold text-graphite uppercase tracking-wider mb-2 block">
-        Quick Select
-      </label>
-      <div className="grid grid-cols-4 gap-2">
-        {quickAmounts.map((value) => (
-          <button
-            key={value}
-            onClick={() => handleQuickAmount(value)}
-            disabled={loading}
-            className={`h-11 rounded-xl text-sm font-bold transition-all duration-300 border relative overflow-hidden group ${
-              amount === value.toString()
-                ? selection.side === "YES"
-                  ? "bg-emerald text-white border-emerald shadow-sm scale-105"
-                  : "bg-coral text-white border-coral shadow-sm scale-105"
-                : "border-graphite/20 text-graphite hover:text-charcoal hover:bg-graphite/8 hover:scale-105 hover:border-graphite/30 active:scale-95"
-            } disabled:opacity-50`}
-          >
-            <span className="relative z-10">₦{value / 1000}k</span>
-            {amount !== value.toString() && (
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500" />
-            )}
-          </button>
-        ))}
-      </div>
-    </div>
-
-    {/* Projected Return */}
-    {numAmount > 0 && !insufficientBalance && (
-      <div
-        className={`rounded-xl p-4 space-y-3 animate-fade-in border-2 transition-all duration-500 ${
-          selection.side === "YES"
-            ? "bg-emerald-soft/30 border-emerald/30"
-            : "bg-coral-soft/30 border-coral/30"
-        }`}
-      >
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-graphite font-medium">Your stake</span>
-          <span className="font-bold text-charcoal">{formatNaira(numAmount)}</span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-graphite font-medium">Probability</span>
-          <span className="font-bold text-charcoal">{probability}%</span>
-        </div>
-        <div className="h-px bg-border/50 my-2" />
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-charcoal">Projected Return</span>
-          <div className="text-right">
-            <div className="font-extrabold text-xl text-charcoal animate-fade-in">
-              {formatNaira(projectedReturn)}
-            </div>
-            <div
-              className={`text-xs font-bold animate-fade-in ${
-                selection.side === "YES" ? "text-emerald" : "text-coral"
-              }`}
-            >
-              +{formatNaira(projectedProfit)} profit
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* Confirm Button */}
-    <Button
-      onClick={handleConfirm}
-      disabled={loading || numAmount <= 0 || insufficientBalance}
-      className={`w-full h-13 font-bold rounded-xl text-base shadow-sm transition-all duration-300 relative overflow-hidden group ${
-        selection.side === "YES"
-          ? "bg-emerald hover:bg-emerald/90 text-white hover:shadow-elevated hover:scale-[1.02] active:scale-[0.98]"
-          : "bg-coral hover:bg-coral/90 text-white hover:shadow-elevated hover:scale-[1.02] active:scale-[0.98]"
-      } disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100`}
-    >
-      {loading ? (
-        <>
-          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-          Placing forecast...
-        </>
-      ) : (
-        <>
-          <TrendingUp className="w-5 h-5 mr-2" />
-          Confirm Forecast
-        </>
-      )}
-      {!loading && numAmount > 0 && !insufficientBalance && (
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-      )}
-    </Button>
-
-    {numAmount <= 0 && (
-      <p className="text-xs text-graphite text-center">Enter an amount to continue</p>
-    )}
-
-    {/* Clear Button */}
-    <button
-      onClick={handleClear}
-      disabled={loading}
-      className="w-full text-sm text-graphite hover:text-charcoal font-semibold transition-fast disabled:opacity-50"
-    >
-      Clear selection
-    </button>
+const Row = ({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) => (
+  <div className="flex items-center justify-between border-b border-white/10 py-2 last:border-0">
+    <span className="text-sm font-bold text-slate-400">{label}</span>
+    <span className={`text-sm font-black ${highlight ? "text-emerald-300" : "text-white"}`}>{value}</span>
   </div>
 );

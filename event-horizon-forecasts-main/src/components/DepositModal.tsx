@@ -1,18 +1,19 @@
 import { useState } from "react";
+import { ArrowDownRight, CheckCircle, CreditCard, Loader2, Smartphone, X } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { X, ArrowDownRight, Loader2, CheckCircle, CreditCard, Smartphone } from "lucide-react";
-import { formatNaira } from "@/lib/markets";
 import { useToast } from "@/hooks/use-toast";
+import apiService from "@/lib/api";
 
 type DepositModalProps = {
   open: boolean;
   onClose: () => void;
   currency: "NGN" | "USD";
+  onSaved?: () => void;
 };
 
-export const DepositModal = ({ open, onClose, currency }: DepositModalProps) => {
+export const DepositModal = ({ open, onClose, currency, onSaved }: DepositModalProps) => {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -20,34 +21,31 @@ export const DepositModal = ({ open, onClose, currency }: DepositModalProps) => 
   const { toast } = useToast();
 
   const quickAmounts = currency === "NGN" ? [5000, 10000, 25000, 50000] : [10, 25, 50, 100];
-  const numAmount = parseFloat(amount) || 0;
-  const symbol = currency === "NGN" ? "₦" : "$";
-
-  const handleQuickAmount = (value: number) => {
-    setAmount(value.toString());
-  };
+  const numAmount = Number.parseFloat(amount) || 0;
 
   const handleDeposit = async () => {
     if (numAmount <= 0) return;
 
     setLoading(true);
-
-    // Simulate payment processing
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    setLoading(false);
-    setSuccess(true);
-
-    toast({
-      title: "Deposit successful!",
-      description: `${symbol}${numAmount.toLocaleString()} added to your wallet`,
-    });
-
-    setTimeout(() => {
-      setSuccess(false);
-      setAmount("");
-      onClose();
-    }, 2000);
+    try {
+      await apiService.deposit(numAmount, currency, paymentMethod === "transfer" ? "bank_transfer" : "card");
+      setSuccess(true);
+      onSaved?.();
+      toast({ title: "Request saved", description: "Your add money request is pending." });
+      setTimeout(() => {
+        setSuccess(false);
+        setAmount("");
+        onClose();
+      }, 1600);
+    } catch (error: any) {
+      toast({
+        title: "Add money failed",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClose = () => {
@@ -59,17 +57,16 @@ export const DepositModal = ({ open, onClose, currency }: DepositModalProps) => 
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden border-border/60 shadow-elevated">
-        <div className="h-1 bg-success w-full" />
-
+      <DialogContent className="overflow-hidden rounded-[2rem] border border-white/10 bg-[#080b16] p-0 text-white shadow-[0_24px_80px_rgba(0,0,0,0.6)] sm:max-w-md">
+        <div className="h-1 w-full bg-emerald-400" />
         {success ? (
-          <div className="p-8 text-center animate-fade-in">
-            <div className="w-16 h-16 rounded-full mx-auto mb-4 grid place-items-center bg-success/10 text-success">
-              <CheckCircle className="w-8 h-8" />
+          <div className="p-8 text-center">
+            <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-emerald-400/10 text-emerald-300">
+              <CheckCircle className="h-8 w-8" />
             </div>
-            <h3 className="text-xl font-bold mb-2">Deposit Successful!</h3>
-            <p className="text-sm text-muted-foreground">
-              {symbol}{numAmount.toLocaleString()} has been added to your wallet
+            <h3 className="mb-2 text-xl font-black">Request saved</h3>
+            <p className="text-sm text-slate-400">
+              {currency} {numAmount.toLocaleString()} is pending.
             </p>
           </div>
         ) : (
@@ -77,114 +74,78 @@ export const DepositModal = ({ open, onClose, currency }: DepositModalProps) => 
             <button
               onClick={handleClose}
               disabled={loading}
-              className="absolute top-4 right-4 w-8 h-8 rounded-lg grid place-items-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-smooth disabled:opacity-50"
+              className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 disabled:opacity-50"
             >
-              <X className="w-4 h-4" />
+              <X className="h-4 w-4" />
             </button>
 
             <div className="mb-6">
-              <h3 className="text-xl font-bold mb-2">Deposit Funds</h3>
-              <p className="text-sm text-muted-foreground">Add money to your wallet</p>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Wallet</p>
+              <h3 className="mt-1 text-2xl font-black">Add Money</h3>
+              <p className="mt-1 text-sm text-slate-400">Your request will show as pending.</p>
             </div>
 
-            {/* Amount input */}
-            <div className="mb-4">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
-                Amount ({currency})
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">
-                  {symbol}
-                </span>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  disabled={loading}
-                  className="pl-7 h-12 text-lg font-bold rounded-xl"
-                />
-              </div>
+            <label className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+              Amount ({currency})
+            </label>
+            <div className="relative mb-4">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-slate-500">{currency}</span>
+              <Input
+                type="number"
+                placeholder="0"
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                disabled={loading}
+                className="h-13 rounded-2xl border-white/10 bg-white/[0.055] pl-14 text-lg font-black text-white placeholder:text-slate-600 focus:border-emerald-300"
+              />
             </div>
 
-            {/* Quick amounts */}
-            <div className="grid grid-cols-4 gap-2 mb-6">
+            <div className="mb-6 grid grid-cols-4 gap-2">
               {quickAmounts.map((value) => (
                 <button
                   key={value}
-                  onClick={() => handleQuickAmount(value)}
+                  onClick={() => setAmount(value.toString())}
                   disabled={loading}
-                  className={`h-10 rounded-xl text-sm font-semibold transition-smooth border ${
+                  className={`h-10 rounded-xl border text-sm font-black transition ${
                     amount === value.toString()
-                      ? "bg-success/10 border-success/30 text-success"
-                      : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
-                  } disabled:opacity-50`}
+                      ? "border-emerald-300/40 bg-emerald-400/20 text-emerald-200"
+                      : "border-white/10 bg-white/[0.055] text-slate-300 hover:bg-white/10"
+                  }`}
                 >
-                  {symbol}{value >= 1000 ? `${value / 1000}k` : value}
+                  {value >= 1000 ? `${value / 1000}k` : value}
                 </button>
               ))}
             </div>
 
-            {/* Payment method */}
-            <div className="mb-6">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
-                Payment Method
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setPaymentMethod("card")}
-                  disabled={loading}
-                  className={`h-12 rounded-xl font-semibold transition-smooth border flex items-center justify-center gap-2 ${
-                    paymentMethod === "card"
-                      ? "bg-primary/10 border-primary/30 text-primary"
-                      : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
-                  } disabled:opacity-50`}
-                >
-                  <CreditCard className="w-4 h-4" />
-                  Card
-                </button>
-                <button
-                  onClick={() => setPaymentMethod("transfer")}
-                  disabled={loading}
-                  className={`h-12 rounded-xl font-semibold transition-smooth border flex items-center justify-center gap-2 ${
-                    paymentMethod === "transfer"
-                      ? "bg-primary/10 border-primary/30 text-primary"
-                      : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
-                  } disabled:opacity-50`}
-                >
-                  <Smartphone className="w-4 h-4" />
-                  Transfer
-                </button>
-              </div>
+            <div className="mb-6 grid grid-cols-2 gap-2">
+              <MethodButton active={paymentMethod === "card"} onClick={() => setPaymentMethod("card")} disabled={loading} icon={CreditCard} label="Card" />
+              <MethodButton active={paymentMethod === "transfer"} onClick={() => setPaymentMethod("transfer")} disabled={loading} icon={Smartphone} label="Transfer" />
             </div>
 
-            {/* Confirm button */}
             <Button
               onClick={handleDeposit}
               disabled={loading || numAmount <= 0}
-              className="w-full h-12 bg-success hover:bg-success/90 text-white font-bold rounded-xl text-base shadow-sm"
+              className="h-12 w-full rounded-2xl bg-emerald-500 text-base font-black text-white hover:bg-emerald-400 disabled:opacity-50"
             >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <ArrowDownRight className="w-4 h-4 mr-2" />
-                  Deposit {numAmount > 0 ? `${symbol}${numAmount.toLocaleString()}` : ""}
-                </>
-              )}
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowDownRight className="mr-2 h-4 w-4" />}
+              Add {numAmount > 0 ? `${currency} ${numAmount.toLocaleString()}` : "money"}
             </Button>
-
-            {numAmount <= 0 && (
-              <p className="text-xs text-muted-foreground text-center mt-3">
-                Enter an amount to continue
-              </p>
-            )}
           </div>
         )}
       </DialogContent>
     </Dialog>
   );
 };
+
+const MethodButton = ({ active, onClick, disabled, icon: Icon, label }: { active: boolean; onClick: () => void; disabled: boolean; icon: any; label: string }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={`flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-black transition ${
+      active ? "border-violet-300/40 bg-violet-400/20 text-violet-200" : "border-white/10 bg-white/[0.055] text-slate-300 hover:bg-white/10"
+    } disabled:opacity-50`}
+  >
+    <Icon className="h-4 w-4" />
+    {label}
+  </button>
+);

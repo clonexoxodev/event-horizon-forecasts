@@ -22,23 +22,31 @@ const auditRepo = new AuditTrailRepository();
 // Configure multer for memory storage
 const storage = multer.memoryStorage();
 
-// File filter to validate image types
+// File filter to validate image/video types
 const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  const allowedMimeTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'video/mp4',
+    'video/webm',
+    'video/quicktime'
+  ];
   
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.'));
+    cb(new Error('Invalid file type. Only JPEG, PNG, GIF, WebP, MP4, WebM, and MOV files are allowed.'));
   }
 };
 
-// Configure multer with size limit (5MB)
+// Configure multer with size limit (30MB)
 const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB in bytes
+    fileSize: 30 * 1024 * 1024,
   },
 });
 
@@ -414,6 +422,92 @@ router.post('/upload-image', upload.single('image'), async (req: Request, res: R
 });
 
 /**
+ * POST /api/admin/markets/upload-media
+ * Upload a market image or short video to Supabase Storage.
+ */
+router.post('/upload-media', upload.single('media'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'NO_FILE_UPLOADED',
+          message: 'No media file was uploaded',
+        },
+      });
+    }
+
+    const file = req.file;
+    const mediaType = file.mimetype.startsWith('video/') ? 'video' : 'image';
+    const bucket = mediaType === 'video' ? 'market-videos' : 'market-images';
+    const timestamp = Date.now();
+    const fileExtension = file.originalname.split('.').pop();
+    const fileName = `${mediaType}-${timestamp}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+
+    const { error } = await supabase.storage
+      .from(bucket)
+      .upload(fileName, file.buffer, {
+        contentType: file.mimetype,
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (error) {
+      console.error('Supabase media upload error:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'UPLOAD_FAILED',
+          message: `Failed to upload ${mediaType} to storage`,
+          details: error.message,
+        },
+      });
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(fileName);
+
+    res.status(200).json({
+      success: true,
+      media_type: mediaType,
+      url: publicUrlData.publicUrl,
+      [`${mediaType}_url`]: publicUrlData.publicUrl,
+    });
+  } catch (error: any) {
+    console.error('Media upload error:', error);
+
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'FILE_TOO_LARGE',
+          message: 'Media file size must be under 30MB',
+        },
+      });
+    }
+
+    if (error.message && error.message.includes('Invalid file type')) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_FILE_TYPE',
+          message: error.message,
+        },
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to upload media',
+      },
+    });
+  }
+});
+
+/**
  * GET /api/admin/markets/:marketId
  * Get market details
  */
@@ -483,6 +577,16 @@ router.put('/:marketId', async (req: Request, res: Response) => {
         error: {
           code: 'MARKET_NOT_FOUND',
           message: 'Market not found',
+        },
+      });
+    }
+
+    if (req.user!.role !== 'super_admin' && existingMarket.created_by !== req.user!.userId) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Admins can only edit markets they created',
         },
       });
     }
@@ -580,6 +684,16 @@ router.delete('/:marketId', async (req: Request, res: Response) => {
       });
     }
 
+    if (req.user!.role !== 'super_admin' && existingMarket.created_by !== req.user!.userId) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Admins can only delete markets they created',
+        },
+      });
+    }
+
     // Only allow deletion of draft markets
     if (existingMarket.status !== 'draft') {
       return res.status(400).json({
@@ -640,6 +754,26 @@ router.patch('/:marketId/status', async (req: Request, res: Response) => {
         error: {
           code: 'MARKET_NOT_FOUND',
           message: 'Market not found',
+        },
+      });
+    }
+
+    if (validated.status === 'resolved' && req.user!.role !== 'super_admin') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only super admins can resolve markets',
+        },
+      });
+    }
+
+    if (req.user!.role !== 'super_admin' && existingMarket.created_by !== req.user!.userId) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Admins can only change markets they created',
         },
       });
     }

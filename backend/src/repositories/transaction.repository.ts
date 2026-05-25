@@ -1,223 +1,175 @@
-import { query } from '../db/index.js';
+import { supabase } from '../db/supabase-client.js';
 import { Transaction, CreateTransactionRequest } from '../types/transaction.js';
 
 export class TransactionRepository {
-  /**
-   * Create a new transaction record
-   */
   async create(transactionData: CreateTransactionRequest): Promise<Transaction> {
-    const sql = `
-      INSERT INTO transactions (
-        user_id, wallet_id, type, amount_smallest_unit, currency, 
-        direction, reference_id, reference_type, status, metadata
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING *
-    `;
-    
-    const result = await query<Transaction>(sql, [
-      transactionData.user_id,
-      transactionData.wallet_id,
-      transactionData.type,
-      transactionData.amount_smallest_unit,
-      transactionData.currency,
-      transactionData.direction,
-      transactionData.reference_id || null,
-      transactionData.reference_type || null,
-      transactionData.status || 'completed',
-      transactionData.metadata ? JSON.stringify(transactionData.metadata) : null
-    ]);
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert({
+        user_id: transactionData.user_id,
+        wallet_id: transactionData.wallet_id,
+        type: transactionData.type,
+        amount_smallest_unit: transactionData.amount_smallest_unit,
+        currency: transactionData.currency,
+        direction: transactionData.direction,
+        reference_id: transactionData.reference_id || null,
+        reference_type: transactionData.reference_type || null,
+        status: transactionData.status || 'completed',
+        metadata: transactionData.metadata || null
+      })
+      .select()
+      .single();
 
-    if (result.rows.length === 0) {
-      throw new Error('Failed to create transaction');
+    if (error || !data) {
+      throw new Error(`Failed to create transaction: ${error?.message || 'No data returned'}`);
     }
 
-    return result.rows[0];
+    return data as Transaction;
   }
 
-  /**
-   * Create transaction within a database transaction
-   */
   async createInTransaction(
-    client: any, 
+    _client: any,
     transactionData: CreateTransactionRequest
   ): Promise<Transaction> {
-    const sql = `
-      INSERT INTO transactions (
-        user_id, wallet_id, type, amount_smallest_unit, currency, 
-        direction, reference_id, reference_type, status, metadata
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING *
-    `;
-    
-    const result = await client.query(sql, [
-      transactionData.user_id,
-      transactionData.wallet_id,
-      transactionData.type,
-      transactionData.amount_smallest_unit,
-      transactionData.currency,
-      transactionData.direction,
-      transactionData.reference_id || null,
-      transactionData.reference_type || null,
-      transactionData.status || 'completed',
-      transactionData.metadata ? JSON.stringify(transactionData.metadata) : null
-    ]);
+    return this.create(transactionData);
+  }
 
-    if (result.rows.length === 0) {
-      throw new Error('Failed to create transaction');
+  async findByUserId(
+    userId: string,
+    limit: number = 50,
+    offset: number = 0
+  ): Promise<Transaction[]> {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      throw new Error(`Failed to fetch transactions: ${error.message}`);
     }
 
-    return result.rows[0];
+    return (data || []) as Transaction[];
   }
 
-  /**
-   * Get transaction history for a user
-   */
-  async findByUserId(
-    userId: string, 
-    limit: number = 50, 
-    offset: number = 0
-  ): Promise<Transaction[]> {
-    const sql = `
-      SELECT * FROM transactions 
-      WHERE user_id = $1 
-      ORDER BY created_at DESC 
-      LIMIT $2 OFFSET $3
-    `;
-    
-    const result = await query<Transaction>(sql, [userId, limit, offset]);
-    return result.rows;
-  }
-
-  /**
-   * Get transaction history for a wallet
-   */
   async findByWalletId(
-    walletId: string, 
-    limit: number = 50, 
+    walletId: string,
+    limit: number = 50,
     offset: number = 0
   ): Promise<Transaction[]> {
-    const sql = `
-      SELECT * FROM transactions 
-      WHERE wallet_id = $1 
-      ORDER BY created_at DESC 
-      LIMIT $2 OFFSET $3
-    `;
-    
-    const result = await query<Transaction>(sql, [walletId, limit, offset]);
-    return result.rows;
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('wallet_id', walletId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      throw new Error(`Failed to fetch wallet transactions: ${error.message}`);
+    }
+
+    return (data || []) as Transaction[];
   }
 
-  /**
-   * Get transactions by type
-   */
   async findByType(
     userId: string,
     type: 'deposit' | 'withdrawal' | 'position_entry' | 'position_payout',
     limit: number = 50,
     offset: number = 0
   ): Promise<Transaction[]> {
-    const sql = `
-      SELECT * FROM transactions 
-      WHERE user_id = $1 AND type = $2 
-      ORDER BY created_at DESC 
-      LIMIT $3 OFFSET $4
-    `;
-    
-    const result = await query<Transaction>(sql, [userId, type, limit, offset]);
-    return result.rows;
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('type', type)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      throw new Error(`Failed to fetch transactions by type: ${error.message}`);
+    }
+
+    return (data || []) as Transaction[];
   }
 
-  /**
-   * Get transaction by ID
-   */
   async findById(id: string): Promise<Transaction | null> {
-    const sql = `
-      SELECT * FROM transactions 
-      WHERE id = $1
-    `;
-    
-    const result = await query<Transaction>(sql, [id]);
-    return result.rows.length > 0 ? result.rows[0] : null;
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Failed to fetch transaction: ${error.message}`);
+    }
+
+    return (data as Transaction) || null;
   }
 
-  /**
-   * Update transaction status
-   */
   async updateStatus(
-    id: string, 
+    id: string,
     status: 'pending' | 'completed' | 'failed'
   ): Promise<Transaction> {
-    const sql = `
-      UPDATE transactions 
-      SET status = $2 
-      WHERE id = $1 
-      RETURNING *
-    `;
-    
-    const result = await query<Transaction>(sql, [id, status]);
+    const { data, error } = await supabase
+      .from('transactions')
+      .update({ status })
+      .eq('id', id)
+      .select()
+      .single();
 
-    if (result.rows.length === 0) {
-      throw new Error('Transaction not found');
+    if (error || !data) {
+      throw new Error(`Transaction not found: ${error?.message || 'No data returned'}`);
     }
 
-    return result.rows[0];
+    return data as Transaction;
   }
 
-  /**
-   * Get transaction count for a user
-   */
   async getTransactionCount(userId: string): Promise<number> {
-    const sql = `
-      SELECT COUNT(*) as count 
-      FROM transactions 
-      WHERE user_id = $1
-    `;
-    
-    const result = await query<{ count: string }>(sql, [userId]);
-    return parseInt(result.rows[0].count, 10);
+    const { count, error } = await supabase
+      .from('transactions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (error) {
+      throw new Error(`Failed to count transactions: ${error.message}`);
+    }
+
+    return count || 0;
   }
 
-  /**
-   * Get total deposit amount for a user
-   */
   async getTotalDeposits(userId: string, currency?: 'NGN' | 'USD'): Promise<number> {
-    let sql = `
-      SELECT COALESCE(SUM(amount_smallest_unit), 0) as total 
-      FROM transactions 
-      WHERE user_id = $1 AND type = 'deposit' AND status = 'completed'
-    `;
-    
-    const params: any[] = [userId];
-    
-    if (currency) {
-      sql += ' AND currency = $2';
-      params.push(currency);
-    }
-    
-    const result = await query<{ total: string }>(sql, params);
-    return parseInt(result.rows[0].total, 10);
+    return this.getTotalByType(userId, 'deposit', currency);
   }
 
-  /**
-   * Get total withdrawal amount for a user
-   */
   async getTotalWithdrawals(userId: string, currency?: 'NGN' | 'USD'): Promise<number> {
-    let sql = `
-      SELECT COALESCE(SUM(amount_smallest_unit), 0) as total 
-      FROM transactions 
-      WHERE user_id = $1 AND type = 'withdrawal' AND status = 'completed'
-    `;
-    
-    const params: any[] = [userId];
-    
+    return this.getTotalByType(userId, 'withdrawal', currency);
+  }
+
+  private async getTotalByType(
+    userId: string,
+    type: 'deposit' | 'withdrawal',
+    currency?: 'NGN' | 'USD'
+  ): Promise<number> {
+    let query = supabase
+      .from('transactions')
+      .select('amount_smallest_unit')
+      .eq('user_id', userId)
+      .eq('type', type)
+      .eq('status', 'completed');
+
     if (currency) {
-      sql += ' AND currency = $2';
-      params.push(currency);
+      query = query.eq('currency', currency);
     }
-    
-    const result = await query<{ total: string }>(sql, params);
-    return parseInt(result.rows[0].total, 10);
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw new Error(`Failed to sum transactions: ${error.message}`);
+    }
+
+    return (data || []).reduce((total, transaction) => (
+      total + Number(transaction.amount_smallest_unit || 0)
+    ), 0);
   }
 }

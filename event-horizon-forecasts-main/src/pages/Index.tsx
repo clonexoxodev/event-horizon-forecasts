@@ -1,131 +1,173 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
-import { CategoryTabs } from "@/components/CategoryTabs";
 import { MarketCard } from "@/components/MarketCard";
-import { Footer } from "@/components/Footer";
 import { fetchMarkets } from "@/lib/markets";
 import { useMarketState } from "@/lib/market-state";
-import { SlidersHorizontal, Search, X } from "lucide-react";
-import { toast } from "sonner";
+import { Flame, Search, Trophy, Wallet } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { formatNaira } from "@/lib/markets";
+
+const chips = ["For You", "Trending", "Sports", "Music", "Crypto", "Politics"];
 
 const Index = () => {
-  const [category, setCategory] = useState("Trending");
+  const { user } = useAuth();
+  const [category, setCategory] = useState("For You");
   const [searchQuery, setSearchQuery] = useState("");
   const { markets, setMarkets } = useMarketState();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchMarkets().then(data => {
-      setMarkets(data);
-      setLoading(false);
-    });
+    fetchMarkets()
+      .then(setMarkets)
+      .finally(() => setLoading(false));
   }, [setMarkets]);
 
-  // Filter by category
-  let filtered = category === "Trending"
-    ? markets
-    : markets.filter(m => m.category === category);
+  const filtered = useMemo(() => {
+    let next = [...markets];
 
-  // Filter by search query
-  if (searchQuery.trim()) {
-    const query = searchQuery.toLowerCase();
-    filtered = filtered.filter(m => 
-      m.question.toLowerCase().includes(query) ||
-      m.category.toLowerCase().includes(query)
-    );
-  }
+    if (category !== "For You" && category !== "Trending") {
+      next = next.filter((market) => market.category === category);
+    }
+
+    if (category === "Trending") {
+      next.sort((a, b) => (b.participants + b.totalPool) - (a.participants + a.totalPool));
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      next = next.filter((market) =>
+        market.question.toLowerCase().includes(query) ||
+        market.category.toLowerCase().includes(query)
+      );
+    }
+
+    return next;
+  }, [markets, category, searchQuery]);
+
+  const topPredictors = [
+    { name: "KingPredicts", win: "78%", profit: "+N5.6M" },
+    { name: user?.username || "You", win: "72%", profit: "+N4.2M" },
+    { name: "CryptoGuru", win: "69%", profit: "+N3.8M" },
+  ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-white pb-20 md:pb-0">
+    <div className="min-h-screen bg-[#050711] pb-20 text-white md:pb-0 xl:pl-64">
       <Header />
-      <CategoryTabs onChange={setCategory} />
-
-      <main id="markets" className="flex-1 container py-6">
-        {/* Search Bar */}
-        <div className="mb-5">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-graphite pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search markets..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-10 pl-10 pr-10 bg-graphite/5 border border-graphite/10 rounded-xl text-sm text-charcoal placeholder:text-graphite/60 focus:bg-white focus:border-purple/30 focus:outline-none focus:ring-4 focus:ring-purple/10 transition-fast"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-graphite/10 hover:bg-graphite/20 grid place-items-center transition-fast"
-              >
-                <X className="w-3 h-3 text-graphite" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h2 className="text-xl font-bold text-charcoal tracking-tight">
-              {category === "Trending" ? "All Markets" : category}
-            </h2>
-            <p className="text-sm text-graphite mt-0.5">
-              {loading ? "Loading..." : `${filtered.length} active market${filtered.length !== 1 ? "s" : ""}`}
-            </p>
-          </div>
-          <button 
-            onClick={() => {
-              toast("Coming soon", {
-                description: "Advanced filtering is currently in development",
-              });
-            }}
-            className="flex items-center gap-1.5 text-sm text-graphite hover:text-charcoal border border-graphite/20 rounded-xl px-4 py-2 hover:bg-graphite/5 transition-fast font-semibold"
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-            Filter
-          </button>
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-white rounded-xl p-4 border border-graphite/10 h-64 animate-shimmer" />
-            ))}
-          </div>
-        ) : filtered.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((m, i) => (
-              <div key={m.id} className="animate-fade-up" style={{ animationDelay: `${i * 40}ms` }}>
-                <MarketCard m={m} />
+      <main className="mx-auto grid max-w-[1320px] gap-6 px-4 py-5 lg:grid-cols-[1fr_340px] lg:px-6">
+        <section className="min-w-0">
+          <div className="mb-5 rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.28),transparent_36%),linear-gradient(145deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_20px_70px_rgba(0,0,0,0.4)] backdrop-blur-xl">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-violet-300/20 bg-violet-500/15 px-3 py-1 text-xs font-bold text-violet-200">
+                  <Flame className="h-3.5 w-3.5" />
+                  Live markets
+                </p>
+                <h1 className="text-3xl font-black tracking-tight sm:text-5xl">
+                  Predict what happens next.
+                </h1>
+                <p className="mt-2 max-w-xl text-sm text-slate-400 sm:text-base">
+                  Pick a side. Back your call. Climb the board.
+                </p>
               </div>
-            ))}
+              <div className="hidden rounded-3xl border border-white/10 bg-black/25 p-4 text-right md:block">
+                <div className="text-xs text-slate-400">Balance</div>
+                <div className="text-2xl font-black text-emerald-300">
+                  {formatNaira(user?.balance || 0)}
+                </div>
+              </div>
+            </div>
           </div>
-        ) : searchQuery ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-14 h-14 rounded-xl bg-graphite/5 grid place-items-center mb-3 text-2xl border border-graphite/10">🔍</div>
-            <h3 className="font-semibold text-base text-charcoal">No results found</h3>
-            <p className="text-[13px] text-graphite mt-1 max-w-sm">
-              No markets match "{searchQuery}". Try different keywords or browse all markets.
-            </p>
-            <button
-              onClick={() => setSearchQuery("")}
-              className="mt-4 px-4 py-2 bg-purple text-white text-[13px] font-semibold rounded-lg hover:bg-purple/90 transition-colors duration-180"
-            >
-              Clear search
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-14 h-14 rounded-xl bg-graphite/5 grid place-items-center mb-3 text-2xl border border-graphite/10">🔍</div>
-            <h3 className="font-semibold text-base text-charcoal">No markets yet</h3>
-            <p className="text-[13px] text-graphite mt-1">
-              No {category} markets are live right now. Check back soon.
-            </p>
-          </div>
-        )}
-      </main>
 
-      <Footer />
+          <div className="sticky top-[65px] z-20 mb-5 space-y-3 bg-[#050711]/85 py-2 backdrop-blur-xl">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search markets..."
+                className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 pl-11 pr-4 text-sm text-white outline-none placeholder:text-slate-500 focus:border-violet-400/50"
+              />
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {chips.map((chip) => (
+                <button
+                  key={chip}
+                  onClick={() => setCategory(chip)}
+                  className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold transition ${
+                    category === chip
+                      ? "bg-violet-500 text-white shadow-[0_0_20px_rgba(139,92,246,0.35)]"
+                      : "border border-white/10 bg-white/5 text-slate-400"
+                  }`}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {[1, 2, 3, 4, 5, 6].map((item) => (
+                <div key={item} className="h-[390px] animate-pulse rounded-3xl border border-white/10 bg-white/5" />
+              ))}
+            </div>
+          ) : filtered.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {filtered.map((market, index) => (
+                <div key={market.id} className="animate-fade-up" style={{ animationDelay: `${index * 35}ms` }}>
+                  <MarketCard m={market} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
+              <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-violet-500/20 text-2xl">
+                <Flame className="h-7 w-7 text-violet-200" />
+              </div>
+              <h3 className="text-lg font-black">No markets yet</h3>
+              <p className="mt-1 text-sm text-slate-400">Add active markets in the backend to fill this feed.</p>
+            </div>
+          )}
+        </section>
+
+        <aside className="hidden space-y-4 lg:block">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.055] p-5 backdrop-blur-xl">
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-black">
+              <Trophy className="h-5 w-5 text-yellow-300" />
+              Top Predictors
+            </h2>
+            <div className="space-y-3">
+              {topPredictors.map((person, index) => (
+                <div key={person.name} className="flex items-center gap-3 rounded-2xl bg-black/20 p-3">
+                  <div className="grid h-9 w-9 place-items-center rounded-full bg-violet-500/25 text-sm font-black text-violet-100">
+                    {index + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-bold">{person.name}</div>
+                    <div className="text-xs text-slate-500">Win rate {person.win}</div>
+                  </div>
+                  <div className="text-sm font-black text-emerald-300">{person.profit}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-white/[0.055] p-5 backdrop-blur-xl">
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-black">
+              <Wallet className="h-5 w-5 text-violet-300" />
+              My Overview
+            </h2>
+            <div className="rounded-2xl bg-black/20 p-4">
+              <div className="text-xs text-slate-500">Balance</div>
+              <div className="text-3xl font-black text-white">{formatNaira(user?.balance || 0)}</div>
+              <div className="mt-4 text-xs text-slate-500">This month</div>
+              <div className="text-xl font-black text-emerald-300">+18.4%</div>
+              <div className="mt-3 h-16 rounded-2xl bg-gradient-to-r from-emerald-500/20 via-violet-500/20 to-emerald-400/20" />
+            </div>
+          </div>
+        </aside>
+      </main>
       <MobileNav />
     </div>
   );

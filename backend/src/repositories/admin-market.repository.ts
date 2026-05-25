@@ -21,6 +21,11 @@ export interface Market {
   participant_count: number;
   currency: 'NGN' | 'USD';
   image_url: string | null;
+  video_url?: string | null;
+  is_trending?: boolean;
+  min_position_smallest_unit?: number | null;
+  max_position_smallest_unit?: number | null;
+  resolution_instructions?: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -47,6 +52,12 @@ export interface PaginationInfo {
 }
 
 export class AdminMarketRepository {
+  private legacyStateFor(status: string) {
+    if (status === 'active') return 'active';
+    if (status === 'resolved') return 'resolved';
+    return 'closed';
+  }
+
   /**
    * Create a new market
    */
@@ -66,11 +77,20 @@ export class AdminMarketRepository {
         close_date: data.close_date,
         resolution_date: data.resolution_date,
         resolution_source: data.resolution_source || null,
+        resolution_instructions: data.resolution_instructions || null,
         status: data.status,
+        state: this.legacyStateFor(data.status),
         currency: data.currency,
         image_url: data.image_url || null,
+        video_url: data.video_url || null,
+        is_trending: data.is_trending || false,
+        min_position_smallest_unit: data.min_position_smallest_unit || null,
+        max_position_smallest_unit: data.max_position_smallest_unit || null,
         created_by: createdBy,
+        closes_at: data.close_date,
         pool_amount_smallest_unit: 0,
+        yes_pool_smallest_unit: 0,
+        no_pool_smallest_unit: 0,
         participant_count: 0,
       })
       .select()
@@ -124,10 +144,16 @@ export class AdminMarketRepository {
     if (data.yes_price !== undefined) updateData.yes_price = data.yes_price;
     if (data.no_price !== undefined) updateData.no_price = data.no_price;
     if (data.close_date !== undefined) updateData.close_date = data.close_date;
+    if (data.close_date !== undefined) updateData.closes_at = data.close_date;
     if (data.resolution_date !== undefined) updateData.resolution_date = data.resolution_date;
     if (data.resolution_source !== undefined) updateData.resolution_source = data.resolution_source;
+    if (data.resolution_instructions !== undefined) updateData.resolution_instructions = data.resolution_instructions;
     if (data.currency !== undefined) updateData.currency = data.currency;
     if (data.image_url !== undefined) updateData.image_url = data.image_url;
+    if (data.video_url !== undefined) updateData.video_url = data.video_url;
+    if (data.is_trending !== undefined) updateData.is_trending = data.is_trending;
+    if (data.min_position_smallest_unit !== undefined) updateData.min_position_smallest_unit = data.min_position_smallest_unit;
+    if (data.max_position_smallest_unit !== undefined) updateData.max_position_smallest_unit = data.max_position_smallest_unit;
 
     const { data: market, error } = await supabase
       .from('markets')
@@ -157,7 +183,7 @@ export class AdminMarketRepository {
     outcome?: Outcome,
     resolutionSource?: string
   ): Promise<Market> {
-    const updateData: any = { status };
+    const updateData: any = { status, state: this.legacyStateFor(status) };
     
     if (outcome !== undefined) {
       updateData.outcome = outcome;

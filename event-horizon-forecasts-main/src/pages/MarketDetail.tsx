@@ -1,222 +1,533 @@
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { Clock, ArrowLeft, TrendingUp, ExternalLink, Users, Share2, Bookmark } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { AlertCircle, ArrowLeft, Award, Bookmark, Clock, Loader2, MessageCircle, Send, Share2, TrendingDown, TrendingUp, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
-import { Footer } from "@/components/Footer";
-import { PositionListings } from "@/components/PositionListings";
-import { MarketHealthIndicators } from "@/components/MarketHealthIndicators";
 import { Button } from "@/components/ui/button";
-import { formatNaira } from "@/lib/markets";
+import { Input } from "@/components/ui/input";
+import apiService, { type ApiPosition } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { useForecastSlip } from "@/lib/forecast-slip";
 import { useMarketState } from "@/lib/market-state";
-import { AnimatedNumber } from "@/components/AnimatedNumber";
-import { useState, useEffect } from "react";
+import { formatNaira, type Market } from "@/lib/markets";
+
+const categoryImages: Record<string, string> = {
+  Sports: "https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&w=1300&q=80",
+  Music: "https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=1300&q=80",
+  Entertainment: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1300&q=80",
+  Crypto: "https://images.unsplash.com/photo-1621504450181-5d356f61d307?auto=format&fit=crop&w=1300&q=80",
+  Cryptocurrency: "https://images.unsplash.com/photo-1621504450181-5d356f61d307?auto=format&fit=crop&w=1300&q=80",
+  Politics: "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=1300&q=80",
+  Finance: "https://images.unsplash.com/photo-1640340434855-6084b1f4901c?auto=format&fit=crop&w=1300&q=80",
+  Technology: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1300&q=80",
+};
+
+const marketImage = (market?: Market) =>
+  (market && categoryImages[market.category]) || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1300&q=80";
+
+const starterComments = [
+  { id: "1", user: "ToluPredicts", text: "Volume is moving slowly. I like YES only if price stays under 70%.", likes: 42 },
+  { id: "2", user: "MarketMaster", text: "This one depends on the final news cycle. Watching it closely.", likes: 28 },
+];
+
+const predictors = [
+  { user: "KingPredicts", winRate: 78, badge: "Elite" },
+  { user: "ToluPredicts", winRate: 72, badge: "Verified" },
+  { user: "CryptoGuru", winRate: 69, badge: "Hot" },
+  { user: "BallerAlert", winRate: 66, badge: "Rising" },
+];
 
 const MarketDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getMarket } = useMarketState();
-  const m = getMarket(id || "");
-  const { user } = useAuth();
-  const { openForecastSlip } = useForecastSlip();
+  const { getMarket, setMarkets } = useMarketState();
+  const { user, refreshUser } = useAuth();
+  const [market, setMarket] = useState<Market | null>(null);
+  const [positions, setPositions] = useState<ApiPosition[]>([]);
   const [bookmarked, setBookmarked] = useState(false);
-  const [activeSide, setActiveSide] = useState<"YES" | "NO" | null>(null);
+  const [selectedSide, setSelectedSide] = useState<"YES" | "NO">("YES");
+  const [amount, setAmount] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [comment, setComment] = useState("");
+  const [comments, setComments] = useState(starterComments);
 
-  // Redirect if market not found
   useEffect(() => {
-    if (!m && id) {
-      navigate("/");
-    }
-  }, [m, id, navigate]);
+    if (!id) return;
 
-  if (!m) {
-    return null;
-  }
+    const loadMarket = async () => {
+      setLoading(true);
+      try {
+        const cachedMarket = getMarket(id);
+        if (cachedMarket) {
+          setMarket(cachedMarket);
+        }
 
-  const handleForecast = (side: "YES" | "NO") => {
+        const response = await apiService.getMarket(id);
+        setMarket(response.market);
+        setMarkets((prev) => {
+          const exists = prev.some((item) => item.id === response.market.id);
+          return exists
+            ? prev.map((item) => (item.id === response.market.id ? response.market : item))
+            : [...prev, response.market];
+        });
+      } catch (error: any) {
+        toast.error(error.message || "Could not load market.");
+        navigate("/");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMarket();
+  }, [getMarket, id, navigate, setMarkets]);
+
+  useEffect(() => {
+    if (!user || !id) return;
+
+    const loadPositions = async () => {
+      try {
+        const response = await apiService.getPositions();
+        setPositions(response.positions.filter((position) => position.marketId === id));
+      } catch {
+        setPositions([]);
+      }
+    };
+
+    loadPositions();
+  }, [id, user]);
+
+  const numericAmount = Number.parseFloat(amount) || 0;
+  const currentPrice = selectedSide === "YES" ? market?.yesPrice || 50 : market?.noPrice || 50;
+  const potentialReturn = numericAmount > 0 ? numericAmount * (100 / Math.max(1, currentPrice)) : 0;
+  const potentialProfit = Math.max(0, potentialReturn - numericAmount);
+  const selectedPosition = positions[0];
+  const priceChange = useMemo(() => {
+    const history = market?.priceHistory || [];
+    if (history.length < 2) return 0;
+    return history[history.length - 1].yesPrice - history[0].yesPrice;
+  }, [market]);
+
+  const handlePredict = async () => {
+    if (!market) return;
+
     if (!user) {
-      navigate("/signup");
+      navigate("/login");
       return;
     }
-    
-    // Visual feedback: activate the button
-    setActiveSide(side);
-    
-    // Small delay for visual feedback before opening forecast slip
-    setTimeout(() => {
-      openForecastSlip({
-        marketId: m.id,
-        marketQuestion: m.question,
-        marketIcon: m.icon,
-        side,
-        currentPrice: side === "YES" ? m.yesPrice : m.noPrice,
+
+    if (numericAmount <= 0) {
+      toast.error("Enter a valid amount.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const result = await apiService.placePrediction(market.id, {
+        side: selectedSide,
+        amount: numericAmount,
+        currency: "NGN",
       });
-      setActiveSide(null);
-    }, 150);
+
+      setMarket(result.market);
+      setMarkets((prev) => prev.map((item) => (item.id === result.market.id ? result.market : item)));
+      setPositions((prev) => [result.position, ...prev]);
+      setAmount("");
+      await refreshUser();
+      toast.success("Prediction saved.");
+    } catch (error: any) {
+      toast.error(error.message || "Server error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
+  const addComment = () => {
+    if (!comment.trim()) return;
+    setComments((prev) => [
+      {
+        id: crypto.randomUUID(),
+        user: user?.username || "You",
+        text: comment.trim(),
+        likes: 0,
+      },
+      ...prev,
+    ]);
+    setComment("");
+  };
+
+  if (loading && !market) {
+    return (
+      <div className="min-h-screen bg-[#050711] text-white xl:pl-64">
+        <Header />
+        <main className="grid min-h-[70vh] place-items-center px-4">
+          <Loader2 className="h-8 w-8 animate-spin text-violet-300" />
+        </main>
+      </div>
+    );
+  }
+
+  if (!market) return null;
+
+  const isClosed = market.status !== "active";
+
   return (
-    <div className="min-h-screen flex flex-col bg-white pb-20 md:pb-0">
+    <div className="min-h-screen bg-[#050711] pb-24 text-white md:pb-0 xl:pl-64">
       <Header />
-      <main className="flex-1 container py-8 max-w-2xl">
-        {/* Back */}
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1.5 text-sm text-graphite hover:text-charcoal transition-fast mb-6 group"
-        >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-fast" />
+      <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:py-8">
+        <Link to="/" className="mb-5 inline-flex items-center gap-2 text-sm font-bold text-slate-400 transition hover:text-white">
+          <ArrowLeft className="h-4 w-4" />
           Back to markets
         </Link>
 
-        <div className="space-y-4">
-          {/* Main card */}
-          <div className="bg-white rounded-xl p-6 shadow-card border border-graphite/10 space-y-6">
-            {/* Top row */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-graphite/10 grid place-items-center text-3xl">
-                  {m.icon}
+        <section className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
+          <div className="space-y-6">
+            <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.055] shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+              <div className="relative min-h-[360px] overflow-hidden sm:min-h-[460px]">
+                <img src={marketImage(market)} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#050711] via-[#050711]/55 to-black/20" />
+                <div className="absolute left-5 right-5 top-5 flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-white/15 bg-black/40 px-3 py-1 text-xs font-black text-white backdrop-blur-xl">
+                      {market.category || "Market"}
+                    </span>
+                    <span className={`rounded-full px-3 py-1 text-xs font-black ${market.status === "active" ? "bg-emerald-400/15 text-emerald-200" : "bg-red-400/15 text-red-200"}`}>
+                      {market.status}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <IconButton active={bookmarked} onClick={() => setBookmarked((value) => !value)} icon={Bookmark} />
+                    <IconButton onClick={() => toast("Sharing is coming soon.")} icon={Share2} />
+                  </div>
                 </div>
-                <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-graphite/10 text-graphite border border-graphite/20">
-                  {m.category}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setBookmarked(v => !v)}
-                  className={`w-9 h-9 rounded-xl grid place-items-center transition-fast border ${
-                    bookmarked
-                      ? "bg-purple/10 border-purple/30 text-purple"
-                      : "border-graphite/20 text-graphite hover:text-charcoal hover:bg-graphite/5"
-                  }`}
-                >
-                  <Bookmark className={`w-4 h-4 ${bookmarked ? "fill-purple" : ""}`} />
-                </button>
-                <button 
-                  onClick={() => {
-                    toast("Coming soon", {
-                      description: "Share feature is currently in development",
-                    });
-                  }}
-                  className="w-9 h-9 rounded-xl grid place-items-center border border-graphite/20 text-graphite hover:text-charcoal hover:bg-graphite/5 transition-fast"
-                >
-                  <Share2 className="w-4 h-4" />
-                </button>
+                <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-7">
+                  <div className="mb-4 flex flex-wrap items-center gap-3 text-sm font-bold text-slate-300">
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="h-4 w-4 text-violet-300" />
+                      {market.closesIn || "Soon"}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Users className="h-4 w-4 text-violet-300" />
+                      {market.participants} people
+                    </span>
+                  </div>
+                  <h1 className="max-w-3xl text-3xl font-black leading-tight tracking-tight sm:text-5xl">
+                    {market.question}
+                  </h1>
+                  <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+                    {market.description || "Pick a side and follow the market as the price moves."}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <h1 className="text-2xl font-extrabold leading-snug tracking-tight text-charcoal">{m.question}</h1>
-
-            <p className="text-sm text-graphite leading-relaxed">{m.description}</p>
-
-            {/* Stats row */}
-            <div className="space-y-3">
-              <MarketHealthIndicators market={m} variant="detailed" />
-            </div>
-
-            {/* Progress */}
-            <div>
-              <div className="flex justify-between text-sm font-bold mb-2.5">
-                <span className="text-emerald flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald" />
-                  YES <AnimatedNumber value={m.yesPrice} suffix="%" />
-                </span>
-                <span className="text-coral flex items-center gap-1.5">
-                  NO <AnimatedNumber value={m.noPrice} suffix="%" />
-                  <span className="w-2 h-2 rounded-full bg-coral" />
-                </span>
-              </div>
-              <div className="h-3 rounded-full bg-coral-soft overflow-hidden">
-                <div
-                  className="h-full bg-emerald rounded-full transition-all duration-700"
-                  style={{ width: `${m.yesPrice}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-xs text-graphite mt-1.5">
-                <span>{Math.round(m.participants * m.yesPrice / 100)} traders</span>
-                <span>{Math.round(m.participants * m.noPrice / 100)} traders</span>
-              </div>
-            </div>
-
-            {/* Forecast buttons */}
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                onClick={() => handleForecast("YES")}
-                disabled={activeSide === "YES"}
-                className={`h-13 font-bold rounded-xl text-base shadow-sm transition-all duration-300 relative overflow-hidden group ${
-                  activeSide === "YES"
-                    ? "bg-emerald scale-[0.98] shadow-lg ring-2 ring-emerald/50 ring-offset-2"
-                    : "bg-emerald hover:bg-emerald/90 hover:shadow-elevated hover:scale-[1.02] active:scale-[0.98]"
-                } text-white`}
-              >
-                <span className={`flex items-center justify-center gap-2 ${activeSide === "YES" ? "animate-pulse" : ""}`}>
-                  {activeSide === "YES" && (
-                    <span className="w-2 h-2 rounded-full bg-white animate-ping absolute" />
-                  )}
-                  <TrendingUp className="w-4 h-4" />
-                  YES — <AnimatedNumber value={m.yesPrice} suffix="%" />
-                </span>
-                {/* Hover gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-              </Button>
-              <Button
-                onClick={() => handleForecast("NO")}
-                disabled={activeSide === "NO"}
-                className={`h-13 font-bold rounded-xl text-base shadow-sm transition-all duration-300 relative overflow-hidden group ${
-                  activeSide === "NO"
-                    ? "bg-coral scale-[0.98] shadow-lg ring-2 ring-coral/50 ring-offset-2"
-                    : "bg-coral hover:bg-coral/90 hover:shadow-elevated hover:scale-[1.02] active:scale-[0.98]"
-                } text-white`}
-              >
-                <span className={`flex items-center justify-center gap-2 ${activeSide === "NO" ? "animate-pulse" : ""}`}>
-                  {activeSide === "NO" && (
-                    <span className="w-2 h-2 rounded-full bg-white animate-ping absolute" />
-                  )}
-                  <TrendingUp className="w-4 h-4 rotate-180" />
-                  NO — <AnimatedNumber value={m.noPrice} suffix="%" />
-                </span>
-                {/* Hover gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-              </Button>
-            </div>
-
-            {!user && (
-              <p className="text-center text-xs text-graphite">
-                <Link to="/signup" className="text-purple font-semibold hover:underline transition-fast">
-                  Sign up free
-                </Link>{" "}
-                to place a position on this market.
-              </p>
-            )}
+            <PriceSection market={market} priceChange={priceChange} />
+            <ChartSection market={market} />
+            <YourPosition position={selectedPosition} selectedSide={selectedSide} amount={numericAmount} potentialReturn={potentialReturn} />
+            <Discussion comments={comments} comment={comment} setComment={setComment} addComment={addComment} />
           </div>
 
-          {/* Source card */}
-          <div className="bg-white rounded-xl px-5 py-4 shadow-card border border-graphite/10 flex items-center justify-between text-sm">
-            <div>
-              <div className="text-xs text-graphite mb-0.5">Resolution source</div>
-              <a href="#" className="flex items-center gap-1.5 font-semibold text-charcoal hover:text-purple transition-fast">
-                {m.source} <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-            <div className="text-right">
-              <div className="text-xs text-graphite mb-0.5">Market ID</div>
-              <code className="text-xs font-mono bg-graphite/10 text-charcoal px-2 py-0.5 rounded-lg border border-graphite/20">{m.id}</code>
-            </div>
-          </div>
-
-          {/* Position Listings Section */}
-          <div className="mt-8">
-            <PositionListings marketId={m.id} marketStatus={m.status} />
-          </div>
-        </div>
+          <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+            <PredictionPanel
+              market={market}
+              selectedSide={selectedSide}
+              setSelectedSide={setSelectedSide}
+              amount={amount}
+              setAmount={setAmount}
+              potentialReturn={potentialReturn}
+              potentialProfit={potentialProfit}
+              userBalance={user?.balance || 0}
+              submitting={submitting}
+              disabled={isClosed}
+              onPredict={handlePredict}
+            />
+            <TopPredictors />
+          </aside>
+        </section>
       </main>
-
-      <Footer />
       <MobileNav />
     </div>
   );
 };
+
+const PriceSection = ({ market, priceChange }: { market: Market; priceChange: number }) => (
+  <section className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
+    <div className="mb-4 flex items-center justify-between">
+      <div>
+        <h2 className="text-xl font-black">Price</h2>
+        <p className="text-sm text-slate-500">Live probability and volume.</p>
+      </div>
+      <div className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${priceChange >= 0 ? "bg-emerald-400/10 text-emerald-300" : "bg-red-400/10 text-red-300"}`}>
+        {priceChange >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+        {priceChange >= 0 ? "+" : ""}
+        {Math.round(priceChange)}%
+      </div>
+    </div>
+    <div className="grid gap-3 sm:grid-cols-3">
+      <PriceCard label="YES" value={market.yesPrice} tone="green" />
+      <PriceCard label="NO" value={market.noPrice} tone="red" />
+      <div className="rounded-3xl border border-white/10 bg-[#0b1020]/80 p-4">
+        <div className="text-sm font-bold text-slate-500">Total volume</div>
+        <div className="mt-3 text-2xl font-black text-white">{formatNaira(market.totalPool)}</div>
+      </div>
+    </div>
+    <div className="mt-5 h-3 overflow-hidden rounded-full bg-red-500/25">
+      <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-green-300 transition-all duration-700" style={{ width: `${market.yesPrice}%` }} />
+    </div>
+  </section>
+);
+
+const PriceCard = ({ label, value, tone }: { label: string; value: number; tone: "green" | "red" }) => (
+  <div className={`rounded-3xl border p-4 ${tone === "green" ? "border-emerald-300/20 bg-emerald-400/10" : "border-red-300/20 bg-red-400/10"}`}>
+    <div className="text-sm font-bold text-slate-500">{label}</div>
+    <div className={`mt-3 text-3xl font-black ${tone === "green" ? "text-emerald-300" : "text-red-300"}`}>{value}%</div>
+  </div>
+);
+
+const ChartSection = ({ market }: { market: Market }) => {
+  const history = market.priceHistory || [];
+  const points = history.map((point, index) => {
+    const x = history.length === 1 ? 0 : (index / (history.length - 1)) * 100;
+    const y = 100 - point.yesPrice;
+    return `${x},${y}`;
+  });
+
+  return (
+    <section className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
+      <div className="mb-4">
+        <h2 className="text-xl font-black">Chart</h2>
+        <p className="text-sm text-slate-500">YES price movement over time.</p>
+      </div>
+      {history.length < 2 ? (
+        <div className="grid min-h-[240px] place-items-center rounded-3xl border border-dashed border-white/10 bg-[#0b1020]/70 text-center">
+          <div>
+            <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-violet-400/10 text-violet-300">
+              <TrendingUp className="h-7 w-7" />
+            </div>
+            <div className="font-black">No chart history yet</div>
+            <p className="mt-1 text-sm text-slate-500">Price movement will appear after predictions are saved.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-3xl border border-white/10 bg-[#0b1020]/80 p-4">
+          <svg viewBox="0 0 100 100" className="h-64 w-full overflow-visible">
+            <defs>
+              <linearGradient id="chartGlow" x1="0" x2="1">
+                <stop offset="0%" stopColor="#34d399" />
+                <stop offset="100%" stopColor="#a78bfa" />
+              </linearGradient>
+            </defs>
+            {[20, 40, 60, 80].map((line) => (
+              <line key={line} x1="0" x2="100" y1={line} y2={line} stroke="rgba(255,255,255,0.08)" strokeWidth="0.5" />
+            ))}
+            <polyline points={points.join(" ")} fill="none" stroke="url(#chartGlow)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
+          </svg>
+        </div>
+      )}
+    </section>
+  );
+};
+
+const PredictionPanel = ({
+  market,
+  selectedSide,
+  setSelectedSide,
+  amount,
+  setAmount,
+  potentialReturn,
+  potentialProfit,
+  userBalance,
+  submitting,
+  disabled,
+  onPredict,
+}: {
+  market: Market;
+  selectedSide: "YES" | "NO";
+  setSelectedSide: (side: "YES" | "NO") => void;
+  amount: string;
+  setAmount: (amount: string) => void;
+  potentialReturn: number;
+  potentialProfit: number;
+  userBalance: number;
+  submitting: boolean;
+  disabled: boolean;
+  onPredict: () => void;
+}) => {
+  const numericAmount = Number.parseFloat(amount) || 0;
+  const currentPrice = selectedSide === "YES" ? market.yesPrice : market.noPrice;
+  const insufficient = numericAmount > userBalance;
+
+  return (
+    <section className="rounded-[2rem] border border-violet-300/20 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.28),rgba(9,13,25,0.96)_48%)] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+      <h2 className="text-xl font-black">Predict</h2>
+      <p className="mt-1 text-sm text-slate-400">Choose a side and amount.</p>
+
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        <SideButton label="YES" value={market.yesPrice} active={selectedSide === "YES"} tone="green" onClick={() => setSelectedSide("YES")} />
+        <SideButton label="NO" value={market.noPrice} active={selectedSide === "NO"} tone="red" onClick={() => setSelectedSide("NO")} />
+      </div>
+
+      <div className="mt-5">
+        <label className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-500">Amount</label>
+        <Input
+          type="number"
+          placeholder="0"
+          value={amount}
+          onChange={(event) => setAmount(event.target.value)}
+          className={`h-12 rounded-2xl bg-white/[0.055] text-lg font-black text-white placeholder:text-slate-600 ${insufficient ? "border-red-300" : "border-white/10 focus:border-violet-300"}`}
+        />
+        {insufficient && (
+          <div className="mt-2 flex items-center gap-2 text-xs font-bold text-red-300">
+            <AlertCircle className="h-3.5 w-3.5" />
+            Insufficient balance.
+          </div>
+        )}
+      </div>
+
+      <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.055] p-4">
+        <PanelRow label="Current price" value={`${currentPrice}%`} />
+        <PanelRow label="Wallet balance" value={formatNaira(userBalance)} />
+        <PanelRow label="Potential return" value={formatNaira(potentialReturn)} />
+        <PanelRow label="Potential profit" value={`+${formatNaira(potentialProfit)}`} highlight />
+      </div>
+
+      <Button
+        onClick={onPredict}
+        disabled={submitting || disabled || numericAmount <= 0 || insufficient}
+        className={`mt-5 h-12 w-full rounded-2xl text-base font-black text-white disabled:opacity-50 ${selectedSide === "YES" ? "bg-emerald-500 hover:bg-emerald-400" : "bg-red-500 hover:bg-red-400"}`}
+      >
+        {submitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <TrendingUp className="mr-2 h-5 w-5" />}
+        {disabled ? "Market closed" : `Confirm ${selectedSide}`}
+      </Button>
+    </section>
+  );
+};
+
+const SideButton = ({ label, value, active, tone, onClick }: { label: string; value: number; active: boolean; tone: "green" | "red"; onClick: () => void }) => (
+  <button
+    onClick={onClick}
+    className={`rounded-2xl border p-4 text-left transition ${
+      active
+        ? tone === "green"
+          ? "border-emerald-300/40 bg-emerald-400/20"
+          : "border-red-300/40 bg-red-400/20"
+        : "border-white/10 bg-white/[0.055] hover:bg-white/10"
+    }`}
+  >
+    <div className={`text-sm font-black ${tone === "green" ? "text-emerald-300" : "text-red-300"}`}>{label}</div>
+    <div className="mt-1 text-2xl font-black text-white">{value}%</div>
+  </button>
+);
+
+const YourPosition = ({ position, selectedSide, amount, potentialReturn }: { position?: ApiPosition; selectedSide: "YES" | "NO"; amount: number; potentialReturn: number }) => (
+  <section className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
+    <h2 className="text-xl font-black">Your position</h2>
+    {position ? (
+      <div className="mt-4 grid gap-3 sm:grid-cols-4">
+        <Info label="Side" value={position.side} />
+        <Info label="Amount" value={formatNaira(position.stake)} />
+        <Info label="Current value" value={formatNaira(position.currentValue)} />
+        <Info label="Status" value={position.marketStatus} />
+      </div>
+    ) : (
+      <div className="mt-4 rounded-3xl border border-dashed border-white/10 bg-[#0b1020]/70 p-5">
+        <p className="text-sm text-slate-400">No saved position yet.</p>
+        {amount > 0 && (
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <Info label="Selected side" value={selectedSide} />
+            <Info label="Amount" value={formatNaira(amount)} />
+            <Info label="Potential return" value={formatNaira(potentialReturn)} />
+          </div>
+        )}
+      </div>
+    )}
+  </section>
+);
+
+const Discussion = ({ comments, comment, setComment, addComment }: { comments: typeof starterComments; comment: string; setComment: (value: string) => void; addComment: () => void }) => (
+  <section className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
+    <div className="mb-4 flex items-center justify-between">
+      <div>
+        <h2 className="text-xl font-black">Discussion</h2>
+        <p className="text-sm text-slate-500">Top comments first.</p>
+      </div>
+      <MessageCircle className="h-5 w-5 text-violet-300" />
+    </div>
+    <div className="flex gap-2">
+      <Input value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Add a comment..." className="h-12 rounded-2xl border-white/10 bg-white/[0.055] text-white placeholder:text-slate-500" />
+      <Button onClick={addComment} className="h-12 rounded-2xl bg-violet-500 px-4 text-white hover:bg-violet-400">
+        <Send className="h-4 w-4" />
+      </Button>
+    </div>
+    {comments.length === 0 ? (
+      <div className="mt-4 rounded-3xl border border-dashed border-white/10 py-12 text-center text-sm text-slate-500">No comments yet.</div>
+    ) : (
+      <ul className="mt-4 space-y-3">
+        {[...comments].sort((a, b) => b.likes - a.likes).map((item) => (
+          <li key={item.id} className="rounded-2xl border border-white/10 bg-[#0b1020]/80 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="font-black text-white">@{item.user}</div>
+              <div className="text-xs font-bold text-violet-300">{item.likes} likes</div>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-slate-300">{item.text}</p>
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
+);
+
+const TopPredictors = () => (
+  <section className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
+    <div className="mb-4 flex items-center justify-between">
+      <h2 className="text-xl font-black">Top predictors</h2>
+      <Award className="h-5 w-5 text-violet-300" />
+    </div>
+    <ul className="space-y-3">
+      {predictors.map((predictor, index) => (
+        <li key={predictor.user} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0b1020]/80 p-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-500 text-sm font-black text-white">
+              {predictor.user.charAt(0)}
+            </div>
+            <div>
+              <div className="text-sm font-black text-white">{predictor.user}</div>
+              <div className="text-xs text-slate-500">{predictor.badge}</div>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-sm font-black text-emerald-300">{predictor.winRate}%</div>
+            <div className="text-xs text-slate-500">#{index + 1}</div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  </section>
+);
+
+const Info = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-2xl border border-white/10 bg-[#0b1020]/80 p-4">
+    <div className="text-xs font-bold text-slate-500">{label}</div>
+    <div className="mt-1 truncate text-sm font-black text-white">{value}</div>
+  </div>
+);
+
+const PanelRow = ({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) => (
+  <div className="flex items-center justify-between border-b border-white/10 py-2 last:border-0">
+    <span className="text-sm font-bold text-slate-400">{label}</span>
+    <span className={`text-sm font-black ${highlight ? "text-emerald-300" : "text-white"}`}>{value}</span>
+  </div>
+);
+
+const IconButton = ({ icon: Icon, onClick, active = false }: { icon: any; onClick: () => void; active?: boolean }) => (
+  <button
+    onClick={onClick}
+    className={`grid h-10 w-10 place-items-center rounded-2xl border backdrop-blur-xl transition ${
+      active ? "border-violet-300/40 bg-violet-400/20 text-violet-200" : "border-white/15 bg-black/35 text-white hover:bg-black/50"
+    }`}
+  >
+    <Icon className={`h-4 w-4 ${active ? "fill-current" : ""}`} />
+  </button>
+);
 
 export default MarketDetail;

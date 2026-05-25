@@ -75,6 +75,42 @@ CREATE INDEX IF NOT EXISTS idx_markets_state ON markets(state);
 CREATE INDEX IF NOT EXISTS idx_markets_closes_at ON markets(closes_at);
 CREATE INDEX IF NOT EXISTS idx_markets_created_at ON markets(created_at DESC);
 
+-- Admin market management additions
+-- Run these on existing projects before using the admin dashboard.
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS status VARCHAR(20);
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'General';
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS country_filter VARCHAR(2);
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS market_type TEXT DEFAULT 'binary';
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS yes_label TEXT DEFAULT 'YES';
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS no_label TEXT DEFAULT 'NO';
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS yes_price INTEGER DEFAULT 50;
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS no_price INTEGER DEFAULT 50;
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS close_date TIMESTAMP;
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS resolution_date TIMESTAMP;
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS resolution_source TEXT;
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS resolution_instructions TEXT;
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS outcome VARCHAR(10);
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS image_url TEXT;
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS video_url TEXT;
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS is_trending BOOLEAN DEFAULT FALSE;
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS participant_count INTEGER DEFAULT 0;
+ALTER TABLE markets ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1;
+UPDATE markets SET status = COALESCE(status, state, 'active');
+UPDATE markets SET close_date = COALESCE(close_date, closes_at);
+
+CREATE INDEX IF NOT EXISTS idx_markets_status ON markets(status);
+CREATE INDEX IF NOT EXISTS idx_markets_created_by ON markets(created_by);
+
+-- Storage buckets needed by admin media upload:
+-- 1. Create a public bucket named market-images.
+-- 2. Create a public bucket named market-videos.
+-- 3. Backend uploads must use the Supabase service role key only.
+-- Example storage policies if clients ever read directly:
+-- CREATE POLICY "Public market image read" ON storage.objects FOR SELECT USING (bucket_id = 'market-images');
+-- CREATE POLICY "Public market video read" ON storage.objects FOR SELECT USING (bucket_id = 'market-videos');
+-- Do not allow public INSERT/UPDATE/DELETE. Uploads should go through the backend admin API.
+
 -- Positions Table
 CREATE TABLE IF NOT EXISTS positions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -84,6 +120,7 @@ CREATE TABLE IF NOT EXISTS positions (
   amount_smallest_unit BIGINT NOT NULL,
   currency VARCHAR(3) NOT NULL CHECK (currency IN ('NGN', 'USD')),
   potential_return_smallest_unit BIGINT NOT NULL,
+  entry_price INTEGER CHECK (entry_price >= 0 AND entry_price <= 100),
   is_winner BOOLEAN,
   payout_smallest_unit BIGINT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -96,12 +133,27 @@ CREATE INDEX IF NOT EXISTS idx_positions_market_id ON positions(market_id);
 CREATE INDEX IF NOT EXISTS idx_positions_created_at ON positions(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_positions_user_market ON positions(user_id, market_id);
 
+-- Market Price History Table
+CREATE TABLE IF NOT EXISTS market_price_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  market_id UUID NOT NULL REFERENCES markets(id) ON DELETE CASCADE,
+  yes_price INTEGER NOT NULL CHECK (yes_price >= 0 AND yes_price <= 100),
+  no_price INTEGER NOT NULL CHECK (no_price >= 0 AND no_price <= 100),
+  yes_pool_smallest_unit BIGINT NOT NULL DEFAULT 0,
+  no_pool_smallest_unit BIGINT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT market_price_history_total CHECK (yes_price + no_price = 100)
+);
+
+CREATE INDEX IF NOT EXISTS idx_market_price_history_market_id ON market_price_history(market_id);
+CREATE INDEX IF NOT EXISTS idx_market_price_history_created_at ON market_price_history(created_at DESC);
+
 -- Transactions Table
 CREATE TABLE IF NOT EXISTS transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   wallet_id UUID NOT NULL REFERENCES wallets(id) ON DELETE CASCADE,
-  type VARCHAR(20) NOT NULL CHECK (type IN ('deposit', 'withdrawal', 'position_entry', 'position_payout')),
+  type VARCHAR(20) NOT NULL CHECK (type IN ('deposit', 'withdrawal', 'position_entry', 'position_payout', 'refund')),
   amount_smallest_unit BIGINT NOT NULL,
   currency VARCHAR(3) NOT NULL CHECK (currency IN ('NGN', 'USD')),
   direction VARCHAR(3) NOT NULL CHECK (direction IN ('IN', 'OUT')),

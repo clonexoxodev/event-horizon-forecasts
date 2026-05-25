@@ -2,7 +2,7 @@ export interface Transaction {
   id: string;
   user_id: string;
   wallet_id: string;
-  type: 'deposit' | 'withdrawal' | 'position_entry' | 'position_payout';
+  type: 'deposit' | 'withdrawal' | 'position_entry' | 'position_payout' | 'refund';
   amount_smallest_unit: number;
   currency: 'NGN' | 'USD';
   direction: 'IN' | 'OUT';
@@ -16,7 +16,7 @@ export interface Transaction {
 export interface CreateTransactionRequest {
   user_id: string;
   wallet_id: string;
-  type: 'deposit' | 'withdrawal' | 'position_entry' | 'position_payout';
+  type: 'deposit' | 'withdrawal' | 'position_entry' | 'position_payout' | 'refund';
   amount_smallest_unit: number;
   currency: 'NGN' | 'USD';
   direction: 'IN' | 'OUT';

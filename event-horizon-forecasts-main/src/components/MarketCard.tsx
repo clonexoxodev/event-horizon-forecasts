@@ -1,141 +1,126 @@
-import { Clock, TrendingUp, Users } from "lucide-react";
+import { Clock, MessageCircle, Play, TrendingUp, Users } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Market, formatNaira } from "@/lib/markets";
 import { useAuth } from "@/lib/auth";
 import { useForecastSlip } from "@/lib/forecast-slip";
-import { AnimatedNumber } from "@/components/AnimatedNumber";
-import { useState } from "react";
 
-const categoryColors: Record<string, string> = {
-  Finance:       "bg-purple/10 text-purple border-purple/20",
-  Politics:      "bg-purple/10 text-purple border-purple/20",
-  Trending:      "bg-purple/10 text-purple border-purple/20",
-  Entertainment: "bg-purple/10 text-purple border-purple/20",
-  Economy:       "bg-purple/10 text-purple border-purple/20",
-  Technology:    "bg-purple/10 text-purple border-purple/20",
-  Others:        "bg-graphite/10 text-graphite border-graphite/20",
+const categoryImages: Record<string, string> = {
+  Sports: "https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&w=900&q=80",
+  Music: "https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=900&q=80",
+  Entertainment: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=900&q=80",
+  Crypto: "https://images.unsplash.com/photo-1621504450181-5d356f61d307?auto=format&fit=crop&w=900&q=80",
+  Cryptocurrency: "https://images.unsplash.com/photo-1621504450181-5d356f61d307?auto=format&fit=crop&w=900&q=80",
+  Politics: "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=900&q=80",
+  Finance: "https://images.unsplash.com/photo-1640340434855-6084b1f4901c?auto=format&fit=crop&w=900&q=80",
+  Technology: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=900&q=80",
 };
 
-export const MarketCard = ({ m }: { m: Market }) => {
+const marketImage = (market: Market) =>
+  categoryImages[market.category] || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80";
+
+export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolean }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { openForecastSlip } = useForecastSlip();
-  const [activeSide, setActiveSide] = useState<"YES" | "NO" | null>(null);
+  const isTrending = m.participants > 25 || m.totalPool > 10000;
+  const comments = Math.max(8, Math.round((m.participants || 1) * 1.7));
 
-  const handleSide = (e: React.MouseEvent, side: "YES" | "NO") => {
-    e.preventDefault();
+  const handleSide = (event: React.MouseEvent, side: "YES" | "NO") => {
+    event.preventDefault();
     if (!user) {
-      navigate("/signup");
+      navigate("/login");
       return;
     }
-    
-    // Visual feedback
-    setActiveSide(side);
-    
-    // Small delay for visual feedback
-    setTimeout(() => {
-      openForecastSlip({
-        marketId: m.id,
-        marketQuestion: m.question,
-        marketIcon: m.icon,
-        side,
-        currentPrice: side === "YES" ? m.yesPrice : m.noPrice,
-      });
-      setActiveSide(null);
-    }, 150);
-  };
 
-  const colorClass = categoryColors[m.category] ?? categoryColors.Others;
+    openForecastSlip({
+      marketId: m.id,
+      marketQuestion: m.question,
+      marketIcon: m.icon,
+      side,
+      currentPrice: side === "YES" ? m.yesPrice : m.noPrice,
+    });
+  };
 
   return (
     <Link
       to={`/market/${m.id}`}
-      className="group bg-white rounded-xl p-5 shadow-card hover:shadow-elevated transition-normal border border-graphite/10 hover:border-graphite/20 flex flex-col gap-4 hover:-translate-y-0.5 active:translate-y-0 relative overflow-hidden"
+      className="group block overflow-hidden rounded-3xl border border-white/10 bg-white/[0.055] shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-violet-400/40 hover:shadow-[0_22px_70px_rgba(109,40,217,0.25)]"
     >
-      {/* Subtle gradient overlay on hover */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-400 gradient-overlay-purple pointer-events-none" />
-      
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 relative z-10">
-        <div className="w-11 h-11 rounded-xl bg-graphite/5 grid place-items-center text-2xl leading-none shrink-0 group-hover:scale-105 transition-transform duration-280">
-          {m.icon}
-        </div>
-        <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg shrink-0 border ${colorClass}`}>
-          {m.category}
-        </span>
-      </div>
-
-      {/* Question */}
-      <h3 className="font-semibold text-base leading-snug line-clamp-2 min-h-[44px] text-charcoal group-hover:text-purple transition-colors duration-280 tracking-tight relative z-10">
-        {m.question}
-      </h3>
-
-      {/* Progress bar */}
-      <div className="relative z-10">
-        <div className="flex justify-between text-xs font-bold mb-2 tracking-wide">
-          <span className="text-emerald flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald inline-block" />
-            YES <AnimatedNumber value={m.yesPrice} suffix="%" />
+      <div className={`relative ${compact ? "h-44" : "h-56"} overflow-hidden`}>
+        <img
+          src={marketImage(m)}
+          alt=""
+          className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#070a14] via-[#070a14]/45 to-transparent" />
+        <div className="absolute left-4 top-4 flex items-center gap-2">
+          <span className="rounded-full border border-white/15 bg-black/40 px-3 py-1 text-xs font-bold text-white backdrop-blur-xl">
+            {m.category || "Market"}
           </span>
-          <span className="text-coral flex items-center gap-1.5">
-            NO <AnimatedNumber value={m.noPrice} suffix="%" />
-            <span className="w-1.5 h-1.5 rounded-full bg-coral inline-block" />
-          </span>
+          {isTrending && (
+            <span className="rounded-full border border-violet-300/30 bg-violet-500/30 px-3 py-1 text-xs font-bold text-violet-100">
+              Trending
+            </span>
+          )}
         </div>
-        <div className="h-2 rounded-full bg-coral-soft overflow-hidden">
-          <div
-            className="h-full bg-emerald rounded-full transition-all duration-700"
-            style={{ width: `${m.yesPrice}%` }}
-          />
+        <div className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-black/40 text-white backdrop-blur-xl">
+          <Play className="h-4 w-4 fill-current" />
+        </div>
+        <div className="absolute bottom-4 left-4 right-4">
+          <h3 className="line-clamp-2 text-lg font-extrabold leading-snug text-white">
+            {m.question}
+          </h3>
         </div>
       </div>
 
-      {/* Action buttons */}
-      <div className="grid grid-cols-2 gap-2.5 relative z-10">
-        <button
-          onClick={(e) => handleSide(e, "YES")}
-          disabled={activeSide === "YES"}
-          className={`rounded-xl py-2.5 text-sm font-bold border transition-all duration-280 relative overflow-hidden ${
-            activeSide === "YES"
-              ? "bg-emerald text-white border-emerald scale-95 ring-2 ring-emerald/30"
-              : "bg-emerald-soft text-emerald border-emerald/20 hover:bg-emerald hover:text-white hover:border-emerald hover:shadow-sm active:scale-95"
-          }`}
-        >
-          <span className={`flex items-center justify-center gap-1.5 ${activeSide === "YES" ? "animate-pulse" : ""}`}>
-            {activeSide === "YES" && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping absolute" />}
-            YES · <AnimatedNumber value={m.yesPrice} suffix="%" />
-          </span>
-        </button>
-        <button
-          onClick={(e) => handleSide(e, "NO")}
-          disabled={activeSide === "NO"}
-          className={`rounded-xl py-2.5 text-sm font-bold border transition-all duration-280 relative overflow-hidden ${
-            activeSide === "NO"
-              ? "bg-coral text-white border-coral scale-95 ring-2 ring-coral/30"
-              : "bg-coral-soft text-coral border-coral/20 hover:bg-coral hover:text-white hover:border-coral hover:shadow-sm active:scale-95"
-          }`}
-        >
-          <span className={`flex items-center justify-center gap-1.5 ${activeSide === "NO" ? "animate-pulse" : ""}`}>
-            {activeSide === "NO" && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping absolute" />}
-            NO · <AnimatedNumber value={m.noPrice} suffix="%" />
-          </span>
-        </button>
-      </div>
+      <div className="space-y-4 p-4">
+        <div>
+          <div className="mb-2 flex items-center justify-between text-xs font-bold">
+            <span className="text-emerald-300">YES {m.yesPrice}%</span>
+            <span className="text-red-300">{m.noPrice}% NO</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-red-500/25">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-green-300 transition-all duration-700"
+              style={{ width: `${m.yesPrice}%` }}
+            />
+          </div>
+        </div>
 
-      {/* Footer */}
-      <div className="flex items-center justify-between text-xs text-graphite border-t border-graphite/10 pt-3 relative z-10">
-        <span className="flex items-center gap-1.5 font-semibold">
-          <TrendingUp className="w-4 h-4 text-purple" />
-          {formatNaira(m.totalPool)}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <Users className="w-4 h-4" />
-          <AnimatedNumber value={m.participants} />
-        </span>
-        <span className="flex items-center gap-1.5">
-          <Clock className="w-4 h-4" />
-          {m.closesIn}
-        </span>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={(event) => handleSide(event, "YES")}
+            className="rounded-2xl bg-emerald-400 px-3 py-3 text-sm font-extrabold text-[#03130b] transition hover:bg-emerald-300 active:scale-[0.98]"
+          >
+            Predict YES
+          </button>
+          <button
+            onClick={(event) => handleSide(event, "NO")}
+            className="rounded-2xl bg-red-500 px-3 py-3 text-sm font-extrabold text-white transition hover:bg-red-400 active:scale-[0.98]"
+          >
+            Predict NO
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between border-t border-white/10 pt-3 text-xs text-slate-400">
+          <span className="flex items-center gap-1.5">
+            <TrendingUp className="h-4 w-4 text-violet-300" />
+            {formatNaira(m.totalPool)}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Clock className="h-4 w-4" />
+            {m.closesIn || "Soon"}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <MessageCircle className="h-4 w-4" />
+            {comments}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Users className="h-4 w-4" />
+            {m.participants}
+          </span>
+        </div>
       </div>
     </Link>
   );

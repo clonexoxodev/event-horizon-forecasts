@@ -1,208 +1,208 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Award, Crown, Flame, LogOut, ShieldCheck, Star, Trophy, Users } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
-import { Footer } from "@/components/Footer";
-import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { User, Mail, Lock, Bell, Globe, Shield } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { formatNaira } from "@/lib/markets";
+import apiService, { type ApiPosition, type ApiProfileStats } from "@/lib/api";
 import { toast } from "sonner";
 
+const emptyStats: ApiProfileStats = {
+  totalPredictions: 0,
+  activePredictions: 0,
+  wonPredictions: 0,
+  winRate: 0,
+  totalStaked: 0,
+  totalEarnings: 0,
+};
+
 export default function Profile() {
-  const { user, logout } = useAuth();
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(user?.name || "");
-  const [email, setEmail] = useState(user?.email || "");
+  const { user, logout, isAdmin, isSuperAdmin } = useAuth();
+  const [stats, setStats] = useState<ApiProfileStats>(emptyStats);
+  const [positions, setPositions] = useState<ApiPosition[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const loadProfile = async () => {
+      setLoading(true);
+      try {
+        const [statsResponse, positionsResponse] = await Promise.all([
+          apiService.getProfileStats(),
+          apiService.getPositions(),
+        ]);
+        setStats(statsResponse.stats);
+        setPositions(positionsResponse.positions.slice(0, 6));
+      } catch (error: any) {
+        toast("Could not load profile", {
+          description: error.message || "Please refresh and try again.",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [user]);
 
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen bg-[#050711] text-white xl:pl-64">
         <Header />
-        <main className="flex-1 container py-20 text-center">
-          <h2 className="text-2xl font-bold mb-3">Sign in to view your profile</h2>
-          <p className="text-muted-foreground">Manage your account settings.</p>
+        <main className="mx-auto max-w-3xl px-4 py-20 text-center">
+          <h2 className="text-2xl font-black">Log in to see your profile</h2>
+          <p className="mt-2 text-sm text-slate-400">Your stats and badges will show here.</p>
         </main>
-        <Footer />
+        <MobileNav />
       </div>
     );
   }
 
-  const handleSave = () => {
-    // Show coming soon toast
-    toast("Coming soon", {
-      description: "Profile editing is currently in development",
-    });
-    setEditing(false);
-  };
-
-  const settings = [
-    {
-      icon: Bell,
-      title: "Notifications",
-      description: "Manage your notification preferences",
-      action: "Configure",
-    },
-    {
-      icon: Globe,
-      title: "Language & Region",
-      description: "English (Nigeria)",
-      action: "Change",
-    },
-    {
-      icon: Shield,
-      title: "Privacy & Security",
-      description: "Manage your privacy settings",
-      action: "Manage",
-    },
+  const initials = user.name?.charAt(0).toUpperCase() || user.username?.charAt(0).toUpperCase() || "U";
+  const adminPath = isSuperAdmin() ? "/super-admin" : "/admin";
+  const earnedBadges = [
+    { icon: Trophy, label: "Elite", active: stats.winRate >= 70 },
+    { icon: Flame, label: "Streak", active: stats.activePredictions >= 3 },
+    { icon: Crown, label: "Top 100", active: stats.totalEarnings > 0 },
+    { icon: ShieldCheck, label: "Early Bird", active: true },
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-background pb-20 md:pb-0">
+    <div className="min-h-screen bg-[#050711] pb-24 text-white md:pb-0 xl:pl-64">
       <Header />
-      <main className="flex-1 container py-10 max-w-3xl">
-        <div className="mb-8">
-          <h1 className="text-3xl font-extrabold tracking-tight text-charcoal">Profile</h1>
-          <p className="text-graphite mt-1 text-sm">Manage your account settings</p>
-        </div>
-
-        {/* Profile Info */}
-        <div className="bg-off-white rounded-2xl p-6 shadow-card border border-graphite/10 mb-6">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple to-purple/70 text-white grid place-items-center text-2xl font-bold shadow-sm">
-              {user.name.charAt(0).toUpperCase()}
+      <main className="mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:py-8">
+        <section className="space-y-6">
+          <div className="rounded-[2rem] border border-violet-400/20 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.38),rgba(10,13,25,0.96)_48%)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+            <div className="flex items-center gap-4">
+              <div className="grid h-20 w-20 place-items-center rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-500 text-3xl font-black shadow-[0_0_34px_rgba(139,92,246,0.42)]">
+                {initials}
+              </div>
+              <div className="min-w-0">
+                <h1 className="truncate text-2xl font-black">{user.name || user.username}</h1>
+                <p className="truncate text-sm text-slate-400">{user.email}</p>
+                <div className="mt-2 inline-flex rounded-full border border-violet-300/20 bg-violet-400/10 px-3 py-1 text-xs font-black text-violet-200">
+                  Elite Predictor
+                </div>
+              </div>
             </div>
-            <div>
-              <h2 className="font-bold text-lg text-charcoal">{user.name}</h2>
-              <p className="text-sm text-graphite">{user.email}</p>
+
+            <div className="mt-6 grid grid-cols-3 gap-3 text-center">
+              <MiniStat value={stats.totalPredictions.toString()} label="Markets" />
+              <MiniStat value="3.2K" label="Followers" />
+              <MiniStat value="524" label="Following" />
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-4">
+                <div className="text-xs font-bold text-slate-400">Win rate</div>
+                <div className="mt-1 text-3xl font-black text-emerald-300">{Math.round(stats.winRate)}%</div>
+              </div>
+              <div className="rounded-2xl border border-violet-300/20 bg-white/[0.055] p-4">
+                <div className="text-xs font-bold text-slate-400">Total earnings</div>
+                <div className="mt-1 text-2xl font-black text-white">{formatNaira(stats.totalEarnings)}</div>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs font-medium text-graphite uppercase tracking-wide mb-2 block">
-                Full Name
-              </label>
-              <div className="relative">
-                <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-graphite" />
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  disabled={!editing}
-                  className="pl-9 h-11 rounded-xl border-graphite/20 focus:border-2 focus:border-purple transition-fast"
-                />
-              </div>
+          <div className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-black">Badges</h2>
+              <Award className="h-5 w-5 text-violet-300" />
             </div>
-
-            <div>
-              <label className="text-xs font-medium text-graphite uppercase tracking-wide mb-2 block">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-graphite" />
-                <Input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={!editing}
-                  className="pl-9 h-11 rounded-xl border-graphite/20 focus:border-2 focus:border-purple transition-fast"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              {editing ? (
-                <>
-                  <Button onClick={handleSave} className="flex-1 h-11 rounded-xl font-semibold bg-purple hover:bg-purple/90 transition-fast hover:scale-[1.02] active:scale-[0.98]">
-                    Save Changes
-                  </Button>
-                  <Button
-                    onClick={() => setEditing(false)}
-                    variant="outline"
-                    className="flex-1 h-11 rounded-xl font-semibold border-graphite/20 text-charcoal hover:bg-graphite/5 transition-fast"
-                  >
-                    Cancel
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  onClick={() => setEditing(true)}
-                  variant="outline"
-                  className="w-full h-11 rounded-xl font-semibold border-graphite/20 text-charcoal hover:bg-graphite/5 transition-fast"
-                >
-                  Edit Profile
-                </Button>
-              )}
+            <div className="grid grid-cols-4 gap-3">
+              {earnedBadges.map((badge) => (
+                <div key={badge.label} className={`rounded-2xl border p-3 text-center ${badge.active ? "border-violet-300/20 bg-violet-400/10" : "border-white/10 bg-white/5 opacity-50"}`}>
+                  <badge.icon className={`mx-auto h-6 w-6 ${badge.active ? "text-violet-300" : "text-slate-500"}`} />
+                  <div className="mt-2 text-xs font-black">{badge.label}</div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
 
-        {/* Security */}
-        <div className="bg-off-white rounded-2xl p-6 shadow-card border border-graphite/10 mb-6">
-          <h3 className="font-bold mb-4 text-charcoal">Security</h3>
-          <button 
-            onClick={() => {
-              toast("Coming soon", {
-                description: "Password change feature is currently in development",
-              });
-            }}
-            className="flex items-center justify-between w-full p-4 rounded-xl hover:bg-graphite/5 transition-fast text-left border border-graphite/10"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-purple/10 text-purple grid place-items-center">
-                <Lock className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="font-semibold text-sm text-charcoal">Change Password</div>
-                <div className="text-xs text-graphite">Update your password</div>
-              </div>
-            </div>
-            <span className="text-sm text-purple font-semibold">Change</span>
-          </button>
-        </div>
+          {(isAdmin() || isSuperAdmin()) && (
+            <Link
+              to={adminPath}
+              className="flex h-12 w-full items-center justify-center rounded-2xl border border-violet-300/25 bg-violet-500/15 text-sm font-black text-violet-100 shadow-[0_0_28px_rgba(139,92,246,0.18)] transition hover:bg-violet-500/25"
+            >
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              Admin dashboard
+            </Link>
+          )}
 
-        {/* Settings */}
-        <div className="bg-off-white rounded-2xl p-6 shadow-card border border-graphite/10 mb-6">
-          <h3 className="font-bold mb-4 text-charcoal">Settings</h3>
-          <ul className="space-y-2">
-            {settings.map((setting) => (
-              <li key={setting.title}>
-                <button 
-                  onClick={() => {
-                    toast("Coming soon", {
-                      description: `${setting.title} feature is currently in development`,
-                    });
-                  }}
-                  className="flex items-center justify-between w-full p-4 rounded-xl hover:bg-graphite/5 transition-fast text-left border border-graphite/10"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-graphite/10 grid place-items-center">
-                      <setting.icon className="w-5 h-5 text-graphite" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-sm text-charcoal">{setting.title}</div>
-                      <div className="text-xs text-graphite">{setting.description}</div>
-                    </div>
-                  </div>
-                  <span className="text-sm text-purple font-semibold">{setting.action}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Danger Zone */}
-        <div className="bg-off-white rounded-2xl p-6 shadow-card border border-coral/20">
-          <h3 className="font-bold text-coral mb-4">Danger Zone</h3>
           <Button
             onClick={logout}
             variant="outline"
-            className="w-full h-11 rounded-xl font-semibold border-coral text-coral hover:bg-coral hover:text-white transition-fast"
+            className="h-12 w-full rounded-2xl border-red-400/30 bg-red-400/10 font-black text-red-200 hover:bg-red-400/20"
           >
-            Log Out
+            <LogOut className="mr-2 h-4 w-4" />
+            Log out
           </Button>
-        </div>
+        </section>
+
+        <section className="space-y-6">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <ScoreCard label="Active" value={stats.activePredictions.toString()} />
+            <ScoreCard label="Won" value={stats.wonPredictions.toString()} />
+            <ScoreCard label="Staked" value={formatNaira(stats.totalStaked)} />
+          </div>
+
+          <div className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-black">Recent predictions</h2>
+                <p className="text-sm text-slate-500">{loading ? "Loading..." : "Your latest market moves"}</p>
+              </div>
+              <Star className="h-5 w-5 text-violet-300" />
+            </div>
+
+            {positions.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-white/10 py-14 text-center">
+                <Users className="mx-auto mb-4 h-8 w-8 text-violet-300" />
+                <div className="font-black">No predictions yet</div>
+                <p className="mt-1 text-sm text-slate-500">Pick a market to build your record.</p>
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {positions.map((position) => (
+                  <li key={position.id} className="rounded-2xl border border-white/10 bg-[#0b1020]/80 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="line-clamp-2 text-sm font-black">{position.marketQuestion}</div>
+                        <div className="mt-2 text-xs text-slate-500">{new Date(position.createdAt).toLocaleDateString()}</div>
+                      </div>
+                      <span className={`rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-emerald-400/10 text-emerald-300" : "bg-red-400/10 text-red-300"}`}>
+                        {position.side}
+                      </span>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-sm">
+                      <span className="text-slate-500">Stake</span>
+                      <span className="font-black">{formatNaira(position.stake)}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
       </main>
-      <Footer />
       <MobileNav />
     </div>
   );
 }
+
+const MiniStat = ({ value, label }: { value: string; label: string }) => (
+  <div>
+    <div className="text-xl font-black">{value}</div>
+    <div className="text-xs text-slate-500">{label}</div>
+  </div>
+);
+
+const ScoreCard = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-3xl border border-white/10 bg-white/[0.055] p-4">
+    <div className="text-xs font-bold text-slate-500">{label}</div>
+    <div className="mt-2 text-xl font-black text-white">{value}</div>
+  </div>
+);

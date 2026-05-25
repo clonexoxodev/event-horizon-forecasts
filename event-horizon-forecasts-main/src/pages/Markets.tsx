@@ -1,84 +1,70 @@
+import { useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
-import { Footer } from "@/components/Footer";
-import { useNavigate } from "react-router-dom";
+import { MarketCard } from "@/components/MarketCard";
+import { fetchMarkets } from "@/lib/markets";
+import { useMarketState } from "@/lib/market-state";
+import { Flame, TrendingUp } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 
 export default function Markets() {
-  const navigate = useNavigate();
+  const { markets, setMarkets } = useMarketState();
+  const [searchParams] = useSearchParams();
+  const [loading, setLoading] = useState(true);
+  const category = searchParams.get("category");
 
-  const categories = [
-    { name: "Politics", count: 24, emoji: "🏛️" },
-    { name: "Sports", count: 18, emoji: "⚽" },
-    { name: "Cryptocurrency", count: 32, emoji: "₿" },
-    { name: "Technology", count: 15, emoji: "💻" },
-    { name: "Entertainment", count: 12, emoji: "🎬" },
-    { name: "Business", count: 20, emoji: "📈" },
-  ];
+  useEffect(() => {
+    fetchMarkets()
+      .then(setMarkets)
+      .finally(() => setLoading(false));
+  }, [setMarkets]);
+
+  const trending = useMemo(() => {
+    const filtered = category
+      ? markets.filter((market) => market.category.toLowerCase() === category.toLowerCase())
+      : markets;
+    return [...filtered].sort((a, b) => (b.totalPool + b.participants * 1000) - (a.totalPool + a.participants * 1000));
+  }, [category, markets]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background pb-20 md:pb-0">
+    <div className="min-h-screen bg-[#050711] pb-20 text-white md:pb-0 xl:pl-64">
       <Header />
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="container py-20 max-w-4xl text-center">
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-charcoal mb-6">
-            Explore Markets
-          </h1>
-          <p className="text-xl text-graphite leading-relaxed mb-8">
-            Forecast on politics, sports, crypto, and more. All markets have clear resolution criteria.
+      <main className="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
+        <div className="mb-6 rounded-[2rem] border border-white/10 bg-white/[0.055] p-5 backdrop-blur-xl">
+          <p className="mb-2 inline-flex items-center gap-2 rounded-full bg-red-500/15 px-3 py-1 text-xs font-bold text-red-200">
+            <Flame className="h-3.5 w-3.5" />
+            Trending now
           </p>
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="inline-flex items-center justify-center px-8 py-3 rounded-xl bg-purple text-white font-semibold hover:bg-purple/90 transition-fast"
-          >
-            Browse All Markets
-          </button>
-        </section>
+          <h1 className="text-3xl font-black tracking-tight sm:text-5xl">
+            {category ? `${category} markets` : "Most active markets"}
+          </h1>
+          <p className="mt-2 max-w-xl text-sm text-slate-400">
+            Markets with the most money, people, and heat.
+          </p>
+        </div>
 
-        {/* Categories */}
-        <section className="container py-10 max-w-5xl">
-          <h2 className="text-3xl font-bold text-charcoal mb-8">Market Categories</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            {categories.map((category) => (
-              <button
-                key={category.name}
-                onClick={() => navigate("/dashboard")}
-                className="bg-off-white rounded-2xl p-8 border border-graphite/10 hover:border-purple/30 hover:shadow-lg transition-all text-left"
-              >
-                <div className="text-4xl mb-4">{category.emoji}</div>
-                <h3 className="text-xl font-bold text-charcoal mb-2">{category.name}</h3>
-                <p className="text-graphite">{category.count} active markets</p>
-              </button>
+        {loading ? (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {[1, 2, 3, 4].map((item) => (
+              <div key={item} className="h-[360px] animate-pulse rounded-3xl border border-white/10 bg-white/5" />
             ))}
           </div>
-        </section>
-
-        {/* Features */}
-        <section className="bg-off-white/50 py-16">
-          <div className="container max-w-4xl">
-            <h2 className="text-3xl font-bold text-charcoal mb-8">Why Forecast on Flippe?</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="bg-white rounded-xl p-6 border border-graphite/10">
-                <h3 className="font-bold text-charcoal mb-2">Clear Resolution</h3>
-                <p className="text-sm text-graphite">Every market has objective resolution criteria stated upfront.</p>
+        ) : trending.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {trending.map((market, index) => (
+              <div key={market.id} className="animate-fade-up" style={{ animationDelay: `${index * 35}ms` }}>
+                <MarketCard m={market} compact />
               </div>
-              <div className="bg-white rounded-xl p-6 border border-graphite/10">
-                <h3 className="font-bold text-charcoal mb-2">Fair Pricing</h3>
-                <p className="text-sm text-graphite">Automated market maker ensures fair prices for all participants.</p>
-              </div>
-              <div className="bg-white rounded-xl p-6 border border-graphite/10">
-                <h3 className="font-bold text-charcoal mb-2">Instant Liquidity</h3>
-                <p className="text-sm text-graphite">Buy and sell shares anytime before the market closes.</p>
-              </div>
-              <div className="bg-white rounded-xl p-6 border border-graphite/10">
-                <h3 className="font-bold text-charcoal mb-2">Transparent Payouts</h3>
-                <p className="text-sm text-graphite">Winning shares pay ₦100. Losing shares pay ₦0. Simple.</p>
-              </div>
-            </div>
+            ))}
           </div>
-        </section>
+        ) : (
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
+            <TrendingUp className="mx-auto mb-3 h-10 w-10 text-violet-300" />
+            <h2 className="text-xl font-black">No active markets</h2>
+            <p className="mt-1 text-sm text-slate-400">Add markets in the backend to fill this page.</p>
+          </div>
+        )}
       </main>
-      <Footer />
       <MobileNav />
     </div>
   );

@@ -36,13 +36,22 @@ const clearAuthCookieOptions = {
 const defaultAllowedOrigins = [
   'https://event-horizon-forecasts.vercel.app',
   'http://localhost:8080',
+  'http://localhost:8081',
+  'http://localhost:8082',
+  'http://127.0.0.1:8080',
+  'http://127.0.0.1:8081',
+  'http://127.0.0.1:8082',
   'http://localhost:3000',
-  'http://localhost:5173'
+  'http://127.0.0.1:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173'
 ];
-const allowedOrigins = (process.env.FRONTEND_URL || process.env.FRONTEND_URLS || defaultAllowedOrigins.join(','))
+const configuredAllowedOrigins = `${process.env.FRONTEND_URL || ''},${process.env.FRONTEND_URLS || ''}`;
+const allowedOrigins = `${defaultAllowedOrigins.join(',')},${configuredAllowedOrigins}`
   .split(',')
   .map((origin) => origin.trim())
-  .filter(Boolean);
+  .filter(Boolean)
+  .filter((origin, index, origins) => origins.indexOf(origin) === index);
 
 // Create Express app
 const app = express();
@@ -572,6 +581,117 @@ app.get('/api/auth/me', authenticate, async (req: Request, res: Response) => {
   }
 });
 
+const toAmount = (smallestUnit: number | null | undefined) => Number(smallestUnit || 0) / 100;
+const VIRTUAL_LIQUIDITY_SMALLEST_UNIT = 5_000_000;
+const MIN_ACTIVE_PRICE = 5;
+const MAX_ACTIVE_PRICE = 95;
+
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+const calculateBoundedPrices = (yesPoolSmallestUnit: number, noPoolSmallestUnit: number) => {
+  const adjustedYesPool = yesPoolSmallestUnit + VIRTUAL_LIQUIDITY_SMALLEST_UNIT;
+  const adjustedNoPool = noPoolSmallestUnit + VIRTUAL_LIQUIDITY_SMALLEST_UNIT;
+  const adjustedTotalPool = adjustedYesPool + adjustedNoPool;
+  const yesPrice = clamp(
+    Math.round((adjustedYesPool / adjustedTotalPool) * 100),
+    MIN_ACTIVE_PRICE,
+    MAX_ACTIVE_PRICE
+  );
+
+  return {
+    yesPrice,
+    noPrice: 100 - yesPrice
+  };
+};
+
+const normalizePredictionSide = (side: unknown): 'YES' | 'NO' | null => {
+  const normalizedSide = String(side || '').toUpperCase();
+  if (normalizedSide === 'YES' || normalizedSide === 'UP') return 'YES';
+  if (normalizedSide === 'NO' || normalizedSide === 'DOWN') return 'NO';
+  return null;
+};
+
+const calculatePotentialReturn = (amountSmallestUnit: number, sidePrice: number) => {
+  if (sidePrice <= 0) return amountSmallestUnit;
+  return Math.floor(amountSmallestUnit * (100 / sidePrice));
+};
+
+const savePriceHistory = async (
+  marketId: string,
+  yesPrice: number,
+  noPrice: number,
+  yesPoolSmallestUnit: number,
+  noPoolSmallestUnit: number
+) => {
+  const { error } = await supabase
+    .from('market_price_history')
+    .insert({
+      market_id: marketId,
+      yes_price: yesPrice,
+      no_price: noPrice,
+      yes_pool_smallest_unit: yesPoolSmallestUnit,
+      no_pool_smallest_unit: noPoolSmallestUnit
+    });
+
+  if (error) {
+    console.warn('Failed to save market price history:', error.message);
+  }
+};
+
+const normalizeMarket = (market: any, positionCount = 0) => {
+  const yesPoolSmallestUnit = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
+  const noPoolSmallestUnit = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
+  const totalPoolSmallestUnit = Number(
+    market.pool_amount_smallest_unit ?? market.pool ?? yesPoolSmallestUnit + noPoolSmallestUnit
+  );
+  const { yesPrice, noPrice } = calculateBoundedPrices(yesPoolSmallestUnit, noPoolSmallestUnit);
+  const closeTime = market.closes_at || market.close_time || '';
+  const status = market.state || market.status || 'active';
+
+  return {
+    id: market.id,
+    question: market.question,
+    category: market.category || 'General',
+    yesPercent: yesPrice,
+    pool: toAmount(totalPoolSmallestUnit),
+    closesIn: market.closes_in || '',
+    description: market.description || '',
+    source: market.source || '',
+    icon: market.icon || '',
+    yesPool: toAmount(yesPoolSmallestUnit),
+    noPool: toAmount(noPoolSmallestUnit),
+    totalPool: toAmount(totalPoolSmallestUnit),
+    participants: Number(market.participant_count ?? market.participants ?? positionCount),
+    yesPrice,
+    noPrice,
+    closeTime,
+    status: status === 'open' ? 'active' : status,
+    priceHistory: []
+  };
+};
+
+const normalizePosition = (position: any, market: any) => {
+  const normalizedMarket = normalizeMarket(market || {}, 0);
+  const stake = toAmount(position.amount_smallest_unit ?? position.stake);
+  const currentPrice = position.side === 'YES' ? normalizedMarket.yesPrice : normalizedMarket.noPrice;
+
+  return {
+    id: position.id,
+    userId: position.user_id,
+    marketId: position.market_id,
+    side: position.side,
+    stake,
+    entryPrice: Number(position.entry_price ?? currentPrice),
+    currentPrice,
+    currentValue: toAmount(position.potential_return_smallest_unit) || stake,
+    marketQuestion: normalizedMarket.question || 'Unknown Market',
+    marketIcon: normalizedMarket.icon,
+    marketStatus: normalizedMarket.status,
+    createdAt: position.created_at,
+    isListed: false
+  };
+};
+
 // ============================================================================
 // WALLET ROUTES
 // ============================================================================
@@ -630,8 +750,11 @@ app.post('/api/wallet/deposit', authenticate, async (req: Request, res: Response
   try {
     const user = (req as any).user;
     const { amount, currency } = req.body;
+    const amountSmallestUnit = Number(
+      req.body.amount_smallest_unit || req.body.amountSmallestUnit || Math.round(Number(amount || 0) * 100)
+    );
 
-    if (!amount || amount <= 0) {
+    if (!Number.isFinite(amountSmallestUnit) || amountSmallestUnit <= 0) {
       return res.status(400).json({
         error: {
           code: 'INVALID_AMOUNT',
@@ -669,36 +792,7 @@ app.post('/api/wallet/deposit', authenticate, async (req: Request, res: Response
       });
     }
 
-    // Convert amount to smallest unit (kobo/cents)
-    const amountSmallestUnit = Math.round(amount * 100);
-
-    // Update wallet balance
-    const updateField = validCurrency === 'NGN' ? 'balance_ngn_kobo' : 'balance_usd_cents';
-    const availableField = validCurrency === 'NGN' ? 'available_ngn_kobo' : 'available_usd_cents';
-    
-    const { data: updatedWallet, error: updateError } = await supabase
-      .from('wallets')
-      .update({
-        [updateField]: wallet[updateField] + amountSmallestUnit,
-        [availableField]: wallet[availableField] + amountSmallestUnit
-      })
-      .eq('user_id', user.id)
-      .select()
-      .single();
-
-    if (updateError) {
-      console.error('Wallet update error:', updateError);
-      return res.status(500).json({
-        error: {
-          code: 'DEPOSIT_FAILED',
-          message: 'Failed to process deposit',
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
-
-    // Create transaction record
-    await supabase
+    const { data: transaction, error: transactionError } = await supabase
       .from('transactions')
       .insert({
         user_id: user.id,
@@ -706,17 +800,46 @@ app.post('/api/wallet/deposit', authenticate, async (req: Request, res: Response
         type: 'deposit',
         amount_smallest_unit: amountSmallestUnit,
         currency: validCurrency,
-        direction: 'credit',
-        status: 'completed'
+        direction: 'IN',
+        status: 'pending',
+        metadata: {
+          method: req.body.method || 'bank_transfer',
+          paymentStatus: 'manual_pending',
+          note: 'Waiting for payment confirmation'
+        }
+      })
+      .select()
+      .single();
+
+    if (transactionError || !transaction) {
+      console.error('Deposit transaction error:', transactionError);
+      return res.status(500).json({
+        error: {
+          code: 'DEPOSIT_FAILED',
+          message: 'Failed to create deposit request',
+          timestamp: new Date().toISOString()
+        }
       });
+    }
 
     res.json({
-      message: 'Deposit successful',
+      message: 'Add money request saved',
       wallet: {
-        balanceNgn: updatedWallet.balance_ngn_kobo / 100,
-        balanceUsd: updatedWallet.balance_usd_cents / 100,
-        availableNgn: updatedWallet.available_ngn_kobo / 100,
-        availableUsd: updatedWallet.available_usd_cents / 100
+        balanceNgn: wallet.balance_ngn_kobo / 100,
+        balanceUsd: wallet.balance_usd_cents / 100,
+        availableNgn: wallet.available_ngn_kobo / 100,
+        availableUsd: wallet.available_usd_cents / 100
+      },
+      transaction: {
+        id: transaction.id,
+        type: transaction.type,
+        amount: transaction.amount_smallest_unit / 100,
+        amountSmallestUnit: transaction.amount_smallest_unit,
+        currency: transaction.currency,
+        direction: transaction.direction,
+        status: transaction.status,
+        metadata: transaction.metadata,
+        createdAt: transaction.created_at
       }
     });
   } catch (error) {
@@ -739,8 +862,11 @@ app.post('/api/wallet/withdraw', authenticate, async (req: Request, res: Respons
   try {
     const user = (req as any).user;
     const { amount, currency } = req.body;
+    const amountSmallestUnit = Number(
+      req.body.amount_smallest_unit || req.body.amountSmallestUnit || Math.round(Number(amount || 0) * 100)
+    );
 
-    if (!amount || amount <= 0) {
+    if (!Number.isFinite(amountSmallestUnit) || amountSmallestUnit <= 0) {
       return res.status(400).json({
         error: {
           code: 'INVALID_AMOUNT',
@@ -778,9 +904,6 @@ app.post('/api/wallet/withdraw', authenticate, async (req: Request, res: Respons
       });
     }
 
-    // Convert amount to smallest unit
-    const amountSmallestUnit = Math.round(amount * 100);
-
     // Check sufficient balance
     const availableField = validCurrency === 'NGN' ? 'available_ngn_kobo' : 'available_usd_cents';
     if (wallet[availableField] < amountSmallestUnit) {
@@ -793,13 +916,9 @@ app.post('/api/wallet/withdraw', authenticate, async (req: Request, res: Respons
       });
     }
 
-    // Update wallet balance
-    const updateField = validCurrency === 'NGN' ? 'balance_ngn_kobo' : 'balance_usd_cents';
-    
     const { data: updatedWallet, error: updateError } = await supabase
       .from('wallets')
       .update({
-        [updateField]: wallet[updateField] - amountSmallestUnit,
         [availableField]: wallet[availableField] - amountSmallestUnit
       })
       .eq('user_id', user.id)
@@ -817,8 +936,7 @@ app.post('/api/wallet/withdraw', authenticate, async (req: Request, res: Respons
       });
     }
 
-    // Create transaction record
-    await supabase
+    const { data: transaction, error: transactionError } = await supabase
       .from('transactions')
       .insert({
         user_id: user.id,
@@ -826,17 +944,46 @@ app.post('/api/wallet/withdraw', authenticate, async (req: Request, res: Respons
         type: 'withdrawal',
         amount_smallest_unit: amountSmallestUnit,
         currency: validCurrency,
-        direction: 'debit',
-        status: 'completed'
+        direction: 'OUT',
+        status: 'pending',
+        metadata: {
+          destination: req.body.destination || 'bank_account',
+          withdrawalStatus: 'pending_review',
+          note: 'Money reserved while withdrawal is reviewed'
+        }
+      })
+      .select()
+      .single();
+
+    if (transactionError || !transaction) {
+      console.error('Withdrawal transaction error:', transactionError);
+      return res.status(500).json({
+        error: {
+          code: 'WITHDRAWAL_FAILED',
+          message: 'Failed to create withdrawal request',
+          timestamp: new Date().toISOString()
+        }
       });
+    }
 
     res.json({
-      message: 'Withdrawal successful',
+      message: 'Withdrawal request saved',
       wallet: {
         balanceNgn: updatedWallet.balance_ngn_kobo / 100,
         balanceUsd: updatedWallet.balance_usd_cents / 100,
         availableNgn: updatedWallet.available_ngn_kobo / 100,
         availableUsd: updatedWallet.available_usd_cents / 100
+      },
+      transaction: {
+        id: transaction.id,
+        type: transaction.type,
+        amount: transaction.amount_smallest_unit / 100,
+        amountSmallestUnit: transaction.amount_smallest_unit,
+        currency: transaction.currency,
+        direction: transaction.direction,
+        status: transaction.status,
+        metadata: transaction.metadata,
+        createdAt: transaction.created_at
       }
     });
   } catch (error) {
@@ -884,9 +1031,13 @@ app.get('/api/wallet/transactions', authenticate, async (req: Request, res: Resp
         id: tx.id,
         type: tx.type,
         amount: tx.amount_smallest_unit / 100,
+        amountSmallestUnit: tx.amount_smallest_unit,
         currency: tx.currency,
         direction: tx.direction,
+        referenceId: tx.reference_id,
+        referenceType: tx.reference_type,
         status: tx.status,
+        metadata: tx.metadata,
         createdAt: tx.created_at
       })),
       pagination: {
@@ -955,6 +1106,452 @@ app.get('/api/wallet/convert', authenticate, async (req: Request, res: Response)
       error: {
         code: 'CONVERSION_FAILED',
         message: 'Failed to convert currency',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+// ============================================================================
+// MARKET AND USER ACTIVITY ROUTES
+// ============================================================================
+
+app.get('/api/markets', async (_req: Request, res: Response) => {
+  try {
+    const { data: markets, error } = await supabase
+      .from('markets')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const activeMarkets = (markets || []).filter((market) => {
+      const status = market.state || market.status || 'active';
+      return status === 'active' || status === 'open';
+    });
+
+    const normalizedMarkets = await Promise.all(activeMarkets.map(async (market) => {
+      const { count } = await supabase
+        .from('positions')
+        .select('*', { count: 'exact', head: true })
+        .eq('market_id', market.id);
+
+      return normalizeMarket(market, count || 0);
+    }));
+
+    res.json({ markets: normalizedMarkets, count: normalizedMarkets.length });
+  } catch (error) {
+    console.error('Get markets error:', error);
+    res.status(500).json({
+      error: {
+        code: 'GET_MARKETS_FAILED',
+        message: 'Failed to fetch markets',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+app.get('/api/markets/:id', async (req: Request, res: Response) => {
+  try {
+    const { data: market, error } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (error || !market) {
+      return res.status(404).json({
+        error: {
+          code: 'MARKET_NOT_FOUND',
+          message: 'Market not found',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const { count } = await supabase
+      .from('positions')
+      .select('*', { count: 'exact', head: true })
+      .eq('market_id', market.id);
+
+    res.json({ market: normalizeMarket(market, count || 0) });
+  } catch (error) {
+    console.error('Get market error:', error);
+    res.status(500).json({
+      error: {
+        code: 'GET_MARKET_FAILED',
+        message: 'Failed to fetch market',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const side = normalizePredictionSide(req.body.side);
+    const currency = req.body.currency || 'NGN';
+    const amountSmallestUnit = Number(
+      req.body.amount_smallest_unit || req.body.amountSmallestUnit || Math.round(Number(req.body.amount || 0) * 100)
+    );
+
+    if (!side) {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_SIDE',
+          message: 'Prediction side must be YES, NO, UP, or DOWN',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    if (!Number.isFinite(amountSmallestUnit) || amountSmallestUnit <= 0) {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_AMOUNT',
+          message: 'Prediction amount must be greater than zero',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const { data: market, error: marketError } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (marketError || !market) {
+      return res.status(404).json({
+        error: {
+          code: 'MARKET_NOT_FOUND',
+          message: 'Market not found',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const marketStatus = market.state || market.status || 'active';
+    const closesAt = market.closes_at || market.close_time;
+    const isClosedByTime = closesAt ? new Date(closesAt).getTime() <= Date.now() : false;
+    if (!['active', 'open'].includes(marketStatus) || isClosedByTime) {
+      return res.status(422).json({
+        error: {
+          code: 'MARKET_NOT_ACTIVE',
+          message: 'This market is not accepting predictions',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const minPosition = Number(market.min_position_smallest_unit || 0);
+    const maxPosition = Number(market.max_position_smallest_unit || 0);
+    if (minPosition > 0 && amountSmallestUnit < minPosition) {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_AMOUNT',
+          message: `Minimum prediction amount is ${toAmount(minPosition).toLocaleString()} ${currency}`,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    if (maxPosition > 0 && amountSmallestUnit > maxPosition) {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_AMOUNT',
+          message: `Maximum prediction amount is ${toAmount(maxPosition).toLocaleString()} ${currency}`,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const { data: wallet, error: walletError } = await supabase
+      .from('wallets')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (walletError || !wallet) {
+      return res.status(404).json({
+        error: {
+          code: 'WALLET_NOT_FOUND',
+          message: 'Wallet not found',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const balanceField = currency === 'USD' ? 'available_usd_cents' : 'available_ngn_kobo';
+    if (Number(wallet[balanceField] || 0) < amountSmallestUnit) {
+      return res.status(422).json({
+        error: {
+          code: 'INSUFFICIENT_BALANCE',
+          message: 'Insufficient available balance',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const yesPool = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
+    const noPool = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
+    const currentTotal = Number(market.pool_amount_smallest_unit ?? market.pool ?? yesPool + noPool);
+    const nextYesPool = side === 'YES' ? yesPool + amountSmallestUnit : yesPool;
+    const nextNoPool = side === 'NO' ? noPool + amountSmallestUnit : noPool;
+    const nextTotal = currentTotal + amountSmallestUnit;
+    const pricesBefore = calculateBoundedPrices(yesPool, noPool);
+    const pricesAfter = calculateBoundedPrices(nextYesPool, nextNoPool);
+    const entryPrice = side === 'YES' ? pricesAfter.yesPrice : pricesAfter.noPrice;
+    const potentialReturn = calculatePotentialReturn(amountSmallestUnit, entryPrice);
+    const priceChange = side === 'YES'
+      ? pricesAfter.yesPrice - pricesBefore.yesPrice
+      : pricesAfter.noPrice - pricesBefore.noPrice;
+
+    let positionResult = await supabase
+      .from('positions')
+      .insert({
+        user_id: user.id,
+        market_id: req.params.id,
+        side,
+        amount_smallest_unit: amountSmallestUnit,
+        currency,
+        potential_return_smallest_unit: potentialReturn,
+        entry_price: entryPrice
+      })
+      .select()
+      .single();
+
+    if (positionResult.error?.message?.includes('entry_price')) {
+      positionResult = await supabase
+        .from('positions')
+        .insert({
+          user_id: user.id,
+          market_id: req.params.id,
+          side,
+          amount_smallest_unit: amountSmallestUnit,
+          currency,
+          potential_return_smallest_unit: potentialReturn
+        })
+        .select()
+        .single();
+    }
+
+    if (positionResult.error || !positionResult.data) throw positionResult.error;
+    const position = { ...positionResult.data, entry_price: entryPrice };
+
+    const { data: updatedWallet, error: walletUpdateError } = await supabase
+      .from('wallets')
+      .update({
+        [balanceField]: Number(wallet[balanceField] || 0) - amountSmallestUnit,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', wallet.id)
+      .select()
+      .single();
+
+    if (walletUpdateError || !updatedWallet) throw walletUpdateError;
+
+    const { data: updatedMarket, error: marketUpdateError } = await supabase
+      .from('markets')
+      .update({
+        yes_pool_smallest_unit: nextYesPool,
+        no_pool_smallest_unit: nextNoPool,
+        pool_amount_smallest_unit: nextTotal
+      })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (marketUpdateError || !updatedMarket) throw marketUpdateError;
+
+    await savePriceHistory(req.params.id, pricesAfter.yesPrice, pricesAfter.noPrice, nextYesPool, nextNoPool);
+
+    const { data: transaction } = await supabase
+      .from('transactions')
+      .insert({
+        user_id: user.id,
+        wallet_id: wallet.id,
+        type: 'position_entry',
+        amount_smallest_unit: amountSmallestUnit,
+        currency,
+        direction: 'OUT',
+        reference_id: position.id,
+        reference_type: 'position',
+        status: 'completed',
+        metadata: {
+          marketId: req.params.id,
+          side,
+          entryPrice,
+          potentialReturnSmallestUnit: potentialReturn,
+          yesPriceBefore: pricesBefore.yesPrice,
+          noPriceBefore: pricesBefore.noPrice,
+          yesPriceAfter: pricesAfter.yesPrice,
+          noPriceAfter: pricesAfter.noPrice,
+          priceChange
+        }
+      })
+      .select()
+      .single();
+
+    const activity = transaction ? [{
+      id: transaction.id,
+      type: transaction.type,
+      label: String(transaction.type).replace(/_/g, ' '),
+      amount: toAmount(transaction.amount_smallest_unit),
+      currency: transaction.currency,
+      direction: transaction.direction,
+      status: transaction.status,
+      createdAt: transaction.created_at
+    }] : [];
+
+    res.status(201).json({
+      position: normalizePosition(position, updatedMarket),
+      market: {
+        ...normalizeMarket(updatedMarket),
+        priceHistory: [{
+          timestamp: new Date().toISOString(),
+          yesPrice: pricesAfter.yesPrice,
+          noPrice: pricesAfter.noPrice
+        }]
+      },
+      wallet: {
+        id: updatedWallet.id,
+        userId: updatedWallet.user_id,
+        balanceNgn: toAmount(updatedWallet.balance_ngn_kobo),
+        balanceUsd: toAmount(updatedWallet.balance_usd_cents),
+        availableNgn: toAmount(updatedWallet.available_ngn_kobo),
+        availableUsd: toAmount(updatedWallet.available_usd_cents),
+        balanceNgnKobo: updatedWallet.balance_ngn_kobo,
+        balanceUsdCents: updatedWallet.balance_usd_cents,
+        availableNgnKobo: updatedWallet.available_ngn_kobo,
+        availableUsdCents: updatedWallet.available_usd_cents
+      },
+      transaction: transaction ? {
+        id: transaction.id,
+        type: transaction.type,
+        amount: toAmount(transaction.amount_smallest_unit),
+        amountSmallestUnit: transaction.amount_smallest_unit,
+        currency: transaction.currency,
+        direction: transaction.direction,
+        referenceId: transaction.reference_id,
+        referenceType: transaction.reference_type,
+        status: transaction.status,
+        metadata: transaction.metadata,
+        createdAt: transaction.created_at
+      } : null,
+      activity
+    });
+  } catch (error) {
+    console.error('Place prediction error:', error);
+    res.status(500).json({
+      error: {
+        code: 'PLACE_PREDICTION_FAILED',
+        message: 'Failed to place prediction',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+app.get('/api/positions', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const { data, error } = await supabase
+      .from('positions')
+      .select('*, markets (*)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const positions = (data || []).map(normalizePosition);
+    res.json({ positions, count: positions.length });
+  } catch (error) {
+    console.error('Get positions error:', error);
+    res.status(500).json({
+      error: {
+        code: 'GET_POSITIONS_FAILED',
+        message: 'Failed to fetch positions',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+app.get('/api/activity', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+
+    res.json({
+      activity: (data || []).map((tx) => ({
+        id: tx.id,
+        type: tx.type,
+        label: String(tx.type).replace(/_/g, ' '),
+        amount: toAmount(tx.amount_smallest_unit),
+        currency: tx.currency,
+        direction: tx.direction,
+        status: tx.status,
+        createdAt: tx.created_at
+      }))
+    });
+  } catch (error) {
+    console.error('Get activity error:', error);
+    res.status(500).json({
+      error: {
+        code: 'GET_ACTIVITY_FAILED',
+        message: 'Failed to fetch activity',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+app.get('/api/profile/stats', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const { data: positions, error } = await supabase
+      .from('positions')
+      .select('amount_smallest_unit, payout_smallest_unit, is_winner, resolved_at')
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+
+    const totalPredictions = positions?.length || 0;
+    const wonPredictions = (positions || []).filter((position) => position.is_winner).length;
+    const activePredictions = (positions || []).filter((position) => !position.resolved_at).length;
+    const totalStaked = toAmount((positions || []).reduce((total, position) => (
+      total + Number(position.amount_smallest_unit || 0)
+    ), 0));
+    const totalEarnings = toAmount((positions || []).reduce((total, position) => (
+      total + Number(position.payout_smallest_unit || 0)
+    ), 0));
+
+    res.json({
+      stats: {
+        totalPredictions,
+        activePredictions,
+        wonPredictions,
+        winRate: totalPredictions > 0 ? Math.round((wonPredictions / totalPredictions) * 100) : 0,
+        totalStaked,
+        totalEarnings
+      }
+    });
+  } catch (error) {
+    console.error('Get profile stats error:', error);
+    res.status(500).json({
+      error: {
+        code: 'GET_PROFILE_STATS_FAILED',
+        message: 'Failed to fetch profile stats',
         timestamp: new Date().toISOString()
       }
     });

@@ -4,7 +4,7 @@ type ForecastSelection = {
   marketId: string;
   marketQuestion: string;
   marketIcon: string;
-  side: "YES" | "NO";
+  side: "YES" | "NO" | "UP" | "DOWN";
   currentPrice: number;
 };
 

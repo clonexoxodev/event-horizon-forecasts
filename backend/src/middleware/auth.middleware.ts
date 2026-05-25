@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service.js';
 import { supabase } from '../db/supabase-client.js';
 
+const PRIMARY_SUPER_ADMIN_EMAIL = 'fehintoluwaolu@gmail.com';
+
 // Extend Request interface to include user
 declare global {
   namespace Express {
@@ -63,12 +65,14 @@ export class AuthMiddleware {
         return;
       }
 
+      const role = await this.ensurePrimarySuperAdminRole(user);
+
       // Attach user data with role to request
       req.user = {
         userId: user.id,
         username: user.username,
         email: user.email,
-        role: user.role as 'user' | 'admin' | 'super_admin'
+        role
       };
 
       next();
@@ -101,11 +105,13 @@ export class AuthMiddleware {
           .single();
 
         if (!error && user) {
+          const role = await this.ensurePrimarySuperAdminRole(user);
+
           req.user = {
             userId: user.id,
             username: user.username,
             email: user.email,
-            role: user.role as 'user' | 'admin' | 'super_admin'
+            role
           };
         }
       }
@@ -116,6 +122,35 @@ export class AuthMiddleware {
       next();
     }
   };
+
+  private async ensurePrimarySuperAdminRole(user: {
+    id: string;
+    email: string;
+    role?: string | null;
+  }): Promise<'user' | 'admin' | 'super_admin'> {
+    const currentRole = (user.role || 'user') as 'user' | 'admin' | 'super_admin';
+
+    if (user.email?.toLowerCase() !== PRIMARY_SUPER_ADMIN_EMAIL) {
+      return currentRole;
+    }
+
+    if (currentRole === 'super_admin') {
+      return currentRole;
+    }
+
+    const { data: updatedUser, error } = await supabase
+      .from('users')
+      .update({ role: 'super_admin' })
+      .eq('id', user.id)
+      .select('role')
+      .single();
+
+    if (error) {
+      console.error('Failed to update primary super admin role during auth check:', error);
+    }
+
+    return (updatedUser?.role as 'super_admin') || 'super_admin';
+  }
 }
 
 // Export singleton instance

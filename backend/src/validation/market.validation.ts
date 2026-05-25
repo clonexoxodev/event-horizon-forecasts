@@ -70,6 +70,10 @@ export const MarketCreateSchema = z.object({
   resolution_source: z.string()
     .max(1000, 'Resolution source must be less than 1000 characters')
     .optional(),
+
+  resolution_instructions: z.string()
+    .max(5000, 'Resolution instructions must be less than 5000 characters')
+    .optional(),
   
   status: z.enum(['draft', 'active']),
   
@@ -79,12 +83,40 @@ export const MarketCreateSchema = z.object({
     .url('Image URL must be a valid URL')
     .max(500, 'Image URL must be less than 500 characters')
     .optional(),
+
+  video_url: z.string()
+    .url('Video URL must be a valid URL')
+    .max(500, 'Video URL must be less than 500 characters')
+    .optional(),
+
+  is_trending: z.boolean().default(false).optional(),
+
+  min_position_smallest_unit: z.number().int().nonnegative().optional(),
+
+  max_position_smallest_unit: z.number().int().positive().optional(),
 })
 .refine(
   (data) => data.yes_price + data.no_price === 100,
   {
     message: 'YES and NO prices must sum to 100',
     path: ['yes_price'],
+  }
+)
+.refine(
+  (data) => Boolean(data.image_url || data.video_url),
+  {
+    message: 'A market requires either an image or a video',
+    path: ['image_url'],
+  }
+)
+.refine(
+  (data) => {
+    if (!data.min_position_smallest_unit || !data.max_position_smallest_unit) return true;
+    return data.max_position_smallest_unit >= data.min_position_smallest_unit;
+  },
+  {
+    message: 'Maximum amount must be greater than or equal to minimum amount',
+    path: ['max_position_smallest_unit'],
   }
 )
 .refine(
@@ -160,6 +192,11 @@ export const MarketUpdateSchema = z.object({
     .max(1000)
     .optional()
     .nullable(),
+
+  resolution_instructions: z.string()
+    .max(5000)
+    .optional()
+    .nullable(),
   
   currency: Currency.optional(),
   
@@ -168,6 +205,18 @@ export const MarketUpdateSchema = z.object({
     .max(500)
     .optional()
     .nullable(),
+
+  video_url: z.string()
+    .url()
+    .max(500)
+    .optional()
+    .nullable(),
+
+  is_trending: z.boolean().optional(),
+
+  min_position_smallest_unit: z.number().int().nonnegative().optional(),
+
+  max_position_smallest_unit: z.number().int().positive().optional(),
 })
 .refine(
   (data) => {
@@ -272,8 +321,8 @@ export const VALID_TRANSITIONS: Record<MarketStatus, MarketStatus[]> = {
  */
 export const EDITABLE_FIELDS_BY_STATUS: Record<MarketStatus, string[]> = {
   draft: ['*'], // All fields editable
-  active: ['description', 'resolution_source'],
-  paused: ['description', 'resolution_source'],
+  active: ['description', 'resolution_source', 'resolution_instructions', 'is_trending'],
+  paused: ['description', 'resolution_source', 'resolution_instructions', 'is_trending'],
   resolved: ['status'], // Only status change to archived
   archived: [], // No edits allowed
 };
