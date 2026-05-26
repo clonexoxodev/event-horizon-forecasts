@@ -162,7 +162,7 @@ export const Header = () => {
           </span>
         </Link>
 
-        <nav className="ml-3 hidden items-center gap-1 lg:flex">
+        <nav className="ml-3 hidden items-center gap-1 lg:flex xl:hidden">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -191,7 +191,7 @@ export const Header = () => {
           )}
         </nav>
 
-        <div ref={searchRef} className="relative order-last w-full md:order-none md:ml-auto md:max-w-md md:flex-1">
+        <div ref={searchRef} className="relative order-last w-full md:order-none md:ml-auto md:max-w-md md:flex-1 xl:max-w-lg">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <Input
             value={query}
@@ -201,10 +201,13 @@ export const Header = () => {
             }}
             onFocus={() => setSearchOpen(true)}
             placeholder="Search markets, topics, people..."
-            className="h-10 rounded-2xl border-white/10 bg-white/5 pl-9 text-sm text-white placeholder:text-slate-500 focus:border-violet-400/40 focus:ring-violet-500/20"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            className="h-10 rounded-2xl border-white/15 bg-[#0d1220] pl-9 text-sm text-white placeholder:text-slate-500 focus:border-violet-400/50 focus:ring-violet-500/20"
           />
           {searchOpen && query.trim().length >= 2 && (
-            <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-3xl border border-white/10 bg-[#080b16]/98 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-2xl">
+            <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-3xl border border-violet-300/25 bg-[#0b1020] p-3 shadow-[0_24px_80px_rgba(0,0,0,0.62)] ring-1 ring-violet-400/10 backdrop-blur-2xl">
               {searching && (
                 <div className="flex items-center gap-2 px-3 py-2 text-sm text-slate-400">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -219,9 +222,9 @@ export const Header = () => {
               {filteredMarkets.length > 0 && (
                 <SearchGroup label="Markets">
                   {filteredMarkets.map((market) => (
-                    <button key={market.id} onClick={() => goToSearch(`/market/${market.id}`)} className="w-full rounded-2xl px-3 py-2 text-left transition hover:bg-white/5">
+                    <button key={market.id} onClick={() => goToSearch(`/market/${market.id}`)} className="w-full rounded-2xl border border-white/5 bg-white/[0.035] px-3 py-2 text-left transition hover:border-violet-300/30 hover:bg-violet-500/10">
                       <div className="line-clamp-1 text-sm font-black text-white">{market.question}</div>
-                      <div className="mt-1 text-xs text-slate-500">{market.category} · {formatNaira(market.totalPool)}</div>
+                      <div className="mt-1 text-xs text-slate-400">{market.category} | {formatNaira(market.totalPool)}</div>
                     </button>
                   ))}
                 </SearchGroup>
@@ -229,7 +232,7 @@ export const Header = () => {
               {filteredCategories.length > 0 && (
                 <SearchGroup label="Categories">
                   {filteredCategories.map((category) => (
-                    <button key={category} onClick={() => goToSearch(`/markets?category=${encodeURIComponent(category)}`)} className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-sm font-bold text-slate-300 transition hover:bg-white/5 hover:text-white">
+                    <button key={category} onClick={() => goToSearch(`/markets?category=${encodeURIComponent(category)}`)} className="flex w-full items-center gap-2 rounded-2xl border border-white/5 bg-white/[0.035] px-3 py-2 text-left text-sm font-bold text-slate-300 transition hover:border-violet-300/30 hover:bg-violet-500/10 hover:text-white">
                       <Tag className="h-4 w-4 text-violet-300" />
                       {category}
                     </button>
@@ -239,7 +242,7 @@ export const Header = () => {
               {users.length > 0 && (
                 <SearchGroup label="Users">
                   {users.map((item) => (
-                    <button key={item.id} onClick={() => goToSearch(`/profile?user=${encodeURIComponent(item.username)}`)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition hover:bg-white/5">
+                    <button key={item.id} onClick={() => goToSearch(`/profile?user=${encodeURIComponent(item.username)}`)} className="flex w-full items-center gap-3 rounded-2xl border border-white/5 bg-white/[0.035] px-3 py-2 text-left transition hover:border-violet-300/30 hover:bg-violet-500/10">
                       <div className="grid h-8 w-8 place-items-center rounded-full bg-violet-500/20 text-xs font-black text-violet-200">{item.username.charAt(0).toUpperCase()}</div>
                       <div>
                         <div className="text-sm font-black text-white">@{item.username}</div>
@@ -269,7 +272,7 @@ export const Header = () => {
             </Link>
             <Link
               to="/activity"
-              className="relative grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300"
+              className="relative hidden h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300 sm:grid"
             >
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && (
@@ -282,7 +285,7 @@ export const Header = () => {
               <Link
                 to={adminPath}
                 title="Admin dashboard"
-                className="flex h-10 items-center gap-2 rounded-xl border border-violet-300/20 bg-violet-500/15 px-3 text-sm font-black text-violet-100 shadow-[0_0_22px_rgba(139,92,246,0.18)] transition hover:bg-violet-500/25"
+                className="hidden h-10 items-center gap-2 rounded-xl border border-violet-300/20 bg-violet-500/15 px-3 text-sm font-black text-violet-100 shadow-[0_0_22px_rgba(139,92,246,0.18)] transition hover:bg-violet-500/25 sm:flex"
               >
                 <Shield className="h-4 w-4" />
                 <span className="hidden sm:inline">Admin</span>
@@ -317,7 +320,7 @@ export const Header = () => {
 
 const SearchGroup = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="py-1">
-    <div className="px-3 pb-1 pt-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-600">
+    <div className="px-3 pb-1 pt-2 text-[10px] font-black uppercase tracking-[0.18em] text-violet-200/70">
       {label}
     </div>
     {children}

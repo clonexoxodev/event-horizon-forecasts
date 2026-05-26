@@ -6,7 +6,7 @@ import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import apiService, { type ApiPosition } from "@/lib/api";
+import apiService, { type ApiMarketComment, type ApiPosition } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useMarketState } from "@/lib/market-state";
 import { formatNaira, type Market } from "@/lib/markets";
@@ -22,20 +22,19 @@ const categoryImages: Record<string, string> = {
   Technology: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1300&q=80",
 };
 
-const marketImage = (market?: Market) =>
+type CommentItem = ApiMarketComment;
+type PredictorItem = { user: string; winRate: number; badge: string };
+
+const fallbackImage = (market?: Market) =>
   (market && categoryImages[market.category]) || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1300&q=80";
 
-const starterComments = [
-  { id: "1", user: "ToluPredicts", text: "Volume is moving slowly. I like YES only if price stays under 70%.", likes: 42 },
-  { id: "2", user: "MarketMaster", text: "This one depends on the final news cycle. Watching it closely.", likes: 28 },
-];
+const marketMedia = (market: Market) => {
+  const videoUrl = market.videoUrl || market.video_url || "";
+  const imageUrl = market.imageUrl || market.image_url || fallbackImage(market);
+  return videoUrl ? { type: "video" as const, src: videoUrl, poster: imageUrl } : { type: "image" as const, src: imageUrl, poster: imageUrl };
+};
 
-const predictors = [
-  { user: "KingPredicts", winRate: 78, badge: "Elite" },
-  { user: "ToluPredicts", winRate: 72, badge: "Verified" },
-  { user: "CryptoGuru", winRate: 69, badge: "Hot" },
-  { user: "BallerAlert", winRate: 66, badge: "Rising" },
-];
+const predictors: PredictorItem[] = [];
 
 const MarketDetail = () => {
   const { id } = useParams();
@@ -50,7 +49,7 @@ const MarketDetail = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [comment, setComment] = useState("");
-  const [comments, setComments] = useState(starterComments);
+  const [comments, setComments] = useState<CommentItem[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -97,6 +96,21 @@ const MarketDetail = () => {
     loadPositions();
   }, [id, user]);
 
+  useEffect(() => {
+    if (!id) return;
+
+    const loadComments = async () => {
+      try {
+        const response = await apiService.getMarketComments(id);
+        setComments(response.comments || []);
+      } catch {
+        setComments([]);
+      }
+    };
+
+    loadComments();
+  }, [id]);
+
   const numericAmount = Number.parseFloat(amount) || 0;
   const currentPrice = selectedSide === "YES" ? market?.yesPrice || 50 : market?.noPrice || 50;
   const potentialReturn = numericAmount > 0 ? numericAmount * (100 / Math.max(1, currentPrice)) : 0;
@@ -142,18 +156,21 @@ const MarketDetail = () => {
     }
   };
 
-  const addComment = () => {
+  const addComment = async () => {
     if (!comment.trim()) return;
-    setComments((prev) => [
-      {
-        id: crypto.randomUUID(),
-        user: user?.username || "You",
-        text: comment.trim(),
-        likes: 0,
-      },
-      ...prev,
-    ]);
-    setComment("");
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      const response = await apiService.addMarketComment(market.id, comment.trim());
+      setComments((prev) => [response.comment, ...prev]);
+      setComment("");
+      toast.success("Comment added.");
+    } catch (error: any) {
+      toast.error(error.message || "Could not save comment.");
+    }
   };
 
   if (loading && !market) {
@@ -170,6 +187,7 @@ const MarketDetail = () => {
   if (!market) return null;
 
   const isClosed = market.status !== "active";
+  const media = marketMedia(market);
 
   return (
     <div className="min-h-screen bg-[#050711] pb-24 text-white md:pb-0 xl:pl-64">
@@ -183,8 +201,12 @@ const MarketDetail = () => {
         <section className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
           <div className="space-y-6">
             <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.055] shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-              <div className="relative min-h-[360px] overflow-hidden sm:min-h-[460px]">
-                <img src={marketImage(market)} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              <div className="relative min-h-[300px] overflow-hidden sm:min-h-[460px]">
+                {media.type === "video" ? (
+                  <video src={media.src} poster={media.poster} className="absolute inset-0 h-full w-full object-cover" muted playsInline loop preload="metadata" />
+                ) : (
+                  <img src={media.src} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#050711] via-[#050711]/55 to-black/20" />
                 <div className="absolute left-5 right-5 top-5 flex items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
@@ -221,13 +243,29 @@ const MarketDetail = () => {
               </div>
             </div>
 
+            <div className="lg:hidden">
+              <PredictionPanel
+                market={market}
+                selectedSide={selectedSide}
+                setSelectedSide={setSelectedSide}
+                amount={amount}
+                setAmount={setAmount}
+                potentialReturn={potentialReturn}
+                potentialProfit={potentialProfit}
+                userBalance={user?.balance || 0}
+                submitting={submitting}
+                disabled={isClosed}
+                onPredict={handlePredict}
+              />
+            </div>
+
             <PriceSection market={market} priceChange={priceChange} />
             <ChartSection market={market} />
             <YourPosition position={selectedPosition} selectedSide={selectedSide} amount={numericAmount} potentialReturn={potentialReturn} />
             <Discussion comments={comments} comment={comment} setComment={setComment} addComment={addComment} />
           </div>
 
-          <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+          <aside className="hidden space-y-6 lg:sticky lg:top-24 lg:block lg:self-start">
             <PredictionPanel
               market={market}
               selectedSide={selectedSide}
@@ -444,7 +482,7 @@ const YourPosition = ({ position, selectedSide, amount, potentialReturn }: { pos
   </section>
 );
 
-const Discussion = ({ comments, comment, setComment, addComment }: { comments: typeof starterComments; comment: string; setComment: (value: string) => void; addComment: () => void }) => (
+const Discussion = ({ comments, comment, setComment, addComment }: { comments: CommentItem[]; comment: string; setComment: (value: string) => void; addComment: () => void }) => (
   <section className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
     <div className="mb-4 flex items-center justify-between">
       <div>
@@ -460,7 +498,11 @@ const Discussion = ({ comments, comment, setComment, addComment }: { comments: t
       </Button>
     </div>
     {comments.length === 0 ? (
-      <div className="mt-4 rounded-3xl border border-dashed border-white/10 py-12 text-center text-sm text-slate-500">No comments yet.</div>
+      <div className="mt-4 rounded-3xl border border-dashed border-white/10 py-12 text-center">
+        <MessageCircle className="mx-auto mb-3 h-7 w-7 text-violet-300" />
+        <div className="font-black text-white">No comments yet</div>
+        <p className="mt-1 text-sm text-slate-500">Start the discussion when you have a take.</p>
+      </div>
     ) : (
       <ul className="mt-4 space-y-3">
         {[...comments].sort((a, b) => b.likes - a.likes).map((item) => (
@@ -483,6 +525,13 @@ const TopPredictors = () => (
       <h2 className="text-xl font-black">Top predictors</h2>
       <Award className="h-5 w-5 text-violet-300" />
     </div>
+    {predictors.length === 0 ? (
+      <div className="rounded-3xl border border-dashed border-white/10 bg-[#0b1020]/70 px-4 py-10 text-center">
+        <Award className="mx-auto mb-3 h-7 w-7 text-violet-300" />
+        <div className="font-black text-white">No top predictors yet</div>
+        <p className="mt-1 text-sm text-slate-500">Leaders will appear after real market activity.</p>
+      </div>
+    ) : (
     <ul className="space-y-3">
       {predictors.map((predictor, index) => (
         <li key={predictor.user} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0b1020]/80 p-3">
@@ -502,6 +551,7 @@ const TopPredictors = () => (
         </li>
       ))}
     </ul>
+    )}
   </section>
 );
 

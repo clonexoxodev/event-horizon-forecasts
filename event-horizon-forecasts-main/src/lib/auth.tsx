@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { apiService, AuthUserResponse, UserRole } from "./api";
+import { apiService, ApiRequestError, AuthUserResponse, UserRole } from "./api";
 
 type AuthUser = {
   id: string;
@@ -53,6 +53,12 @@ const toAuthUser = (user: AuthUserResponse, balance?: number): AuthUser => ({
   role: user.email.toLowerCase() === PRIMARY_SUPER_ADMIN_EMAIL ? "super_admin" : user.role || "user",
 });
 
+const isConfirmedAuthFailure = (error: unknown) => (
+  error instanceof ApiRequestError &&
+  error.status === 401 &&
+  ["UNAUTHORIZED", "INVALID_TOKEN"].includes(error.code || "")
+);
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<{ user: AuthUser } | null>(null);
@@ -83,9 +89,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await apiService.getCurrentUser();
       await applyUser(response.user);
-    } catch {
-      apiService.setAuthToken(null);
-      clearUser();
+    } catch (error) {
+      if (isConfirmedAuthFailure(error)) {
+        apiService.setAuthToken(null);
+        clearUser();
+      }
     }
   };
 
@@ -99,9 +107,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (!cancelled) {
           await applyUser(response.user);
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
-          clearUser();
+          if (isConfirmedAuthFailure(error)) {
+            apiService.setAuthToken(null);
+            clearUser();
+          }
         }
       } finally {
         if (!cancelled) {
@@ -128,8 +139,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setAuthOpen(false);
       return { error: null };
     } catch (error: any) {
-      apiService.setAuthToken(null);
-      clearUser();
       return { error: error.message || "Login failed" };
     }
   };
@@ -146,8 +155,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setAuthOpen(false);
       return { error: null };
     } catch (error: any) {
-      apiService.setAuthToken(null);
-      clearUser();
       return { error: error.message || "Signup failed" };
     }
   };

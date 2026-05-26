@@ -219,12 +219,34 @@ export type ApiSearchUser = {
   role: UserRole;
 };
 
+export type ApiMarketComment = {
+  id: string;
+  marketId: string;
+  userId: string;
+  user: string;
+  text: string;
+  likes: number;
+  createdAt: string;
+};
+
 export type WalletResponse = {
   wallet: ApiWallet;
   display?: unknown;
 };
 
 const toSmallestUnit = (amount: number) => Math.round(Number(amount) * 100);
+
+export class ApiRequestError extends Error {
+  status: number;
+  code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.status = status;
+    this.code = code;
+  }
+}
 
 class ApiService {
   private baseURL: string;
@@ -282,44 +304,43 @@ class ApiService {
 
         if (response.status === 409) {
           if (errorData.error?.code === 'EMAIL_EXISTS') {
-            throw new Error('An account with this email already exists. Please log in instead.');
+            throw new ApiRequestError('An account with this email already exists. Please log in instead.', response.status, errorData.error?.code);
           }
           if (errorData.error?.code === 'USERNAME_EXISTS') {
-            throw new Error('This username is already taken. Please choose a different one.');
+            throw new ApiRequestError('This username is already taken. Please choose a different one.', response.status, errorData.error?.code);
           }
           if (errorData.error?.code === 'ALREADY_ADMIN') {
-            throw new Error(errorData.error?.message || 'User already has admin privileges.');
+            throw new ApiRequestError(errorData.error?.message || 'User already has admin privileges.', response.status, errorData.error?.code);
           }
-          throw new Error(errorData.error?.message || 'This account already exists. Please log in instead.');
+          throw new ApiRequestError(errorData.error?.message || 'This account already exists. Please log in instead.', response.status, errorData.error?.code);
         }
 
         if (response.status === 401) {
           if (errorData.error?.code === 'INVALID_CREDENTIALS') {
-            throw new Error('Invalid email or password. Please try again.');
+            throw new ApiRequestError('Invalid email or password. Please try again.', response.status, errorData.error?.code);
           }
-          this.setAuthToken(null);
-          throw new Error(errorData.error?.message || 'Authentication required. Please log in again.');
+          throw new ApiRequestError(errorData.error?.message || 'Authentication required. Please log in again.', response.status, errorData.error?.code);
         }
 
         if (response.status === 400) {
-          throw new Error(errorData.error?.message || 'Invalid input. Please check your information.');
+          throw new ApiRequestError(errorData.error?.message || 'Invalid input. Please check your information.', response.status, errorData.error?.code);
         }
 
         if (response.status === 403) {
-          throw new Error(errorData.error?.message || 'You do not have permission to perform this action.');
+          throw new ApiRequestError(errorData.error?.message || 'You do not have permission to perform this action.', response.status, errorData.error?.code);
         }
 
         if (response.status === 422) {
           if (errorData.error?.code === 'INSUFFICIENT_BALANCE') {
-            throw new Error(errorData.error?.message || 'Insufficient balance. Please add funds to your wallet.');
+            throw new ApiRequestError(errorData.error?.message || 'Insufficient balance. Please add funds to your wallet.', response.status, errorData.error?.code);
           }
           if (errorData.error?.code === 'MARKET_NOT_ACTIVE') {
-            throw new Error(errorData.error?.message || 'This market is closed and no longer accepts predictions.');
+            throw new ApiRequestError(errorData.error?.message || 'This market is closed and no longer accepts predictions.', response.status, errorData.error?.code);
           }
-          throw new Error(errorData.error?.message || 'The request could not be completed.');
+          throw new ApiRequestError(errorData.error?.message || 'The request could not be completed.', response.status, errorData.error?.code);
         }
 
-        throw new Error(errorData.error?.message || errorData.message || `HTTP error! status: ${response.status}`);
+        throw new ApiRequestError(errorData.error?.message || errorData.message || `HTTP error! status: ${response.status}`, response.status, errorData.error?.code);
       }
 
       if (response.status === 204) {
@@ -372,6 +393,17 @@ class ApiService {
 
   async getMarket(marketId: string): Promise<{ market: ApiMarket }> {
     return this.request(`/api/markets/${encodeURIComponent(marketId)}`);
+  }
+
+  async getMarketComments(marketId: string): Promise<{ comments: ApiMarketComment[] }> {
+    return this.request(`/api/markets/${encodeURIComponent(marketId)}/comments`);
+  }
+
+  async addMarketComment(marketId: string, body: string): Promise<{ comment: ApiMarketComment }> {
+    return this.request(`/api/markets/${encodeURIComponent(marketId)}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    });
   }
 
   async placePrediction(

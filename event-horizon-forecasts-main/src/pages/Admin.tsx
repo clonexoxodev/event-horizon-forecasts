@@ -275,7 +275,7 @@ const Admin = () => {
   if (isLoading || !user || !admin) return null;
 
   return (
-    <div className="min-h-screen bg-[#050711] text-white">
+    <div className="min-h-screen overflow-x-hidden bg-[#050711] text-white">
       <div className="fixed inset-y-0 left-0 hidden w-72 border-r border-white/10 bg-[#070a14]/95 p-5 xl:block">
         <div className="mb-8 flex items-center gap-3">
           <div className="grid h-11 w-11 place-items-center rounded-2xl bg-violet-500/20 text-violet-200">
@@ -289,8 +289,8 @@ const Admin = () => {
         <AdminSidebar view={view} setView={setView} superAdmin={superAdmin} />
       </div>
 
-      <main className="min-h-screen px-4 py-5 sm:px-6 xl:ml-72">
-        <div className="mx-auto max-w-7xl">
+      <main className="min-h-screen min-w-0 overflow-x-hidden px-4 py-5 sm:px-6 xl:ml-72">
+        <div className="mx-auto min-w-0 max-w-7xl">
           <div className="mb-6 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/[0.055] p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-black uppercase tracking-[0.24em] text-violet-300">Admin</p>
@@ -496,8 +496,8 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
   onSubmit: (event: React.FormEvent) => void;
   onCancel: () => void;
 }) => (
-  <form onSubmit={onSubmit} className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-    <section className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
+  <form onSubmit={onSubmit} className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
+    <section className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
       <div className="grid gap-4">
         <Field label="Question"><Input value={form.question} onChange={(event) => setForm((prev) => ({ ...prev, question: event.target.value }))} placeholder="Will Nigeria win the AFCON 2026?" className={adminInputClass} /></Field>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -514,8 +514,8 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
       </div>
     </section>
 
-    <aside className="space-y-6">
-      <section className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
+    <aside className="min-w-0 space-y-6">
+      <section className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
         <h2 className="mb-4 text-xl font-black">Money limits</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
           <Field label="Minimum amount"><Input type="number" value={form.minAmount} onChange={(event) => setForm((prev) => ({ ...prev, minAmount: event.target.value }))} className={adminInputClass} /></Field>
@@ -523,7 +523,7 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
         </div>
       </section>
 
-      <section className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
+      <section className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
         <h2 className="mb-4 text-xl font-black">Media</h2>
         <div className="grid gap-3">
           <MediaInput label="Image" accept="image/*" file={form.imageFile} existing={form.existingImageUrl} onChange={(file) => setForm((prev) => ({ ...prev, imageFile: file }))} />
@@ -532,7 +532,7 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
         </div>
       </section>
 
-      <section className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
+      <section className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
         <div className="space-y-3">
           <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
             <span className="font-black">Mark as trending</span>
@@ -542,7 +542,7 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
         </div>
       </section>
 
-      <div className="flex gap-3">
+      <div className="flex min-w-0 gap-3">
         <Button type="button" onClick={onCancel} variant="outline" className="h-12 flex-1 rounded-2xl border-white/10 bg-white/5 font-black text-white hover:bg-white/10">Cancel</Button>
         <Button type="submit" disabled={saving} className="h-12 flex-1 rounded-2xl bg-violet-500 font-black text-white hover:bg-violet-400">
           {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
@@ -663,13 +663,15 @@ const Select = ({ value, onChange, options }: { value: string; onChange: (value:
 );
 
 const MediaInput = ({ label, accept, file, existing, onChange }: { label: string; accept: string; file: File | null; existing: string; onChange: (file: File | null) => void }) => (
-  <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-white/15 bg-white/[0.04] p-4 transition hover:bg-white/[0.07]">
+  <label className="flex min-w-0 cursor-pointer items-center gap-3 overflow-hidden rounded-2xl border border-dashed border-white/15 bg-white/[0.04] p-4 transition hover:bg-white/[0.07]">
     <div className="grid h-10 w-10 place-items-center rounded-2xl bg-violet-500/20 text-violet-200">
       {label === "Image" ? <Image className="h-5 w-5" /> : <Upload className="h-5 w-5" />}
     </div>
-    <div className="min-w-0 flex-1">
+    <div className="min-w-0 flex-1 overflow-hidden">
       <div className="font-black">{label}</div>
-      <div className="truncate text-xs text-slate-500">{file?.name || (existing ? "Current media saved" : "Choose file")}</div>
+      <div title={file?.name || existing || ""} className="max-w-full truncate text-xs text-slate-500">
+        {file?.name || (existing ? "Current media saved" : "Choose file")}
+      </div>
     </div>
     <input type="file" accept={accept} onChange={(event) => onChange(event.target.files?.[0] || null)} className="hidden" />
   </label>

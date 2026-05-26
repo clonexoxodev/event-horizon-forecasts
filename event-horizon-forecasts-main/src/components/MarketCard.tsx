@@ -15,15 +15,20 @@ const categoryImages: Record<string, string> = {
   Technology: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=900&q=80",
 };
 
-const marketImage = (market: Market) =>
+const fallbackImage = (market: Market) =>
   categoryImages[market.category] || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80";
+
+const marketVideo = (market: Market) => market.videoUrl || market.video_url || "";
+const marketImage = (market: Market) => market.imageUrl || market.image_url || fallbackImage(market);
 
 export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolean }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { openForecastSlip } = useForecastSlip();
   const isTrending = m.participants > 25 || m.totalPool > 10000;
-  const comments = Math.max(8, Math.round((m.participants || 1) * 1.7));
+  const comments = Number((m as any).commentCount ?? (m as any).comment_count ?? 0);
+  const videoUrl = marketVideo(m);
+  const imageUrl = marketImage(m);
 
   const handleSide = (event: React.MouseEvent, side: "YES" | "NO") => {
     event.preventDefault();
@@ -47,12 +52,24 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
       className="group block overflow-hidden rounded-3xl border border-white/10 bg-white/[0.055] shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-violet-400/40 hover:shadow-[0_22px_70px_rgba(109,40,217,0.25)]"
     >
       <div className={`relative ${compact ? "h-44" : "h-56"} overflow-hidden`}>
-        <img
-          src={marketImage(m)}
-          alt=""
-          className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-          loading="lazy"
-        />
+        {videoUrl ? (
+          <video
+            src={videoUrl}
+            className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+            muted
+            playsInline
+            loop
+            preload="metadata"
+            poster={imageUrl}
+          />
+        ) : (
+          <img
+            src={imageUrl}
+            alt=""
+            className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+            loading="lazy"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-[#070a14] via-[#070a14]/45 to-transparent" />
         <div className="absolute left-4 top-4 flex items-center gap-2">
           <span className="rounded-full border border-white/15 bg-black/40 px-3 py-1 text-xs font-bold text-white backdrop-blur-xl">
@@ -64,9 +81,11 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
             </span>
           )}
         </div>
-        <div className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-black/40 text-white backdrop-blur-xl">
-          <Play className="h-4 w-4 fill-current" />
-        </div>
+        {videoUrl && (
+          <div className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-black/40 text-white backdrop-blur-xl">
+            <Play className="h-4 w-4 fill-current" />
+          </div>
+        )}
         <div className="absolute bottom-4 left-4 right-4">
           <h3 className="line-clamp-2 text-lg font-extrabold leading-snug text-white">
             {m.question}

@@ -45,12 +45,6 @@ const Index = () => {
     return next;
   }, [markets, category, searchQuery]);
 
-  const topPredictors = [
-    { name: "KingPredicts", win: "78%", profit: "+N5.6M" },
-    { name: user?.username || "You", win: "72%", profit: "+N4.2M" },
-    { name: "CryptoGuru", win: "69%", profit: "+N3.8M" },
-  ];
-
   return (
     <div className="min-h-screen bg-[#050711] pb-20 text-white md:pb-0 xl:pl-64">
       <Header />
@@ -137,19 +131,10 @@ const Index = () => {
               <Trophy className="h-5 w-5 text-yellow-300" />
               Top Predictors
             </h2>
-            <div className="space-y-3">
-              {topPredictors.map((person, index) => (
-                <div key={person.name} className="flex items-center gap-3 rounded-2xl bg-black/20 p-3">
-                  <div className="grid h-9 w-9 place-items-center rounded-full bg-violet-500/25 text-sm font-black text-violet-100">
-                    {index + 1}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-bold">{person.name}</div>
-                    <div className="text-xs text-slate-500">Win rate {person.win}</div>
-                  </div>
-                  <div className="text-sm font-black text-emerald-300">{person.profit}</div>
-                </div>
-              ))}
+            <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-5 text-center">
+              <Trophy className="mx-auto mb-3 h-7 w-7 text-violet-300" />
+              <div className="font-black text-white">No leaderboard yet</div>
+              <p className="mt-1 text-sm text-slate-500">Top predictors will appear after real results.</p>
             </div>
           </div>
 
@@ -161,9 +146,9 @@ const Index = () => {
             <div className="rounded-2xl bg-black/20 p-4">
               <div className="text-xs text-slate-500">Balance</div>
               <div className="text-3xl font-black text-white">{formatNaira(user?.balance || 0)}</div>
-              <div className="mt-4 text-xs text-slate-500">This month</div>
-              <div className="text-xl font-black text-emerald-300">+18.4%</div>
-              <div className="mt-3 h-16 rounded-2xl bg-gradient-to-r from-emerald-500/20 via-violet-500/20 to-emerald-400/20" />
+              <div className="mt-4 rounded-2xl border border-dashed border-white/10 p-4 text-sm text-slate-500">
+                Monthly stats will appear after your real activity.
+              </div>
             </div>
           </div>
         </aside>

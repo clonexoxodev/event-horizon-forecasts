@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Award, Crown, Flame, LogOut, ShieldCheck, Star, Trophy, Users } from "lucide-react";
+import { Award, Crown, Flame, Lock, LogOut, ShieldCheck, Star, Trophy, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
@@ -64,11 +64,15 @@ export default function Profile() {
   const initials = user.name?.charAt(0).toUpperCase() || user.username?.charAt(0).toUpperCase() || "U";
   const adminPath = isSuperAdmin() ? "/super-admin" : "/admin";
   const earnedBadges = [
-    { icon: Trophy, label: "Elite", active: stats.winRate >= 70 },
+    { icon: Trophy, label: "First Pick", active: stats.totalPredictions > 0 },
     { icon: Flame, label: "Streak", active: stats.activePredictions >= 3 },
-    { icon: Crown, label: "Top 100", active: stats.totalEarnings > 0 },
-    { icon: ShieldCheck, label: "Early Bird", active: true },
+    { icon: Crown, label: "Winner", active: stats.wonPredictions > 0 },
+    { icon: ShieldCheck, label: "Elite", active: stats.winRate >= 70 && stats.totalPredictions >= 5 },
   ];
+  const nextBadgeProgress = stats.totalPredictions > 0 ? Math.min(100, Math.round((stats.wonPredictions / 1) * 100)) : 0;
+  const nextBadgeText = stats.totalPredictions > 0
+    ? "Win one market to unlock Winner."
+    : "Make your first prediction to unlock First Pick.";
 
   return (
     <div className="min-h-screen bg-[#050711] pb-24 text-white md:pb-0 xl:pl-64">
@@ -91,8 +95,8 @@ export default function Profile() {
 
             <div className="mt-6 grid grid-cols-3 gap-3 text-center">
               <MiniStat value={stats.totalPredictions.toString()} label="Markets" />
-              <MiniStat value="3.2K" label="Followers" />
-              <MiniStat value="524" label="Following" />
+              <MiniStat value="0" label="Followers" />
+              <MiniStat value="0" label="Following" />
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3">
@@ -112,13 +116,20 @@ export default function Profile() {
               <h2 className="text-lg font-black">Badges</h2>
               <Award className="h-5 w-5 text-violet-300" />
             </div>
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {earnedBadges.map((badge) => (
-                <div key={badge.label} className={`rounded-2xl border p-3 text-center ${badge.active ? "border-violet-300/20 bg-violet-400/10" : "border-white/10 bg-white/5 opacity-50"}`}>
-                  <badge.icon className={`mx-auto h-6 w-6 ${badge.active ? "text-violet-300" : "text-slate-500"}`} />
-                  <div className="mt-2 text-xs font-black">{badge.label}</div>
-                </div>
+                <BadgeTile key={badge.label} icon={badge.icon} label={badge.label} active={badge.active} />
               ))}
+            </div>
+            <div className="mt-4 rounded-2xl border border-white/10 bg-[#0b1020]/80 p-4">
+              <div className="flex items-center justify-between gap-3 text-xs font-black">
+                <span className="text-slate-400">Next badge</span>
+                <span className="text-violet-200">{nextBadgeProgress}%</span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                <div className="h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400" style={{ width: `${nextBadgeProgress}%` }} />
+              </div>
+              <p className="mt-2 text-xs text-slate-500">{nextBadgeText}</p>
             </div>
           </div>
 
@@ -197,6 +208,24 @@ const MiniStat = ({ value, label }: { value: string; label: string }) => (
   <div>
     <div className="text-xl font-black">{value}</div>
     <div className="text-xs text-slate-500">{label}</div>
+  </div>
+);
+
+const BadgeTile = ({ icon: Icon, label, active }: { icon: any; label: string; active: boolean }) => (
+  <div className={`relative overflow-hidden rounded-2xl border p-3 text-center ${
+    active
+      ? "border-violet-300/35 bg-[radial-gradient(circle_at_top,rgba(167,139,250,0.36),rgba(255,255,255,0.06)_60%)] shadow-[0_0_28px_rgba(139,92,246,0.18)]"
+      : "border-white/10 bg-white/[0.035]"
+  }`}>
+    <div className={`mx-auto grid h-11 w-11 place-items-center rounded-2xl ${
+      active ? "bg-violet-400/20 text-violet-100" : "bg-slate-800/70 text-slate-600"
+    }`}>
+      {active ? <Icon className="h-6 w-6" /> : <Lock className="h-5 w-5" />}
+    </div>
+    <div className={`mt-2 truncate text-xs font-black ${active ? "text-white" : "text-slate-500"}`}>{label}</div>
+    <div className={`mt-1 text-[10px] font-bold ${active ? "text-violet-200" : "text-slate-600"}`}>
+      {active ? "Earned" : "Locked"}
+    </div>
   </div>
 );
 

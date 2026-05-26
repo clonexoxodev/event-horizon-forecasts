@@ -279,6 +279,70 @@ const setAuthCookie = (res: Response, token: string) => {
   res.cookie('auth_token', token, authCookieOptions);
 };
 
+const SUPER_ADMIN_TEST_CREDIT_KOBO = 1_000_000;
+const SUPER_ADMIN_TEST_CREDIT_KEY = 'super_admin_seed_10000_v1';
+
+const ensureSuperAdminTestCredit = async (user: any) => {
+  if (process.env.ENABLE_SUPER_ADMIN_TEST_CREDIT === 'false') return 0;
+  if (normalizeEmail(user.email || '') !== PRIMARY_SUPER_ADMIN_EMAIL) return 0;
+
+  const { data: wallet, error: walletError } = await supabase
+    .from('wallets')
+    .select('*')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (walletError || !wallet) return 0;
+
+  const balance = Number(wallet.balance_ngn_kobo || 0);
+  const available = Number(wallet.available_ngn_kobo || 0);
+  if (balance > 0 || available > 0) return available / 100;
+
+  const { data: existingCredit } = await supabase
+    .from('transactions')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('type', 'deposit')
+    .eq('metadata->>testCredit', SUPER_ADMIN_TEST_CREDIT_KEY)
+    .maybeSingle();
+
+  if (existingCredit) return 0;
+
+  const { data: updatedWallet, error: updateError } = await supabase
+    .from('wallets')
+    .update({
+      balance_ngn_kobo: SUPER_ADMIN_TEST_CREDIT_KOBO,
+      available_ngn_kobo: SUPER_ADMIN_TEST_CREDIT_KOBO,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', wallet.id)
+    .select('*')
+    .single();
+
+  if (updateError || !updatedWallet) {
+    console.warn('Failed to apply super admin test credit:', updateError?.message);
+    return 0;
+  }
+
+  await supabase
+    .from('transactions')
+    .insert({
+      user_id: user.id,
+      wallet_id: wallet.id,
+      type: 'deposit',
+      amount_smallest_unit: SUPER_ADMIN_TEST_CREDIT_KOBO,
+      currency: 'NGN',
+      direction: 'IN',
+      status: 'completed',
+      metadata: {
+        testCredit: SUPER_ADMIN_TEST_CREDIT_KEY,
+        note: 'Development/test setup credit for primary super admin wallet only.'
+      }
+    });
+
+  return Number(updatedWallet.available_ngn_kobo || 0) / 100;
+};
+
 /**
  * POST /api/auth/signup
  * Register a new user
@@ -442,9 +506,11 @@ app.post('/api/auth/signup', async (req: Request, res: Response) => {
     // Set cookie
     setAuthCookie(res, token);
 
+    const initialBalance = await ensureSuperAdminTestCredit(newUser);
+
     // Return success
     res.status(201).json({
-      user: toAuthUser(newUser, 0),
+      user: toAuthUser(newUser, initialBalance),
       token,
       message: 'User registered successfully'
     });
@@ -552,9 +618,11 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
     // Set cookie
     setAuthCookie(res, token);
 
+    const balance = await ensureSuperAdminTestCredit(user);
+
     // Return success
     res.json({
-      user: toAuthUser(user),
+      user: toAuthUser(user, balance),
       token,
       message: 'Login successful'
     });
@@ -597,8 +665,11 @@ app.get('/api/auth/me', authenticate, async (req: Request, res: Response) => {
       .eq('user_id', user.id)
       .maybeSingle();
 
+    const testCreditBalance = await ensureSuperAdminTestCredit(user);
+    const balance = testCreditBalance || (wallet?.balance_ngn_kobo ? wallet.balance_ngn_kobo / 100 : 0);
+
     res.json({
-      user: toAuthUser(user, wallet?.balance_ngn_kobo ? wallet.balance_ngn_kobo / 100 : 0)
+      user: toAuthUser(user, balance)
     });
   } catch (error) {
     res.status(401).json({
@@ -668,7 +739,27 @@ const savePriceHistory = async (
   }
 };
 
-const normalizeMarket = (market: any, positionCount = 0) => {
+const fetchPriceHistory = async (marketId: string) => {
+  const { data, error } = await supabase
+    .from('market_price_history')
+    .select('created_at, yes_price, no_price')
+    .eq('market_id', marketId)
+    .order('created_at', { ascending: true })
+    .limit(200);
+
+  if (error) {
+    console.warn('Failed to fetch market price history:', error.message);
+    return [];
+  }
+
+  return (data || []).map((point) => ({
+    timestamp: point.created_at,
+    yesPrice: Number(point.yes_price || 0),
+    noPrice: Number(point.no_price || 0)
+  }));
+};
+
+const normalizeMarket = (market: any, positionCount = 0, priceHistory: any[] = []) => {
   const yesPoolSmallestUnit = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
   const noPoolSmallestUnit = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
   const totalPoolSmallestUnit = Number(
@@ -702,7 +793,7 @@ const normalizeMarket = (market: any, positionCount = 0) => {
     video_url: market.video_url || null,
     isTrending: Boolean(market.is_trending),
     is_trending: Boolean(market.is_trending),
-    priceHistory: []
+    priceHistory
   };
 };
 
@@ -1211,7 +1302,9 @@ app.get('/api/markets/:id', async (req: Request, res: Response) => {
       .select('*', { count: 'exact', head: true })
       .eq('market_id', market.id);
 
-    res.json({ market: normalizeMarket(market, count || 0) });
+    const priceHistory = await fetchPriceHistory(market.id);
+
+    res.json({ market: normalizeMarket(market, count || 0, priceHistory) });
   } catch (error) {
     console.error('Get market error:', error);
     res.status(500).json({
@@ -1224,8 +1317,127 @@ app.get('/api/markets/:id', async (req: Request, res: Response) => {
   }
 });
 
+app.get('/api/markets/:id/comments', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('market_comments')
+      .select('id, market_id, user_id, body, like_count, created_at')
+      .eq('market_id', req.params.id)
+      .order('like_count', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+
+    const userIds = Array.from(new Set((data || []).map((comment: any) => comment.user_id).filter(Boolean)));
+    const { data: commentUsers } = userIds.length > 0
+      ? await supabase.from('users').select('id, username').in('id', userIds)
+      : { data: [] as any[] };
+    const usernameById = new Map((commentUsers || []).map((commentUser: any) => [commentUser.id, commentUser.username]));
+
+    res.json({
+      comments: (data || []).map((comment: any) => ({
+        id: comment.id,
+        marketId: comment.market_id,
+        userId: comment.user_id,
+        user: usernameById.get(comment.user_id) || 'User',
+        text: comment.body,
+        likes: Number(comment.like_count || 0),
+        createdAt: comment.created_at
+      }))
+    });
+  } catch (error: any) {
+    console.error('Get market comments error:', error);
+    res.status(500).json({
+      error: {
+        code: 'GET_COMMENTS_FAILED',
+        message: 'Failed to fetch comments',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+app.post('/api/markets/:id/comments', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const body = String(req.body.body || req.body.text || '').trim();
+
+    if (body.length < 1) {
+      return res.status(400).json({
+        error: {
+          code: 'COMMENT_REQUIRED',
+          message: 'Write a comment first.',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    if (body.length > 500) {
+      return res.status(400).json({
+        error: {
+          code: 'COMMENT_TOO_LONG',
+          message: 'Comment must be 500 characters or less.',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const { data: market, error: marketError } = await supabase
+      .from('markets')
+      .select('id')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (marketError || !market) {
+      return res.status(404).json({
+        error: {
+          code: 'MARKET_NOT_FOUND',
+          message: 'Market not found',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const { data: comment, error } = await supabase
+      .from('market_comments')
+      .insert({
+        market_id: req.params.id,
+        user_id: user.id,
+        body,
+        like_count: 0
+      })
+      .select('id, market_id, user_id, body, like_count, created_at')
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({
+      comment: {
+        id: comment.id,
+        marketId: comment.market_id,
+        userId: comment.user_id,
+        user: user.username || 'User',
+        text: comment.body,
+        likes: Number(comment.like_count || 0),
+        createdAt: comment.created_at
+      }
+    });
+  } catch (error: any) {
+    console.error('Create market comment error:', error);
+    res.status(500).json({
+      error: {
+        code: 'CREATE_COMMENT_FAILED',
+        message: 'Failed to save comment',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
 app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res: Response) => {
   try {
+    const marketId = String(req.params.id);
     const user = (req as any).user;
     const side = normalizePredictionSide(req.body.side);
     const currency = req.body.currency || 'NGN';
@@ -1256,7 +1468,7 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
     const { data: market, error: marketError } = await supabase
       .from('markets')
       .select('*')
-      .eq('id', req.params.id)
+      .eq('id', marketId)
       .single();
 
     if (marketError || !market) {
@@ -1349,7 +1561,7 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
       .from('positions')
       .insert({
         user_id: user.id,
-        market_id: req.params.id,
+        market_id: marketId,
         side,
         amount_smallest_unit: amountSmallestUnit,
         currency,
@@ -1364,7 +1576,7 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
         .from('positions')
         .insert({
           user_id: user.id,
-          market_id: req.params.id,
+          market_id: marketId,
           side,
           amount_smallest_unit: amountSmallestUnit,
           currency,
@@ -1396,13 +1608,14 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
         no_pool_smallest_unit: nextNoPool,
         pool_amount_smallest_unit: nextTotal
       })
-      .eq('id', req.params.id)
+      .eq('id', marketId)
       .select()
       .single();
 
     if (marketUpdateError || !updatedMarket) throw marketUpdateError;
 
-    await savePriceHistory(req.params.id, pricesAfter.yesPrice, pricesAfter.noPrice, nextYesPool, nextNoPool);
+    await savePriceHistory(marketId, pricesAfter.yesPrice, pricesAfter.noPrice, nextYesPool, nextNoPool);
+    const priceHistory = await fetchPriceHistory(marketId);
 
     const { data: transaction } = await supabase
       .from('transactions')
@@ -1417,7 +1630,7 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
         reference_type: 'position',
         status: 'completed',
         metadata: {
-          marketId: req.params.id,
+          marketId,
           side,
           entryPrice,
           potentialReturnSmallestUnit: potentialReturn,
@@ -1444,14 +1657,7 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
 
     res.status(201).json({
       position: normalizePosition(position, updatedMarket),
-      market: {
-        ...normalizeMarket(updatedMarket),
-        priceHistory: [{
-          timestamp: new Date().toISOString(),
-          yesPrice: pricesAfter.yesPrice,
-          noPrice: pricesAfter.noPrice
-        }]
-      },
+      market: normalizeMarket(updatedMarket, undefined, priceHistory),
       wallet: {
         id: updatedWallet.id,
         userId: updatedWallet.user_id,
