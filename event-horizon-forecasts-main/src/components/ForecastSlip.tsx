@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { AlertCircle, CheckCircle, Loader2, TrendingUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
-import { formatNaira } from "@/lib/markets";
+import { formatNaira, formatNairaPrice } from "@/lib/markets";
 import { toast } from "sonner";
 
 type ForecastSelection = {
@@ -38,11 +39,6 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
   const handleConfirm = async () => {
     if (!selection || numAmount <= 0) {
       toast.error("Enter a valid amount.");
-      return;
-    }
-
-    if (!user) {
-      toast.error("Login required. Please sign in first.");
       return;
     }
 
@@ -116,7 +112,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                       {selection.side}
                     </span>
                     <span className="rounded-full bg-white/5 px-3 py-1 text-xs font-bold text-slate-400">
-                      {Math.round(probability)}%
+                      {formatNairaPrice(probability)}
                     </span>
                   </div>
                 </div>
@@ -124,9 +120,19 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <InfoCard label="Wallet balance" value={formatNaira(userBalance)} />
-              <InfoCard label="Current price" value={`${Math.round(probability)}%`} />
+              <InfoCard label="Wallet balance" value={user ? formatNaira(userBalance) : "Login required"} />
+              <InfoCard label="Current price" value={formatNairaPrice(probability)} />
             </div>
+
+            {!user && (
+              <div className="rounded-3xl border border-violet-300/20 bg-violet-400/10 p-4">
+                <div className="font-black text-white">Login to place this prediction</div>
+                <p className="mt-1 text-sm text-slate-400">You can browse markets freely. Sign in only when you are ready to predict.</p>
+                <Link to="/login" onClick={onClose} className="mt-4 flex h-11 items-center justify-center rounded-2xl bg-violet-500 text-sm font-black text-white">
+                  Continue
+                </Link>
+              </div>
+            )}
 
             <div>
               <label className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-500">
@@ -184,7 +190,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
 
             <Button
               onClick={handleConfirm}
-              disabled={loading || numAmount <= 0 || insufficientBalance}
+              disabled={!user || loading || numAmount <= 0 || insufficientBalance}
               className={`h-13 w-full rounded-2xl text-base font-black text-white shadow-lg transition ${
                 isPositiveSide
                   ? "bg-emerald-500 hover:bg-emerald-400"

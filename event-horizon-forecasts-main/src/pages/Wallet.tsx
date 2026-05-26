@@ -21,7 +21,6 @@ type WalletRow = {
 
 export default function Wallet() {
   const { user, refreshUser } = useAuth();
-  const [currency, setCurrency] = useState<"NGN" | "USD">("NGN");
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [transactions, setTransactions] = useState<WalletRow[]>([]);
@@ -62,10 +61,6 @@ export default function Wallet() {
   }, [user]);
 
   const ngnBalance = user?.balance || 0;
-  const usdBalance = ngnBalance / 1500;
-  const displayBalance = currency === "NGN" ? ngnBalance : usdBalance;
-  const totalIn = transactions.filter((tx) => tx.amount > 0).reduce((sum, tx) => sum + tx.amount, 0);
-  const totalOut = transactions.filter((tx) => tx.amount < 0).reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
 
   if (!user) {
     return (
@@ -84,29 +79,16 @@ export default function Wallet() {
     <div className="min-h-screen bg-[#050711] pb-24 text-white md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mb-6">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.24em] text-violet-300">Wallet</p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Your money</h1>
-            <p className="mt-2 text-sm text-slate-400">Add money, withdraw, and see every move.</p>
-          </div>
-          <div className="flex w-fit rounded-2xl border border-white/10 bg-white/[0.06] p-1">
-            {(["NGN", "USD"] as const).map((item) => (
-              <button
-                key={item}
-                onClick={() => setCurrency(item)}
-                className={`rounded-xl px-4 py-2 text-sm font-black transition ${
-                  currency === item ? "bg-violet-500 text-white" : "text-slate-400 hover:text-white"
-                }`}
-              >
-                {item}
-              </button>
-            ))}
+            <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Balance and history</h1>
+            <p className="mt-2 text-sm text-slate-400">Add money, withdraw, and review transactions.</p>
           </div>
         </div>
 
-        <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-[2rem] border border-violet-400/20 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.42),rgba(10,13,25,0.96)_46%)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+        <section>
+          <div className="rounded-3xl border border-violet-400/20 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.42),rgba(10,13,25,0.96)_46%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.42)] sm:p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10 text-violet-200">
@@ -126,11 +108,8 @@ export default function Wallet() {
               </button>
             </div>
             <div className="mt-8 text-4xl font-black tracking-tight sm:text-5xl">
-              {currency === "NGN" ? formatNaira(displayBalance) : `$${displayBalance.toFixed(2)}`}
+              {formatNaira(ngnBalance)}
             </div>
-            <p className="mt-2 text-sm text-slate-400">
-              {currency === "NGN" ? `About $${usdBalance.toFixed(2)}` : `About ${formatNaira(ngnBalance)}`}
-            </p>
             <div className="mt-8 grid grid-cols-2 gap-3">
               <Button
                 onClick={() => setDepositModalOpen(true)}
@@ -149,14 +128,9 @@ export default function Wallet() {
               </Button>
             </div>
           </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-            <StatCard label="Money in" value={formatNaira(totalIn)} tone="green" />
-            <StatCard label="Money out" value={formatNaira(totalOut)} tone="red" />
-          </div>
         </section>
 
-        <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.055] p-5 backdrop-blur-2xl">
+        <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.055] p-4 backdrop-blur-2xl sm:p-5">
           <div className="mb-5 flex items-center justify-between">
             <div>
               <h2 className="text-xl font-black">History</h2>
@@ -194,7 +168,7 @@ export default function Wallet() {
                   <div className="text-right">
                     <div className={`text-sm font-black ${tx.amount >= 0 ? "text-emerald-300" : "text-red-300"}`}>
                       {tx.amount >= 0 ? "+" : "-"}
-                      {currency === "NGN" ? formatNaira(Math.abs(tx.amount)) : `$${(Math.abs(tx.amount) / 1500).toFixed(2)}`}
+                      {formatNaira(Math.abs(tx.amount))}
                     </div>
                     <div className="mt-1 text-xs capitalize text-slate-500">{tx.status}</div>
                   </div>
@@ -205,20 +179,13 @@ export default function Wallet() {
         </section>
       </main>
 
-      <DepositModal open={depositModalOpen} onClose={() => setDepositModalOpen(false)} currency={currency} onSaved={refreshWallet} />
-      <WithdrawModal open={withdrawModalOpen} onClose={() => setWithdrawModalOpen(false)} currency={currency} availableBalance={displayBalance} onSaved={refreshWallet} />
+      <DepositModal open={depositModalOpen} onClose={() => setDepositModalOpen(false)} currency="NGN" onSaved={refreshWallet} />
+      <WithdrawModal open={withdrawModalOpen} onClose={() => setWithdrawModalOpen(false)} currency="NGN" availableBalance={ngnBalance} onSaved={refreshWallet} />
 
       <MobileNav />
     </div>
   );
 }
-
-const StatCard = ({ label, value, tone }: { label: string; value: string; tone: "green" | "red" }) => (
-  <div className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
-    <div className="text-sm font-bold text-slate-500">{label}</div>
-    <div className={`mt-3 text-2xl font-black ${tone === "green" ? "text-emerald-300" : "text-red-300"}`}>{value}</div>
-  </div>
-);
 
 const labelForTransaction = (tx: ApiTransaction) => {
   const labels: Record<ApiTransaction["type"], string> = {

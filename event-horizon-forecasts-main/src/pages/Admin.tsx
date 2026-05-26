@@ -164,9 +164,8 @@ const Admin = () => {
 
   const buildMarketPayload = async (): Promise<AdminCreateMarketInput> => {
     if (!form.question.trim()) throw new Error("Question is required.");
-    if (!form.description.trim()) throw new Error("Description is required.");
     if (!form.endDateTime) throw new Error("End date and time is required.");
-    if (!form.resolutionInstructions.trim()) throw new Error("Resolution instructions are required.");
+    if (!form.resolutionInstructions.trim()) throw new Error("Rules are required.");
     if (!form.imageFile && !form.videoFile && !form.existingImageUrl && !form.existingVideoUrl) {
       throw new Error("Add an image or a short video.");
     }
@@ -188,10 +187,12 @@ const Admin = () => {
     const closeDate = new Date(form.endDateTime);
     const resolutionDate = new Date(closeDate.getTime() + 24 * 60 * 60 * 1000);
     const yesPrice = Number(form.startingProbability);
+    const description = form.description.trim() || form.question.trim();
+    const resolutionSource = form.resolutionSource.trim() || "Official source";
 
     return {
       question: form.question.trim(),
-      description: form.description.trim(),
+      description,
       category: form.category,
       market_type: "binary",
       yes_label: labels.yes,
@@ -200,7 +201,7 @@ const Admin = () => {
       no_price: 100 - yesPrice,
       close_date: closeDate.toISOString(),
       resolution_date: resolutionDate.toISOString(),
-      resolution_source: form.resolutionSource.trim(),
+      resolution_source: resolutionSource,
       resolution_instructions: form.resolutionInstructions.trim(),
       status: form.status,
       currency: "NGN",
@@ -495,22 +496,31 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
   editing: boolean;
   onSubmit: (event: React.FormEvent) => void;
   onCancel: () => void;
-}) => (
+}) => {
+  const noPrice = Math.max(1, 100 - Number(form.startingProbability || 0));
+
+  return (
   <form onSubmit={onSubmit} className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
     <section className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
+      <div className="mb-5">
+        <h2 className="text-2xl font-black">Create a live forecast</h2>
+        <p className="mt-1 text-sm text-slate-500">Keep it sharp. A user should understand the market in seconds.</p>
+      </div>
       <div className="grid gap-4">
-        <Field label="Question"><Input value={form.question} onChange={(event) => setForm((prev) => ({ ...prev, question: event.target.value }))} placeholder="Will Nigeria win the AFCON 2026?" className={adminInputClass} /></Field>
+        <Field label="Question"><Input value={form.question} onChange={(event) => setForm((prev) => ({ ...prev, question: event.target.value }))} placeholder="Will Nigeria qualify for the 2026 World Cup?" className={adminInputClass} /></Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Category"><Select value={form.category} onChange={(value) => setForm((prev) => ({ ...prev, category: value }))} options={categories} /></Field>
           <Field label="Market type"><Select value={form.marketKind} onChange={(value) => setForm((prev) => ({ ...prev, marketKind: value as MarketKind }))} options={["YES/NO", "UP/DOWN", "Bigger/Smaller"]} /></Field>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Starting probability"><Input type="number" min={1} max={99} value={form.startingProbability} onChange={(event) => setForm((prev) => ({ ...prev, startingProbability: Number(event.target.value) }))} className={adminInputClass} /></Field>
-          <Field label="End date/time"><Input type="datetime-local" value={form.endDateTime} onChange={(event) => setForm((prev) => ({ ...prev, endDateTime: event.target.value }))} className={adminInputClass} /></Field>
+          <Field label="End date"><Input type="datetime-local" value={form.endDateTime} onChange={(event) => setForm((prev) => ({ ...prev, endDateTime: event.target.value }))} className={adminInputClass} /></Field>
+          <Field label="Initial YES price"><Input type="number" min={1} max={99} value={form.startingProbability} onChange={(event) => setForm((prev) => ({ ...prev, startingProbability: Number(event.target.value) }))} className={adminInputClass} /></Field>
         </div>
-        <Field label="Description"><Textarea value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} rows={5} placeholder="Explain this market in simple words." className={`${adminInputClass} min-h-32`} /></Field>
-        <Field label="Resolution instructions"><Textarea value={form.resolutionInstructions} onChange={(event) => setForm((prev) => ({ ...prev, resolutionInstructions: event.target.value }))} rows={4} placeholder="Explain exactly how this market should be resolved." className={`${adminInputClass} min-h-28`} /></Field>
-        <Field label="Resolution source"><Input value={form.resolutionSource} onChange={(event) => setForm((prev) => ({ ...prev, resolutionSource: event.target.value }))} placeholder="Official site, exchange, sports body, or news source" className={adminInputClass} /></Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Initial NO price"><div className="flex h-12 items-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-black text-red-200">₦{noPrice}</div></Field>
+          <Field label="Initial YES display"><div className="flex h-12 items-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-black text-emerald-200">₦{Number(form.startingProbability || 0)}</div></Field>
+        </div>
+        <Field label="Rules"><Textarea value={form.resolutionInstructions} onChange={(event) => setForm((prev) => ({ ...prev, resolutionInstructions: event.target.value }))} rows={3} placeholder="What exactly must happen for this market to resolve?" className={`${adminInputClass} min-h-24`} /></Field>
       </div>
     </section>
 
@@ -534,11 +544,8 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
 
       <section className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
         <div className="space-y-3">
-          <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-            <span className="font-black">Mark as trending</span>
-            <input type="checkbox" checked={form.trending} onChange={(event) => setForm((prev) => ({ ...prev, trending: event.target.checked }))} className="h-5 w-5 accent-violet-500" />
-          </label>
           <Field label="Status"><Select value={form.status} onChange={(value) => setForm((prev) => ({ ...prev, status: value as "draft" | "active" }))} options={["active", "draft"]} /></Field>
+          <p className="text-xs text-slate-500">Trending is now determined by real volume, comments, and participation.</p>
         </div>
       </section>
 
@@ -551,7 +558,8 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
       </div>
     </aside>
   </form>
-);
+  );
+};
 
 const TransactionsView = ({ transactions }: { transactions: ApiTransaction[] }) => (
   <DataPanel title="Transactions" empty="No transactions yet.">

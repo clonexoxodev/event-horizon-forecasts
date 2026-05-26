@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { MarketCard } from "@/components/MarketCard";
-import { fetchMarkets } from "@/lib/markets";
+import { fetchMarkets, getTrendingScore } from "@/lib/markets";
 import { useMarketState } from "@/lib/market-state";
 import { Flame, TrendingUp } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
@@ -23,7 +23,7 @@ export default function Markets() {
     const filtered = category
       ? markets.filter((market) => market.category.toLowerCase() === category.toLowerCase())
       : markets;
-    return [...filtered].sort((a, b) => (b.totalPool + b.participants * 1000) - (a.totalPool + a.participants * 1000));
+    return [...filtered].sort((a, b) => getTrendingScore(b) - getTrendingScore(a));
   }, [category, markets]);
 
   return (

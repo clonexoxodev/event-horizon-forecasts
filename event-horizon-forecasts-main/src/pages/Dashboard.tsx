@@ -1,286 +1,287 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { Activity, Award, BarChart3, Clock, Flame, LineChart, Loader2, Target, Trophy, Wallet } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
-import { Footer } from "@/components/Footer";
-import { Wallet, Target, TrendingUp, Activity, Bookmark, Star } from "lucide-react";
-import { formatNaira } from "@/lib/markets";
 import { useAuth } from "@/lib/auth";
-import { Link } from "react-router-dom";
+import apiService, { type ApiPosition, type ApiProfileStats } from "@/lib/api";
+import { formatNaira } from "@/lib/markets";
 
-type Position = {
-  id: string;
-  market_id: string;
-  market_question: string;
-  market_icon: string;
-  side: "YES" | "NO";
-  stake: number;
-  payout: number | null;
-  outcome: "WON" | "LOST" | null;
-  closes_in: string;
-  created_at: string;
+type PortfolioTab = "positions" | "activity" | "performance";
+
+const emptyStats: ApiProfileStats = {
+  totalPredictions: 0,
+  activePredictions: 0,
+  wonPredictions: 0,
+  winRate: 0,
+  totalStaked: 0,
+  totalEarnings: 0,
 };
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const [positions, setPositions] = useState<Position[]>([]);
+  const [positions, setPositions] = useState<ApiPosition[]>([]);
+  const [stats, setStats] = useState<ApiProfileStats>(emptyStats);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<PortfolioTab>("positions");
 
   useEffect(() => {
-    if (!user) return;
-
-    // Fetch real positions from API
-    setLoading(true);
-    // TODO: Replace with actual API call
-    // For now, set empty array
-    setTimeout(() => {
-      setPositions([]);
+    if (!user) {
       setLoading(false);
-    }, 500);
+      return;
+    }
+
+    let mounted = true;
+
+    const loadPortfolio = async () => {
+      setLoading(true);
+      try {
+        const [positionResponse, statsResponse] = await Promise.all([
+          apiService.getPositions(),
+          apiService.getProfileStats(),
+        ]);
+
+        if (!mounted) return;
+        setPositions(positionResponse.positions || []);
+        setStats(statsResponse.stats || emptyStats);
+      } catch {
+        if (!mounted) return;
+        setPositions([]);
+        setStats(emptyStats);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    loadPortfolio();
+    return () => {
+      mounted = false;
+    };
   }, [user]);
 
-  const active = positions.filter(p => !p.outcome);
-  const past = positions.filter(p => !!p.outcome);
-  const won = past.filter(p => p.outcome === "WON").length;
-  const totalForecasts = positions.length;
-  const accuracy = past.length > 0 ? Math.round((won / past.length) * 100) : 0;
+  const activePositions = useMemo(
+    () => positions.filter((position) => position.marketStatus === "active"),
+    [positions]
+  );
 
-  // Calculate portfolio value (active positions)
-  const portfolioValue = active.reduce((sum, p) => sum + p.stake, 0);
-  
-  // Points system (mock for now)
-  const pointsEarned = won * 10 + totalForecasts * 2;
-  
-  // Watchlist count (mock for now)
-  const watchlistCount = 0;
+  const settledPositions = useMemo(
+    () => positions.filter((position) => position.marketStatus !== "active"),
+    [positions]
+  );
 
-  const stats = [
-    {
-      label: "Balance",
-      value: user ? formatNaira(user.balance) : "—",
-      subtitle: "Available funds",
-      icon: Wallet,
-      color: "text-purple bg-purple/10",
-      link: "/wallet",
-    },
-    {
-      label: "Active Forecasts",
-      value: String(active.length),
-      subtitle: `${totalForecasts} total made`,
-      icon: Activity,
-      color: "text-purple bg-purple/10",
-      link: "/portfolio",
-    },
-    {
-      label: "Accuracy Score",
-      value: past.length > 0 ? `${accuracy}%` : "—",
-      subtitle: past.length > 0 ? `${won} of ${past.length} correct` : "No results yet",
-      icon: Target,
-      color: "text-charcoal bg-graphite/10",
-    },
-    {
-      label: "Portfolio Value",
-      value: active.length > 0 ? formatNaira(portfolioValue) : "—",
-      subtitle: active.length > 0 ? `${active.length} position${active.length !== 1 ? "s" : ""}` : "No positions",
-      icon: TrendingUp,
-      color: "text-charcoal bg-graphite/10",
-      link: "/portfolio",
-    },
-    {
-      label: "Watchlist",
-      value: String(watchlistCount),
-      subtitle: "Markets saved",
-      icon: Bookmark,
-      color: "text-graphite bg-graphite/10",
-    },
-    {
-      label: "Points Earned",
-      value: String(pointsEarned),
-      subtitle: "Keep forecasting!",
-      icon: Star,
-      color: "text-graphite bg-graphite/10",
-    },
-  ];
+  const portfolioValue = activePositions.reduce((sum, position) => sum + Number(position.currentValue || position.stake || 0), 0);
+  const roi = stats.totalStaked > 0 ? Math.round(((stats.totalEarnings - stats.totalStaked) / stats.totalStaked) * 100) : 0;
+  const streak = Math.min(stats.wonPredictions, 7);
 
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen bg-[#050711] text-white xl:pl-64">
         <Header />
-        <main className="flex-1 container py-20 text-center">
-          <h2 className="text-2xl font-bold mb-3 text-charcoal">Sign in to view your dashboard</h2>
-          <p className="text-graphite">Track your positions, balance, and accuracy.</p>
+        <main className="mx-auto grid min-h-[70vh] max-w-3xl place-items-center px-4 text-center">
+          <div>
+            <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-3xl bg-violet-500/15 text-violet-200">
+              <LineChart className="h-8 w-8" />
+            </div>
+            <h1 className="text-3xl font-black tracking-tight">Your prediction identity starts here</h1>
+            <p className="mt-3 text-sm text-slate-400">Log in to track positions, performance, and public forecasting progress.</p>
+            <Link to="/login" className="mt-6 inline-flex h-12 items-center rounded-2xl bg-violet-500 px-6 text-sm font-black text-white shadow-[0_0_28px_rgba(139,92,246,0.35)]">
+              Log in
+            </Link>
+          </div>
         </main>
-        <Footer />
+        <MobileNav />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-white pb-20 md:pb-0">
+    <div className="min-h-screen overflow-x-hidden bg-[#050711] pb-24 text-white md:pb-0 xl:pl-64">
       <Header />
-      <main className="flex-1 container max-w-5xl mx-auto py-10 px-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-extrabold tracking-tight text-charcoal">
-            Hey, {user.name.split(" ")[0]} 👋
-          </h1>
-          <p className="text-graphite mt-1 text-sm">Your forecasting dashboard and activity overview.</p>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8 animate-fade-up">
-          {stats.map((s, index) => {
-            const hasLink = !!s.link;
-            const cardContent = (
-              <>
-                <div className={`w-10 h-10 rounded-xl grid place-items-center mb-3 ${s.color}`}>
-                  <s.icon className="w-5 h-5" />
-                </div>
-                <div className="text-xs text-graphite font-semibold uppercase tracking-wider">{s.label}</div>
-                <div className="text-2xl font-bold mt-1 tracking-tight text-charcoal">{s.value}</div>
-                <div className="text-xs mt-1.5 text-graphite">
-                  {s.subtitle}
-                </div>
-              </>
-            );
-
-            return hasLink ? (
-              <Link
-                key={s.label}
-                to={s.link}
-                className="bg-white rounded-xl p-6 border border-graphite/10 shadow-card transition-normal cursor-pointer hover:shadow-elevated hover:-translate-y-0.5"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                {cardContent}
-              </Link>
-            ) : (
-              <div
-                key={s.label}
-                className="bg-white rounded-xl p-6 border border-graphite/10 shadow-card transition-normal"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                {cardContent}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Active positions */}
-          <div className="bg-white rounded-xl p-6 shadow-card border border-graphite/10">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="font-bold text-lg text-charcoal">Active Positions</h2>
-              <span className="text-xs text-graphite bg-graphite/10 px-3 py-1 rounded-lg font-semibold">
-                {active.length} open
-              </span>
+      <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:py-8">
+        <section className="rounded-[2rem] border border-violet-400/20 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.42),rgba(8,11,22,0.96)_44%)] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.45)] sm:p-6">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-violet-200">Portfolio</p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-5xl">{formatNaira(portfolioValue)}</h1>
+              <p className="mt-2 text-sm text-slate-400">Active prediction value</p>
             </div>
-            {loading ? (
-              <div className="space-y-2">
-                {[1,2,3].map(i => (
-                  <div key={i} className="h-14 rounded-xl bg-graphite/10 animate-shimmer" style={{ animationDelay: `${i * 100}ms` }} />
-                ))}
-              </div>
-            ) : active.length === 0 ? (
-              <div className="text-center py-10 animate-fade-in">
-                <div className="w-16 h-16 rounded-2xl bg-graphite/10 grid place-items-center mx-auto mb-4 text-3xl">
-                  📊
-                </div>
-                <p className="text-sm font-semibold mb-1 text-charcoal">No active positions</p>
-                <p className="text-xs text-graphite mb-4">Start forecasting to see your positions here</p>
-                <Link
-                  to="/"
-                  className="inline-flex items-center gap-1.5 text-sm text-purple font-semibold hover:underline"
-                >
-                  Browse markets →
-                </Link>
-              </div>
-            ) : (
-              <ul className="space-y-2">
-                {active.map((p, index) => (
-                  <li
-                    key={p.id}
-                    className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-graphite/5 transition-fast cursor-pointer animate-fade-up"
-                    style={{ animationDelay: `${index * 50}ms` }}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-graphite/10 grid place-items-center text-lg shrink-0">
-                        {p.market_icon}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold truncate text-charcoal">{p.market_question}</div>
-                        <div className="text-xs text-graphite mt-0.5">
-                          Stake {formatNaira(p.stake)} · {p.closes_in} left
-                        </div>
-                      </div>
-                    </div>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                      p.side === "YES" ? "bg-emerald-soft text-emerald" : "bg-coral-soft text-coral"
-                    }`}>
-                      {p.side}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* Past results */}
-          <div className="bg-white rounded-xl p-6 shadow-card border border-graphite/10">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="font-bold text-lg text-charcoal">Recent Activity</h2>
-              {past.length > 0 && (
-                <span className="text-xs text-graphite bg-graphite/10 px-3 py-1 rounded-lg font-semibold">
-                  {past.length} resolved
-                </span>
-              )}
+            <div className="grid grid-cols-3 gap-2 sm:min-w-[340px]">
+              <HeroStat icon={Target} label="Win rate" value={stats.totalPredictions ? `${Math.round(stats.winRate)}%` : "-"} />
+              <HeroStat icon={BarChart3} label="ROI" value={stats.totalStaked ? `${roi}%` : "-"} tone={roi >= 0 ? "green" : "red"} />
+              <HeroStat icon={Flame} label="Streak" value={streak ? `${streak}` : "-"} />
             </div>
-            {loading ? (
-              <div className="space-y-2">
-                {[1,2,3].map(i => (
-                  <div key={i} className="h-14 rounded-xl bg-graphite/10 animate-shimmer" style={{ animationDelay: `${i * 100}ms` }} />
-                ))}
-              </div>
-            ) : past.length === 0 ? (
-              <div className="text-center py-10 animate-fade-in">
-                <div className="w-16 h-16 rounded-2xl bg-graphite/10 grid place-items-center mx-auto mb-4 text-3xl">
-                  📈
-                </div>
-                <p className="text-sm font-semibold mb-1 text-charcoal">No activity yet</p>
-                <p className="text-xs text-graphite">Your forecast results will appear here</p>
-              </div>
-            ) : (
-              <ul className="space-y-2">
-                {past.slice(0, 5).map((p, index) => (
-                  <li
-                    key={p.id}
-                    className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-graphite/5 transition-fast cursor-pointer animate-fade-up"
-                    style={{ animationDelay: `${index * 50}ms` }}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold truncate text-charcoal">{p.market_question}</div>
-                      <div className="text-xs text-graphite mt-0.5">Forecasted {p.side} · {formatNaira(p.stake)}</div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className={`text-xs font-bold px-2 py-0.5 rounded-full inline-block ${
-                        p.outcome === "WON" ? "bg-emerald-soft text-emerald" : "bg-graphite/10 text-graphite"
-                      }`}>
-                        {p.outcome === "WON" ? "Correct" : "Resolved"}
-                      </div>
-                      {p.outcome === "WON" && p.payout != null && p.payout > p.stake && (
-                        <div className="text-sm font-extrabold mt-1 text-emerald">
-                          +{formatNaira(p.payout - p.stake)}
-                        </div>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
+        </section>
+
+        <div className="mt-5 grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-white/[0.055] p-1">
+          {(["positions", "activity", "performance"] as PortfolioTab[]).map((item) => (
+            <button
+              key={item}
+              onClick={() => setTab(item)}
+              className={`h-11 rounded-xl text-sm font-black capitalize transition ${
+                tab === item ? "bg-violet-500 text-white shadow-[0_0_22px_rgba(139,92,246,0.28)]" : "text-slate-400 hover:bg-white/5 hover:text-white"
+              }`}
+            >
+              {item}
+            </button>
+          ))}
         </div>
+
+        {loading ? (
+          <div className="grid min-h-[360px] place-items-center">
+            <Loader2 className="h-8 w-8 animate-spin text-violet-300" />
+          </div>
+        ) : (
+          <div className="mt-5">
+            {tab === "positions" && <PositionsView positions={activePositions} />}
+            {tab === "activity" && <ActivityView positions={positions} settledCount={settledPositions.length} />}
+            {tab === "performance" && <PerformanceView stats={stats} roi={roi} />}
+          </div>
+        )}
       </main>
-      <Footer />
       <MobileNav />
     </div>
   );
 };
+
+const HeroStat = ({ icon: Icon, label, value, tone = "violet" }: { icon: any; label: string; value: string; tone?: "violet" | "green" | "red" }) => (
+  <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-3">
+    <Icon className={`mb-3 h-4 w-4 ${tone === "green" ? "text-emerald-300" : tone === "red" ? "text-red-300" : "text-violet-200"}`} />
+    <div className="text-[11px] font-bold text-slate-500">{label}</div>
+    <div className="mt-1 text-lg font-black">{value}</div>
+  </div>
+);
+
+const PositionsView = ({ positions }: { positions: ApiPosition[] }) => {
+  if (positions.length === 0) {
+    return (
+      <EmptyState
+        icon={Target}
+        title="No active positions"
+        body="Make a prediction and your live positions will appear here."
+        action={<Link to="/" className="rounded-2xl bg-violet-500 px-5 py-3 text-sm font-black text-white">Explore markets</Link>}
+      />
+    );
+  }
+
+  return (
+    <div className="grid gap-3">
+      {positions.map((position) => (
+        <Link key={position.id} to={`/market/${position.marketId}`} className="rounded-3xl border border-white/10 bg-white/[0.055] p-4 transition hover:border-violet-300/30 hover:bg-white/[0.075]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Active position</div>
+              <h2 className="mt-2 line-clamp-2 text-lg font-black leading-tight">{position.marketQuestion}</h2>
+            </div>
+            <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-emerald-400/10 text-emerald-300" : "bg-red-400/10 text-red-300"}`}>
+              {position.side}
+            </span>
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
+            <Metric label="Stake" value={formatNaira(position.stake)} />
+            <Metric label="Current" value={formatNaira(position.currentValue || position.stake)} />
+            <Metric label="Price" value={`₦${Math.round(position.currentPrice || position.entryPrice || 0)}`} />
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+};
+
+const ActivityView = ({ positions, settledCount }: { positions: ApiPosition[]; settledCount: number }) => {
+  const sorted = [...positions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  if (sorted.length === 0) {
+    return <EmptyState icon={Activity} title="No activity yet" body="Your prediction history will show here after your first move." />;
+  }
+
+  return (
+    <section className="rounded-3xl border border-white/10 bg-white/[0.055] p-4">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-xl font-black">Recent activity</h2>
+        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-slate-400">{settledCount} settled</span>
+      </div>
+      <div className="space-y-2">
+        {sorted.map((position) => (
+          <Link key={position.id} to={`/market/${position.marketId}`} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0b1020]/80 p-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-violet-500/15 text-violet-200">
+                {position.marketStatus === "active" ? <Clock className="h-5 w-5" /> : <Trophy className="h-5 w-5" />}
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-black">{position.marketQuestion}</div>
+                <div className="mt-1 text-xs text-slate-500">{position.side} prediction · {new Date(position.createdAt).toLocaleDateString()}</div>
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <div className="text-sm font-black">{formatNaira(position.stake)}</div>
+              <div className="mt-1 text-xs capitalize text-slate-500">{position.marketStatus}</div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+const PerformanceView = ({ stats, roi }: { stats: ApiProfileStats; roi: number }) => {
+  const badges = [
+    { label: "First prediction", earned: stats.totalPredictions > 0, icon: Target },
+    { label: "Winning signal", earned: stats.wonPredictions > 0, icon: Trophy },
+    { label: "Five predictions", earned: stats.totalPredictions >= 5, icon: Award },
+  ];
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[1fr_0.8fr]">
+      <section className="rounded-3xl border border-white/10 bg-white/[0.055] p-5">
+        <h2 className="text-xl font-black">Performance</h2>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <Metric label="Predictions" value={String(stats.totalPredictions)} large />
+          <Metric label="Active" value={String(stats.activePredictions)} large />
+          <Metric label="Won" value={String(stats.wonPredictions)} large />
+          <Metric label="ROI" value={stats.totalStaked ? `${roi}%` : "-"} large />
+          <Metric label="Staked" value={formatNaira(stats.totalStaked)} large />
+          <Metric label="Earned" value={formatNaira(stats.totalEarnings)} large />
+        </div>
+      </section>
+      <section className="rounded-3xl border border-white/10 bg-white/[0.055] p-5">
+        <h2 className="text-xl font-black">Badges</h2>
+        <div className="mt-5 space-y-3">
+          {badges.map((badge) => (
+            <div key={badge.label} className={`flex items-center gap-3 rounded-2xl border p-4 ${badge.earned ? "border-violet-300/25 bg-violet-500/10" : "border-white/10 bg-white/[0.04] opacity-60"}`}>
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white/10 text-violet-200">
+                <badge.icon className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="font-black">{badge.label}</div>
+                <div className="text-xs text-slate-500">{badge.earned ? "Unlocked" : "Keep predicting"}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+};
+
+const Metric = ({ label, value, large = false }: { label: string; value: string; large?: boolean }) => (
+  <div className="rounded-2xl border border-white/10 bg-[#0b1020]/75 p-3">
+    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">{label}</div>
+    <div className={`mt-2 font-black ${large ? "text-2xl" : "text-sm"}`}>{value}</div>
+  </div>
+);
+
+const EmptyState = ({ icon: Icon, title, body, action }: { icon: any; title: string; body: string; action?: React.ReactNode }) => (
+  <div className="grid min-h-[360px] place-items-center rounded-3xl border border-dashed border-white/10 bg-white/[0.04] p-6 text-center">
+    <div>
+      <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-3xl bg-violet-500/15 text-violet-200">
+        <Icon className="h-8 w-8" />
+      </div>
+      <div className="text-xl font-black">{title}</div>
+      <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">{body}</p>
+      {action && <div className="mt-6">{action}</div>}
+    </div>
+  </div>
+);
 
 export default Dashboard;

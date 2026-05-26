@@ -1,23 +1,17 @@
-import { Home, Flame, Wallet, Activity, User } from "lucide-react";
+import { Home, Menu, PieChart, Wallet } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import { useAuth } from "@/lib/auth";
 
 export const MobileNav = () => {
-  const { user } = useAuth();
-
-  if (!user) return null;
-
   const navItems = [
     { to: "/", icon: Home, label: "Home" },
-    { to: "/markets", icon: Flame, label: "Trending" },
+    { to: "/portfolio", icon: PieChart, label: "Portfolio" },
     { to: "/wallet", icon: Wallet, label: "Wallet" },
-    { to: "/activity", icon: Activity, label: "Activity" },
-    { to: "/profile", icon: User, label: "Profile" },
+    { to: "/more", icon: Menu, label: "More" },
   ];
 
   return (
-    <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#070a14]/95 backdrop-blur-xl border-t border-white/10 shadow-[0_-12px_30px_rgba(0,0,0,0.35)]">
-      <div className="grid grid-cols-5 h-16">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#070a14]/92 shadow-[0_-12px_30px_rgba(0,0,0,0.35)] backdrop-blur-2xl md:hidden">
+      <div className="grid h-16 grid-cols-4">
         {navItems.map((item) => (
           <NavLink
             key={item.to}

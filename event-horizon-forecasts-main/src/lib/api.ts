@@ -219,16 +219,6 @@ export type ApiSearchUser = {
   role: UserRole;
 };
 
-export type ApiMarketComment = {
-  id: string;
-  marketId: string;
-  userId: string;
-  user: string;
-  text: string;
-  likes: number;
-  createdAt: string;
-};
-
 export type WalletResponse = {
   wallet: ApiWallet;
   display?: unknown;
@@ -393,17 +383,6 @@ class ApiService {
 
   async getMarket(marketId: string): Promise<{ market: ApiMarket }> {
     return this.request(`/api/markets/${encodeURIComponent(marketId)}`);
-  }
-
-  async getMarketComments(marketId: string): Promise<{ comments: ApiMarketComment[] }> {
-    return this.request(`/api/markets/${encodeURIComponent(marketId)}/comments`);
-  }
-
-  async addMarketComment(marketId: string, body: string): Promise<{ comment: ApiMarketComment }> {
-    return this.request(`/api/markets/${encodeURIComponent(marketId)}/comments`, {
-      method: 'POST',
-      body: JSON.stringify({ body }),
-    });
   }
 
   async placePrediction(

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -18,6 +18,10 @@ import Dashboard from "./pages/Dashboard.tsx";
 import Wallet from "./pages/Wallet.tsx";
 import Notifications from "./pages/Notifications.tsx";
 import Profile from "./pages/Profile.tsx";
+import Settings from "./pages/Settings.tsx";
+import Support from "./pages/Support.tsx";
+import EditProfile from "./pages/EditProfile.tsx";
+import More from "./pages/More.tsx";
 import Admin from "./pages/Admin.tsx";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard.tsx";
 import ListingDetail from "./pages/ListingDetail.tsx";
@@ -101,12 +105,18 @@ const App = () => (
                   <Route path="/login" element={<Login />} />
                   <Route path="/signup" element={<Signup />} />
                   <Route path="/market/:id" element={<MarketDetail />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/portfolio" element={<Dashboard />} />
+                  <Route path="/dashboard" element={<Navigate to="/portfolio" replace />} />
                   <Route path="/wallet" element={<Wallet />} />
                   <Route path="/listing/:code" element={<ListingDetail />} />
-                  <Route path="/activity" element={<Notifications />} />
+                  <Route path="/activity" element={<Navigate to="/portfolio" replace />} />
+                  <Route path="/discussion" element={<Navigate to="/" replace />} />
                   <Route path="/notifications" element={<Notifications />} />
                   <Route path="/profile" element={<Profile />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/support" element={<Support />} />
+                  <Route path="/edit-profile" element={<EditProfile />} />
+                  <Route path="/more" element={<More />} />
                   <Route path="/about" element={<About />} />
                   <Route path="/how-it-works" element={<HowItWorks />} />
                   <Route path="/markets" element={<Markets />} />
