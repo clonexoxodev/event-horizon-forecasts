@@ -8,6 +8,7 @@ type AuthUser = {
   name: string;
   balance: number;
   role: UserRole;
+  avatarUrl?: string | null;
 };
 
 type AuthCtx = {
@@ -51,6 +52,7 @@ const toAuthUser = (user: AuthUserResponse, balance?: number): AuthUser => ({
   name: user.username,
   balance: typeof balance === "number" ? balance : user.balance ?? 0,
   role: user.email.toLowerCase() === PRIMARY_SUPER_ADMIN_EMAIL ? "super_admin" : user.role || "user",
+  avatarUrl: user.avatarUrl || user.avatar_url || user.profile_image_url || null,
 });
 
 const isConfirmedAuthFailure = (error: unknown) => (

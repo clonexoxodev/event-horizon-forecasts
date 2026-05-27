@@ -1,4 +1,4 @@
-import { Bell, BookOpen, HelpCircle, Info, LogOut, Shield, ShieldCheck, User, FileText, Settings, AlertTriangle } from "lucide-react";
+import { BookOpen, HelpCircle, Info, LogOut, Shield, ShieldCheck, User, FileText, Settings, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
@@ -28,7 +28,6 @@ export default function More() {
         <section className="mt-5 space-y-4">
           <Group title="Account">
             <MoreLink to="/profile" icon={User} title="Profile" subtitle="Prediction history, photo, and stats." />
-            <MoreLink to="/notifications" icon={Bell} title="Notifications" subtitle="Market, wallet, and prediction updates." />
             <MoreLink to="/settings" icon={Settings} title="Settings" subtitle="Account preferences and app controls." />
             <MoreLink to="/support" icon={HelpCircle} title="Support" subtitle="Get help without leaving the app." />
           </Group>

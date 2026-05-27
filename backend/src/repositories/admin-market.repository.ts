@@ -100,6 +100,19 @@ export class AdminMarketRepository {
       throw new Error(`Failed to create market: ${error.message}`);
     }
 
+    await supabase
+      .from('market_price_history')
+      .insert({
+        market_id: market.id,
+        yes_price: data.yes_price,
+        no_price: data.no_price,
+        yes_pool_smallest_unit: 0,
+        no_pool_smallest_unit: 0
+      })
+      .then(({ error: historyError }) => {
+        if (historyError) console.warn('Failed to save initial market price history:', historyError.message);
+      });
+
     return market;
   }
 

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { walletService } from '../services/wallet.service.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
+import { supabase } from '../db/supabase-client.js';
 import { DepositRequest, WithdrawalRequest } from '../types/transaction.js';
 import { 
   InsufficientBalanceError, 
@@ -407,6 +408,19 @@ router.get('/transactions', async (req: Request, res: Response) => {
       }
     }
 
+    const positionIds = (transactions || [])
+      .filter((tx) => tx.reference_type === 'position' && tx.reference_id)
+      .map((tx) => tx.reference_id);
+    const { data: referencedPositions } = positionIds.length
+      ? await supabase
+        .from('positions')
+        .select('id, markets(question)')
+        .in('id', positionIds)
+      : { data: [] as any[] };
+    const marketQuestionByPosition = new Map(
+      (referencedPositions || []).map((position: any) => [position.id, position.markets?.question])
+    );
+
     res.json({
       transactions: transactions.map(tx => ({
         id: tx.id,
@@ -420,7 +434,10 @@ router.get('/transactions', async (req: Request, res: Response) => {
         referenceId: tx.reference_id,
         referenceType: tx.reference_type,
         status: tx.status,
-        metadata: tx.metadata,
+        metadata: {
+          ...(tx.metadata || {}),
+          marketQuestion: marketQuestionByPosition.get(tx.reference_id) || tx.metadata?.marketQuestion || null
+        },
         createdAt: tx.created_at
       })),
       pagination: {

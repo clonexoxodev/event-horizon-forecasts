@@ -26,6 +26,9 @@ alter table public.markets add column if not exists max_position_smallest_unit b
 alter table public.markets add column if not exists created_by uuid references public.users(id) on delete set null;
 alter table public.markets add column if not exists archived_at timestamptz;
 alter table public.markets add column if not exists updated_at timestamptz not null default now();
+alter table public.users add column if not exists avatar_url text;
+alter table public.users add column if not exists profile_image_url text;
+alter table public.users add column if not exists updated_at timestamptz not null default now();
 
 alter table public.markets drop constraint if exists markets_status_check;
 alter table public.markets drop constraint if exists status_enum;
@@ -91,6 +94,10 @@ select * from public.positions;
 
 create or replace view public.wallet_transactions as
 select * from public.transactions;
+
+insert into storage.buckets (id, name, public)
+values ('profile-images', 'profile-images', true)
+on conflict (id) do update set public = true;
 
 create index if not exists idx_markets_status_close on public.markets(status, closes_at);
 create index if not exists idx_market_trades_market_created on public.market_trades(market_id, created_at);

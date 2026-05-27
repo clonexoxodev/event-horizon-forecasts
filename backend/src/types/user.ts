@@ -5,6 +5,8 @@ export interface User {
   password_hash: string;
   role: 'user' | 'admin' | 'super_admin';
   profile_picture_url?: string;
+  avatar_url?: string;
+  profile_image_url?: string;
   instagram_handle?: string;
   twitter_handle?: string;
   created_at: Date;
@@ -23,6 +25,8 @@ export interface UserResponse {
   email: string;
   role: 'user' | 'admin' | 'super_admin';
   profile_picture_url?: string;
+  avatar_url?: string;
+  profile_image_url?: string;
   instagram_handle?: string;
   twitter_handle?: string;
   created_at: Date;

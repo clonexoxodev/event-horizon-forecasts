@@ -222,6 +222,10 @@ const Admin = () => {
         await apiService.updateAdminMarket(editingMarket.id, payload);
         toast.success("Market updated.");
       } else {
+        if (payload.status === "active") {
+          const confirmed = window.confirm(`Publish this market live now?\n\n${payload.question}\nYES ${payload.yes_price} / NO ${payload.no_price}\n\nUsers will be able to predict immediately.`);
+          if (!confirmed) return;
+        }
         await apiService.createAdminMarket(payload);
         toast.success("Market created.");
       }
@@ -238,7 +242,7 @@ const Admin = () => {
   const changeStatus = async (market: AdminMarket, status: string, outcome?: "YES" | "NO" | "INVALID") => {
     try {
       if (status === "resolved") {
-        const confirmed = window.confirm(`You are about to resolve this market as ${outcome}. Winners will be paid from the losing pool. This cannot be undone.`);
+        const confirmed = window.confirm(`Resolve this market as ${outcome}?\n\n${market.question}\nVolume: ${formatNaira(Number(market.pool_amount_smallest_unit || 0) / 100)}\nParticipants: ${market.participant_count || 0}\nTrades: ${market.trade_count || 0}\n\nWinners will be paid proportionally from the full pool. This cannot be undone.`);
         if (!confirmed) return;
       }
       if (status === "archived") {
@@ -533,6 +537,7 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
           <Field label="Initial YES display"><div className="flex h-12 items-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-black text-emerald-200">₦{Number(form.startingProbability || 0)}</div></Field>
         </div>
         <Field label="Rules"><Textarea value={form.resolutionInstructions} onChange={(event) => setForm((prev) => ({ ...prev, resolutionInstructions: event.target.value }))} rows={3} placeholder="What exactly must happen for this market to resolve?" className={`${adminInputClass} min-h-24`} /></Field>
+        <Field label="Resolution source"><Input value={form.resolutionSource} onChange={(event) => setForm((prev) => ({ ...prev, resolutionSource: event.target.value }))} placeholder="Official source, exchange, sports body, public result..." className={adminInputClass} /></Field>
       </div>
     </section>
 

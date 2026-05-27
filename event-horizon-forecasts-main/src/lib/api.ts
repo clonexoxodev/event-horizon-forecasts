@@ -54,6 +54,9 @@ export type AuthUserResponse = {
   username: string;
   role: UserRole;
   balance?: number;
+  avatarUrl?: string | null;
+  avatar_url?: string | null;
+  profile_image_url?: string | null;
 };
 
 type AuthResponse = {
@@ -164,6 +167,7 @@ export type ApiPosition = {
   currentValue: number;
   marketQuestion: string;
   marketIcon: string;
+  category?: string;
   marketStatus: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'archived';
   isWinner?: boolean | null;
   payout?: number;
@@ -215,6 +219,21 @@ export type ApiActivity = {
   direction: 'IN' | 'OUT';
   status: string;
   createdAt: string;
+};
+
+export type ApiNotification = {
+  id: string;
+  user_id?: string;
+  type: string;
+  title: string;
+  message: string;
+  is_read?: boolean;
+  read?: boolean;
+  reference_id?: string | null;
+  reference_type?: string | null;
+  metadata?: Record<string, any>;
+  created_at?: string;
+  createdAt?: string;
 };
 
 export type ApiProfileStats = {
@@ -456,6 +475,16 @@ class ApiService {
     return this.request('/api/activity');
   }
 
+  async getNotifications(): Promise<{ success?: boolean; notifications: ApiNotification[] }> {
+    return this.request('/api/notifications');
+  }
+
+  async markAllNotificationsRead(): Promise<{ success?: boolean; updated_count?: number }> {
+    return this.request('/api/notifications/mark-all-read', {
+      method: 'PATCH',
+    });
+  }
+
   async getProfileStats(): Promise<{ stats: ApiProfileStats }> {
     return this.request('/api/profile/stats');
   }
@@ -524,6 +553,15 @@ class ApiService {
     formData.append('media', file);
     formData.append('mediaType', mediaType);
     return this.request<{ success: boolean; url: string; media_type: 'image' | 'video' }>('/api/admin/markets/upload-media', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  async uploadProfilePicture(file: File) {
+    const formData = new FormData();
+    formData.append('media', file);
+    return this.request<{ success: boolean; avatarUrl: string; user: AuthUserResponse }>('/api/profile/avatar', {
       method: 'POST',
       body: formData,
     });

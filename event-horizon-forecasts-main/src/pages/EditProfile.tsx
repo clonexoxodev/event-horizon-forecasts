@@ -5,22 +5,25 @@ import { MobileNav } from "@/components/MobileNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
+import apiService from "@/lib/api";
 import { toast } from "sonner";
 
 export default function EditProfile() {
-  const { user } = useAuth();
-  const [avatar, setAvatar] = useState<string>(() => localStorage.getItem("flippe_profile_image") || "");
+  const { user, refreshUser } = useAuth();
+  const [uploading, setUploading] = useState(false);
 
-  const handleImage = (file?: File) => {
+  const handleImage = async (file?: File) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const value = String(reader.result || "");
-      setAvatar(value);
-      localStorage.setItem("flippe_profile_image", value);
+    setUploading(true);
+    try {
+      await apiService.uploadProfilePicture(file);
+      await refreshUser();
       toast.success("Profile picture updated.");
-    };
-    reader.readAsDataURL(file);
+    } catch (error: any) {
+      toast.error(error.message || "Could not save profile picture.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -32,12 +35,12 @@ export default function EditProfile() {
         <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.055] p-5">
           <div className="mb-6 flex items-center gap-4">
             <div className="grid h-20 w-20 overflow-hidden rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-500 text-3xl font-black">
-              {avatar ? <img src={avatar} alt="" className="h-full w-full object-cover" /> : <div className="grid h-full w-full place-items-center">{user?.username?.charAt(0).toUpperCase() || "U"}</div>}
+              {user?.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" /> : <div className="grid h-full w-full place-items-center">{user?.username?.charAt(0).toUpperCase() || "U"}</div>}
             </div>
             <label className="flex h-11 cursor-pointer items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.055] px-4 text-sm font-black text-white">
               <Camera className="h-4 w-4 text-violet-300" />
-              Change photo
-              <input type="file" accept="image/*" onChange={(event) => handleImage(event.target.files?.[0])} className="hidden" />
+              {uploading ? "Saving..." : "Change photo"}
+              <input type="file" accept="image/*" disabled={uploading} onChange={(event) => handleImage(event.target.files?.[0])} className="hidden" />
             </label>
           </div>
           <div className="space-y-4">

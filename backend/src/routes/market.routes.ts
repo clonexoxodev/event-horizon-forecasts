@@ -63,13 +63,37 @@ const savePriceHistory = async (
   }
 };
 
-const normalizeMarket = (market: any, positionCount = 0) => {
+const fetchPriceHistory = async (marketId: string) => {
+  const { data, error } = await supabase
+    .from('market_price_history')
+    .select('created_at, yes_price, no_price')
+    .eq('market_id', marketId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.warn('Failed to fetch market price history:', error.message);
+    return [];
+  }
+
+  return (data || []).map((point: any) => ({
+    timestamp: point.created_at,
+    yesPrice: Number(point.yes_price),
+    noPrice: Number(point.no_price)
+  }));
+};
+
+const normalizeMarket = (market: any, positionCount = 0, priceHistory: Array<{ timestamp: string; yesPrice: number; noPrice: number }> = []) => {
   const yesPoolSmallestUnit = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
   const noPoolSmallestUnit = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
   const totalPoolSmallestUnit = Number(
     market.pool_amount_smallest_unit ?? market.pool ?? yesPoolSmallestUnit + noPoolSmallestUnit
   );
-  const { yesPrice, noPrice } = calculateBoundedPrices(yesPoolSmallestUnit, noPoolSmallestUnit);
+  const hasPoolMovement = yesPoolSmallestUnit > 0 || noPoolSmallestUnit > 0;
+  const startingYesPrice = Number(market.yes_price ?? 50);
+  const startingNoPrice = Number(market.no_price ?? 100 - startingYesPrice);
+  const { yesPrice, noPrice } = hasPoolMovement
+    ? calculateBoundedPrices(yesPoolSmallestUnit, noPoolSmallestUnit)
+    : { yesPrice: startingYesPrice, noPrice: startingNoPrice };
   const closeTime = market.closes_at || market.close_date || market.close_time || '';
   const status = market.status || market.state || 'active';
 
@@ -87,11 +111,21 @@ const normalizeMarket = (market: any, positionCount = 0) => {
     noPool: toAmount(noPoolSmallestUnit),
     totalPool: toAmount(totalPoolSmallestUnit),
     participants: Number(market.participant_count ?? market.participants ?? positionCount),
+    tradeCount: Number(market.trade_count ?? market.tradeCount ?? priceHistory.length ?? 0),
     yesPrice,
     noPrice,
     closeTime,
     status: status === 'open' ? 'active' : status,
-    priceHistory: []
+    rules: market.rules || market.resolution_instructions || '',
+    minAmount: toAmount(market.min_position_smallest_unit),
+    maxAmount: toAmount(market.max_position_smallest_unit),
+    imageUrl: market.image_url || null,
+    videoUrl: market.video_url || null,
+    image_url: market.image_url || null,
+    video_url: market.video_url || null,
+    isTrending: Boolean(market.is_trending),
+    is_trending: Boolean(market.is_trending),
+    priceHistory
   };
 };
 
@@ -109,8 +143,9 @@ const normalizePosition = (position: any, market: any) => {
     entryPrice: Number(position.entry_price ?? currentPrice),
     currentPrice,
     currentValue: toAmount(position.potential_return_smallest_unit) || stake,
-    marketQuestion: normalizedMarket.question || 'Unknown Market',
+    marketQuestion: normalizedMarket.question || 'Market unavailable',
     marketIcon: normalizedMarket.icon,
+    category: normalizedMarket.category,
     marketStatus: normalizedMarket.status,
     createdAt: position.created_at,
     isListed: false
@@ -141,8 +176,11 @@ router.get('/', async (req: Request, res: Response) => {
     // Enrich markets with position counts for popularity indicators
     const marketsWithCounts = await Promise.all(
       markets.map(async (market) => {
-        const positionCount = await marketService.getPositionCount(market.id);
-        return normalizeMarket(market, positionCount);
+        const [positionCount, priceHistory] = await Promise.all([
+          marketService.getPositionCount(market.id),
+          fetchPriceHistory(market.id)
+        ]);
+        return normalizeMarket(market, positionCount, priceHistory);
       })
     );
 
@@ -214,9 +252,12 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
 
     // Enrich with additional data
-    const positionCount = await marketService.getPositionCount(market.id);
+    const [positionCount, priceHistory] = await Promise.all([
+      marketService.getPositionCount(market.id),
+      fetchPriceHistory(market.id)
+    ]);
     res.json({
-      market: normalizeMarket(market, positionCount)
+      market: normalizeMarket(market, positionCount, priceHistory)
     });
   } catch (error) {
     console.error('Get market error:', error);
@@ -424,6 +465,7 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
     }
 
     await savePriceHistory(id, pricesAfter.yesPrice, pricesAfter.noPrice, nextYesPool, nextNoPool);
+    const priceHistory = await fetchPriceHistory(id);
 
     const { data: transaction } = await supabase
       .from('transactions')
@@ -439,6 +481,8 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
         status: 'completed',
         metadata: {
           marketId: id,
+          marketQuestion: (updatedMarket as any).question || (market as any).question || null,
+          category: (updatedMarket as any).category || (market as any).category || null,
           side,
           entryPrice,
           potentialReturnSmallestUnit: potentialReturn,
@@ -451,6 +495,26 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
       })
       .select()
       .single();
+
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: req.user.userId,
+        type: 'forecast_confirmed',
+        title: 'Prediction placed',
+        message: `Your ${side} prediction on "${(updatedMarket as any).question || (market as any).question}" is active.`,
+        reference_id: id,
+        reference_type: 'market',
+        metadata: {
+          marketId: id,
+          marketQuestion: (updatedMarket as any).question || (market as any).question || null,
+          side,
+          amount: toAmount(amountSmallestUnit)
+        }
+      })
+      .then(({ error }) => {
+        if (error) console.warn('Prediction notification not saved:', error.message);
+      });
 
     const activity = transaction ? [{
       id: transaction.id,
@@ -466,12 +530,7 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
     res.status(201).json({
       position: normalizePosition(position, updatedMarket),
       market: {
-        ...normalizeMarket(updatedMarket, 0),
-        priceHistory: [{
-          timestamp: new Date().toISOString(),
-          yesPrice: pricesAfter.yesPrice,
-          noPrice: pricesAfter.noPrice
-        }]
+        ...normalizeMarket(updatedMarket, 0, priceHistory),
       },
       wallet: {
         id: updatedWallet.id,

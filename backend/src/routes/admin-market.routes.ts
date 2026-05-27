@@ -19,6 +19,79 @@ const router = Router();
 const marketRepo = new AdminMarketRepository();
 const auditRepo = new AuditTrailRepository();
 
+const notifyUsersForNewMarket = async (market: any, adminUserId: string) => {
+  if (market.status !== 'active' || !market.category) return;
+
+  const { data: priorPositions, error } = await supabase
+    .from('positions')
+    .select('user_id, markets!inner(category)')
+    .eq('markets.category', market.category);
+
+  if (error) {
+    console.warn('New-market notifications skipped:', error.message);
+    return;
+  }
+
+  const userIds = Array.from(new Set((priorPositions || [])
+    .map((position: any) => position.user_id)
+    .filter((userId: string) => userId && userId !== adminUserId)));
+
+  if (!userIds.length) return;
+
+  await supabase
+    .from('notifications')
+    .insert(userIds.map((userId) => ({
+      user_id: userId,
+      type: 'new_market_available',
+      title: `New ${market.category} market`,
+      message: market.question,
+      reference_id: market.id,
+      reference_type: 'market',
+      metadata: {
+        marketId: market.id,
+        marketQuestion: market.question,
+        category: market.category
+      }
+    })))
+    .then(({ error: notificationError }) => {
+      if (notificationError) console.warn('New-market notifications not saved:', notificationError.message);
+    });
+};
+
+const notifyMarketResolution = async (market: any, outcome?: string) => {
+  const { data: positions, error } = await supabase
+    .from('positions')
+    .select('user_id')
+    .eq('market_id', market.id);
+
+  if (error) {
+    console.warn('Market resolution notifications skipped:', error.message);
+    return;
+  }
+
+  const userIds = Array.from(new Set((positions || []).map((position: any) => position.user_id).filter(Boolean)));
+  if (!userIds.length) return;
+
+  await supabase
+    .from('notifications')
+    .insert(userIds.map((userId) => ({
+      user_id: userId,
+      type: 'market_resolved',
+      title: 'Market resolved',
+      message: `${market.question} resolved as ${outcome || market.outcome || 'final'}.`,
+      reference_id: market.id,
+      reference_type: 'market',
+      metadata: {
+        marketId: market.id,
+        marketQuestion: market.question,
+        outcome: outcome || market.outcome || null
+      }
+    })))
+    .then(({ error: notificationError }) => {
+      if (notificationError) console.warn('Market resolution notifications not saved:', notificationError.message);
+    });
+};
+
 // Configure multer for memory storage
 const storage = multer.memoryStorage();
 
@@ -202,6 +275,8 @@ router.post('/', async (req: Request, res: Response) => {
       user_agent: req.headers['user-agent'],
     });
 
+    await notifyUsersForNewMarket(market, req.user!.userId);
+
     res.status(201).json({
       success: true,
       market,
@@ -348,7 +423,7 @@ router.post('/upload-image', upload.single('image'), async (req: Request, res: R
     const fileName = `market-${timestamp}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
 
     // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('market-images')
       .upload(fileName, file.buffer, {
         contentType: file.mimetype,
@@ -813,6 +888,9 @@ router.patch('/:marketId/status', async (req: Request, res: Response) => {
     });
 
     // TODO: If resolved, trigger payout calculation
+    if (validated.status === 'resolved') {
+      await notifyMarketResolution(updatedMarket, validated.outcome);
+    }
 
     res.json({
       success: true,

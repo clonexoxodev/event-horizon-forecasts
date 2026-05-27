@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Activity, Award, BarChart3, Clock, Flame, LineChart, Loader2, Target, Trophy, Wallet } from "lucide-react";
+import { Activity, BarChart3, Clock, Flame, LineChart, Loader2, Target, Trophy, Wallet } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
@@ -172,6 +172,9 @@ const PositionsView = ({ positions }: { positions: ApiPosition[] }) => {
             <div className="min-w-0">
               <div className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Active position</div>
               <h2 className="mt-2 line-clamp-2 text-lg font-black leading-tight">{position.marketQuestion}</h2>
+              <div className="mt-2 text-xs font-bold text-slate-500">
+                {position.category || "General"} · {new Date(position.createdAt).toLocaleDateString()}
+              </div>
             </div>
             <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-emerald-400/10 text-emerald-300" : "bg-red-400/10 text-red-300"}`}>
               {position.side}
@@ -210,7 +213,7 @@ const ActivityView = ({ positions, settledCount }: { positions: ApiPosition[]; s
               </div>
               <div className="min-w-0">
                 <div className="truncate text-sm font-black">{position.marketQuestion}</div>
-                <div className="mt-1 text-xs text-slate-500">{position.side} prediction · {new Date(position.createdAt).toLocaleDateString()}</div>
+                <div className="mt-1 text-xs text-slate-500">{position.category || "General"} · {position.side} prediction · {new Date(position.createdAt).toLocaleDateString()}</div>
               </div>
             </div>
             <div className="shrink-0 text-right">
@@ -229,14 +232,8 @@ const ActivityView = ({ positions, settledCount }: { positions: ApiPosition[]; s
 };
 
 const PerformanceView = ({ stats, roi }: { stats: ApiProfileStats; roi: number }) => {
-  const badges = [
-    { label: "First prediction", earned: stats.totalPredictions > 0, icon: Target },
-    { label: "Winning signal", earned: stats.wonPredictions > 0, icon: Trophy },
-    { label: "Five predictions", earned: stats.totalPredictions >= 5, icon: Award },
-  ];
-
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_0.8fr]">
+    <div className="grid gap-4">
       <section className="rounded-3xl border border-white/10 bg-white/[0.055] p-5">
         <h2 className="text-xl font-black">Performance</h2>
         <div className="mt-5 grid grid-cols-2 gap-3">
@@ -246,22 +243,6 @@ const PerformanceView = ({ stats, roi }: { stats: ApiProfileStats; roi: number }
           <Metric label="ROI" value={stats.totalStaked ? `${roi}%` : "-"} large />
           <Metric label="Staked" value={formatNaira(stats.totalStaked)} large />
           <Metric label="Earned" value={formatNaira(stats.totalEarnings)} large />
-        </div>
-      </section>
-      <section className="rounded-3xl border border-white/10 bg-white/[0.055] p-5">
-        <h2 className="text-xl font-black">Badges</h2>
-        <div className="mt-5 space-y-3">
-          {badges.map((badge) => (
-            <div key={badge.label} className={`flex items-center gap-3 rounded-2xl border p-4 ${badge.earned ? "border-violet-300/25 bg-violet-500/10" : "border-white/10 bg-white/[0.04] opacity-60"}`}>
-              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white/10 text-violet-200">
-                <badge.icon className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="font-black">{badge.label}</div>
-                <div className="text-xs text-slate-500">{badge.earned ? "Unlocked" : "Keep predicting"}</div>
-              </div>
-            </div>
-          ))}
         </div>
       </section>
     </div>

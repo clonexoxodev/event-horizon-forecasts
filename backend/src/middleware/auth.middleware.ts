@@ -6,6 +6,8 @@ const PRIMARY_SUPER_ADMIN_EMAIL = 'fehintoluwaolu@gmail.com';
 
 // Extend Request interface to include user
 declare global {
+  // Express augments request objects through namespace merging.
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: {
@@ -31,7 +33,9 @@ export class AuthMiddleware {
   authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       // Get token from httpOnly cookie
-      const token = req.cookies.auth_token;
+      const authHeader = req.headers.authorization;
+      const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : '';
+      const token = req.cookies.auth_token || bearerToken;
 
       if (!token) {
         res.status(401).json({
@@ -92,7 +96,9 @@ export class AuthMiddleware {
    */
   optionalAuthenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const token = req.cookies.auth_token;
+      const authHeader = req.headers.authorization;
+      const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : '';
+      const token = req.cookies.auth_token || bearerToken;
 
       if (token) {
         const decoded = this.authService.verifyToken(token);

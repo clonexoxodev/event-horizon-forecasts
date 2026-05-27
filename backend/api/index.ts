@@ -178,7 +178,7 @@ const authenticate = async (req: Request, res: Response, next: NextFunction) => 
     // Fetch user from database to get current role
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, email, role')
+      .select('id, username, email, role, avatar_url, profile_image_url')
       .eq('id', decoded.userId)
       .single();
 
@@ -262,7 +262,8 @@ const toAuthUser = (user: any, balance: number = 0) => ({
   username: user.username,
   email: user.email,
   role: user.role || 'user',
-  balance
+  balance,
+  avatarUrl: user.avatar_url || user.profile_image_url || null
 });
 
 const signAuthToken = (user: any) => jwt.sign(
@@ -682,6 +683,124 @@ app.get('/api/auth/me', authenticate, async (req: Request, res: Response) => {
   }
 });
 
+app.post('/api/profile/avatar', authenticate, (req: Request, res: Response, next: NextFunction) => {
+  upload.single('media')(req, res, (uploadError: any) => {
+    if (uploadError) {
+      return res.status(400).json({
+        error: {
+          code: 'UPLOAD_FAILED',
+          message: uploadError.message || 'Could not upload profile picture',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+    next();
+  });
+}, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (!req.file || !req.file.mimetype.startsWith('image/')) {
+      return res.status(400).json({
+        error: {
+          code: 'IMAGE_REQUIRED',
+          message: 'Choose a profile image.',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const extension = req.file.originalname.split('.').pop() || 'jpg';
+    const safeName = `${user.id}/avatar-${Date.now()}.${extension}`;
+
+    const { error: bucketError } = await supabase.storage.createBucket('profile-images', { public: true });
+    if (bucketError && !/exist|already/i.test(bucketError.message)) {
+      console.warn('Could not verify profile-images bucket:', bucketError.message);
+    }
+
+    const { error: uploadError } = await supabase.storage
+      .from('profile-images')
+      .upload(safeName, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: true
+      });
+
+    if (uploadError) throw uploadError;
+    const { data: publicUrlData } = supabase.storage.from('profile-images').getPublicUrl(safeName);
+    const avatarUrl = publicUrlData.publicUrl;
+
+    const { data: updatedUser, error: updateError } = await supabase
+      .from('users')
+      .update({ avatar_url: avatarUrl, profile_image_url: avatarUrl, updated_at: new Date().toISOString() })
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    res.json({
+      success: true,
+      avatarUrl,
+      user: toAuthUser(updatedUser, 0)
+    });
+  } catch (error: any) {
+    console.error('Profile avatar upload error:', error);
+    res.status(500).json({
+      error: {
+        code: 'PROFILE_AVATAR_FAILED',
+        message: 'Could not save profile picture. Check the profile-images Supabase Storage bucket and avatar_url column.',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+app.get('/api/notifications', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    if (error) throw error;
+    res.json({ success: true, notifications: data || [] });
+  } catch (error) {
+    console.error('Get notifications error:', error);
+    res.status(500).json({
+      error: {
+        code: 'GET_NOTIFICATIONS_FAILED',
+        message: 'Failed to load notifications.',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+app.patch('/api/notifications/mark-all-read', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const { error, count } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false);
+
+    if (error) throw error;
+    res.json({ success: true, updated_count: count || 0 });
+  } catch (error) {
+    console.error('Mark notifications read error:', error);
+    res.status(500).json({
+      error: {
+        code: 'MARK_NOTIFICATIONS_READ_FAILED',
+        message: 'Failed to update notifications.',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
 const toAmount = (smallestUnit: number | null | undefined) => Number(smallestUnit || 0) / 100;
 const VIRTUAL_LIQUIDITY_SMALLEST_UNIT = 5_000_000;
 const MIN_ACTIVE_PRICE = 5;
@@ -904,8 +1023,9 @@ const normalizePosition = (position: any, market: any) => {
     entryPrice: Number(position.entry_price ?? currentPrice),
     currentPrice,
     currentValue: toAmount(position.potential_return_smallest_unit) || stake,
-    marketQuestion: normalizedMarket.question || 'Unknown Market',
+    marketQuestion: normalizedMarket.question || 'Market unavailable',
     marketIcon: normalizedMarket.icon,
+    category: normalizedMarket.category,
     marketStatus: normalizedMarket.status,
     isWinner: position.is_winner,
     payout: toAmount(position.payout_smallest_unit),
@@ -1249,6 +1369,19 @@ app.get('/api/wallet/transactions', authenticate, async (req: Request, res: Resp
       });
     }
 
+    const positionIds = (transactions || [])
+      .filter((tx) => tx.reference_type === 'position' && tx.reference_id)
+      .map((tx) => tx.reference_id);
+    const { data: referencedPositions } = positionIds.length
+      ? await supabase
+        .from('positions')
+        .select('id, markets(question)')
+        .in('id', positionIds)
+      : { data: [] as any[] };
+    const marketQuestionByPosition = new Map(
+      (referencedPositions || []).map((position: any) => [position.id, position.markets?.question])
+    );
+
     res.json({
       transactions: transactions.map(tx => ({
         id: tx.id,
@@ -1260,7 +1393,10 @@ app.get('/api/wallet/transactions', authenticate, async (req: Request, res: Resp
         referenceId: tx.reference_id,
         referenceType: tx.reference_type,
         status: tx.status,
-        metadata: tx.metadata,
+        metadata: {
+          ...(tx.metadata || {}),
+          marketQuestion: marketQuestionByPosition.get(tx.reference_id) || tx.metadata?.marketQuestion || null
+        },
         createdAt: tx.created_at
       })),
       pagination: {
@@ -1755,6 +1891,8 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
         status: 'completed',
         metadata: {
           marketId,
+          marketQuestion: updatedMarket.question || currentMarket.question || null,
+          category: updatedMarket.category || currentMarket.category || null,
           side,
           entryPrice,
           potentialReturnSmallestUnit: potentialReturn,
@@ -1767,6 +1905,26 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
       })
       .select()
       .single();
+
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: user.id,
+        type: 'forecast_confirmed',
+        title: 'Prediction placed',
+        message: `Your ${side} prediction on "${updatedMarket.question || currentMarket.question}" is active.`,
+        reference_id: marketId,
+        reference_type: 'market',
+        metadata: {
+          marketId,
+          marketQuestion: updatedMarket.question || currentMarket.question || null,
+          side,
+          amount: toAmount(amountSmallestUnit)
+        }
+      })
+      .then(({ error }) => {
+        if (error) console.warn('Prediction notification not saved:', error.message);
+      });
 
     const activity = transaction ? [{
       id: transaction.id,
@@ -1832,7 +1990,7 @@ app.get('/api/positions', authenticate, async (req: Request, res: Response) => {
 
     if (error) throw error;
 
-    const positions = (data || []).map(normalizePosition);
+    const positions = (data || []).map((position) => normalizePosition(position, position.markets));
     res.json({ positions, count: positions.length });
   } catch (error) {
     console.error('Get positions error:', error);
@@ -2331,8 +2489,49 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
               profitSmallestUnit: payout - Number(position.amount_smallest_unit || 0)
             }
           });
+
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: position.user_id,
+            type: 'position_payout',
+            title: 'Prediction won',
+            message: `You won a payout from "${market.question}".`,
+            reference_id: market.id,
+            reference_type: 'market',
+            metadata: {
+              marketId: market.id,
+              marketQuestion: market.question,
+              outcome,
+              payoutSmallestUnit: payout,
+              profitSmallestUnit: payout - Number(position.amount_smallest_unit || 0)
+            }
+          })
+          .then(({ error }) => {
+            if (error) console.warn('Payout notification not saved:', error.message);
+          });
       }
     }
+
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: position.user_id,
+        type: 'market_resolved',
+        title: isWinner ? 'Market resolved: you won' : 'Market resolved',
+        message: `"${market.question}" resolved as ${outcome}.`,
+        reference_id: market.id,
+        reference_type: 'market',
+        metadata: {
+          marketId: market.id,
+          marketQuestion: market.question,
+          outcome,
+          isWinner
+        }
+      })
+      .then(({ error }) => {
+        if (error) console.warn('Resolution notification not saved:', error.message);
+      });
   }
 
   await supabase

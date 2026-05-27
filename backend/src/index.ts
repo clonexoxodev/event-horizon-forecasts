@@ -11,6 +11,7 @@ import adminRoutes from './routes/admin.routes.js';
 import adminMarketRoutes from './routes/admin-market.routes.js';
 import notificationsRoutes from './routes/notifications.routes.js';
 import usersRoutes from './routes/users.routes.js';
+import profileRoutes from './routes/profile.routes.js';
 
 dotenv.config();
 
@@ -51,6 +52,7 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/markets', marketRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/profile', profileRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/markets', adminMarketRoutes);
 
@@ -61,7 +63,7 @@ const normalizePosition = (position: any) => {
   const yesPool = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
   const noPool = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
   const totalPool = Number(market.pool_amount_smallest_unit ?? market.pool ?? yesPool + noPool);
-  const yesPrice = totalPool > 0 ? Math.round((yesPool / totalPool) * 100) : 50;
+  const yesPrice = totalPool > 0 ? Math.round((yesPool / totalPool) * 100) : Number(market.yes_price ?? 50);
   const currentPrice = position.side === 'YES' ? yesPrice : 100 - yesPrice;
   const stake = toAmount(position.amount_smallest_unit ?? position.stake);
 
@@ -74,8 +76,9 @@ const normalizePosition = (position: any) => {
     entryPrice: Number(position.entry_price ?? currentPrice),
     currentPrice,
     currentValue: toAmount(position.potential_return_smallest_unit) || stake,
-    marketQuestion: market.question || 'Unknown Market',
+    marketQuestion: market.question || 'Market unavailable',
     marketIcon: market.icon || '',
+    category: market.category || 'General',
     marketStatus: market.state || market.status || 'active',
     createdAt: position.created_at,
     isListed: false

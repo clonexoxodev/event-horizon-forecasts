@@ -25,6 +25,7 @@ export default function Wallet() {
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [transactions, setTransactions] = useState<WalletRow[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadHistory = async () => {
     if (!user) return;
@@ -52,8 +53,16 @@ export default function Wallet() {
   };
 
   const refreshWallet = async () => {
-    await refreshUser();
-    await loadHistory();
+    setRefreshing(true);
+    try {
+      await refreshUser();
+      await loadHistory();
+      toast.success("Wallet refreshed.");
+    } catch (error: any) {
+      toast.error(error.message || "Could not refresh wallet.");
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   useEffect(() => {
@@ -101,10 +110,11 @@ export default function Wallet() {
               </div>
               <button
                 onClick={refreshWallet}
-                className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10"
+                disabled={refreshing}
+                className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
                 title="Refresh"
               >
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               </button>
             </div>
             <div className="mt-8 text-4xl font-black tracking-tight sm:text-5xl">
@@ -188,6 +198,11 @@ export default function Wallet() {
 }
 
 const labelForTransaction = (tx: ApiTransaction) => {
+  const marketQuestion = typeof tx.metadata?.marketQuestion === "string" ? tx.metadata.marketQuestion : "";
+  if (marketQuestion && (tx.type === "position_entry" || tx.type === "position_payout")) {
+    return tx.type === "position_payout" ? `Winning: ${marketQuestion}` : `Prediction: ${marketQuestion}`;
+  }
+
   const labels: Record<ApiTransaction["type"], string> = {
     deposit: "Add money",
     withdrawal: "Withdraw",

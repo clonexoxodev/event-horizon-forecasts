@@ -139,16 +139,20 @@ export const formatCountdown = (closeTime?: string, closesIn?: string) => {
     const diff = closeDate.getTime() - Date.now();
 
     if (!Number.isNaN(closeDate.getTime())) {
-      if (diff <= 0) return "Closed";
+      if (diff <= 0) return "Ended";
 
-      const minutes = Math.ceil(diff / (1000 * 60));
-      if (minutes < 60) return minutes <= 15 ? "Ending soon" : `${minutes}m`;
+      const totalSeconds = Math.ceil(diff / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      if (minutes < 60) return `${minutes}m ${String(seconds).padStart(2, "0")}s left`;
 
-      const hours = Math.ceil(minutes / 60);
-      if (hours < 24) return `${hours}h`;
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      if (hours < 24) return `${hours}h ${String(remainingMinutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s left`;
 
-      const days = Math.ceil(hours / 24);
-      return `${days}d`;
+      const days = Math.floor(hours / 24);
+      const remainingHours = hours % 24;
+      return `${days}d ${remainingHours}h left`;
     }
   }
 

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { AuthService } from '../services/auth.service.js';
 import { CreateUserRequest, LoginRequest } from '../types/user.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
+import { supabase } from '../db/supabase-client.js';
 
 const router = Router();
 const authService = new AuthService();
@@ -181,13 +182,23 @@ router.get('/me', authMiddleware.authenticate, async (req: Request, res: Respons
       });
     }
 
+    const { data: userRecord } = await supabase
+      .from('users')
+      .select('avatar_url, profile_image_url')
+      .eq('id', req.user.userId)
+      .single();
+    const avatarUrl = userRecord?.avatar_url || userRecord?.profile_image_url || null;
+
     // Role is already fetched fresh from database by auth middleware
     res.json({
       user: {
         id: req.user.userId,
         username: req.user.username,
         email: req.user.email,
-        role: req.user.role
+        role: req.user.role,
+        avatarUrl,
+        avatar_url: avatarUrl,
+        profile_image_url: avatarUrl
       }
     });
   } catch (error) {

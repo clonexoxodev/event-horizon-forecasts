@@ -1,8 +1,8 @@
-import { Bell, Home, Menu, PieChart, Search, Shield, Wallet, Zap } from "lucide-react";
+import { Home, Menu, PieChart, Search, Shield, Wallet, Zap } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
-import { useNotifications } from "@/lib/notification-context";
 import { formatNaira } from "@/lib/markets";
+import { NotificationBell } from "@/components/NotificationBell";
 
 const primaryNav = [
   { to: "/", label: "Home", icon: Home },
@@ -13,7 +13,6 @@ const primaryNav = [
 
 export const Header = () => {
   const { user, isAdmin, isSuperAdmin } = useAuth();
-  const { unreadCount } = useNotifications();
   const adminPath = isSuperAdmin() ? "/super-admin" : "/admin";
 
   return (
@@ -85,7 +84,7 @@ export const Header = () => {
 
           <div className="ml-auto hidden h-10 max-w-md flex-1 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.055] px-3 text-sm font-bold text-slate-500 md:flex">
             <Search className="h-4 w-4" />
-            Search markets, people, takes
+            Search markets
           </div>
 
           {user && (
@@ -93,14 +92,9 @@ export const Header = () => {
               {formatNaira(user.balance)}
             </Link>
           )}
-          {user && (
-            <Link to="/notifications" className="relative grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/[0.055] text-slate-300">
-              <Bell className="h-4 w-4" />
-              {unreadCount > 0 && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-red-500" />}
-            </Link>
-          )}
-          <Link to={user ? "/more" : "/login"} className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-500 text-sm font-black text-white">
-            {user?.username?.charAt(0).toUpperCase() || "?"}
+          {user && <NotificationBell />}
+          <Link to={user ? "/more" : "/login"} className="grid h-10 w-10 overflow-hidden rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-500 text-sm font-black text-white">
+            {user?.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" /> : user?.username?.charAt(0).toUpperCase() || "?"}
           </Link>
         </div>
       </header>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Bookmark, Clock, Loader2, Share2, TrendingUp, Users, X } from "lucide-react";
+import { ArrowLeft, Bookmark, CheckCircle, Clock, Flame, Loader2, Share2, TrendingUp, Users, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
@@ -17,14 +17,16 @@ export default function MarketDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { markets, getMarket, setMarkets } = useMarketState();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, setAuthOpen } = useAuth();
   const [market, setMarket] = useState<Market | null>(null);
   const [loading, setLoading] = useState(true);
   const [bookmarked, setBookmarked] = useState(false);
   const [sheetSide, setSheetSide] = useState<"YES" | "NO" | null>(null);
   const [amount, setAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [justPredicted, setJustPredicted] = useState<"YES" | "NO" | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>("24H");
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
     if (!id) return;
@@ -41,6 +43,18 @@ export default function MarketDetail() {
             ? prev.map((item) => (item.id === response.market.id ? response.market : item))
             : [...prev, response.market]
         );
+        apiService.getMarkets()
+          .then((marketsResponse) => {
+            setMarkets((prev) => {
+              const merged = new Map(prev.map((item) => [item.id, item]));
+              for (const item of marketsResponse.markets || []) merged.set(item.id, item);
+              merged.set(response.market.id, response.market);
+              return Array.from(merged.values());
+            });
+          })
+          .catch(() => {
+            // Related markets are helpful but should not block the detail page.
+          });
       } catch (error: any) {
         toast.error(error.message || "Could not load market.");
         navigate("/");
@@ -51,6 +65,11 @@ export default function MarketDetail() {
 
     loadMarket();
   }, [getMarket, id, navigate, setMarkets]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const relatedMarkets = useMemo(
     () => markets.filter((item) => item.id !== market?.id && item.category === market?.category).slice(0, 3),
@@ -75,7 +94,10 @@ export default function MarketDetail() {
 
   const confirmPrediction = async () => {
     if (!market || !sheetSide) return;
-    if (!user) return navigate("/login");
+    if (!user) {
+      setAuthOpen(true);
+      return;
+    }
     const numericAmount = Number.parseFloat(amount) || 0;
     if (numericAmount <= 0) return toast.error("Enter an amount.");
 
@@ -85,9 +107,11 @@ export default function MarketDetail() {
       setMarket(result.market);
       setMarkets((prev) => prev.map((item) => (item.id === result.market.id ? result.market : item)));
       await refreshUser();
+      setJustPredicted(sheetSide);
       setAmount("");
       setSheetSide(null);
       toast.success(`Prediction saved: ${sheetSide} with ${formatNaira(numericAmount)}.`);
+      window.setTimeout(() => setJustPredicted(null), 1800);
     } catch (error: any) {
       toast.error(error.message || "Could not save prediction.");
     } finally {
@@ -113,12 +137,13 @@ export default function MarketDetail() {
   const numericAmount = Number.parseFloat(amount) || 0;
   const estimatedReturn = numericAmount > 0 && sheetSide ? numericAmount * (100 / Math.max(1, selectedPrice)) : 0;
   const estimatedProfit = Math.max(0, estimatedReturn - numericAmount);
-  const marketIsActive = market.status === "active";
+  const hasMarketEnded = market.closeTime ? new Date(market.closeTime).getTime() <= now : false;
+  const marketIsActive = market.status === "active" && !hasMarketEnded;
 
   return (
-    <div className="min-h-screen bg-[#050711] pb-28 text-white md:pb-24 xl:pl-64">
+    <div className="min-h-screen bg-[#050711] pb-[calc(150px+env(safe-area-inset-bottom))] text-white md:pb-24 xl:pl-64">
       <Header />
-      <main className="mx-auto max-w-4xl px-4 py-4 sm:px-6">
+      <main className="mx-auto max-w-4xl px-4 py-4 sm:px-6" data-now={now}>
         <div className="mb-4 flex items-center justify-between">
           <Link to="/" className="inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-3 text-sm font-black text-slate-300">
             <ArrowLeft className="h-4 w-4" />
@@ -141,7 +166,7 @@ export default function MarketDetail() {
             <div className="absolute bottom-0 left-0 right-0 p-5">
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#050711]">{market.category}</span>
-                <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-200">{marketIsActive ? "Live" : market.status}</span>
+                <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-200">{marketIsActive ? "Live" : "Ended"}</span>
                 <span className="rounded-full border border-white/10 bg-black/35 px-3 py-1 text-xs font-black text-white backdrop-blur-xl">
                   {formatCountdown(market.closeTime, market.closesIn)}
                 </span>
@@ -160,8 +185,8 @@ export default function MarketDetail() {
         <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.055] p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-black">Live sentiment</h2>
-              <p className="text-xs font-bold text-slate-500">Updates from real predictions</p>
+              <h2 className="text-lg font-black">Price history</h2>
+              <p className="text-xs font-bold text-slate-500">Updates only after real predictions</p>
             </div>
             <div className="flex rounded-full border border-white/10 bg-white/[0.04] p-1">
               {(["1H", "24H", "7D", "ALL"] as Timeframe[]).map((item) => (
@@ -172,10 +197,6 @@ export default function MarketDetail() {
             </div>
           </div>
           <Chart market={market} />
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <PriceStat label="YES" value={market.yesPrice} tone="green" />
-            <PriceStat label="NO" value={market.noPrice} tone="red" />
-          </div>
         </section>
 
         <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.055] p-4">
@@ -199,7 +220,7 @@ export default function MarketDetail() {
         )}
       </main>
 
-      <div className="fixed bottom-16 left-0 right-0 z-40 border-t border-white/10 bg-[#060914]/90 p-3 backdrop-blur-2xl md:bottom-0 xl:left-64">
+      <div className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-white/10 bg-[#060914]/90 p-3 backdrop-blur-2xl md:bottom-0 xl:left-64">
         <div className="mx-auto grid max-w-4xl grid-cols-2 gap-3">
           <button disabled={!marketIsActive} onClick={() => setSheetSide("YES")} className="h-12 rounded-2xl bg-emerald-500 text-sm font-black text-white shadow-[0_0_24px_rgba(16,185,129,0.25)] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">
             Buy YES {formatNairaPrice(market.yesPrice)}
@@ -212,11 +233,14 @@ export default function MarketDetail() {
 
       {sheetSide && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => setSheetSide(null)}>
-          <div className="absolute bottom-0 left-0 right-0 rounded-t-[2rem] border border-white/10 bg-[#080b16] p-5 text-white shadow-[0_-24px_80px_rgba(0,0,0,0.55)] md:left-auto md:right-6 md:top-24 md:h-fit md:w-[380px] md:rounded-[2rem]" onClick={(event) => event.stopPropagation()}>
+          <div className="absolute bottom-0 left-0 right-0 max-h-[88vh] overflow-y-auto rounded-t-[2rem] border border-white/10 bg-[#080b16] p-5 pb-[calc(90px+env(safe-area-inset-bottom))] text-white shadow-[0_-24px_80px_rgba(0,0,0,0.55)] md:left-auto md:right-6 md:top-24 md:h-fit md:w-[380px] md:rounded-[2rem] md:pb-5" onClick={(event) => event.stopPropagation()}>
             <div className="mb-5 flex items-center justify-between">
               <div>
-                <p className={`text-xs font-black uppercase tracking-[0.18em] ${sheetSide === "YES" ? "text-emerald-300" : "text-red-300"}`}>Selected side</p>
-                <h2 className="mt-1 text-2xl font-black">{sheetSide} {formatNairaPrice(selectedPrice)}</h2>
+                <p className={`flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.18em] ${sheetSide === "YES" ? "text-emerald-300" : "text-red-300"}`}>
+                  <Zap className="h-3.5 w-3.5 fill-current" />
+                  Fast call
+                </p>
+                <h2 className="mt-1 text-2xl font-black">Predict {sheetSide} {formatNairaPrice(selectedPrice)}</h2>
               </div>
               <button onClick={() => setSheetSide(null)} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/[0.055]">
                 <X className="h-4 w-4" />
@@ -238,8 +262,25 @@ export default function MarketDetail() {
             </div>
             <Button onClick={confirmPrediction} disabled={submitting || numericAmount <= 0} className={`mt-5 h-12 w-full rounded-2xl text-base font-black text-white ${sheetSide === "YES" ? "bg-emerald-500 hover:bg-emerald-400" : "bg-red-500 hover:bg-red-400"}`}>
               {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <TrendingUp className="mr-2 h-4 w-4" />}
-              {user ? "Confirm prediction" : "Login to predict"}
+              {user ? "Lock prediction" : "Login to predict"}
             </Button>
+          </div>
+        </div>
+      )}
+
+      {justPredicted && (
+        <div className="pointer-events-none fixed inset-0 z-[60] grid place-items-center bg-black/30 backdrop-blur-[2px]">
+          <div className="animate-fade-up rounded-[2rem] border border-white/10 bg-[#080b16]/95 p-8 text-center shadow-[0_24px_90px_rgba(0,0,0,0.6)]">
+            <div className={`mx-auto mb-4 grid h-20 w-20 place-items-center rounded-full ${justPredicted === "YES" ? "bg-emerald-400/10 text-emerald-300 shadow-[0_0_70px_rgba(52,211,153,0.22)]" : "bg-red-400/10 text-red-300 shadow-[0_0_70px_rgba(248,113,113,0.22)]"}`}>
+              <CheckCircle className="h-10 w-10" />
+            </div>
+            <div className="flex justify-center">
+              <span className="inline-flex items-center gap-2 rounded-full bg-violet-500/10 px-3 py-1 text-xs font-black text-violet-100">
+                <Flame className="h-3.5 w-3.5 text-violet-300" />
+                Market updated
+              </span>
+            </div>
+            <h3 className="mt-3 text-2xl font-black">You predicted {justPredicted}</h3>
           </div>
         </div>
       )}
@@ -250,9 +291,14 @@ export default function MarketDetail() {
 }
 
 const Chart = ({ market }: { market: Market }) => {
-  const values = market.priceHistory && market.priceHistory.length > 1
-    ? market.priceHistory.map((point) => point.yesPrice)
-    : [market.yesPrice, market.yesPrice, market.yesPrice, market.yesPrice];
+  const history = market.priceHistory?.length
+    ? market.priceHistory
+    : [
+      { timestamp: market.closeTime || new Date().toISOString(), yesPrice: market.yesPrice, noPrice: market.noPrice },
+      { timestamp: new Date().toISOString(), yesPrice: market.yesPrice, noPrice: market.noPrice },
+    ];
+  const hasMovement = Boolean(market.priceHistory && market.priceHistory.length > 1);
+  const values = history.map((point) => point.yesPrice);
   const points = values.map((value, index) => {
     const x = values.length === 1 ? 0 : (index / (values.length - 1)) * 100;
     const y = 100 - Math.max(2, Math.min(98, value));
@@ -268,18 +314,15 @@ const Chart = ({ market }: { market: Market }) => {
           </linearGradient>
         </defs>
         {[20, 40, 60, 80].map((line) => <line key={line} x1="0" x2="100" y1={line} y2={line} stroke="rgba(255,255,255,0.08)" strokeWidth="0.5" />)}
-        <polyline points={points.join(" ")} fill="none" stroke="url(#detailLine)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" vectorEffect="non-scaling-stroke" className="drop-shadow-[0_0_12px_rgba(167,139,250,0.4)]" />
+        <polyline points={points.join(" ")} fill="none" stroke="url(#detailLine)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" vectorEffect="non-scaling-stroke" className="animate-pulse drop-shadow-[0_0_12px_rgba(167,139,250,0.4)]" />
       </svg>
+      <div className="mt-3 flex items-center justify-between text-xs font-bold text-slate-500">
+        <span>{hasMovement ? "Live price history" : "Flat starting line"}</span>
+        <span>YES {formatNairaPrice(market.yesPrice)} / NO {formatNairaPrice(market.noPrice)}</span>
+      </div>
     </div>
   );
 };
-
-const PriceStat = ({ label, value, tone }: { label: string; value: number; tone: "green" | "red" }) => (
-  <div className={`rounded-2xl border p-4 ${tone === "green" ? "border-emerald-300/20 bg-emerald-400/10" : "border-red-300/20 bg-red-400/10"}`}>
-    <div className="text-xs font-black text-slate-500">{label}</div>
-    <div className={`mt-1 text-2xl font-black ${tone === "green" ? "text-emerald-300" : "text-red-300"}`}>{formatNairaPrice(value)}</div>
-  </div>
-);
 
 const Row = ({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) => (
   <div className="flex items-center justify-between border-b border-white/10 py-2 last:border-0">

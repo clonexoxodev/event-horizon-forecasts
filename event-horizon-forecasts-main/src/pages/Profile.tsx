@@ -18,11 +18,11 @@ const emptyStats: ApiProfileStats = {
 };
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [stats, setStats] = useState<ApiProfileStats>(emptyStats);
   const [positions, setPositions] = useState<ApiPosition[]>([]);
-  const [avatar, setAvatar] = useState<string>(() => localStorage.getItem("flippe_profile_image") || "");
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -48,15 +48,18 @@ export default function Profile() {
     loadProfile();
   }, [user]);
 
-  const handleImage = (file?: File) => {
+  const handleImage = async (file?: File) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const value = String(reader.result || "");
-      setAvatar(value);
-      localStorage.setItem("flippe_profile_image", value);
-    };
-    reader.readAsDataURL(file);
+    setUploading(true);
+    try {
+      await apiService.uploadProfilePicture(file);
+      await refreshUser();
+      toast.success("Profile picture saved.");
+    } catch (error: any) {
+      toast.error(error.message || "Could not save profile picture.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (!user) {
@@ -84,10 +87,10 @@ export default function Profile() {
         <section className="rounded-[2rem] border border-violet-400/20 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.36),rgba(10,13,25,0.96)_48%)] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.42)]">
           <div className="flex items-center gap-4">
             <div className="relative h-20 w-20 overflow-hidden rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-500">
-              {avatar ? <img src={avatar} alt="" className="h-full w-full object-cover" /> : <div className="grid h-full w-full place-items-center text-3xl font-black">{initials}</div>}
+              {user.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" /> : <div className="grid h-full w-full place-items-center text-3xl font-black">{initials}</div>}
               <label className="absolute bottom-0 right-0 grid h-8 w-8 cursor-pointer place-items-center rounded-full bg-white text-[#050711] shadow-lg">
-                <Camera className="h-4 w-4" />
-                <input type="file" accept="image/*" onChange={(event) => handleImage(event.target.files?.[0])} className="hidden" />
+                <Camera className={`h-4 w-4 ${uploading ? "animate-pulse" : ""}`} />
+                <input type="file" accept="image/*" disabled={uploading} onChange={(event) => handleImage(event.target.files?.[0])} className="hidden" />
               </label>
             </div>
             <div className="min-w-0">
@@ -130,7 +133,7 @@ export default function Profile() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="line-clamp-2 text-sm font-black">{position.marketQuestion}</div>
-                      <div className="mt-2 text-xs text-slate-500">{new Date(position.createdAt).toLocaleDateString()}</div>
+                      <div className="mt-2 text-xs text-slate-500">{position.category || "General"} · {new Date(position.createdAt).toLocaleDateString()}</div>
                     </div>
                     <span className={`rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-emerald-400/10 text-emerald-300" : "bg-red-400/10 text-red-300"}`}>
                       {position.side}
