@@ -686,6 +686,8 @@ const toAmount = (smallestUnit: number | null | undefined) => Number(smallestUni
 const VIRTUAL_LIQUIDITY_SMALLEST_UNIT = 5_000_000;
 const MIN_ACTIVE_PRICE = 5;
 const MAX_ACTIVE_PRICE = 95;
+type MarketStatus = 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'archived';
+type PredictionSide = 'YES' | 'NO';
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
@@ -705,11 +707,95 @@ const calculateBoundedPrices = (yesPoolSmallestUnit: number, noPoolSmallestUnit:
   };
 };
 
-const normalizePredictionSide = (side: unknown): 'YES' | 'NO' | null => {
+const normalizePredictionSide = (side: unknown): PredictionSide | null => {
   const normalizedSide = String(side || '').toUpperCase();
   if (normalizedSide === 'YES' || normalizedSide === 'UP') return 'YES';
   if (normalizedSide === 'NO' || normalizedSide === 'DOWN') return 'NO';
   return null;
+};
+
+const normalizeMarketStatus = (market: any): MarketStatus => {
+  const rawStatus = String(market.status || market.state || 'active');
+  if (rawStatus === 'open') return 'active';
+  if (rawStatus === 'paused') return 'closed';
+  if (['draft', 'active', 'closed', 'pending_resolution', 'resolved', 'archived'].includes(rawStatus)) {
+    return rawStatus as MarketStatus;
+  }
+  return 'active';
+};
+
+const getCloseTime = (market: any) => market.closes_at || market.close_date || market.close_time || '';
+
+const isMarketPastClose = (market: any) => {
+  const closeTime = getCloseTime(market);
+  return closeTime ? new Date(closeTime).getTime() <= Date.now() : false;
+};
+
+const displayStatusForMarket = (market: any): MarketStatus => {
+  const status = normalizeMarketStatus(market);
+  if (status === 'active' && isMarketPastClose(market)) return 'pending_resolution';
+  return status;
+};
+
+const legacyStateFor = (status: string) => {
+  if (status === 'active') return 'active';
+  if (status === 'resolved') return 'resolved';
+  if (status === 'archived') return 'archived';
+  return 'closed';
+};
+
+const autoCloseExpiredMarket = async (market: any) => {
+  const status = normalizeMarketStatus(market);
+  if (status !== 'active' || !isMarketPastClose(market)) return market;
+
+  const { data, error } = await supabase
+    .from('markets')
+    .update({
+      status: 'pending_resolution',
+      state: 'closed',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', market.id)
+    .in('status', ['active', 'open'])
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    console.warn('Failed to auto-close expired market:', error.message);
+    return { ...market, status: 'pending_resolution', state: 'closed' };
+  }
+
+  return data || { ...market, status: 'pending_resolution', state: 'closed' };
+};
+
+const currentMarketPrices = (market: any) => {
+  const yesPool = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
+  const noPool = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
+  if (yesPool + noPool <= 0) {
+    const yesPrice = clamp(Math.round(Number(market.yes_price ?? 50)), MIN_ACTIVE_PRICE, MAX_ACTIVE_PRICE);
+    return { yesPrice, noPrice: 100 - yesPrice };
+  }
+  return calculateBoundedPrices(yesPool, noPool);
+};
+
+const calculateTradePrices = (market: any, side: PredictionSide, amountSmallestUnit: number) => {
+  const { yesPrice: currentYesPrice } = currentMarketPrices(market);
+  const yesPool = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
+  const noPool = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
+  const realLiquidity = yesPool + noPool;
+  const effectiveLiquidity = Math.max(realLiquidity, VIRTUAL_LIQUIDITY_SMALLEST_UNIT);
+  const pressure = amountSmallestUnit / (effectiveLiquidity + amountSmallestUnit);
+
+  /*
+   * V1 pricing: every trade nudges price toward a protected boundary rather
+   * than directly using raw pool ratio. This keeps YES + NO = 100, makes YES
+   * buying lift YES and NO buying lift NO, but virtual liquidity prevents
+   * tiny early trades from jumping the market to 100/0.
+   */
+  const targetYesPrice = side === 'YES' ? MAX_ACTIVE_PRICE : MIN_ACTIVE_PRICE;
+  const dampenedMove = (targetYesPrice - currentYesPrice) * pressure * 0.6;
+  const yesPrice = clamp(Math.round(currentYesPrice + dampenedMove), MIN_ACTIVE_PRICE, MAX_ACTIVE_PRICE);
+  return { yesPrice, noPrice: 100 - yesPrice };
 };
 
 const calculatePotentialReturn = (amountSmallestUnit: number, sidePrice: number) => {
@@ -765,9 +851,9 @@ const normalizeMarket = (market: any, positionCount = 0, priceHistory: any[] = [
   const totalPoolSmallestUnit = Number(
     market.pool_amount_smallest_unit ?? market.pool ?? yesPoolSmallestUnit + noPoolSmallestUnit
   );
-  const { yesPrice, noPrice } = calculateBoundedPrices(yesPoolSmallestUnit, noPoolSmallestUnit);
-  const closeTime = market.closes_at || market.close_time || '';
-  const status = market.state || market.status || 'active';
+  const { yesPrice, noPrice } = currentMarketPrices(market);
+  const closeTime = getCloseTime(market);
+  const status = displayStatusForMarket(market);
 
   return {
     id: market.id,
@@ -783,10 +869,17 @@ const normalizeMarket = (market: any, positionCount = 0, priceHistory: any[] = [
     noPool: toAmount(noPoolSmallestUnit),
     totalPool: toAmount(totalPoolSmallestUnit),
     participants: Number(market.participant_count ?? market.participants ?? positionCount),
+    tradeCount: Number(market.trade_count ?? market.trades ?? 0),
     yesPrice,
     noPrice,
     closeTime,
-    status: status === 'open' ? 'active' : status,
+    status,
+    marketType: market.market_type || 'binary',
+    rules: market.rules || market.resolution_instructions || market.description || '',
+    minAmount: toAmount(market.min_position_smallest_unit || 0),
+    maxAmount: toAmount(market.max_position_smallest_unit || 0),
+    winningOutcome: market.winning_outcome || market.outcome || null,
+    resolvedAt: market.resolved_at || null,
     imageUrl: market.image_url || null,
     videoUrl: market.video_url || null,
     image_url: market.image_url || null,
@@ -814,6 +907,9 @@ const normalizePosition = (position: any, market: any) => {
     marketQuestion: normalizedMarket.question || 'Unknown Market',
     marketIcon: normalizedMarket.icon,
     marketStatus: normalizedMarket.status,
+    isWinner: position.is_winner,
+    payout: toAmount(position.payout_smallest_unit),
+    resolvedAt: position.resolved_at || null,
     createdAt: position.created_at,
     isListed: false
   };
@@ -1252,10 +1348,8 @@ app.get('/api/markets', async (_req: Request, res: Response) => {
 
     if (error) throw error;
 
-    const activeMarkets = (markets || []).filter((market) => {
-      const status = market.state || market.status || 'active';
-      return status === 'active' || status === 'open';
-    });
+    const autoClosedMarkets = await Promise.all((markets || []).map(autoCloseExpiredMarket));
+    const activeMarkets = autoClosedMarkets.filter((market) => displayStatusForMarket(market) === 'active');
 
     const normalizedMarkets = await Promise.all(activeMarkets.map(async (market) => {
       const { count } = await supabase
@@ -1297,14 +1391,16 @@ app.get('/api/markets/:id', async (req: Request, res: Response) => {
       });
     }
 
+    const currentMarket = await autoCloseExpiredMarket(market);
+
     const { count } = await supabase
       .from('positions')
       .select('*', { count: 'exact', head: true })
-      .eq('market_id', market.id);
+      .eq('market_id', currentMarket.id);
 
-    const priceHistory = await fetchPriceHistory(market.id);
+    const priceHistory = await fetchPriceHistory(currentMarket.id);
 
-    res.json({ market: normalizeMarket(market, count || 0, priceHistory) });
+    res.json({ market: normalizeMarket(currentMarket, count || 0, priceHistory) });
   } catch (error) {
     console.error('Get market error:', error);
     res.status(500).json({
@@ -1481,10 +1577,9 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
       });
     }
 
-    const marketStatus = market.state || market.status || 'active';
-    const closesAt = market.closes_at || market.close_time;
-    const isClosedByTime = closesAt ? new Date(closesAt).getTime() <= Date.now() : false;
-    if (!['active', 'open'].includes(marketStatus) || isClosedByTime) {
+    const currentMarket = await autoCloseExpiredMarket(market);
+    const marketStatus = displayStatusForMarket(currentMarket);
+    if (marketStatus !== 'active') {
       return res.status(422).json({
         error: {
           code: 'MARKET_NOT_ACTIVE',
@@ -1494,8 +1589,8 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
       });
     }
 
-    const minPosition = Number(market.min_position_smallest_unit || 0);
-    const maxPosition = Number(market.max_position_smallest_unit || 0);
+    const minPosition = Number(currentMarket.min_position_smallest_unit || 0);
+    const maxPosition = Number(currentMarket.max_position_smallest_unit || 0);
     if (minPosition > 0 && amountSmallestUnit < minPosition) {
       return res.status(400).json({
         error: {
@@ -1543,14 +1638,14 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
       });
     }
 
-    const yesPool = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
-    const noPool = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
-    const currentTotal = Number(market.pool_amount_smallest_unit ?? market.pool ?? yesPool + noPool);
+    const yesPool = Number(currentMarket.yes_pool_smallest_unit ?? currentMarket.yes_pool ?? 0);
+    const noPool = Number(currentMarket.no_pool_smallest_unit ?? currentMarket.no_pool ?? 0);
+    const currentTotal = Number(currentMarket.pool_amount_smallest_unit ?? currentMarket.pool ?? yesPool + noPool);
     const nextYesPool = side === 'YES' ? yesPool + amountSmallestUnit : yesPool;
     const nextNoPool = side === 'NO' ? noPool + amountSmallestUnit : noPool;
     const nextTotal = currentTotal + amountSmallestUnit;
-    const pricesBefore = calculateBoundedPrices(yesPool, noPool);
-    const pricesAfter = calculateBoundedPrices(nextYesPool, nextNoPool);
+    const pricesBefore = currentMarketPrices(currentMarket);
+    const pricesAfter = calculateTradePrices(currentMarket, side, amountSmallestUnit);
     const entryPrice = side === 'YES' ? pricesAfter.yesPrice : pricesAfter.noPrice;
     const potentialReturn = calculatePotentialReturn(amountSmallestUnit, entryPrice);
     const priceChange = side === 'YES'
@@ -1589,6 +1684,23 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
     if (positionResult.error || !positionResult.data) throw positionResult.error;
     const position = { ...positionResult.data, entry_price: entryPrice };
 
+    const { error: tradeError } = await supabase
+      .from('market_trades')
+      .insert({
+        market_id: marketId,
+        user_id: user.id,
+        position_id: position.id,
+        side,
+        amount_smallest_unit: amountSmallestUnit,
+        price_before: side === 'YES' ? pricesBefore.yesPrice : pricesBefore.noPrice,
+        price_after: entryPrice,
+        yes_price_after: pricesAfter.yesPrice,
+        no_price_after: pricesAfter.noPrice,
+        currency
+      });
+
+    if (tradeError) throw tradeError;
+
     const { data: updatedWallet, error: walletUpdateError } = await supabase
       .from('wallets')
       .update({
@@ -1601,12 +1713,24 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
 
     if (walletUpdateError || !updatedWallet) throw walletUpdateError;
 
+    const { data: participantRows } = await supabase
+      .from('positions')
+      .select('user_id')
+      .eq('market_id', marketId);
+    const participantCount = new Set((participantRows || []).map((row) => row.user_id)).size;
+
     const { data: updatedMarket, error: marketUpdateError } = await supabase
       .from('markets')
       .update({
         yes_pool_smallest_unit: nextYesPool,
         no_pool_smallest_unit: nextNoPool,
-        pool_amount_smallest_unit: nextTotal
+        pool_amount_smallest_unit: nextTotal,
+        yes_price: pricesAfter.yesPrice,
+        no_price: pricesAfter.noPrice,
+        trade_count: Number(currentMarket.trade_count || 0) + 1,
+        participant_count: participantCount || Number(currentMarket.participant_count || 0),
+        total_volume_smallest_unit: nextTotal,
+        updated_at: new Date().toISOString()
       })
       .eq('id', marketId)
       .select()
@@ -1768,6 +1892,7 @@ app.get('/api/profile/stats', authenticate, async (req: Request, res: Response) 
 
     if (error) throw error;
 
+    const resolvedPositions = (positions || []).filter((position) => position.resolved_at);
     const totalPredictions = positions?.length || 0;
     const wonPredictions = (positions || []).filter((position) => position.is_winner).length;
     const activePredictions = (positions || []).filter((position) => !position.resolved_at).length;
@@ -1783,7 +1908,7 @@ app.get('/api/profile/stats', authenticate, async (req: Request, res: Response) 
         totalPredictions,
         activePredictions,
         wonPredictions,
-        winRate: totalPredictions > 0 ? Math.round((wonPredictions / totalPredictions) * 100) : 0,
+        winRate: resolvedPositions.length > 0 ? Math.round((wonPredictions / resolvedPositions.length) * 100) : 0,
         totalStaked,
         totalEarnings
       }
@@ -1893,7 +2018,6 @@ app.post('/api/admin/add-admin', authenticate, requireRole('super_admin'), async
 app.post('/api/admin/remove-admin', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
   try {
     const { userId } = req.body;
-    const currentUser = (req as any).user;
 
     // Validate userId
     if (!userId || typeof userId !== 'string') {
@@ -2105,7 +2229,7 @@ const normalizeAdminMarket = (market: any) => ({
   question: market.question,
   description: market.description,
   category: market.category || 'General',
-  status: market.status || market.state || 'active',
+  status: displayStatusForMarket(market),
   market_type: market.market_type || 'binary',
   yes_label: market.yes_label || 'YES',
   no_label: market.no_label || 'NO',
@@ -2115,9 +2239,12 @@ const normalizeAdminMarket = (market: any) => ({
   resolution_date: market.resolution_date,
   resolution_source: market.resolution_source,
   resolution_instructions: market.resolution_instructions,
+  rules: market.rules || market.resolution_instructions || market.description || '',
   outcome: market.outcome,
   pool_amount_smallest_unit: Number(market.pool_amount_smallest_unit || 0),
+  total_volume_smallest_unit: Number(market.total_volume_smallest_unit || market.pool_amount_smallest_unit || 0),
   participant_count: Number(market.participant_count || 0),
+  trade_count: Number(market.trade_count || 0),
   currency: market.currency || 'NGN',
   image_url: market.image_url,
   video_url: market.video_url,
@@ -2129,15 +2256,116 @@ const normalizeAdminMarket = (market: any) => ({
   updated_at: market.updated_at
 });
 
-const legacyStateFor = (status: string) => {
-  if (status === 'active') return 'active';
-  if (status === 'resolved') return 'resolved';
-  return 'closed';
-};
-
 const canManageMarket = (user: any, market: any) => (
   user.role === 'super_admin' || market.created_by === user.id
 );
+
+const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, adminUser: any) => {
+  if (normalizeMarketStatus(market) === 'resolved') {
+    throw new Error('This market has already been resolved.');
+  }
+
+  const { data: positions, error: positionsError } = await supabase
+    .from('positions')
+    .select('*')
+    .eq('market_id', market.id);
+
+  if (positionsError) throw positionsError;
+
+  const allPositions = positions || [];
+  const winningPositions = allPositions.filter((position: any) => position.side === outcome);
+  const losingPositions = allPositions.filter((position: any) => position.side !== outcome);
+  const winningPool = winningPositions.reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || 0), 0);
+  const losingPool = losingPositions.reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || 0), 0);
+  const totalPool = winningPool + losingPool;
+  const now = new Date().toISOString();
+
+  for (const position of allPositions) {
+    const isWinner = position.side === outcome;
+    const payout = isWinner && winningPool > 0
+      ? Math.floor((Number(position.amount_smallest_unit || 0) / winningPool) * totalPool)
+      : 0;
+
+    await supabase
+      .from('positions')
+      .update({
+        is_winner: isWinner,
+        payout_smallest_unit: payout,
+        resolved_at: now
+      })
+      .eq('id', position.id);
+
+    if (payout > 0) {
+      const { data: wallet } = await supabase
+        .from('wallets')
+        .select('*')
+        .eq('user_id', position.user_id)
+        .single();
+
+      if (wallet) {
+        const balanceField = position.currency === 'USD' ? 'available_usd_cents' : 'available_ngn_kobo';
+        await supabase
+          .from('wallets')
+          .update({
+            [balanceField]: Number(wallet[balanceField] || 0) + payout,
+            updated_at: now
+          })
+          .eq('id', wallet.id);
+
+        await supabase
+          .from('transactions')
+          .insert({
+            user_id: position.user_id,
+            wallet_id: wallet.id,
+            type: 'position_payout',
+            amount_smallest_unit: payout,
+            currency: position.currency || 'NGN',
+            direction: 'IN',
+            reference_id: position.id,
+            reference_type: 'position',
+            status: 'completed',
+            metadata: {
+              marketId: market.id,
+              outcome,
+              stakeSmallestUnit: position.amount_smallest_unit,
+              profitSmallestUnit: payout - Number(position.amount_smallest_unit || 0)
+            }
+          });
+      }
+    }
+  }
+
+  await supabase
+    .from('market_resolution_logs')
+    .insert({
+      market_id: market.id,
+      resolved_by: adminUser.id,
+      outcome,
+      winning_pool_smallest_unit: winningPool,
+      losing_pool_smallest_unit: losingPool,
+      payout_pool_smallest_unit: totalPool,
+      resolved_position_count: allPositions.length
+    });
+
+  const { data: updatedMarket, error: marketError } = await supabase
+    .from('markets')
+    .update({
+      status: 'resolved',
+      state: 'resolved',
+      outcome,
+      winning_outcome: outcome,
+      resolved_at: now,
+      resolution_source: market.resolution_source || 'Admin resolution',
+      updated_at: now
+    })
+    .eq('id', market.id)
+    .neq('status', 'resolved')
+    .select()
+    .single();
+
+  if (marketError) throw marketError;
+  return updatedMarket;
+};
 
 /**
  * GET /api/admin/markets
@@ -2164,7 +2392,8 @@ app.get('/api/admin/markets', authenticate, requireRole('admin'), async (req: Re
     const { data, error } = await query;
     if (error) throw error;
 
-    const markets = (data || []).map(normalizeAdminMarket);
+    const autoClosedMarkets = await Promise.all((data || []).map(autoCloseExpiredMarket));
+    const markets = autoClosedMarkets.map(normalizeAdminMarket);
     res.json({
       success: true,
       markets,
@@ -2295,6 +2524,10 @@ app.post('/api/admin/markets', authenticate, requireRole('admin'), async (req: R
       return res.status(400).json({ success: false, error: { code: 'PRICE_SUM_INVALID', message: 'YES and NO prices must add up to 100.' } });
     }
 
+    if (!closeDate || new Date(closeDate).getTime() <= Date.now()) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_CLOSE_DATE', message: 'End date must be in the future.' } });
+    }
+
     const { data: market, error } = await supabase
       .from('markets')
       .insert({
@@ -2324,12 +2557,17 @@ app.post('/api/admin/markets', authenticate, requireRole('admin'), async (req: R
         pool_amount_smallest_unit: 0,
         yes_pool_smallest_unit: 0,
         no_pool_smallest_unit: 0,
-        participant_count: 0
+        participant_count: 0,
+        trade_count: 0,
+        total_volume_smallest_unit: 0,
+        rules: req.body.resolution_instructions || req.body.rules || null
       })
       .select()
       .single();
 
     if (error) throw error;
+
+    await savePriceHistory(market.id, yesPrice, noPrice, 0, 0);
 
     res.status(201).json({
       success: true,
@@ -2406,13 +2644,37 @@ app.patch('/api/admin/markets/:marketId/status', authenticate, requireRole('admi
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Only super admins can resolve markets.' } });
     }
 
+    const requestedStatus = String(req.body.status || '').trim();
+    const requestedOutcome = normalizePredictionSide(req.body.outcome);
+    const allowedStatusUpdates = ['draft', 'active', 'closed', 'pending_resolution', 'resolved', 'archived'];
+    if (!allowedStatusUpdates.includes(requestedStatus)) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_STATUS', message: 'Choose a valid market status.' } });
+    }
+
+    if (requestedStatus === 'resolved') {
+      if (!requestedOutcome) {
+        return res.status(400).json({ success: false, error: { code: 'OUTCOME_REQUIRED', message: 'Choose YES or NO before resolving.' } });
+      }
+
+      const resolvedMarket = await resolveMarketWithPayouts(
+        { ...existingMarket, resolution_source: req.body.resolution_source || existingMarket.resolution_source },
+        requestedOutcome,
+        user
+      );
+
+      return res.json({ success: true, market: normalizeAdminMarket(resolvedMarket) });
+    }
+
+    if (requestedStatus === 'archived' && normalizeMarketStatus(existingMarket) !== 'resolved') {
+      return res.status(422).json({ success: false, error: { code: 'ARCHIVE_REQUIRES_RESOLUTION', message: 'Only resolved markets can be archived.' } });
+    }
+
     const updateData: any = {
-      status: req.body.status,
-      state: legacyStateFor(req.body.status)
+      status: requestedStatus,
+      state: legacyStateFor(requestedStatus),
+      updated_at: new Date().toISOString()
     };
-    if (req.body.outcome) updateData.outcome = req.body.outcome;
-    if (req.body.resolution_source) updateData.resolution_source = req.body.resolution_source;
-    if (req.body.status === 'resolved') updateData.resolved_at = new Date().toISOString();
+    if (requestedStatus === 'archived') updateData.archived_at = new Date().toISOString();
 
     const { data: market, error } = await supabase
       .from('markets')
@@ -2488,7 +2750,7 @@ app.use((req: Request, res: Response) => {
 });
 
 // Error handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Unhandled error:', err);
   res.status(500).json({
     error: {

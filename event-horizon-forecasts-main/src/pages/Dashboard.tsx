@@ -214,8 +214,12 @@ const ActivityView = ({ positions, settledCount }: { positions: ApiPosition[]; s
               </div>
             </div>
             <div className="shrink-0 text-right">
-              <div className="text-sm font-black">{formatNaira(position.stake)}</div>
-              <div className="mt-1 text-xs capitalize text-slate-500">{position.marketStatus}</div>
+              <div className="text-sm font-black">
+                {position.resolvedAt ? formatNaira(position.payout || 0) : formatNaira(position.stake)}
+              </div>
+              <div className={`mt-1 text-xs capitalize ${position.resolvedAt ? (position.isWinner ? "text-emerald-300" : "text-red-300") : "text-slate-500"}`}>
+                {position.resolvedAt ? (position.isWinner ? "won" : "lost") : position.marketStatus}
+              </div>
             </div>
           </Link>
         ))}

@@ -112,6 +112,8 @@ export default function MarketDetail() {
   const selectedPrice = sheetSide === "YES" ? market.yesPrice : market.noPrice;
   const numericAmount = Number.parseFloat(amount) || 0;
   const estimatedReturn = numericAmount > 0 && sheetSide ? numericAmount * (100 / Math.max(1, selectedPrice)) : 0;
+  const estimatedProfit = Math.max(0, estimatedReturn - numericAmount);
+  const marketIsActive = market.status === "active";
 
   return (
     <div className="min-h-screen bg-[#050711] pb-28 text-white md:pb-24 xl:pl-64">
@@ -139,7 +141,7 @@ export default function MarketDetail() {
             <div className="absolute bottom-0 left-0 right-0 p-5">
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#050711]">{market.category}</span>
-                <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-200">Live</span>
+                <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-200">{marketIsActive ? "Live" : market.status}</span>
                 <span className="rounded-full border border-white/10 bg-black/35 px-3 py-1 text-xs font-black text-white backdrop-blur-xl">
                   {formatCountdown(market.closeTime, market.closesIn)}
                 </span>
@@ -148,6 +150,7 @@ export default function MarketDetail() {
               <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-300">
                 <span className="flex items-center gap-1.5"><Users className="h-4 w-4 text-violet-300" />{market.participants} participants</span>
                 <span className="flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-violet-300" />{formatNaira(market.totalPool)} volume</span>
+                <span>{market.tradeCount || 0} trades</span>
                 <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-violet-300" />Ends {formatCountdown(market.closeTime, market.closesIn)}</span>
               </div>
             </div>
@@ -175,6 +178,11 @@ export default function MarketDetail() {
           </div>
         </section>
 
+        <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.055] p-4">
+          <h2 className="text-lg font-black">Rules</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-400">{market.rules || market.description || "This market resolves based on the stated outcome and admin review."}</p>
+        </section>
+
         {relatedMarkets.length > 0 && (
           <section className="mt-4">
             <h2 className="mb-3 text-lg font-black">Related markets</h2>
@@ -193,10 +201,10 @@ export default function MarketDetail() {
 
       <div className="fixed bottom-16 left-0 right-0 z-40 border-t border-white/10 bg-[#060914]/90 p-3 backdrop-blur-2xl md:bottom-0 xl:left-64">
         <div className="mx-auto grid max-w-4xl grid-cols-2 gap-3">
-          <button onClick={() => setSheetSide("YES")} className="h-12 rounded-2xl bg-emerald-500 text-sm font-black text-white shadow-[0_0_24px_rgba(16,185,129,0.25)]">
+          <button disabled={!marketIsActive} onClick={() => setSheetSide("YES")} className="h-12 rounded-2xl bg-emerald-500 text-sm font-black text-white shadow-[0_0_24px_rgba(16,185,129,0.25)] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">
             Buy YES {formatNairaPrice(market.yesPrice)}
           </button>
-          <button onClick={() => setSheetSide("NO")} className="h-12 rounded-2xl bg-red-500 text-sm font-black text-white shadow-[0_0_24px_rgba(239,68,68,0.22)]">
+          <button disabled={!marketIsActive} onClick={() => setSheetSide("NO")} className="h-12 rounded-2xl bg-red-500 text-sm font-black text-white shadow-[0_0_24px_rgba(239,68,68,0.22)] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">
             Buy NO {formatNairaPrice(market.noPrice)}
           </button>
         </div>
@@ -226,6 +234,7 @@ export default function MarketDetail() {
             <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.055] p-4">
               <Row label="Wallet balance" value={user ? formatNaira(user.balance || 0) : "Login required"} />
               <Row label="Estimated payout" value={formatNaira(estimatedReturn)} highlight />
+              <Row label="Estimated profit" value={formatNaira(estimatedProfit)} highlight />
             </div>
             <Button onClick={confirmPrediction} disabled={submitting || numericAmount <= 0} className={`mt-5 h-12 w-full rounded-2xl text-base font-black text-white ${sheetSide === "YES" ? "bg-emerald-500 hover:bg-emerald-400" : "bg-red-500 hover:bg-red-400"}`}>
               {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <TrendingUp className="mr-2 h-4 w-4" />}

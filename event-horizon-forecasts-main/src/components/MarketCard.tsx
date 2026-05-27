@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   Market,
   formatCountdown,
+  formatNaira,
   formatNairaPrice,
   getMarketMedia,
 } from "@/lib/markets";
@@ -36,7 +37,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
             {m.category || "Market"}
           </span>
           <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-black text-emerald-200">
-            Live
+            {m.status === "active" ? "Live" : m.status}
           </span>
         </div>
 
@@ -77,6 +78,8 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
               <Users className="h-3.5 w-3.5 text-violet-300" />
               {m.participants}
             </span>
+            <span>{formatNaira(m.totalPool)}</span>
+            <span>{m.tradeCount || 0} trades</span>
             <span className="flex items-center gap-1">
               <Clock className="h-3.5 w-3.5" />
               {formatCountdown(m.closeTime, m.closesIn)}

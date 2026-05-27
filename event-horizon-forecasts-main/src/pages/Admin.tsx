@@ -237,6 +237,14 @@ const Admin = () => {
 
   const changeStatus = async (market: AdminMarket, status: string, outcome?: "YES" | "NO" | "INVALID") => {
     try {
+      if (status === "resolved") {
+        const confirmed = window.confirm(`You are about to resolve this market as ${outcome}. Winners will be paid from the losing pool. This cannot be undone.`);
+        if (!confirmed) return;
+      }
+      if (status === "archived") {
+        const confirmed = window.confirm("Archive this resolved market? It will disappear from live feeds but remain in admin history.");
+        if (!confirmed) return;
+      }
       await apiService.updateAdminMarketStatus(market.id, {
         status,
         outcome,
@@ -425,6 +433,7 @@ const MarketsView = ({ markets, loading, search, statusFilter, setSearch, setSta
           <option value="all">All</option>
           <option value="draft">Draft</option>
           <option value="active">Active</option>
+          <option value="pending_resolution">Resolve Markets</option>
           <option value="paused">Paused</option>
           <option value="resolved">Resolved</option>
           <option value="archived">Archived</option>
@@ -471,11 +480,14 @@ const MarketsView = ({ markets, loading, search, statusFilter, setSearch, setSta
                   <td className="px-4 py-4">
                     <div className="flex justify-end gap-2">
                       <IconAction disabled={!canEdit} onClick={() => onEdit(market)} icon={Edit} label="Edit" />
-                      {superAdmin && market.status !== "resolved" && (
+                      {superAdmin && (market.status === "closed" || market.status === "pending_resolution") && (
                         <>
                           <IconAction onClick={() => onResolve(market, "resolved", "YES")} icon={CheckCircle} label="YES" tone="green" />
                           <IconAction onClick={() => onResolve(market, "resolved", "NO")} icon={XCircle} label="NO" tone="red" />
                         </>
+                      )}
+                      {superAdmin && market.status === "resolved" && (
+                        <IconAction onClick={() => onResolve(market, "archived")} icon={Shield} label="Archive" />
                       )}
                     </div>
                   </td>
@@ -544,8 +556,27 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
 
       <section className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
         <div className="space-y-3">
+          <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <span className="font-black">Mark as trending</span>
+            <input type="checkbox" checked={form.trending} onChange={(event) => setForm((prev) => ({ ...prev, trending: event.target.checked }))} className="h-5 w-5 accent-violet-500" />
+          </label>
           <Field label="Status"><Select value={form.status} onChange={(value) => setForm((prev) => ({ ...prev, status: value as "draft" | "active" }))} options={["active", "draft"]} /></Field>
-          <p className="text-xs text-slate-500">Trending is now determined by real volume, comments, and participation.</p>
+        </div>
+      </section>
+
+      <section className="min-w-0 rounded-[2rem] border border-violet-300/20 bg-violet-500/10 p-5">
+        <h2 className="mb-4 text-xl font-black">User preview</h2>
+        <div className="rounded-3xl border border-white/10 bg-[#080d19] p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-black text-slate-300">{form.category}</span>
+            <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-200">Live</span>
+          </div>
+          <div className="line-clamp-3 text-lg font-black">{form.question || "Market question appears here"}</div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-2xl bg-emerald-400/10 p-3 text-sm font-black text-emerald-200">YES ₦{Number(form.startingProbability || 0)}</div>
+            <div className="rounded-2xl bg-red-400/10 p-3 text-sm font-black text-red-200">NO ₦{noPrice}</div>
+          </div>
+          <p className="mt-3 text-xs text-slate-500">This is how users will see the market. Confirm before publishing.</p>
         </div>
       </section>
 
