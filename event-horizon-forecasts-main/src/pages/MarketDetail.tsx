@@ -100,6 +100,11 @@ export default function MarketDetail() {
     }
     const numericAmount = Number.parseFloat(amount) || 0;
     if (numericAmount <= 0) return toast.error("Enter an amount.");
+    const oppositePool = sheetSide === "YES" ? market.noPool : market.yesPool;
+    const maxLiquidityStake = Math.floor((oppositePool || 0) * 0.5);
+    if (numericAmount > maxLiquidityStake) {
+      return toast.error(`Maximum available for this side is ${formatNaira(maxLiquidityStake)} based on current liquidity.`);
+    }
 
     setSubmitting(true);
     try {
@@ -135,8 +140,14 @@ export default function MarketDetail() {
   const media = getMarketMedia(market);
   const selectedPrice = sheetSide === "YES" ? market.yesPrice : market.noPrice;
   const numericAmount = Number.parseFloat(amount) || 0;
-  const estimatedReturn = numericAmount > 0 && sheetSide ? numericAmount * (100 / Math.max(1, selectedPrice)) : 0;
+  const sidePool = sheetSide === "YES" ? market.yesPool : market.noPool;
+  const oppositePool = sheetSide === "YES" ? market.noPool : market.yesPool;
+  const maxLiquidityStake = Math.floor((oppositePool || 0) * 0.5);
+  const estimatedReturn = numericAmount > 0 && sheetSide
+    ? numericAmount + (numericAmount / Math.max(1, (sidePool || 0) + numericAmount)) * (oppositePool || 0)
+    : 0;
   const estimatedProfit = Math.max(0, estimatedReturn - numericAmount);
+  const exceedsLiquidity = Boolean(sheetSide && numericAmount > 0 && numericAmount > maxLiquidityStake);
   const hasMarketEnded = market.closeTime ? new Date(market.closeTime).getTime() <= now : false;
   const marketIsActive = market.status === "active" && !hasMarketEnded;
 
@@ -248,6 +259,9 @@ export default function MarketDetail() {
             </div>
             <label className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-500">Amount</label>
             <Input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0" className="h-13 rounded-2xl border-white/10 bg-white/[0.055] text-lg font-black text-white placeholder:text-slate-600" />
+            {exceedsLiquidity && (
+              <p className="mt-2 text-xs font-bold text-amber-200">Maximum available for this side is {formatNaira(maxLiquidityStake)} based on current liquidity.</p>
+            )}
             <div className="mt-3 grid grid-cols-4 gap-2">
               {[100, 500, 1000, 5000].map((value) => (
                 <button key={value} onClick={() => setAmount(value.toString())} className="h-10 rounded-xl border border-white/10 bg-white/[0.055] text-xs font-black text-slate-300">
@@ -259,8 +273,9 @@ export default function MarketDetail() {
               <Row label="Wallet balance" value={user ? formatNaira(user.balance || 0) : "Login required"} />
               <Row label="Estimated payout" value={formatNaira(estimatedReturn)} highlight />
               <Row label="Estimated profit" value={formatNaira(estimatedProfit)} highlight />
+              <Row label="Max available" value={formatNaira(maxLiquidityStake)} />
             </div>
-            <Button onClick={confirmPrediction} disabled={submitting || numericAmount <= 0} className={`mt-5 h-12 w-full rounded-2xl text-base font-black text-white ${sheetSide === "YES" ? "bg-emerald-500 hover:bg-emerald-400" : "bg-red-500 hover:bg-red-400"}`}>
+            <Button onClick={confirmPrediction} disabled={submitting || numericAmount <= 0 || exceedsLiquidity} className={`mt-5 h-12 w-full rounded-2xl text-base font-black text-white ${sheetSide === "YES" ? "bg-emerald-500 hover:bg-emerald-400" : "bg-red-500 hover:bg-red-400"}`}>
               {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <TrendingUp className="mr-2 h-4 w-4" />}
               {user ? "Lock prediction" : "Login to predict"}
             </Button>

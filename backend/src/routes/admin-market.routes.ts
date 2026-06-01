@@ -92,6 +92,223 @@ const notifyMarketResolution = async (market: any, outcome?: string) => {
     });
 };
 
+const toAmount = (smallestUnit: number) => smallestUnit / 100;
+
+const notifyUser = async (userId: string, notification: Record<string, any>) => {
+  await supabase
+    .from('notifications')
+    .insert({
+      user_id: userId,
+      ...notification
+    })
+    .then(({ error }) => {
+      if (error) console.warn('Notification not saved:', error.message);
+    });
+};
+
+const resolveMarketPoolPayouts = async (market: any, outcome: 'YES' | 'NO', adminUserId: string) => {
+  if (market.status === 'resolved' || market.resolved_at) {
+    throw new Error('Market has already been resolved');
+  }
+
+  const { data: positions, error: positionsError } = await supabase
+    .from('positions')
+    .select('*')
+    .eq('market_id', market.id);
+
+  if (positionsError) throw new Error(`Failed to load positions: ${positionsError.message}`);
+
+  const winningPool = Number(outcome === 'YES' ? market.yes_pool_smallest_unit : market.no_pool_smallest_unit) || 0;
+  const totalPool =
+    (Number(market.yes_pool_smallest_unit) || 0) +
+    (Number(market.no_pool_smallest_unit) || 0);
+
+  let winners = 0;
+  let losers = 0;
+  let totalPayout = 0;
+
+  for (const position of positions || []) {
+    const won = position.side === outcome;
+    const stake = Number(position.amount_smallest_unit || 0);
+    const payout = won && winningPool > 0 ? Math.floor((stake / winningPool) * totalPool) : 0;
+
+    if (won) {
+      winners += 1;
+      totalPayout += payout;
+
+      const { data: wallet } = await supabase
+        .from('wallets')
+        .select('*')
+        .eq('user_id', position.user_id)
+        .single();
+
+      if (wallet) {
+        const field = position.currency === 'USD' ? 'available_usd_cents' : 'available_ngn_kobo';
+        await supabase
+          .from('wallets')
+          .update({
+            [field]: Number(wallet[field] || 0) + payout,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', wallet.id);
+
+        await supabase.from('transactions').insert({
+          wallet_id: wallet.id,
+          user_id: position.user_id,
+          type: 'position_payout',
+          amount_smallest_unit: payout,
+          currency: position.currency || 'NGN',
+          direction: 'IN',
+          status: 'completed',
+          reference_id: position.id,
+          reference_type: 'position',
+          market_id: market.id,
+          position_id: position.id,
+          metadata: {
+            marketId: market.id,
+            marketQuestion: market.question,
+            outcome,
+            stake: toAmount(stake),
+            payout: toAmount(payout),
+            profit: toAmount(Math.max(0, payout - stake))
+          }
+        });
+      }
+
+      await notifyUser(position.user_id, {
+        type: 'position_payout',
+        title: 'Prediction won',
+        message: `${market.question} resolved ${outcome}. Your payout is ₦${Math.floor(toAmount(payout)).toLocaleString()}.`,
+        reference_id: market.id,
+        reference_type: 'market',
+        metadata: { marketId: market.id, marketQuestion: market.question, outcome, payout: toAmount(payout) }
+      });
+    } else {
+      losers += 1;
+    }
+
+    await supabase
+      .from('positions')
+      .update({
+        is_winner: won,
+        payout_smallest_unit: payout,
+        final_payout_smallest_unit: payout,
+        status: won ? 'won' : 'lost',
+        resolved_at: new Date().toISOString()
+      })
+      .eq('id', position.id);
+  }
+
+  const { data: updatedMarket, error: marketError } = await supabase
+    .from('markets')
+    .update({
+      status: 'resolved',
+      state: 'resolved',
+      outcome,
+      winning_outcome: outcome,
+      resolved_outcome: outcome,
+      resolved_at: new Date().toISOString()
+    })
+    .eq('id', market.id)
+    .select()
+    .single();
+
+  if (marketError || !updatedMarket) throw new Error(`Failed to mark market resolved: ${marketError?.message || 'No data returned'}`);
+
+  await supabase.from('market_resolution_logs').insert({
+    market_id: market.id,
+    resolved_by: adminUserId,
+    outcome,
+    payout_summary: { winners, losers, totalPayoutSmallestUnit: totalPayout, totalPayout: toAmount(totalPayout) }
+  }).then(({ error }) => {
+    if (error) console.warn('Resolution log not saved:', error.message);
+  });
+
+  return { market: updatedMarket, payoutSummary: { winners, losers, totalPayout: toAmount(totalPayout) } };
+};
+
+const cancelMarketWithRefunds = async (market: any) => {
+  if (market.status === 'resolved' || market.resolved_at) {
+    throw new Error('Resolved markets cannot be cancelled');
+  }
+
+  const { data: positions, error: positionsError } = await supabase
+    .from('positions')
+    .select('*')
+    .eq('market_id', market.id);
+
+  if (positionsError) throw new Error(`Failed to load positions: ${positionsError.message}`);
+
+  let refunds = 0;
+  let refundedTotal = 0;
+
+  for (const position of positions || []) {
+    const stake = Number(position.amount_smallest_unit || 0);
+    const { data: wallet } = await supabase
+      .from('wallets')
+      .select('*')
+      .eq('user_id', position.user_id)
+      .single();
+
+    if (wallet && stake > 0) {
+      const field = position.currency === 'USD' ? 'available_usd_cents' : 'available_ngn_kobo';
+      await supabase
+        .from('wallets')
+        .update({
+          [field]: Number(wallet[field] || 0) + stake,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', wallet.id);
+
+      await supabase.from('transactions').insert({
+        wallet_id: wallet.id,
+        user_id: position.user_id,
+        type: 'refund',
+        amount_smallest_unit: stake,
+        currency: position.currency || 'NGN',
+        direction: 'IN',
+        status: 'completed',
+        reference_id: position.id,
+        reference_type: 'position',
+        market_id: market.id,
+        position_id: position.id,
+        metadata: { marketId: market.id, marketQuestion: market.question, reason: 'market_cancelled' }
+      });
+    }
+
+    await supabase
+      .from('positions')
+      .update({
+        is_winner: null,
+        payout_smallest_unit: stake,
+        final_payout_smallest_unit: stake,
+        status: 'refunded',
+        resolved_at: new Date().toISOString()
+      })
+      .eq('id', position.id);
+
+    refunds += 1;
+    refundedTotal += stake;
+  }
+
+  const { data: updatedMarket, error: marketError } = await supabase
+    .from('markets')
+    .update({
+      status: 'cancelled',
+      state: 'closed',
+      outcome: 'INVALID',
+      resolved_outcome: null,
+      resolved_at: new Date().toISOString()
+    })
+    .eq('id', market.id)
+    .select()
+    .single();
+
+  if (marketError || !updatedMarket) throw new Error(`Failed to cancel market: ${marketError?.message || 'No data returned'}`);
+
+  return { market: updatedMarket, refundSummary: { refunds, refundedTotal: toAmount(refundedTotal) } };
+};
+
 // Configure multer for memory storage
 const storage = multer.memoryStorage();
 
@@ -588,7 +805,7 @@ router.post('/upload-media', upload.single('media'), async (req: Request, res: R
  */
 router.get('/:marketId', async (req: Request, res: Response) => {
   try {
-    const { marketId } = req.params;
+    const { marketId } = req.params as { marketId: string };
 
     const market = await marketRepo.findById(marketId);
 
@@ -638,7 +855,7 @@ router.get('/:marketId', async (req: Request, res: Response) => {
  */
 router.put('/:marketId', async (req: Request, res: Response) => {
   try {
-    const { marketId } = req.params;
+    const { marketId } = req.params as { marketId: string };
 
     // Validate request body
     const validated = MarketUpdateSchema.parse(req.body);
@@ -744,7 +961,7 @@ router.put('/:marketId', async (req: Request, res: Response) => {
  */
 router.delete('/:marketId', async (req: Request, res: Response) => {
   try {
-    const { marketId } = req.params;
+    const { marketId } = req.params as { marketId: string };
 
     // Get existing market
     const existingMarket = await marketRepo.findById(marketId);
@@ -815,7 +1032,7 @@ router.delete('/:marketId', async (req: Request, res: Response) => {
  */
 router.patch('/:marketId/status', async (req: Request, res: Response) => {
   try {
-    const { marketId } = req.params;
+    const { marketId } = req.params as { marketId: string };
 
     // Validate request body
     const validated = StatusChangeSchema.parse(req.body);
@@ -864,13 +1081,34 @@ router.patch('/:marketId/status', async (req: Request, res: Response) => {
       });
     }
 
-    // Update status
-    const updatedMarket = await marketRepo.updateStatus(
-      marketId,
-      validated.status,
-      validated.outcome,
-      validated.resolution_source
-    );
+    let updatedMarket: any;
+    let operationSummary: any;
+
+    if (validated.status === 'resolved') {
+      if (validated.outcome !== 'YES' && validated.outcome !== 'NO') {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_OUTCOME',
+            message: 'Choose YES or NO to resolve this market. Use cancel to refund all positions.',
+          },
+        });
+      }
+      const result = await resolveMarketPoolPayouts(existingMarket, validated.outcome, req.user!.userId);
+      updatedMarket = result.market;
+      operationSummary = result.payoutSummary;
+    } else if (validated.status === 'cancelled') {
+      const result = await cancelMarketWithRefunds(existingMarket);
+      updatedMarket = result.market;
+      operationSummary = result.refundSummary;
+    } else {
+      updatedMarket = await marketRepo.updateStatus(
+        marketId,
+        validated.status,
+        validated.outcome,
+        validated.resolution_source
+      );
+    }
 
     // Create audit trail entry
     await auditRepo.create({
@@ -887,7 +1125,6 @@ router.patch('/:marketId/status', async (req: Request, res: Response) => {
       user_agent: req.headers['user-agent'],
     });
 
-    // TODO: If resolved, trigger payout calculation
     if (validated.status === 'resolved') {
       await notifyMarketResolution(updatedMarket, validated.outcome);
     }
@@ -895,6 +1132,7 @@ router.patch('/:marketId/status', async (req: Request, res: Response) => {
     res.json({
       success: true,
       market: updatedMarket,
+      summary: operationSummary,
     });
   } catch (error: any) {
     console.error('Status change error:', error);
@@ -928,7 +1166,7 @@ router.patch('/:marketId/status', async (req: Request, res: Response) => {
  */
 router.get('/:marketId/audit', async (req: Request, res: Response) => {
   try {
-    const { marketId } = req.params;
+    const { marketId } = req.params as { marketId: string };
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
 

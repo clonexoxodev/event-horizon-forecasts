@@ -12,6 +12,11 @@ import { NotificationBell } from "@/components/NotificationBell";
 
 const categories = ["Trending", "Sports", "Crypto", "Politics", "Finance", "Entertainment", "Music", "Global"];
 
+const isLiveMarket = (market: { status?: string; closeTime?: string }) => {
+  const hasEnded = market.closeTime ? new Date(market.closeTime).getTime() <= Date.now() : false;
+  return market.status === "active" && !hasEnded;
+};
+
 const Index = () => {
   const { user } = useAuth();
   const [category, setCategory] = useState("Trending");
@@ -38,7 +43,7 @@ const Index = () => {
   }, []);
 
   const filtered = useMemo(() => {
-    let next = [...markets];
+    let next = markets.filter(isLiveMarket);
     if (category !== "Trending" && category !== "Global") {
       next = next.filter((market) => market.category?.toLowerCase() === category.toLowerCase());
     }
@@ -54,8 +59,8 @@ const Index = () => {
     return next;
   }, [markets, category, searchQuery]);
 
-  const liveCount = markets.filter((market) => market.status === "active").length;
-  const activeMarkets = filtered.filter((market) => market.status === "active");
+  const liveCount = markets.filter(isLiveMarket).length;
+  const activeMarkets = filtered.filter(isLiveMarket);
   const pulseMarket = activeMarkets.length ? activeMarkets[pulseIndex % activeMarkets.length] : null;
   const recentActivity = pulseMarket
     ? `${Math.max(0, Number(pulseMarket.tradeCount || 0))} trades · ${pulseMarket.question}`

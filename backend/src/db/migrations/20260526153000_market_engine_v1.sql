@@ -8,6 +8,8 @@ alter table public.markets add column if not exists yes_price numeric not null d
 alter table public.markets add column if not exists no_price numeric not null default 50;
 alter table public.markets add column if not exists yes_pool_smallest_unit bigint not null default 0;
 alter table public.markets add column if not exists no_pool_smallest_unit bigint not null default 0;
+alter table public.markets add column if not exists seed_liquidity_yes_smallest_unit bigint not null default 50000;
+alter table public.markets add column if not exists seed_liquidity_no_smallest_unit bigint not null default 50000;
 alter table public.markets add column if not exists pool_amount_smallest_unit bigint not null default 0;
 alter table public.markets add column if not exists total_volume_smallest_unit bigint not null default 0;
 alter table public.markets add column if not exists participant_count integer not null default 0;
@@ -15,6 +17,7 @@ alter table public.markets add column if not exists trade_count integer not null
 alter table public.markets add column if not exists closes_at timestamptz;
 alter table public.markets add column if not exists close_date timestamptz;
 alter table public.markets add column if not exists resolved_at timestamptz;
+alter table public.markets add column if not exists resolved_outcome text;
 alter table public.markets add column if not exists winning_outcome text;
 alter table public.markets add column if not exists outcome text;
 alter table public.markets add column if not exists image_url text;
@@ -36,7 +39,7 @@ alter table public.markets drop constraint if exists valid_market_status;
 alter table public.markets drop constraint if exists markets_status_v1_check;
 alter table public.markets
   add constraint markets_status_v1_check
-  check (status in ('draft', 'active', 'closed', 'pending_resolution', 'resolved', 'archived', 'open', 'paused'));
+  check (status in ('draft', 'active', 'closed', 'pending_resolution', 'resolved', 'cancelled', 'archived', 'open', 'paused'));
 
 create table if not exists public.market_trades (
   id uuid primary key default gen_random_uuid(),
@@ -60,6 +63,7 @@ create table if not exists public.market_price_history (
   no_price numeric not null,
   yes_pool_smallest_unit bigint not null default 0,
   no_pool_smallest_unit bigint not null default 0,
+  volume_smallest_unit bigint not null default 0,
   created_at timestamptz not null default now(),
   constraint market_price_history_sum check (yes_price + no_price = 100)
 );
@@ -69,6 +73,7 @@ alter table public.market_price_history add column if not exists yes_price numer
 alter table public.market_price_history add column if not exists no_price numeric not null default 50;
 alter table public.market_price_history add column if not exists yes_pool_smallest_unit bigint not null default 0;
 alter table public.market_price_history add column if not exists no_pool_smallest_unit bigint not null default 0;
+alter table public.market_price_history add column if not exists volume_smallest_unit bigint not null default 0;
 alter table public.market_price_history add column if not exists created_at timestamptz not null default now();
 
 create table if not exists public.market_resolution_logs (
@@ -84,10 +89,19 @@ create table if not exists public.market_resolution_logs (
 );
 
 alter table public.positions add column if not exists entry_price numeric;
+alter table public.positions add column if not exists entry_yes_price numeric;
+alter table public.positions add column if not exists entry_no_price numeric;
+alter table public.positions add column if not exists estimated_payout_smallest_unit bigint;
+alter table public.positions add column if not exists estimated_profit_smallest_unit bigint;
+alter table public.positions add column if not exists final_payout_smallest_unit bigint;
+alter table public.positions add column if not exists status text not null default 'active';
 alter table public.positions add column if not exists potential_return_smallest_unit bigint;
 alter table public.positions add column if not exists is_winner boolean;
 alter table public.positions add column if not exists payout_smallest_unit bigint;
 alter table public.positions add column if not exists resolved_at timestamptz;
+
+alter table public.transactions add column if not exists market_id uuid references public.markets(id) on delete set null;
+alter table public.transactions add column if not exists position_id uuid references public.positions(id) on delete set null;
 
 create or replace view public.user_positions as
 select * from public.positions;

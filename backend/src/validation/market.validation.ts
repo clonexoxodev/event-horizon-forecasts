@@ -8,7 +8,7 @@ import { z } from 'zod';
  */
 
 // Market status enum
-export const MarketStatus = z.enum(['draft', 'active', 'paused', 'resolved', 'archived']);
+export const MarketStatus = z.enum(['draft', 'active', 'closed', 'pending_resolution', 'resolved', 'cancelled', 'archived']);
 export type MarketStatus = z.infer<typeof MarketStatus>;
 
 // Market type enum
@@ -55,11 +55,13 @@ export const MarketCreateSchema = z.object({
   
   yes_price: z.number()
     .min(0, 'YES price must be at least 0')
-    .max(100, 'YES price must be at most 100'),
+    .max(100, 'YES price must be at most 100')
+    .optional(),
   
   no_price: z.number()
     .min(0, 'NO price must be at least 0')
-    .max(100, 'NO price must be at most 100'),
+    .max(100, 'NO price must be at most 100')
+    .optional(),
   
   close_date: z.string()
     .datetime({ message: 'Close date must be a valid ISO 8601 datetime' }),
@@ -68,10 +70,12 @@ export const MarketCreateSchema = z.object({
     .datetime({ message: 'Resolution date must be a valid ISO 8601 datetime' }),
   
   resolution_source: z.string()
+    .min(1, 'Resolution source is required')
     .max(1000, 'Resolution source must be less than 1000 characters')
     .optional(),
 
   resolution_instructions: z.string()
+    .min(1, 'Rules / resolution criteria are required')
     .max(5000, 'Resolution instructions must be less than 5000 characters')
     .optional(),
   
@@ -91,12 +95,16 @@ export const MarketCreateSchema = z.object({
 
   is_trending: z.boolean().default(false).optional(),
 
+  seed_liquidity_yes_smallest_unit: z.number().int().positive().default(50000),
+
+  seed_liquidity_no_smallest_unit: z.number().int().positive().default(50000),
+
   min_position_smallest_unit: z.number().int().nonnegative().optional(),
 
   max_position_smallest_unit: z.number().int().positive().optional(),
 })
 .refine(
-  (data) => data.yes_price + data.no_price === 100,
+  (data) => data.yes_price === undefined || data.no_price === undefined || data.yes_price + data.no_price === 100,
   {
     message: 'YES and NO prices must sum to 100',
     path: ['yes_price'],
@@ -107,6 +115,20 @@ export const MarketCreateSchema = z.object({
   {
     message: 'A market requires either an image or a video',
     path: ['image_url'],
+  }
+)
+.refine(
+  (data) => Boolean(data.resolution_instructions?.trim()),
+  {
+    message: 'Rules / resolution criteria are required',
+    path: ['resolution_instructions'],
+  }
+)
+.refine(
+  (data) => Boolean(data.resolution_source?.trim()),
+  {
+    message: 'Resolution source is required',
+    path: ['resolution_source'],
   }
 )
 .refine(
@@ -214,6 +236,10 @@ export const MarketUpdateSchema = z.object({
 
   is_trending: z.boolean().optional(),
 
+  seed_liquidity_yes_smallest_unit: z.number().int().positive().optional(),
+
+  seed_liquidity_no_smallest_unit: z.number().int().positive().optional(),
+
   min_position_smallest_unit: z.number().int().nonnegative().optional(),
 
   max_position_smallest_unit: z.number().int().positive().optional(),
@@ -282,7 +308,7 @@ export const BulkActionSchema = z.object({
   market_ids: z.array(z.string().uuid())
     .min(1, 'At least one market ID is required'),
   
-  status: z.enum(['paused', 'archived']),
+  status: z.enum(['closed', 'archived']),
 });
 
 export type BulkActionInput = z.infer<typeof BulkActionSchema>;
@@ -309,9 +335,11 @@ export type MarketFilters = z.infer<typeof MarketFiltersSchema>;
  */
 export const VALID_TRANSITIONS: Record<MarketStatus, MarketStatus[]> = {
   draft: ['active', 'draft'],
-  active: ['paused', 'resolved'],
-  paused: ['active', 'resolved'],
+  active: ['closed', 'pending_resolution', 'resolved', 'cancelled'],
+  closed: ['pending_resolution', 'resolved', 'cancelled'],
+  pending_resolution: ['resolved', 'cancelled'],
   resolved: ['archived'],
+  cancelled: ['archived'],
   archived: [],
 };
 
@@ -322,8 +350,10 @@ export const VALID_TRANSITIONS: Record<MarketStatus, MarketStatus[]> = {
 export const EDITABLE_FIELDS_BY_STATUS: Record<MarketStatus, string[]> = {
   draft: ['*'], // All fields editable
   active: ['description', 'resolution_source', 'resolution_instructions', 'is_trending'],
-  paused: ['description', 'resolution_source', 'resolution_instructions', 'is_trending'],
+  closed: ['resolution_source', 'resolution_instructions', 'is_trending'],
+  pending_resolution: ['resolution_source', 'resolution_instructions', 'is_trending'],
   resolved: ['status'], // Only status change to archived
+  cancelled: ['status'],
   archived: [], // No edits allowed
 };
 

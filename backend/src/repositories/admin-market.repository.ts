@@ -19,6 +19,12 @@ export interface Market {
   status: MarketStatus;
   pool_amount_smallest_unit: number;
   participant_count: number;
+  trade_count?: number | null;
+  total_volume_smallest_unit?: number | null;
+  yes_pool_smallest_unit?: number | null;
+  no_pool_smallest_unit?: number | null;
+  seed_liquidity_yes_smallest_unit?: number | null;
+  seed_liquidity_no_smallest_unit?: number | null;
   currency: 'NGN' | 'USD';
   image_url: string | null;
   video_url?: string | null;
@@ -58,10 +64,22 @@ export class AdminMarketRepository {
     return 'closed';
   }
 
+  private calculatePoolPrices(yesPool: number, noPool: number) {
+    const total = yesPool + noPool;
+    if (total <= 0) return { yesPrice: 50, noPrice: 50 };
+    const yesPrice = Math.round((yesPool / total) * 1000) / 10;
+    return { yesPrice, noPrice: Math.round((100 - yesPrice) * 10) / 10 };
+  }
+
   /**
    * Create a new market
    */
   async create(data: MarketCreateInput, createdBy: string): Promise<Market> {
+    const seedYes = data.seed_liquidity_yes_smallest_unit ?? 50000;
+    const seedNo = data.seed_liquidity_no_smallest_unit ?? 50000;
+    const seedTotal = seedYes + seedNo;
+    const prices = this.calculatePoolPrices(seedYes, seedNo);
+
     const { data: market, error } = await supabase
       .from('markets')
       .insert({
@@ -72,8 +90,8 @@ export class AdminMarketRepository {
         market_type: data.market_type,
         yes_label: data.yes_label,
         no_label: data.no_label,
-        yes_price: data.yes_price,
-        no_price: data.no_price,
+        yes_price: prices.yesPrice,
+        no_price: prices.noPrice,
         close_date: data.close_date,
         resolution_date: data.resolution_date,
         resolution_source: data.resolution_source || null,
@@ -88,10 +106,14 @@ export class AdminMarketRepository {
         max_position_smallest_unit: data.max_position_smallest_unit || null,
         created_by: createdBy,
         closes_at: data.close_date,
-        pool_amount_smallest_unit: 0,
-        yes_pool_smallest_unit: 0,
-        no_pool_smallest_unit: 0,
+        pool_amount_smallest_unit: seedTotal,
+        seed_liquidity_yes_smallest_unit: seedYes,
+        seed_liquidity_no_smallest_unit: seedNo,
+        yes_pool_smallest_unit: seedYes,
+        no_pool_smallest_unit: seedNo,
+        total_volume_smallest_unit: 0,
         participant_count: 0,
+        trade_count: 0,
       })
       .select()
       .single();
@@ -104,10 +126,11 @@ export class AdminMarketRepository {
       .from('market_price_history')
       .insert({
         market_id: market.id,
-        yes_price: data.yes_price,
-        no_price: data.no_price,
-        yes_pool_smallest_unit: 0,
-        no_pool_smallest_unit: 0
+        yes_price: prices.yesPrice,
+        no_price: prices.noPrice,
+        yes_pool_smallest_unit: seedYes,
+        no_pool_smallest_unit: seedNo,
+        volume_smallest_unit: 0
       })
       .then(({ error: historyError }) => {
         if (historyError) console.warn('Failed to save initial market price history:', historyError.message);
@@ -200,6 +223,12 @@ export class AdminMarketRepository {
     
     if (outcome !== undefined) {
       updateData.outcome = outcome;
+      updateData.winning_outcome = outcome === 'INVALID' ? null : outcome;
+      updateData.resolved_outcome = outcome === 'INVALID' ? null : outcome;
+    }
+
+    if (status === 'resolved' || status === 'cancelled') {
+      updateData.resolved_at = new Date().toISOString();
     }
     
     if (resolutionSource !== undefined) {

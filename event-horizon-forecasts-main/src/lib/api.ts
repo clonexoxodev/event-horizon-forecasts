@@ -1,4 +1,4 @@
-const LOCAL_API_URL = 'http://localhost:5000';
+const LOCAL_API_URL = 'http://localhost:5004';
 const API_URL_ENV_NAME = 'VITE_API_URL';
 
 const normalizeApiBaseUrl = () => {
@@ -78,12 +78,15 @@ export type ApiMarket = {
   yesPool: number;
   noPool: number;
   totalPool: number;
+  totalVolume?: number;
+  seedLiquidityYes?: number;
+  seedLiquidityNo?: number;
   participants: number;
   tradeCount?: number;
   yesPrice: number;
   noPrice: number;
   closeTime: string;
-  status: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'archived';
+  status: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived';
   rules?: string;
   minAmount?: number;
   maxAmount?: number;
@@ -98,7 +101,7 @@ export type ApiMarket = {
   video_url?: string | null;
   isTrending?: boolean;
   is_trending?: boolean;
-  priceHistory?: Array<{ timestamp: string; yesPrice: number; noPrice: number }>;
+  priceHistory?: Array<{ timestamp: string; yesPrice: number; noPrice: number; yesPool?: number; noPool?: number; volume?: number }>;
 };
 
 export type AdminMarket = {
@@ -106,7 +109,7 @@ export type AdminMarket = {
   question: string;
   description?: string | null;
   category: string;
-  status: 'draft' | 'active' | 'paused' | 'closed' | 'pending_resolution' | 'resolved' | 'archived';
+  status: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived';
   market_type?: string;
   yes_label?: string;
   no_label?: string;
@@ -120,6 +123,10 @@ export type AdminMarket = {
   winning_outcome?: string | null;
   pool_amount_smallest_unit?: number;
   total_volume_smallest_unit?: number;
+  seed_liquidity_yes_smallest_unit?: number;
+  seed_liquidity_no_smallest_unit?: number;
+  yes_pool_smallest_unit?: number;
+  no_pool_smallest_unit?: number;
   participant_count?: number;
   trade_count?: number;
   rules?: string;
@@ -141,8 +148,10 @@ export type AdminCreateMarketInput = {
   market_type: 'binary';
   yes_label: string;
   no_label: string;
-  yes_price: number;
-  no_price: number;
+  yes_price?: number;
+  no_price?: number;
+  seed_liquidity_yes_smallest_unit: number;
+  seed_liquidity_no_smallest_unit: number;
   close_date: string;
   resolution_date: string;
   resolution_source?: string;
@@ -165,10 +174,14 @@ export type ApiPosition = {
   entryPrice: number;
   currentPrice: number;
   currentValue: number;
+  estimatedPayout?: number;
+  estimatedProfit?: number;
+  finalPayout?: number;
+  status?: string;
   marketQuestion: string;
   marketIcon: string;
   category?: string;
-  marketStatus: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'archived';
+  marketStatus: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived';
   isWinner?: boolean | null;
   payout?: number;
   resolvedAt?: string | null;

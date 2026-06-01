@@ -12,6 +12,10 @@ type ForecastSelection = {
   marketIcon: string;
   side: "YES" | "NO" | "UP" | "DOWN";
   currentPrice: number;
+  yesPool?: number;
+  noPool?: number;
+  minAmount?: number;
+  maxAmount?: number;
 };
 
 type ForecastSlipProps = {
@@ -29,11 +33,17 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
   const quickAmounts = [100, 500, 1000, 5000];
   const numAmount = Number.parseFloat(amount) || 0;
   const probability = selection?.currentPrice || 50;
-  const projectedReturn = numAmount > 0 ? numAmount * (100 / Math.max(1, probability)) : 0;
+  const isPositiveSide = selection?.side === "YES" || selection?.side === "UP";
+  const yesPool = selection?.yesPool ?? 500;
+  const noPool = selection?.noPool ?? 500;
+  const sidePool = isPositiveSide ? yesPool : noPool;
+  const oppositePool = isPositiveSide ? noPool : yesPool;
+  const maxLiquidityStake = Math.floor(oppositePool * 0.5);
+  const projectedReturn = numAmount > 0 ? numAmount + (numAmount / Math.max(1, sidePool + numAmount)) * oppositePool : 0;
   const projectedProfit = projectedReturn - numAmount;
   const userBalance = user?.balance || 0;
   const insufficientBalance = numAmount > userBalance;
-  const isPositiveSide = selection?.side === "YES" || selection?.side === "UP";
+  const exceedsLiquidity = numAmount > 0 && numAmount > maxLiquidityStake;
 
   const handleConfirm = async () => {
     if (!selection || numAmount <= 0) {
@@ -43,6 +53,11 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
 
     if (insufficientBalance) {
       toast.error("Insufficient balance. Add money to continue.");
+      return;
+    }
+
+    if (exceedsLiquidity) {
+      toast.error(`Maximum available for this side is ${formatNaira(maxLiquidityStake)} based on current liquidity.`);
       return;
     }
 
@@ -161,6 +176,9 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
               {insufficientBalance && numAmount > 0 && (
                 <p className="mt-2 text-xs font-bold text-red-300">Insufficient balance.</p>
               )}
+              {exceedsLiquidity && (
+                <p className="mt-2 text-xs font-bold text-amber-200">Maximum available for this side is {formatNaira(maxLiquidityStake)} based on current liquidity.</p>
+              )}
             </div>
 
             <div className="grid grid-cols-4 gap-2">
@@ -192,6 +210,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                 <Row label="You enter" value={formatNaira(numAmount)} />
                 <Row label="Possible return" value={formatNaira(projectedReturn)} />
                 <Row label="Possible profit" value={`+${formatNaira(projectedProfit)}`} highlight />
+                <Row label="Max available" value={formatNaira(maxLiquidityStake)} />
                 </>
               ) : (
                 <p className="text-sm font-bold text-slate-400">Choose an amount to see your payout instantly.</p>
@@ -200,7 +219,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
 
             <Button
               onClick={handleConfirm}
-              disabled={!user || loading || numAmount <= 0 || insufficientBalance}
+              disabled={!user || loading || numAmount <= 0 || insufficientBalance || exceedsLiquidity}
               className={`h-13 w-full rounded-2xl text-base font-black text-white shadow-lg transition ${
                 isPositiveSide
                   ? "bg-emerald-500 hover:bg-emerald-400"

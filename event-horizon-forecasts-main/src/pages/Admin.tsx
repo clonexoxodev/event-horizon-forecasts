@@ -27,7 +27,7 @@ import { useAuth } from "@/lib/auth";
 import apiService, { type AdminCreateMarketInput, type AdminMarket, type ApiTransaction, type UserRole } from "@/lib/api";
 import { formatNaira } from "@/lib/markets";
 
-type AdminView = "dashboard" | "markets" | "create" | "transactions" | "users" | "add-admin" | "reports" | "settings";
+type AdminView = "dashboard" | "markets" | "create" | "resolution" | "transactions" | "users" | "add-admin" | "reports" | "settings";
 type MarketKind = "YES/NO" | "UP/DOWN" | "Bigger/Smaller";
 
 type AdminUser = {
@@ -45,6 +45,8 @@ const emptyForm = {
   category: "Sports",
   marketKind: "YES/NO" as MarketKind,
   startingProbability: 50,
+  seedYes: "500",
+  seedNo: "500",
   endDateTime: "",
   description: "",
   minAmount: "100",
@@ -148,7 +150,8 @@ const Admin = () => {
       question: market.question,
       category: market.category,
       marketKind: labelsToKind(market.yes_label, market.no_label),
-      startingProbability: Number(market.yes_price || 50),
+      seedYes: String(Number(market.seed_liquidity_yes_smallest_unit || market.yes_pool_smallest_unit || 50000) / 100),
+      seedNo: String(Number(market.seed_liquidity_no_smallest_unit || market.no_pool_smallest_unit || 50000) / 100),
       endDateTime: toDatetimeLocal(market.close_date),
       description: market.description || "",
       minAmount: String(Number(market.min_position_smallest_unit || 0) / 100 || 100),
@@ -165,7 +168,9 @@ const Admin = () => {
   const buildMarketPayload = async (): Promise<AdminCreateMarketInput> => {
     if (!form.question.trim()) throw new Error("Question is required.");
     if (!form.endDateTime) throw new Error("End date and time is required.");
+    if (new Date(form.endDateTime).getTime() <= Date.now()) throw new Error("End date must be in the future.");
     if (!form.resolutionInstructions.trim()) throw new Error("Rules are required.");
+    if (!form.resolutionSource.trim()) throw new Error("Resolution source is required.");
     if (!form.imageFile && !form.videoFile && !form.existingImageUrl && !form.existingVideoUrl) {
       throw new Error("Add an image or a short video.");
     }
@@ -186,9 +191,11 @@ const Admin = () => {
     const labels = labelsForKind(form.marketKind);
     const closeDate = new Date(form.endDateTime);
     const resolutionDate = new Date(closeDate.getTime() + 24 * 60 * 60 * 1000);
-    const yesPrice = Number(form.startingProbability);
     const description = form.description.trim() || form.question.trim();
-    const resolutionSource = form.resolutionSource.trim() || "Official source";
+    const resolutionSource = form.resolutionSource.trim();
+    const seedYes = Math.round(Number(form.seedYes || 0) * 100);
+    const seedNo = Math.round(Number(form.seedNo || 0) * 100);
+    if (seedYes <= 0 || seedNo <= 0) throw new Error("Seed liquidity must be greater than zero for both sides.");
 
     return {
       question: form.question.trim(),
@@ -197,8 +204,8 @@ const Admin = () => {
       market_type: "binary",
       yes_label: labels.yes,
       no_label: labels.no,
-      yes_price: yesPrice,
-      no_price: 100 - yesPrice,
+      seed_liquidity_yes_smallest_unit: seedYes,
+      seed_liquidity_no_smallest_unit: seedNo,
       close_date: closeDate.toISOString(),
       resolution_date: resolutionDate.toISOString(),
       resolution_source: resolutionSource,
@@ -223,7 +230,11 @@ const Admin = () => {
         toast.success("Market updated.");
       } else {
         if (payload.status === "active") {
-          const confirmed = window.confirm(`Publish this market live now?\n\n${payload.question}\nYES ${payload.yes_price} / NO ${payload.no_price}\n\nUsers will be able to predict immediately.`);
+          const seedYes = Number(payload.seed_liquidity_yes_smallest_unit || 0) / 100;
+          const seedNo = Number(payload.seed_liquidity_no_smallest_unit || 0) / 100;
+          const total = seedYes + seedNo;
+          const yesPrice = total > 0 ? Math.round((seedYes / total) * 100) : 50;
+          const confirmed = window.confirm(`Confirm market funding\n\n${payload.question}\n\nYES seed liquidity: ${formatNaira(seedYes)}\nNO seed liquidity: ${formatNaira(seedNo)}\nTotal seed liquidity: ${formatNaira(total)}\nStarting prices: YES ₦${yesPrice} / NO ₦${100 - yesPrice}\n\nThis liquidity affects payouts. Publish now?`);
           if (!confirmed) return;
         }
         await apiService.createAdminMarket(payload);
@@ -247,6 +258,10 @@ const Admin = () => {
       }
       if (status === "archived") {
         const confirmed = window.confirm("Archive this resolved market? It will disappear from live feeds but remain in admin history.");
+        if (!confirmed) return;
+      }
+      if (status === "cancelled") {
+        const confirmed = window.confirm(`Cancel this market and refund all user stakes?\n\n${market.question}\n\nThis should only be used when a market cannot resolve fairly.`);
         if (!confirmed) return;
       }
       await apiService.updateAdminMarketStatus(market.id, {
@@ -348,6 +363,27 @@ const Admin = () => {
               }}
             />
           )}
+          {view === "resolution" && (
+            <SuperOnly allowed={superAdmin}>
+              <MarketsView
+                markets={markets.filter((market) => ["closed", "pending_resolution"].includes(market.status))}
+                loading={loading}
+                search={search}
+                statusFilter="all"
+                setSearch={setSearch}
+                setStatusFilter={setStatusFilter}
+                reload={loadData}
+                onEdit={startEdit}
+                onResolve={changeStatus}
+                superAdmin={superAdmin}
+                currentUserId={user.id}
+                goCreate={() => {
+                  resetForm();
+                  setView("create");
+                }}
+              />
+            </SuperOnly>
+          )}
           {view === "transactions" && <SuperOnly allowed={superAdmin}><TransactionsView transactions={transactions} /></SuperOnly>}
           {view === "users" && <SuperOnly allowed={superAdmin}><UsersView users={users} /></SuperOnly>}
           {view === "add-admin" && <SuperOnly allowed={superAdmin}><AddAdminView admins={admins} email={newAdminEmail} setEmail={setNewAdminEmail} onSubmit={addAdmin} onRemove={removeAdmin} /></SuperOnly>}
@@ -363,6 +399,7 @@ const navItems: Array<{ view: AdminView; label: string; icon: any; superOnly?: b
   { view: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { view: "markets", label: "Markets", icon: BarChart3 },
   { view: "create", label: "Create Market", icon: Plus },
+  { view: "resolution", label: "Resolution", icon: CheckCircle, superOnly: true },
   { view: "transactions", label: "Transactions", icon: ReceiptText },
   { view: "users", label: "Users", icon: Users, superOnly: true },
   { view: "add-admin", label: "Add Admin", icon: ShieldPlus, superOnly: true },
@@ -437,8 +474,8 @@ const MarketsView = ({ markets, loading, search, statusFilter, setSearch, setSta
           <option value="all">All</option>
           <option value="draft">Draft</option>
           <option value="active">Active</option>
-          <option value="pending_resolution">Resolve Markets</option>
-          <option value="paused">Paused</option>
+          <option value="pending_resolution">Pending resolution</option>
+          <option value="cancelled">Cancelled</option>
           <option value="resolved">Resolved</option>
           <option value="archived">Archived</option>
         </select>
@@ -488,6 +525,7 @@ const MarketsView = ({ markets, loading, search, statusFilter, setSearch, setSta
                         <>
                           <IconAction onClick={() => onResolve(market, "resolved", "YES")} icon={CheckCircle} label="YES" tone="green" />
                           <IconAction onClick={() => onResolve(market, "resolved", "NO")} icon={XCircle} label="NO" tone="red" />
+                          <IconAction onClick={() => onResolve(market, "cancelled", "INVALID")} icon={XCircle} label="Cancel" />
                         </>
                       )}
                       {superAdmin && market.status === "resolved" && (
@@ -513,7 +551,13 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
   onSubmit: (event: React.FormEvent) => void;
   onCancel: () => void;
 }) => {
-  const noPrice = Math.max(1, 100 - Number(form.startingProbability || 0));
+  const seedYes = Number(form.seedYes || 0);
+  const seedNo = Number(form.seedNo || 0);
+  const seedTotal = seedYes + seedNo;
+  const yesPrice = seedTotal > 0 ? Math.round((seedYes / seedTotal) * 100) : 50;
+  const noPrice = 100 - yesPrice;
+  const maxYesStake = Math.floor(seedNo * 0.5);
+  const maxNoStake = Math.floor(seedYes * 0.5);
 
   return (
   <form onSubmit={onSubmit} className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
@@ -530,11 +574,11 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="End date"><Input type="datetime-local" value={form.endDateTime} onChange={(event) => setForm((prev) => ({ ...prev, endDateTime: event.target.value }))} className={adminInputClass} /></Field>
-          <Field label="Initial YES price"><Input type="number" min={1} max={99} value={form.startingProbability} onChange={(event) => setForm((prev) => ({ ...prev, startingProbability: Number(event.target.value) }))} className={adminInputClass} /></Field>
+          <Field label="YES seed liquidity"><Input type="number" min={1} value={form.seedYes} onChange={(event) => setForm((prev) => ({ ...prev, seedYes: event.target.value }))} className={adminInputClass} /></Field>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Initial NO price"><div className="flex h-12 items-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-black text-red-200">₦{noPrice}</div></Field>
-          <Field label="Initial YES display"><div className="flex h-12 items-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-black text-emerald-200">₦{Number(form.startingProbability || 0)}</div></Field>
+          <Field label="NO seed liquidity"><Input type="number" min={1} value={form.seedNo} onChange={(event) => setForm((prev) => ({ ...prev, seedNo: event.target.value }))} className={adminInputClass} /></Field>
+          <Field label="Starting prices"><div className="flex h-12 items-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-black text-slate-200">YES ₦{yesPrice} / NO ₦{noPrice}</div></Field>
         </div>
         <Field label="Rules"><Textarea value={form.resolutionInstructions} onChange={(event) => setForm((prev) => ({ ...prev, resolutionInstructions: event.target.value }))} rows={3} placeholder="What exactly must happen for this market to resolve?" className={`${adminInputClass} min-h-24`} /></Field>
         <Field label="Resolution source"><Input value={form.resolutionSource} onChange={(event) => setForm((prev) => ({ ...prev, resolutionSource: event.target.value }))} placeholder="Official source, exchange, sports body, public result..." className={adminInputClass} /></Field>
@@ -578,10 +622,11 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
           </div>
           <div className="line-clamp-3 text-lg font-black">{form.question || "Market question appears here"}</div>
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <div className="rounded-2xl bg-emerald-400/10 p-3 text-sm font-black text-emerald-200">YES ₦{Number(form.startingProbability || 0)}</div>
+            <div className="rounded-2xl bg-emerald-400/10 p-3 text-sm font-black text-emerald-200">YES ₦{yesPrice}</div>
             <div className="rounded-2xl bg-red-400/10 p-3 text-sm font-black text-red-200">NO ₦{noPrice}</div>
           </div>
-          <p className="mt-3 text-xs text-slate-500">This is how users will see the market. Confirm before publishing.</p>
+          <p className="mt-3 text-xs text-slate-500">Seed liquidity: YES {formatNaira(seedYes)} / NO {formatNaira(seedNo)}. First max stake: YES {formatNaira(maxYesStake)} / NO {formatNaira(maxNoStake)}.</p>
+          <p className="mt-2 text-xs text-slate-500">This is how users will see the market. Confirm before publishing.</p>
         </div>
       </section>
 

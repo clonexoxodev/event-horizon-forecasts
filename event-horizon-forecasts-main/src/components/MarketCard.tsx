@@ -25,6 +25,10 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
       marketIcon: m.icon,
       side,
       currentPrice: side === "YES" ? m.yesPrice : m.noPrice,
+      yesPool: m.yesPool,
+      noPool: m.noPool,
+      minAmount: m.minAmount,
+      maxAmount: m.maxAmount,
     });
   };
 
