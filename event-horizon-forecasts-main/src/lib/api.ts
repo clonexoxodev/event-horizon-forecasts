@@ -101,7 +101,7 @@ export type ApiMarket = {
   video_url?: string | null;
   isTrending?: boolean;
   is_trending?: boolean;
-  priceHistory?: Array<{ timestamp: string; yesPrice: number; noPrice: number; yesPool?: number; noPool?: number; volume?: number }>;
+  priceHistory?: Array<{ timestamp: string; yesPrice: number; noPrice: number; yesPool?: number; noPool?: number; volume?: number; tradeCount?: number }>;
 };
 
 export type AdminMarket = {
@@ -173,6 +173,7 @@ export type ApiPosition = {
   stake: number;
   entryPrice: number;
   currentPrice: number;
+  sharesReceived?: number;
   currentValue: number;
   estimatedPayout?: number;
   estimatedProfit?: number;

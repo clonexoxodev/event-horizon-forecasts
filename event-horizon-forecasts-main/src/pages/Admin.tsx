@@ -430,14 +430,17 @@ const AdminSidebar = ({ view, setView, superAdmin, compact = false }: { view: Ad
 
 const DashboardView = ({ analytics, markets, loading, superAdmin }: { analytics: any; markets: AdminMarket[]; loading: boolean; superAdmin: boolean }) => {
   const stats = [
-    { label: "Markets", value: markets.length, tone: "violet" },
-    { label: "Active", value: markets.filter((market) => market.status === "active").length, tone: "green" },
-    { label: "Drafts", value: markets.filter((market) => market.status === "draft").length, tone: "slate" },
-    { label: "Volume", value: formatNaira(markets.reduce((sum, market) => sum + Number(market.pool_amount_smallest_unit || 0) / 100, 0)), tone: "violet" },
+    { label: "Live markets", value: markets.filter((market) => market.status === "active").length, tone: "green" },
+    { label: "Pending resolution", value: markets.filter((market) => ["closed", "pending_resolution"].includes(market.status)).length, tone: "amber" },
+    { label: "Resolved markets", value: markets.filter((market) => market.status === "resolved").length, tone: "violet" },
+    { label: "Today’s volume", value: formatNaira(markets.reduce((sum, market) => sum + Number(market.total_volume_smallest_unit || 0) / 100, 0)), tone: "violet" },
   ];
 
   if (superAdmin && analytics) {
-    stats.push({ label: "Users", value: analytics.totalUsers || 0, tone: "green" });
+    stats.push({ label: "Total users", value: analytics.totalUsers || 0, tone: "green" });
+    stats.push({ label: "Today’s active users", value: analytics.activeUsersToday || 0, tone: "green" });
+    stats.push({ label: "Today’s predictions", value: analytics.predictionsToday || analytics.totalForecasts || 0, tone: "violet" });
+    stats.push({ label: "Pending payouts", value: markets.filter((market) => ["closed", "pending_resolution"].includes(market.status)).length, tone: "amber" });
   }
 
   return (
@@ -704,7 +707,7 @@ const SuperOnly = ({ allowed, children }: { allowed: boolean; children: React.Re
 const StatCard = ({ label, value, tone = "violet", loading = false }: { label: string; value: React.ReactNode; tone?: string; loading?: boolean }) => (
   <div className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
     <div className="text-sm font-bold text-slate-500">{label}</div>
-    <div className={`mt-3 text-3xl font-black ${tone === "green" ? "text-emerald-300" : tone === "slate" ? "text-slate-300" : "text-violet-300"}`}>{loading ? "..." : value}</div>
+    <div className={`mt-3 text-3xl font-black ${tone === "green" ? "text-emerald-300" : tone === "amber" ? "text-amber-300" : tone === "slate" ? "text-slate-300" : "text-violet-300"}`}>{loading ? "..." : value}</div>
   </div>
 );
 

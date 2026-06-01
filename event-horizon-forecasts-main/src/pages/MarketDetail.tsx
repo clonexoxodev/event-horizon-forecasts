@@ -140,12 +140,10 @@ export default function MarketDetail() {
   const media = getMarketMedia(market);
   const selectedPrice = sheetSide === "YES" ? market.yesPrice : market.noPrice;
   const numericAmount = Number.parseFloat(amount) || 0;
-  const sidePool = sheetSide === "YES" ? market.yesPool : market.noPool;
   const oppositePool = sheetSide === "YES" ? market.noPool : market.yesPool;
   const maxLiquidityStake = Math.floor((oppositePool || 0) * 0.5);
-  const estimatedReturn = numericAmount > 0 && sheetSide
-    ? numericAmount + (numericAmount / Math.max(1, (sidePool || 0) + numericAmount)) * (oppositePool || 0)
-    : 0;
+  const sharesReceived = numericAmount > 0 && selectedPrice > 0 ? numericAmount / selectedPrice : 0;
+  const estimatedReturn = numericAmount > 0 && sheetSide ? sharesReceived * 100 : 0;
   const estimatedProfit = Math.max(0, estimatedReturn - numericAmount);
   const exceedsLiquidity = Boolean(sheetSide && numericAmount > 0 && numericAmount > maxLiquidityStake);
   const hasMarketEnded = market.closeTime ? new Date(market.closeTime).getTime() <= now : false;
@@ -207,7 +205,7 @@ export default function MarketDetail() {
               ))}
             </div>
           </div>
-          <Chart market={market} />
+          <Chart market={market} timeframe={timeframe} />
         </section>
 
         <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.055] p-4">
@@ -271,6 +269,7 @@ export default function MarketDetail() {
             </div>
             <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.055] p-4">
               <Row label="Wallet balance" value={user ? formatNaira(user.balance || 0) : "Login required"} />
+              <Row label="Shares" value={sharesReceived.toFixed(2)} />
               <Row label="Estimated payout" value={formatNaira(estimatedReturn)} highlight />
               <Row label="Estimated profit" value={formatNaira(estimatedProfit)} highlight />
               <Row label="Max available" value={formatNaira(maxLiquidityStake)} />
@@ -305,38 +304,109 @@ export default function MarketDetail() {
   );
 }
 
-const Chart = ({ market }: { market: Market }) => {
-  const history = market.priceHistory?.length
+const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) => {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const rawHistory = market.priceHistory?.length
     ? market.priceHistory
-    : [
-      { timestamp: market.closeTime || new Date().toISOString(), yesPrice: market.yesPrice, noPrice: market.noPrice },
-      { timestamp: new Date().toISOString(), yesPrice: market.yesPrice, noPrice: market.noPrice },
-    ];
-  const hasMovement = Boolean(market.priceHistory && market.priceHistory.length > 1);
-  const values = history.map((point) => point.yesPrice);
-  const points = values.map((value, index) => {
-    const x = values.length === 1 ? 0 : (index / (values.length - 1)) * 100;
-    const y = 100 - Math.max(2, Math.min(98, value));
+    : [{
+      timestamp: new Date().toISOString(),
+      yesPrice: market.yesPrice,
+      noPrice: market.noPrice,
+      volume: market.totalVolume || 0,
+      tradeCount: market.tradeCount || 0
+    }];
+
+  const cutoff = getTimeframeCutoff(timeframe);
+  const filteredHistory = cutoff
+    ? rawHistory.filter((point) => new Date(point.timestamp).getTime() >= cutoff)
+    : rawHistory;
+  const sourceHistory = filteredHistory.length ? filteredHistory : rawHistory.slice(-1);
+  const history = sourceHistory.length === 1
+    ? [
+      { ...sourceHistory[0], timestamp: new Date(new Date(sourceHistory[0].timestamp).getTime() - 60_000).toISOString() },
+      sourceHistory[0],
+    ]
+    : sourceHistory;
+  const hasStoredMovement = Boolean(market.priceHistory && market.priceHistory.length > 1);
+  const activePoint = activeIndex === null ? null : history[activeIndex];
+
+  const toPolyline = (key: "yesPrice" | "noPrice") => history.map((point, index) => {
+    const x = history.length === 1 ? 50 : (index / (history.length - 1)) * 100;
+    const y = 100 - Math.max(2, Math.min(98, Number(point[key] || 0)));
     return `${x},${y}`;
-  });
+  }).join(" ");
+
+  const activeX = activeIndex === null ? null : history.length === 1 ? 50 : (activeIndex / (history.length - 1)) * 100;
+
+  const updateActivePoint = (clientX: number, currentTarget: SVGSVGElement) => {
+    const rect = currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    setActiveIndex(Math.round(ratio * (history.length - 1)));
+  };
+
   return (
     <div className="rounded-2xl border border-white/10 bg-[#080d19]/90 p-4">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-60 w-full overflow-visible">
+      <div className="relative">
+      <svg
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        className="h-60 w-full touch-none overflow-visible"
+        onMouseMove={(event) => updateActivePoint(event.clientX, event.currentTarget)}
+        onMouseLeave={() => setActiveIndex(null)}
+        onTouchMove={(event) => updateActivePoint(event.touches[0].clientX, event.currentTarget)}
+        onTouchEnd={() => setActiveIndex(null)}
+      >
         <defs>
-          <linearGradient id="detailLine" x1="0" x2="1">
+          <linearGradient id="yesDetailLine" x1="0" x2="1">
             <stop offset="0%" stopColor="#34d399" />
             <stop offset="100%" stopColor="#a78bfa" />
           </linearGradient>
+          <linearGradient id="noDetailLine" x1="0" x2="1">
+            <stop offset="0%" stopColor="#fb7185" />
+            <stop offset="100%" stopColor="#f43f5e" />
+          </linearGradient>
         </defs>
         {[20, 40, 60, 80].map((line) => <line key={line} x1="0" x2="100" y1={line} y2={line} stroke="rgba(255,255,255,0.08)" strokeWidth="0.5" />)}
-        <polyline points={points.join(" ")} fill="none" stroke="url(#detailLine)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" vectorEffect="non-scaling-stroke" className="animate-pulse drop-shadow-[0_0_12px_rgba(167,139,250,0.4)]" />
+        <polyline points={toPolyline("noPrice")} fill="none" stroke="url(#noDetailLine)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" vectorEffect="non-scaling-stroke" className="drop-shadow-[0_0_10px_rgba(244,63,94,0.35)]" />
+        <polyline points={toPolyline("yesPrice")} fill="none" stroke="url(#yesDetailLine)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" vectorEffect="non-scaling-stroke" className="drop-shadow-[0_0_14px_rgba(52,211,153,0.45)]" />
+        {activeX !== null && (
+          <line x1={activeX} x2={activeX} y1="0" y2="100" stroke="rgba(255,255,255,0.35)" strokeWidth="0.6" vectorEffect="non-scaling-stroke" />
+        )}
       </svg>
+      {activePoint && activeX !== null && (
+        <div
+          className="pointer-events-none absolute top-3 min-w-[170px] rounded-2xl border border-white/10 bg-[#050711]/95 p-3 text-xs shadow-2xl backdrop-blur-xl"
+          style={{ left: `${Math.min(78, Math.max(0, activeX))}%` }}
+        >
+          <div className="font-black text-white">{formatChartTime(activePoint.timestamp)}</div>
+          <div className="mt-2 grid gap-1 font-bold">
+            <span className="text-emerald-300">YES {formatNairaPrice(activePoint.yesPrice)}</span>
+            <span className="text-red-300">NO {formatNairaPrice(activePoint.noPrice)}</span>
+            <span className="text-slate-400">Volume {formatNaira(activePoint.volume || 0)}</span>
+            <span className="text-slate-500">Trades {activePoint.tradeCount || 0}</span>
+          </div>
+        </div>
+      )}
+      </div>
       <div className="mt-3 flex items-center justify-between text-xs font-bold text-slate-500">
-        <span>{hasMovement ? "Live price history" : "Flat starting line"}</span>
+        <span>{hasStoredMovement ? "Live price history" : "Price movement starts after predictions."}</span>
         <span>YES {formatNairaPrice(market.yesPrice)} / NO {formatNairaPrice(market.noPrice)}</span>
       </div>
     </div>
   );
+};
+
+const getTimeframeCutoff = (timeframe: Timeframe) => {
+  const now = Date.now();
+  if (timeframe === "1H") return now - 60 * 60 * 1000;
+  if (timeframe === "24H") return now - 24 * 60 * 60 * 1000;
+  if (timeframe === "7D") return now - 7 * 24 * 60 * 60 * 1000;
+  return null;
+};
+
+const formatChartTime = (timestamp: string) => {
+  const date = new Date(timestamp);
+  return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 };
 
 const Row = ({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) => (

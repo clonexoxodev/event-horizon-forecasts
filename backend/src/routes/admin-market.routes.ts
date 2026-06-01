@@ -93,6 +93,7 @@ const notifyMarketResolution = async (market: any, outcome?: string) => {
 };
 
 const toAmount = (smallestUnit: number) => smallestUnit / 100;
+const PAYOUT_PER_SHARE_SMALLEST_UNIT = 10000; // ₦100 per winning share.
 
 const notifyUser = async (userId: string, notification: Record<string, any>) => {
   await supabase
@@ -118,11 +119,6 @@ const resolveMarketPoolPayouts = async (market: any, outcome: 'YES' | 'NO', admi
 
   if (positionsError) throw new Error(`Failed to load positions: ${positionsError.message}`);
 
-  const winningPool = Number(outcome === 'YES' ? market.yes_pool_smallest_unit : market.no_pool_smallest_unit) || 0;
-  const totalPool =
-    (Number(market.yes_pool_smallest_unit) || 0) +
-    (Number(market.no_pool_smallest_unit) || 0);
-
   let winners = 0;
   let losers = 0;
   let totalPayout = 0;
@@ -130,7 +126,10 @@ const resolveMarketPoolPayouts = async (market: any, outcome: 'YES' | 'NO', admi
   for (const position of positions || []) {
     const won = position.side === outcome;
     const stake = Number(position.amount_smallest_unit || 0);
-    const payout = won && winningPool > 0 ? Math.floor((stake / winningPool) * totalPool) : 0;
+    const fallbackEntryPrice = Number(position.entry_price || 0);
+    const fallbackShares = fallbackEntryPrice > 0 ? toAmount(stake) / fallbackEntryPrice : 0;
+    const shares = Number(position.shares_received || 0) || fallbackShares;
+    const payout = won ? Math.floor(shares * PAYOUT_PER_SHARE_SMALLEST_UNIT) : 0;
 
     if (won) {
       winners += 1;
@@ -144,10 +143,13 @@ const resolveMarketPoolPayouts = async (market: any, outcome: 'YES' | 'NO', admi
 
       if (wallet) {
         const field = position.currency === 'USD' ? 'available_usd_cents' : 'available_ngn_kobo';
+        const totalField = position.currency === 'USD' ? 'balance_usd_cents' : 'balance_ngn_kobo';
+        const totalBalanceAdjustment = payout - stake;
         await supabase
           .from('wallets')
           .update({
             [field]: Number(wallet[field] || 0) + payout,
+            [totalField]: Number(wallet[totalField] || 0) + totalBalanceAdjustment,
             updated_at: new Date().toISOString()
           })
           .eq('id', wallet.id);
@@ -185,6 +187,22 @@ const resolveMarketPoolPayouts = async (market: any, outcome: 'YES' | 'NO', admi
       });
     } else {
       losers += 1;
+      const { data: wallet } = await supabase
+        .from('wallets')
+        .select('*')
+        .eq('user_id', position.user_id)
+        .single();
+
+      if (wallet) {
+        const totalField = position.currency === 'USD' ? 'balance_usd_cents' : 'balance_ngn_kobo';
+        await supabase
+          .from('wallets')
+          .update({
+            [totalField]: Math.max(0, Number(wallet[totalField] || 0) - stake),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', wallet.id);
+      }
     }
 
     await supabase

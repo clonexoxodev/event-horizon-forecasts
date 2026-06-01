@@ -7,13 +7,17 @@ const router = Router();
 const marketService = new MarketService();
 
 const toAmount = (smallestUnit: number | null | undefined) => Number(smallestUnit || 0) / 100;
+const MIN_MARKET_PRICE = 1;
+const MAX_MARKET_PRICE = 99;
+const PAYOUT_PER_SHARE_SMALLEST_UNIT = 10000; // ₦100 per winning share.
 const roundPrice = (value: number) => Math.round(value * 10) / 10;
+const clampPrice = (value: number) => Math.min(MAX_MARKET_PRICE, Math.max(MIN_MARKET_PRICE, roundPrice(value)));
 
 const calculatePoolPrices = (yesPoolSmallestUnit: number, noPoolSmallestUnit: number) => {
   const totalPool = yesPoolSmallestUnit + noPoolSmallestUnit;
   if (totalPool <= 0) return { yesPrice: 50, noPrice: 50 };
 
-  const yesPrice = roundPrice((yesPoolSmallestUnit / totalPool) * 100);
+  const yesPrice = clampPrice((yesPoolSmallestUnit / totalPool) * 100);
   return { yesPrice, noPrice: roundPrice(100 - yesPrice) };
 };
 
@@ -25,11 +29,14 @@ const calculatePoolTrade = (market: any, side: 'YES' | 'NO', amountSmallestUnit:
 
   const nextYesPool = side === 'YES' ? yesPool + amountSmallestUnit : yesPool;
   const nextNoPool = side === 'NO' ? noPool + amountSmallestUnit : noPool;
-  const newSidePool = side === 'YES' ? nextYesPool : nextNoPool;
-  const userShare = newSidePool > 0 ? amountSmallestUnit / newSidePool : 0;
-  const estimatedPayoutSmallestUnit = Math.floor(amountSmallestUnit + userShare * oppositePool);
-  const estimatedProfitSmallestUnit = Math.max(0, estimatedPayoutSmallestUnit - amountSmallestUnit);
   const pricesBefore = calculatePoolPrices(yesPool, noPool);
+  const entryPrice = side === 'YES' ? pricesBefore.yesPrice : pricesBefore.noPrice;
+  // Fixed-share prediction-market math:
+  // shares = stake / purchase price. Each winning share settles at ₦100.
+  // Later price moves change display value only; purchased shares never change.
+  const sharesReceived = entryPrice > 0 ? toAmount(amountSmallestUnit) / entryPrice : 0;
+  const estimatedPayoutSmallestUnit = Math.floor(sharesReceived * PAYOUT_PER_SHARE_SMALLEST_UNIT);
+  const estimatedProfitSmallestUnit = Math.max(0, estimatedPayoutSmallestUnit - amountSmallestUnit);
   const pricesAfter = calculatePoolPrices(nextYesPool, nextNoPool);
 
   return {
@@ -39,12 +46,12 @@ const calculatePoolTrade = (market: any, side: 'YES' | 'NO', amountSmallestUnit:
     nextNoPool,
     nextTotalPool: nextYesPool + nextNoPool,
     maxStakeSmallestUnit,
-    userShare,
+    sharesReceived,
     estimatedPayoutSmallestUnit,
     estimatedProfitSmallestUnit,
     pricesBefore,
     pricesAfter,
-    sidePriceBefore: side === 'YES' ? pricesBefore.yesPrice : pricesBefore.noPrice,
+    sidePriceBefore: entryPrice,
     sidePriceAfter: side === 'YES' ? pricesAfter.yesPrice : pricesAfter.noPrice,
     priceChange: side === 'YES'
       ? pricesAfter.yesPrice - pricesBefore.yesPrice
@@ -65,7 +72,8 @@ const savePriceHistory = async (
   noPrice: number,
   yesPoolSmallestUnit: number,
   noPoolSmallestUnit: number,
-  volumeSmallestUnit: number
+  volumeSmallestUnit: number,
+  tradeCount = 0
 ) => {
   const { error } = await supabase
     .from('market_price_history')
@@ -75,7 +83,8 @@ const savePriceHistory = async (
       no_price: noPrice,
       yes_pool_smallest_unit: yesPoolSmallestUnit,
       no_pool_smallest_unit: noPoolSmallestUnit,
-      volume_smallest_unit: volumeSmallestUnit
+      volume_smallest_unit: volumeSmallestUnit,
+      trade_count: tradeCount
     });
 
   if (error) {
@@ -112,7 +121,7 @@ const autoCloseExpiredMarket = async (market: any) => {
 const fetchPriceHistory = async (marketId: string) => {
   const { data, error } = await supabase
     .from('market_price_history')
-    .select('created_at, yes_price, no_price, yes_pool_smallest_unit, no_pool_smallest_unit, volume_smallest_unit')
+    .select('created_at, yes_price, no_price, yes_pool_smallest_unit, no_pool_smallest_unit, volume_smallest_unit, trade_count')
     .eq('market_id', marketId)
     .order('created_at', { ascending: true });
 
@@ -127,7 +136,8 @@ const fetchPriceHistory = async (marketId: string) => {
     noPrice: Number(point.no_price),
     yesPool: toAmount(point.yes_pool_smallest_unit),
     noPool: toAmount(point.no_pool_smallest_unit),
-    volume: toAmount(point.volume_smallest_unit)
+    volume: toAmount(point.volume_smallest_unit),
+    tradeCount: Number(point.trade_count || 0)
   }));
 };
 
@@ -184,6 +194,8 @@ const normalizePosition = (position: any, market: any) => {
   const normalizedMarket = normalizeMarket(market || {}, 0);
   const stake = toAmount(position.amount_smallest_unit ?? position.stake);
   const currentPrice = position.side === 'YES' ? normalizedMarket.yesPrice : normalizedMarket.noPrice;
+  const sharesReceived = Number(position.shares_received || 0);
+  const liveValue = sharesReceived > 0 ? (sharesReceived * currentPrice) : 0;
   const finalPayout = toAmount(position.final_payout_smallest_unit ?? position.payout_smallest_unit);
 
   return {
@@ -194,7 +206,8 @@ const normalizePosition = (position: any, market: any) => {
     stake,
     entryPrice: Number(position.entry_price ?? currentPrice),
     currentPrice,
-    currentValue: finalPayout || toAmount(position.estimated_payout_smallest_unit ?? position.potential_return_smallest_unit) || stake,
+    sharesReceived,
+    currentValue: finalPayout || liveValue || toAmount(position.estimated_payout_smallest_unit ?? position.potential_return_smallest_unit) || stake,
     estimatedPayout: toAmount(position.estimated_payout_smallest_unit ?? position.potential_return_smallest_unit),
     estimatedProfit: toAmount(position.estimated_profit_smallest_unit),
     finalPayout,
@@ -463,7 +476,8 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
       });
     }
     const currentVolume = Number((market as any).total_volume_smallest_unit || 0);
-    const entryPrice = trade.sidePriceAfter;
+    const nextTradeCount = Number((market as any).trade_count || 0) + 1;
+    const entryPrice = trade.sidePriceBefore;
 
     let positionResult = await supabase
       .from('positions')
@@ -472,10 +486,15 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
         market_id: id,
         side,
         amount_smallest_unit: amountSmallestUnit,
+        stake_amount: toAmount(amountSmallestUnit),
         currency,
         potential_return_smallest_unit: trade.estimatedPayoutSmallestUnit,
         estimated_payout_smallest_unit: trade.estimatedPayoutSmallestUnit,
         estimated_profit_smallest_unit: trade.estimatedProfitSmallestUnit,
+        estimated_payout_at_purchase: toAmount(trade.estimatedPayoutSmallestUnit),
+        estimated_profit_at_purchase: toAmount(trade.estimatedProfitSmallestUnit),
+        shares_received: trade.sharesReceived,
+        price_at_purchase: entryPrice,
         status: 'active',
         entry_price: entryPrice
       })
@@ -490,7 +509,10 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
           market_id: id,
           side,
           amount_smallest_unit: amountSmallestUnit,
+          stake_amount: toAmount(amountSmallestUnit),
           currency,
+          shares_received: trade.sharesReceived,
+          price_at_purchase: entryPrice,
           potential_return_smallest_unit: trade.estimatedPayoutSmallestUnit
         })
         .select()
@@ -524,7 +546,7 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
         pool_amount_smallest_unit: trade.nextTotalPool,
         yes_price: trade.pricesAfter.yesPrice,
         no_price: trade.pricesAfter.noPrice,
-        trade_count: Number((market as any).trade_count || 0) + 1,
+        trade_count: nextTradeCount,
         total_volume_smallest_unit: currentVolume + amountSmallestUnit,
         updated_at: new Date().toISOString()
       })
@@ -564,7 +586,7 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
         currency
       });
 
-    await savePriceHistory(id, trade.pricesAfter.yesPrice, trade.pricesAfter.noPrice, trade.nextYesPool, trade.nextNoPool, currentVolume + amountSmallestUnit);
+    await savePriceHistory(id, trade.pricesAfter.yesPrice, trade.pricesAfter.noPrice, trade.nextYesPool, trade.nextNoPool, currentVolume + amountSmallestUnit, nextTradeCount);
     const priceHistory = await fetchPriceHistory(id);
 
     const { data: transaction } = await supabase
@@ -585,6 +607,7 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
           category: (updatedMarket as any).category || (market as any).category || null,
           side,
           entryPrice,
+          sharesReceived: trade.sharesReceived,
           estimatedPayoutSmallestUnit: trade.estimatedPayoutSmallestUnit,
           estimatedProfitSmallestUnit: trade.estimatedProfitSmallestUnit,
           yesPriceBefore: trade.pricesBefore.yesPrice,

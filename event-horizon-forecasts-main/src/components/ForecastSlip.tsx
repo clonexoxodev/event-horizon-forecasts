@@ -36,10 +36,10 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
   const isPositiveSide = selection?.side === "YES" || selection?.side === "UP";
   const yesPool = selection?.yesPool ?? 500;
   const noPool = selection?.noPool ?? 500;
-  const sidePool = isPositiveSide ? yesPool : noPool;
   const oppositePool = isPositiveSide ? noPool : yesPool;
   const maxLiquidityStake = Math.floor(oppositePool * 0.5);
-  const projectedReturn = numAmount > 0 ? numAmount + (numAmount / Math.max(1, sidePool + numAmount)) * oppositePool : 0;
+  const sharesReceived = probability > 0 && numAmount > 0 ? numAmount / probability : 0;
+  const projectedReturn = sharesReceived * 100;
   const projectedProfit = projectedReturn - numAmount;
   const userBalance = user?.balance || 0;
   const insufficientBalance = numAmount > userBalance;
@@ -208,6 +208,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
               {numAmount > 0 && !insufficientBalance ? (
                 <>
                 <Row label="You enter" value={formatNaira(numAmount)} />
+                <Row label="Shares" value={sharesReceived.toFixed(2)} />
                 <Row label="Possible return" value={formatNaira(projectedReturn)} />
                 <Row label="Possible profit" value={`+${formatNaira(projectedProfit)}`} highlight />
                 <Row label="Max available" value={formatNaira(maxLiquidityStake)} />

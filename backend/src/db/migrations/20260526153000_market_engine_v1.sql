@@ -64,6 +64,7 @@ create table if not exists public.market_price_history (
   yes_pool_smallest_unit bigint not null default 0,
   no_pool_smallest_unit bigint not null default 0,
   volume_smallest_unit bigint not null default 0,
+  trade_count integer not null default 0,
   created_at timestamptz not null default now(),
   constraint market_price_history_sum check (yes_price + no_price = 100)
 );
@@ -74,6 +75,7 @@ alter table public.market_price_history add column if not exists no_price numeri
 alter table public.market_price_history add column if not exists yes_pool_smallest_unit bigint not null default 0;
 alter table public.market_price_history add column if not exists no_pool_smallest_unit bigint not null default 0;
 alter table public.market_price_history add column if not exists volume_smallest_unit bigint not null default 0;
+alter table public.market_price_history add column if not exists trade_count integer not null default 0;
 alter table public.market_price_history add column if not exists created_at timestamptz not null default now();
 
 create table if not exists public.market_resolution_logs (
@@ -88,9 +90,16 @@ create table if not exists public.market_resolution_logs (
   created_at timestamptz not null default now()
 );
 
+alter table public.market_resolution_logs add column if not exists payout_summary jsonb;
+
 alter table public.positions add column if not exists entry_price numeric;
 alter table public.positions add column if not exists entry_yes_price numeric;
 alter table public.positions add column if not exists entry_no_price numeric;
+alter table public.positions add column if not exists stake_amount numeric;
+alter table public.positions add column if not exists price_at_purchase numeric;
+alter table public.positions add column if not exists shares_received numeric not null default 0;
+alter table public.positions add column if not exists estimated_payout_at_purchase numeric;
+alter table public.positions add column if not exists estimated_profit_at_purchase numeric;
 alter table public.positions add column if not exists estimated_payout_smallest_unit bigint;
 alter table public.positions add column if not exists estimated_profit_smallest_unit bigint;
 alter table public.positions add column if not exists final_payout_smallest_unit bigint;

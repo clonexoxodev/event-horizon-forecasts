@@ -130,7 +130,8 @@ export class AdminMarketRepository {
         no_price: prices.noPrice,
         yes_pool_smallest_unit: seedYes,
         no_pool_smallest_unit: seedNo,
-        volume_smallest_unit: 0
+        volume_smallest_unit: 0,
+        trade_count: 0
       })
       .then(({ error: historyError }) => {
         if (historyError) console.warn('Failed to save initial market price history:', historyError.message);
