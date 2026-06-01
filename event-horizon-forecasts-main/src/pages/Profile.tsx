@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Camera, LineChart, Trophy, Wallet } from "lucide-react";
+import { Camera, LineChart, Loader2, Trophy, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
@@ -18,14 +18,14 @@ const emptyStats: ApiProfileStats = {
 };
 
 export default function Profile() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, isLoading: authLoading } = useAuth();
   const [stats, setStats] = useState<ApiProfileStats>(emptyStats);
   const [positions, setPositions] = useState<ApiPosition[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (authLoading || !user) return;
 
     const loadProfile = async () => {
       setLoading(true);
@@ -46,7 +46,7 @@ export default function Profile() {
     };
 
     loadProfile();
-  }, [user]);
+  }, [authLoading, user]);
 
   const handleImage = async (file?: File) => {
     if (!file) return;
@@ -61,6 +61,21 @@ export default function Profile() {
       setUploading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#050711] text-white xl:pl-64">
+        <Header />
+        <main className="grid min-h-[70vh] place-items-center px-4">
+          <div className="text-center">
+            <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-violet-300" />
+            <p className="text-sm font-bold text-slate-400">Restoring your profile...</p>
+          </div>
+        </main>
+        <MobileNav />
+      </div>
+    );
+  }
 
   if (!user) {
     return (

@@ -20,6 +20,7 @@ alter table public.markets add column if not exists resolved_at timestamptz;
 alter table public.markets add column if not exists resolved_outcome text;
 alter table public.markets add column if not exists winning_outcome text;
 alter table public.markets add column if not exists outcome text;
+alter table public.markets add column if not exists resolved_by uuid references public.users(id) on delete set null;
 alter table public.markets add column if not exists image_url text;
 alter table public.markets add column if not exists video_url text;
 alter table public.markets add column if not exists rules text;
@@ -76,6 +77,8 @@ alter table public.market_price_history add column if not exists yes_pool_smalle
 alter table public.market_price_history add column if not exists no_pool_smallest_unit bigint not null default 0;
 alter table public.market_price_history add column if not exists volume_smallest_unit bigint not null default 0;
 alter table public.market_price_history add column if not exists trade_count integer not null default 0;
+alter table public.market_price_history add column if not exists side text check (side in ('YES', 'NO'));
+alter table public.market_price_history add column if not exists amount_smallest_unit bigint not null default 0;
 alter table public.market_price_history add column if not exists created_at timestamptz not null default now();
 
 create table if not exists public.market_resolution_logs (
@@ -103,11 +106,16 @@ alter table public.positions add column if not exists estimated_profit_at_purcha
 alter table public.positions add column if not exists estimated_payout_smallest_unit bigint;
 alter table public.positions add column if not exists estimated_profit_smallest_unit bigint;
 alter table public.positions add column if not exists final_payout_smallest_unit bigint;
+alter table public.positions add column if not exists profit_smallest_unit bigint;
 alter table public.positions add column if not exists status text not null default 'active';
 alter table public.positions add column if not exists potential_return_smallest_unit bigint;
 alter table public.positions add column if not exists is_winner boolean;
 alter table public.positions add column if not exists payout_smallest_unit bigint;
 alter table public.positions add column if not exists resolved_at timestamptz;
+alter table public.positions add column if not exists settled_at timestamptz;
+alter table public.positions add column if not exists winning_outcome text check (winning_outcome in ('YES', 'NO'));
+alter table public.positions add column if not exists market_question_snapshot text;
+alter table public.positions add column if not exists market_category_snapshot text;
 
 alter table public.transactions add column if not exists market_id uuid references public.markets(id) on delete set null;
 alter table public.transactions add column if not exists position_id uuid references public.positions(id) on delete set null;

@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 
 interface ProtectedRouteProps {
@@ -14,6 +14,7 @@ export const ProtectedRoute = ({
   redirectTo = '/'
 }: ProtectedRouteProps) => {
   const { user, hasRole, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -26,7 +27,7 @@ export const ProtectedRoute = ({
   // Check if user is authenticated
   if (!user) {
     // Redirect to login page
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   // Check if user has required role

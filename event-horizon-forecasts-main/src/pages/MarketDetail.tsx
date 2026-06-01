@@ -6,7 +6,7 @@ import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import apiService from "@/lib/api";
+import apiService, { ApiRequestError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useMarketState } from "@/lib/market-state";
 import { formatCountdown, formatNaira, formatNairaPrice, getMarketMedia, type Market } from "@/lib/markets";
@@ -16,7 +16,7 @@ type Timeframe = "1H" | "24H" | "7D" | "ALL";
 export default function MarketDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { markets, getMarket, setMarkets } = useMarketState();
+  const { markets, getMarket, loadMarkets, upsertMarket } = useMarketState();
   const { user, refreshUser, setAuthOpen } = useAuth();
   const [market, setMarket] = useState<Market | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,35 +36,42 @@ export default function MarketDetail() {
       try {
         const cached = getMarket(id);
         if (cached) setMarket(cached);
-        const response = await apiService.getMarket(id);
-        setMarket(response.market);
-        setMarkets((prev) =>
-          prev.some((item) => item.id === response.market.id)
-            ? prev.map((item) => (item.id === response.market.id ? response.market : item))
-            : [...prev, response.market]
-        );
-        apiService.getMarkets()
-          .then((marketsResponse) => {
-            setMarkets((prev) => {
-              const merged = new Map(prev.map((item) => [item.id, item]));
-              for (const item of marketsResponse.markets || []) merged.set(item.id, item);
-              merged.set(response.market.id, response.market);
-              return Array.from(merged.values());
-            });
-          })
+        const [response, historyResponse] = await Promise.all([
+          apiService.getMarket(id),
+          apiService.getMarketPriceHistory(id).catch(() => null),
+        ]);
+        const enrichedMarket = {
+          ...response.market,
+          priceHistory: historyResponse?.priceHistory?.length
+            ? historyResponse.priceHistory
+            : response.market.priceHistory,
+        };
+        setMarket(enrichedMarket);
+        upsertMarket(enrichedMarket);
+        loadMarkets({ force: true })
           .catch(() => {
             // Related markets are helpful but should not block the detail page.
           });
       } catch (error: any) {
-        toast.error(error.message || "Could not load market.");
-        navigate("/");
+        const cached = getMarket(id);
+        if (cached) {
+          setMarket(cached);
+          toast("Using saved market data", {
+            description: "Live refresh failed. Your page will stay open so you can retry.",
+          });
+        } else if (error instanceof ApiRequestError && error.status === 404) {
+          toast.error("Market not found.");
+          navigate("/");
+        } else {
+          toast.error(error.message || "Could not load market. Please retry.");
+        }
       } finally {
         setLoading(false);
       }
     };
 
     loadMarket();
-  }, [getMarket, id, navigate, setMarkets]);
+  }, [getMarket, id, loadMarkets, navigate, upsertMarket]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -110,7 +117,7 @@ export default function MarketDetail() {
     try {
       const result = await apiService.placePrediction(market.id, { side: sheetSide, amount: numericAmount, currency: "NGN" });
       setMarket(result.market);
-      setMarkets((prev) => prev.map((item) => (item.id === result.market.id ? result.market : item)));
+      upsertMarket(result.market);
       await refreshUser();
       setJustPredicted(sheetSide);
       setAmount("");
@@ -270,8 +277,8 @@ export default function MarketDetail() {
             <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.055] p-4">
               <Row label="Wallet balance" value={user ? formatNaira(user.balance || 0) : "Login required"} />
               <Row label="Shares" value={sharesReceived.toFixed(2)} />
-              <Row label="Estimated payout" value={formatNaira(estimatedReturn)} highlight />
-              <Row label="Estimated profit" value={formatNaira(estimatedProfit)} highlight />
+              <Row label="Payout if correct" value={formatNaira(estimatedReturn)} highlight />
+              <Row label="Profit if correct" value={formatNaira(estimatedProfit)} highlight />
               <Row label="Max available" value={formatNaira(maxLiquidityStake)} />
             </div>
             <Button onClick={confirmPrediction} disabled={submitting || numericAmount <= 0 || exceedsLiquidity} className={`mt-5 h-12 w-full rounded-2xl text-base font-black text-white ${sheetSide === "YES" ? "bg-emerald-500 hover:bg-emerald-400" : "bg-red-500 hover:bg-red-400"}`}>
@@ -306,51 +313,145 @@ export default function MarketDetail() {
 
 const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const rawHistory = market.priceHistory?.length
-    ? market.priceHistory
-    : [{
-      timestamp: new Date().toISOString(),
-      yesPrice: market.yesPrice,
-      noPrice: market.noPrice,
-      volume: market.totalVolume || 0,
-      tradeCount: market.tradeCount || 0
-    }];
+  const rawHistory = useMemo(() => {
+    const stored = (market.priceHistory || [])
+      .filter((point) => point?.timestamp)
+      .map((point) => ({
+        timestamp: point.timestamp,
+        yesPrice: Number(point.yesPrice || market.yesPrice || 50),
+        noPrice: Number(point.noPrice || market.noPrice || 50),
+        volume: Number(point.volume || 0),
+        tradeCount: Number(point.tradeCount || 0),
+        side: point.side || null,
+        amount: Number(point.amount || 0),
+      }));
 
-  const cutoff = getTimeframeCutoff(timeframe);
-  const filteredHistory = cutoff
-    ? rawHistory.filter((point) => new Date(point.timestamp).getTime() >= cutoff)
-    : rawHistory;
-  const sourceHistory = filteredHistory.length ? filteredHistory : rawHistory.slice(-1);
-  const history = sourceHistory.length === 1
-    ? [
-      { ...sourceHistory[0], timestamp: new Date(new Date(sourceHistory[0].timestamp).getTime() - 60_000).toISOString() },
-      sourceHistory[0],
-    ]
-    : sourceHistory;
-  const hasStoredMovement = Boolean(market.priceHistory && market.priceHistory.length > 1);
-  const activePoint = activeIndex === null ? null : history[activeIndex];
+    if (stored.length > 0) return stored;
+
+    return [{
+      timestamp: new Date().toISOString(),
+      yesPrice: Number(market.yesPrice || 50),
+      noPrice: Number(market.noPrice || 50),
+      volume: Number(market.totalVolume || 0),
+      tradeCount: Number(market.tradeCount || 0),
+      side: null,
+      amount: 0,
+    }];
+  }, [market.noPrice, market.priceHistory, market.totalVolume, market.tradeCount, market.yesPrice]);
+
+  const history = useMemo(() => {
+    const cutoff = getTimeframeCutoff(timeframe);
+    const filtered = cutoff
+      ? rawHistory.filter((point) => new Date(point.timestamp).getTime() >= cutoff)
+      : rawHistory;
+    let source = filtered.length ? filtered : rawHistory.slice(-1);
+
+    if (source.length < 2 && rawHistory.length > 1) {
+      const latest = source[source.length - 1] || rawHistory[rawHistory.length - 1];
+      const previous = rawHistory
+        .slice()
+        .reverse()
+        .find((point) => point.timestamp !== latest.timestamp) || rawHistory[0];
+      source = [previous, latest].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    }
+
+    if (source.length === 1) {
+      const point = source[0];
+      const timestamp = new Date(point.timestamp).getTime();
+      const startTimestamp = Number.isFinite(timestamp) ? timestamp - 5 * 60_000 : Date.now() - 5 * 60_000;
+      return [
+        { ...point, timestamp: new Date(startTimestamp).toISOString() },
+        point,
+      ];
+    }
+
+    return source;
+  }, [rawHistory, timeframe]);
+
+  const timeDomain = useMemo(() => {
+    const times = history
+      .map((point) => new Date(point.timestamp).getTime())
+      .filter(Number.isFinite);
+    const min = times.length ? Math.min(...times) : Date.now() - 5 * 60_000;
+    const max = times.length ? Math.max(...times) : Date.now();
+    if (min === max) return { min: min - 5 * 60_000, max: max + 5 * 60_000 };
+    const padding = Math.max(1000, (max - min) * 0.06);
+    return { min: min - padding, max: max + padding };
+  }, [history]);
+
+  const { domainMin, domainMax, yTicks } = useMemo(() => {
+    const values = history.flatMap((point) => [point.yesPrice, point.noPrice]).filter(Number.isFinite);
+    const min = values.length ? Math.min(...values) : 45;
+    const max = values.length ? Math.max(...values) : 55;
+    const center = (min + max) / 2;
+    const paddedRange = Math.max(10, max - min + 6);
+    const lower = Math.max(0, center - paddedRange / 2);
+    const upper = Math.min(100, center + paddedRange / 2);
+    return {
+      domainMin: lower,
+      domainMax: upper === lower ? lower + 10 : upper,
+      yTicks: [upper, (upper + lower) / 2, lower],
+    };
+  }, [history]);
+
+  const hasStoredMovement = Boolean((market.priceHistory?.length || 0) > 1 || Number(market.tradeCount || 0) > 0);
+  const activePoint = activeIndex === null ? history[history.length - 1] : history[activeIndex];
+
+  const xFor = (point: typeof history[number]) => {
+    const timestamp = new Date(point.timestamp).getTime();
+    const ratio = Number.isFinite(timestamp)
+      ? (timestamp - timeDomain.min) / (timeDomain.max - timeDomain.min)
+      : 0.5;
+    return 4 + Math.max(0, Math.min(1, ratio)) * 92;
+  };
+
+  const pointFor = (point: typeof history[number]) => {
+    const x = xFor(point);
+    const y = 8 + ((domainMax - Number(point.yesPrice || 0)) / (domainMax - domainMin)) * 84;
+    return { x, y: Math.max(5, Math.min(95, y)) };
+  };
+
+  const noPointFor = (point: typeof history[number]) => {
+    const x = xFor(point);
+    const y = 8 + ((domainMax - Number(point.noPrice || 0)) / (domainMax - domainMin)) * 84;
+    return { x, y: Math.max(5, Math.min(95, y)) };
+  };
 
   const toPolyline = (key: "yesPrice" | "noPrice") => history.map((point, index) => {
-    const x = history.length === 1 ? 50 : (index / (history.length - 1)) * 100;
-    const y = 100 - Math.max(2, Math.min(98, Number(point[key] || 0)));
-    return `${x},${y}`;
+    const current = key === "yesPrice" ? pointFor(point) : noPointFor(point);
+    return `${current.x},${current.y}`;
   }).join(" ");
 
-  const activeX = activeIndex === null ? null : history.length === 1 ? 50 : (activeIndex / (history.length - 1)) * 100;
+  const activeX = activeIndex === null
+    ? pointFor(history[history.length - 1]).x
+    : pointFor(history[activeIndex]).x;
 
   const updateActivePoint = (clientX: number, currentTarget: SVGSVGElement) => {
     const rect = currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    setActiveIndex(Math.round(ratio * (history.length - 1)));
+    const targetX = 4 + ratio * 92;
+    const nearestIndex = history.reduce((bestIndex, point, index) => {
+      const bestDistance = Math.abs(pointFor(history[bestIndex]).x - targetX);
+      const currentDistance = Math.abs(pointFor(point).x - targetX);
+      return currentDistance < bestDistance ? index : bestIndex;
+    }, 0);
+    setActiveIndex(nearestIndex);
   };
 
   return (
     <div className="rounded-2xl border border-white/10 bg-[#080d19]/90 p-4">
-      <div className="relative">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-300"><span className="h-2 w-2 rounded-full bg-emerald-300" />YES {formatNairaPrice(market.yesPrice)}</span>
+          <span className="inline-flex items-center gap-1.5 text-xs font-black text-red-300"><span className="h-2 w-2 rounded-full bg-red-300" />NO {formatNairaPrice(market.noPrice)}</span>
+        </div>
+        <span className="text-xs font-bold text-slate-500">{market.tradeCount || 0} trades</span>
+      </div>
+      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,rgba(139,92,246,0.14),rgba(8,13,25,0.94)_52%)] p-3">
       <svg
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
-        className="h-60 w-full touch-none overflow-visible"
+        className="h-64 w-full touch-none overflow-visible"
         onMouseMove={(event) => updateActivePoint(event.clientX, event.currentTarget)}
         onMouseLeave={() => setActiveIndex(null)}
         onTouchMove={(event) => updateActivePoint(event.touches[0].clientX, event.currentTarget)}
@@ -366,13 +467,20 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
             <stop offset="100%" stopColor="#f43f5e" />
           </linearGradient>
         </defs>
-        {[20, 40, 60, 80].map((line) => <line key={line} x1="0" x2="100" y1={line} y2={line} stroke="rgba(255,255,255,0.08)" strokeWidth="0.5" />)}
-        <polyline points={toPolyline("noPrice")} fill="none" stroke="url(#noDetailLine)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" vectorEffect="non-scaling-stroke" className="drop-shadow-[0_0_10px_rgba(244,63,94,0.35)]" />
-        <polyline points={toPolyline("yesPrice")} fill="none" stroke="url(#yesDetailLine)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" vectorEffect="non-scaling-stroke" className="drop-shadow-[0_0_14px_rgba(52,211,153,0.45)]" />
+        {[8, 29, 50, 71, 92].map((line) => <line key={line} x1="0" x2="100" y1={line} y2={line} stroke="rgba(255,255,255,0.07)" strokeWidth="0.5" />)}
+        <polyline points={toPolyline("noPrice")} fill="none" stroke="url(#noDetailLine)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.6" vectorEffect="non-scaling-stroke" className="drop-shadow-[0_0_12px_rgba(244,63,94,0.36)]" />
+        <polyline points={toPolyline("yesPrice")} fill="none" stroke="url(#yesDetailLine)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.4" vectorEffect="non-scaling-stroke" className="drop-shadow-[0_0_18px_rgba(52,211,153,0.48)]" />
+        {history.map((point, index) => {
+          const yesPoint = pointFor(point);
+          return <circle key={`${point.timestamp}-${index}`} cx={yesPoint.x} cy={yesPoint.y} r="1.35" fill="#d1fae5" stroke="#34d399" strokeWidth="0.8" vectorEffect="non-scaling-stroke" />;
+        })}
         {activeX !== null && (
-          <line x1={activeX} x2={activeX} y1="0" y2="100" stroke="rgba(255,255,255,0.35)" strokeWidth="0.6" vectorEffect="non-scaling-stroke" />
+          <line x1={activeX} x2={activeX} y1="5" y2="95" stroke="rgba(255,255,255,0.35)" strokeWidth="0.7" vectorEffect="non-scaling-stroke" />
         )}
       </svg>
+      <div className="pointer-events-none absolute inset-y-3 right-3 flex flex-col justify-between text-[10px] font-black text-slate-500">
+        {yTicks.map((tick) => <span key={tick}>{Math.round(tick)}</span>)}
+      </div>
       {activePoint && activeX !== null && (
         <div
           className="pointer-events-none absolute top-3 min-w-[170px] rounded-2xl border border-white/10 bg-[#050711]/95 p-3 text-xs shadow-2xl backdrop-blur-xl"
@@ -384,12 +492,13 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
             <span className="text-red-300">NO {formatNairaPrice(activePoint.noPrice)}</span>
             <span className="text-slate-400">Volume {formatNaira(activePoint.volume || 0)}</span>
             <span className="text-slate-500">Trades {activePoint.tradeCount || 0}</span>
+            {activePoint.side && <span className="text-violet-200">{activePoint.side} trade {formatNaira(activePoint.amount || 0)}</span>}
           </div>
         </div>
       )}
       </div>
       <div className="mt-3 flex items-center justify-between text-xs font-bold text-slate-500">
-        <span>{hasStoredMovement ? "Live price history" : "Price movement starts after predictions."}</span>
+        <span>{hasStoredMovement ? "Live price history from saved trades" : "Flat starting line until the first prediction."}</span>
         <span>YES {formatNairaPrice(market.yesPrice)} / NO {formatNairaPrice(market.noPrice)}</span>
       </div>
     </div>

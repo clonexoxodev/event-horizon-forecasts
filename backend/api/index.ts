@@ -922,6 +922,38 @@ const calculatePoolTrade = (market: any, side: PredictionSide, amountSmallestUni
   };
 };
 
+const loadOpenSideLiabilitySmallestUnit = async (marketId: string, side: PredictionSide) => {
+  const { data, error } = await supabase
+    .from('positions')
+    .select('amount_smallest_unit, price_at_purchase, entry_price, shares_received, estimated_payout_smallest_unit, status, settled_at, resolved_at')
+    .eq('market_id', marketId)
+    .eq('side', side);
+
+  if (error) throw error;
+
+  return (data || [])
+    .filter((position: any) => !position.settled_at && !position.resolved_at && !['won', 'lost', 'settled'].includes(String(position.status || 'active')))
+    .reduce((sum: number, position: any) => {
+      const storedPayout = Number(position.estimated_payout_smallest_unit || 0);
+      if (storedPayout > 0) return sum + storedPayout;
+      const stakeSmallestUnit = Number(position.amount_smallest_unit || 0);
+      const price = Number(position.price_at_purchase || position.entry_price || 0);
+      const shares = Number(position.shares_received || 0) || (price > 0 ? toAmount(stakeSmallestUnit) / price : 0);
+      return sum + Math.max(0, Math.round(shares * PAYOUT_PER_SHARE_SMALLEST_UNIT));
+    }, 0);
+};
+
+const calculateSolventStakeLimitSmallestUnit = (
+  totalPoolAfterSeedsSmallestUnit: number,
+  currentSideLiabilitySmallestUnit: number,
+  sidePrice: number
+) => {
+  const remainingBacking = Math.max(0, totalPoolAfterSeedsSmallestUnit - currentSideLiabilitySmallestUnit);
+  const liabilityMultiplier = sidePrice > 0 ? (100 / sidePrice) - 1 : Number.POSITIVE_INFINITY;
+  if (!Number.isFinite(liabilityMultiplier) || liabilityMultiplier <= 0) return remainingBacking;
+  return Math.max(0, Math.floor(remainingBacking / liabilityMultiplier));
+};
+
 const savePriceHistory = async (
   marketId: string,
   yesPrice: number,
@@ -929,32 +961,64 @@ const savePriceHistory = async (
   yesPoolSmallestUnit: number,
   noPoolSmallestUnit: number,
   volumeSmallestUnit: number,
-  tradeCount = 0
+  tradeCount = 0,
+  side?: 'YES' | 'NO',
+  amountSmallestUnit?: number
 ) => {
-  const { error } = await supabase
-    .from('market_price_history')
-    .insert({
-      market_id: marketId,
-      yes_price: yesPrice,
-      no_price: noPrice,
-      yes_pool_smallest_unit: yesPoolSmallestUnit,
-      no_pool_smallest_unit: noPoolSmallestUnit,
-      volume_smallest_unit: volumeSmallestUnit,
-      trade_count: tradeCount
-    });
+  const payload = {
+    market_id: marketId,
+    yes_price: Math.round(yesPrice),
+    no_price: Math.round(noPrice),
+    yes_pool_smallest_unit: yesPoolSmallestUnit,
+    no_pool_smallest_unit: noPoolSmallestUnit,
+    volume_smallest_unit: volumeSmallestUnit,
+    trade_count: tradeCount,
+    ...(side ? { side, amount_smallest_unit: amountSmallestUnit || 0 } : {})
+  };
+
+  let { error } = await supabase.from('market_price_history').insert(payload);
+
+  if (error && side && /amount_smallest_unit|side/i.test(error.message || '')) {
+    const { error: retryError } = await supabase
+      .from('market_price_history')
+      .insert({
+        market_id: payload.market_id,
+        yes_price: payload.yes_price,
+        no_price: payload.no_price,
+        yes_pool_smallest_unit: payload.yes_pool_smallest_unit,
+        no_pool_smallest_unit: payload.no_pool_smallest_unit,
+        volume_smallest_unit: payload.volume_smallest_unit,
+        trade_count: payload.trade_count
+      });
+    error = retryError;
+  }
 
   if (error) {
     console.warn('Failed to save market price history:', error.message);
   }
 };
 
-const fetchPriceHistory = async (marketId: string) => {
-  const { data, error } = await supabase
+const fetchStoredPriceHistory = async (marketId: string) => {
+  const baseSelect = 'created_at, yes_price, no_price, yes_pool_smallest_unit, no_pool_smallest_unit, volume_smallest_unit, trade_count';
+  const withTradeMetaSelect = `${baseSelect}, side, amount_smallest_unit`;
+
+  let { data, error }: { data: any[] | null; error: any } = await supabase
     .from('market_price_history')
-    .select('created_at, yes_price, no_price, yes_pool_smallest_unit, no_pool_smallest_unit, volume_smallest_unit, trade_count')
+    .select(withTradeMetaSelect)
     .eq('market_id', marketId)
     .order('created_at', { ascending: true })
     .limit(200);
+
+  if (error && /side|amount_smallest_unit/i.test(error.message || '')) {
+    const retry = await supabase
+      .from('market_price_history')
+      .select(baseSelect)
+      .eq('market_id', marketId)
+      .order('created_at', { ascending: true })
+      .limit(200);
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     console.warn('Failed to fetch market price history:', error.message);
@@ -968,8 +1032,102 @@ const fetchPriceHistory = async (marketId: string) => {
     yesPool: toAmount(point.yes_pool_smallest_unit),
     noPool: toAmount(point.no_pool_smallest_unit),
     volume: toAmount(point.volume_smallest_unit),
-    tradeCount: Number(point.trade_count || 0)
+    tradeCount: Number(point.trade_count || 0),
+    side: normalizePredictionSide(point.side),
+    amount: toAmount(point.amount_smallest_unit)
   }));
+};
+
+const buildTradeDerivedPriceHistory = async (market: any) => {
+  const marketId = market.id || market;
+  const { data, error } = await supabase
+    .from('market_trades')
+    .select('created_at, side, amount_smallest_unit, price_before, price_after, yes_price_after, no_price_after')
+    .eq('market_id', marketId)
+    .order('created_at', { ascending: true })
+    .limit(200);
+
+  if (error) {
+    console.warn('Failed to fetch market trades for price history:', error.message);
+    return [];
+  }
+
+  const trades = data || [];
+  if (!trades.length) return [];
+
+  const firstTrade = trades[0] as any;
+  const firstSide = normalizePredictionSide(firstTrade.side) || 'YES';
+  const sidePriceBefore = Number(firstTrade.price_before || 50);
+  const startingYesPrice = firstSide === 'YES' ? sidePriceBefore : 100 - sidePriceBefore;
+  const startingNoPrice = 100 - startingYesPrice;
+  const firstTimestamp = new Date(firstTrade.created_at).getTime();
+  const startTimestamp = Number.isFinite(firstTimestamp)
+    ? new Date(firstTimestamp - 1000).toISOString()
+    : (market.created_at || new Date().toISOString());
+
+  let cumulativeVolume = 0;
+  const points: any[] = [{
+    timestamp: startTimestamp,
+    yesPrice: Math.round(startingYesPrice),
+    noPrice: Math.round(startingNoPrice),
+    yesPool: toAmount(market.yes_pool_smallest_unit),
+    noPool: toAmount(market.no_pool_smallest_unit),
+    volume: 0,
+    tradeCount: 0,
+    side: null,
+    amount: 0
+  }];
+
+  trades.forEach((trade: any, index: number) => {
+    const side = normalizePredictionSide(trade.side);
+    const amountSmallestUnit = Number(trade.amount_smallest_unit || 0);
+    cumulativeVolume += amountSmallestUnit;
+    const yesPrice = Number(trade.yes_price_after ?? (side === 'YES' ? trade.price_after : 100 - Number(trade.price_after || 50)));
+    const noPrice = Number(trade.no_price_after ?? 100 - yesPrice);
+
+    points.push({
+      timestamp: trade.created_at,
+      yesPrice: Math.round(yesPrice),
+      noPrice: Math.round(noPrice),
+      volume: toAmount(cumulativeVolume),
+      tradeCount: index + 1,
+      side,
+      amount: toAmount(amountSmallestUnit)
+    });
+  });
+
+  return points;
+};
+
+const fetchPriceHistory = async (marketOrId: any) => {
+  const marketId = typeof marketOrId === 'string' ? marketOrId : marketOrId.id;
+  const [storedHistory, tradeDerivedHistory] = await Promise.all([
+    fetchStoredPriceHistory(marketId),
+    typeof marketOrId === 'string' ? Promise.resolve([]) : buildTradeDerivedPriceHistory(marketOrId)
+  ]);
+
+  return tradeDerivedHistory.length > storedHistory.length ? tradeDerivedHistory : storedHistory;
+};
+
+const ensureInitialPriceHistory = async (market: any) => {
+  const existingHistory = await fetchPriceHistory(market);
+  if (existingHistory.length > 0) return existingHistory;
+
+  const yesPool = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
+  const noPool = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
+  const prices = currentMarketPrices(market);
+
+  await savePriceHistory(
+    market.id,
+    prices.yesPrice,
+    prices.noPrice,
+    yesPool,
+    noPool,
+    Number(market.total_volume_smallest_unit || 0),
+    Number(market.trade_count || 0)
+  );
+
+  return fetchPriceHistory(market);
 };
 
 const normalizeMarket = (market: any, positionCount = 0, priceHistory: any[] = []) => {
@@ -1042,9 +1200,9 @@ const normalizePosition = (position: any, market: any) => {
     estimatedProfit: toAmount(position.estimated_profit_smallest_unit),
     finalPayout,
     status: position.status || (position.resolved_at ? (position.is_winner ? 'won' : 'lost') : 'active'),
-    marketQuestion: normalizedMarket.question || 'Market unavailable',
+    marketQuestion: normalizedMarket.question || position.market_question_snapshot || 'Market unavailable',
     marketIcon: normalizedMarket.icon,
-    category: normalizedMarket.category,
+    category: normalizedMarket.category || position.market_category_snapshot || 'General',
     marketStatus: normalizedMarket.status,
     isWinner: position.is_winner,
     payout: toAmount(position.payout_smallest_unit),
@@ -1512,7 +1670,8 @@ app.get('/api/markets', async (_req: Request, res: Response) => {
         .select('*', { count: 'exact', head: true })
         .eq('market_id', market.id);
 
-      return normalizeMarket(market, count || 0);
+      const priceHistory = await ensureInitialPriceHistory(market);
+      return normalizeMarket(market, count || 0, priceHistory);
     }));
 
     res.json({ markets: normalizedMarkets, count: normalizedMarkets.length });
@@ -1553,7 +1712,7 @@ app.get('/api/markets/:id', async (req: Request, res: Response) => {
       .select('*', { count: 'exact', head: true })
       .eq('market_id', currentMarket.id);
 
-    const priceHistory = await fetchPriceHistory(currentMarket.id);
+    const priceHistory = await ensureInitialPriceHistory(currentMarket);
 
     res.json({ market: normalizeMarket(currentMarket, count || 0, priceHistory) });
   } catch (error) {
@@ -1562,6 +1721,38 @@ app.get('/api/markets/:id', async (req: Request, res: Response) => {
       error: {
         code: 'GET_MARKET_FAILED',
         message: 'Failed to fetch market',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+app.get('/api/markets/:id/price-history', async (req: Request, res: Response) => {
+  try {
+    const { data: market, error } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (error || !market) {
+      return res.status(404).json({
+        error: {
+          code: 'MARKET_NOT_FOUND',
+          message: 'Market not found',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const priceHistory = await ensureInitialPriceHistory(market);
+    res.json({ priceHistory, count: priceHistory.length });
+  } catch (error) {
+    console.error('Get price history error:', error);
+    res.status(500).json({
+      error: {
+        code: 'GET_PRICE_HISTORY_FAILED',
+        message: 'Failed to fetch price history',
         timestamp: new Date().toISOString()
       }
     });
@@ -1794,11 +1985,18 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
     }
 
     const trade = calculatePoolTrade(currentMarket, side, amountSmallestUnit);
-    if (amountSmallestUnit > trade.maxStakeSmallestUnit) {
+    const sideLiabilitySmallestUnit = await loadOpenSideLiabilitySmallestUnit(marketId, side);
+    const maxSolventStakeSmallestUnit = calculateSolventStakeLimitSmallestUnit(
+      trade.nextTotalPool,
+      sideLiabilitySmallestUnit,
+      trade.sidePriceBefore
+    );
+    const maxSafeStakeSmallestUnit = Math.max(0, Math.min(trade.maxStakeSmallestUnit, maxSolventStakeSmallestUnit));
+    if (amountSmallestUnit > maxSafeStakeSmallestUnit) {
       return res.status(400).json({
         error: {
           code: 'STAKE_EXCEEDS_LIQUIDITY',
-          message: `Maximum available for this side is ₦${Math.floor(toAmount(trade.maxStakeSmallestUnit)).toLocaleString()} based on current liquidity.`,
+          message: `Maximum available for this side is NGN ${Math.floor(toAmount(maxSafeStakeSmallestUnit)).toLocaleString()} based on current liquidity and payout backing.`,
           timestamp: new Date().toISOString()
         }
       });
@@ -1909,8 +2107,8 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
 
     if (marketUpdateError || !updatedMarket) throw marketUpdateError;
 
-    await savePriceHistory(marketId, pricesAfter.yesPrice, pricesAfter.noPrice, trade.nextYesPool, trade.nextNoPool, currentVolume + amountSmallestUnit, nextTradeCount);
-    const priceHistory = await fetchPriceHistory(marketId);
+    await savePriceHistory(marketId, pricesAfter.yesPrice, pricesAfter.noPrice, trade.nextYesPool, trade.nextNoPool, currentVolume + amountSmallestUnit, nextTradeCount, side, amountSmallestUnit);
+    const priceHistory = await fetchPriceHistory(updatedMarket);
 
     const { data: transaction } = await supabase
       .from('transactions')
@@ -2341,56 +2539,76 @@ app.get('/api/admin/list-admins', authenticate, requireRole('super_admin'), asyn
  */
 app.get('/api/admin/analytics', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
   try {
-    // Query total users count
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const todayIso = startOfToday.toISOString();
+
     const { count: totalUsers, error: usersError } = await supabase
       .from('users')
       .select('*', { count: 'exact', head: true });
 
-    // Query total forecasts (positions) count
     const { count: totalForecasts, error: forecastsError } = await supabase
       .from('positions')
       .select('*', { count: 'exact', head: true });
 
-    // Query total volume (sum of all position amounts in NGN kobo)
+    const { count: predictionsToday, error: predictionsTodayError } = await supabase
+      .from('positions')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', todayIso);
+
     const { data: volumeData, error: volumeError } = await supabase
       .from('positions')
-      .select('amount_smallest_unit, currency');
+      .select('amount_smallest_unit, currency, created_at, user_id');
 
     let totalVolume = 0;
+    let todayVolume = 0;
     if (volumeData) {
-      // Sum all NGN positions
       totalVolume = volumeData
         .filter(p => p.currency === 'NGN')
         .reduce((sum, p) => sum + (p.amount_smallest_unit || 0), 0);
+      todayVolume = volumeData
+        .filter(p => p.currency === 'NGN' && new Date(p.created_at).getTime() >= startOfToday.getTime())
+        .reduce((sum, p) => sum + (p.amount_smallest_unit || 0), 0);
     }
 
-    // Query active markets count
+    const activeUsersToday = new Set((volumeData || [])
+      .filter((p) => new Date(p.created_at).getTime() >= startOfToday.getTime())
+      .map((p) => p.user_id)
+      .filter(Boolean)).size;
+
     const { count: activeMarkets, error: activeError } = await supabase
       .from('markets')
       .select('*', { count: 'exact', head: true })
-      .eq('state', 'active');
+      .eq('status', 'active');
 
-    // Query resolved markets count
     const { count: resolvedMarkets, error: resolvedError } = await supabase
       .from('markets')
       .select('*', { count: 'exact', head: true })
-      .eq('state', 'resolved');
+      .eq('status', 'resolved');
 
-    // Query pending markets count (closed but not resolved)
     const { count: pendingMarkets, error: pendingError } = await supabase
       .from('markets')
       .select('*', { count: 'exact', head: true })
-      .eq('state', 'closed');
+      .in('status', ['closed', 'pending_resolution']);
 
-    // Check for errors
-    if (usersError || forecastsError || volumeError || activeError || resolvedError || pendingError) {
+    const { data: marketLiquidity, error: liquidityError } = await supabase
+      .from('markets')
+      .select('seed_liquidity_yes_smallest_unit, seed_liquidity_no_smallest_unit');
+
+    const platformLiquidityDeployed = (marketLiquidity || []).reduce((sum, market) => (
+      sum + Number(market.seed_liquidity_yes_smallest_unit || 0) + Number(market.seed_liquidity_no_smallest_unit || 0)
+    ), 0);
+
+    if (usersError || forecastsError || predictionsTodayError || volumeError || activeError || resolvedError || pendingError || liquidityError) {
       console.error('Analytics query errors:', {
         usersError,
         forecastsError,
+        predictionsTodayError,
         volumeError,
         activeError,
         resolvedError,
-        pendingError
+        pendingError,
+        liquidityError
       });
       return res.status(500).json({
         error: {
@@ -2404,10 +2622,18 @@ app.get('/api/admin/analytics', authenticate, requireRole('super_admin'), async 
     res.json({
       totalUsers: totalUsers || 0,
       totalForecasts: totalForecasts || 0,
-      totalVolume: totalVolume,
+      totalPredictions: totalForecasts || 0,
+      predictionsToday: predictionsToday || 0,
+      todayPredictions: predictionsToday || 0,
+      totalVolume,
+      todayVolume,
       activeMarkets: activeMarkets || 0,
       resolvedMarkets: resolvedMarkets || 0,
-      pendingMarkets: pendingMarkets || 0
+      pendingMarkets: pendingMarkets || 0,
+      pendingResolution: pendingMarkets || 0,
+      activeUsersToday,
+      platformLiquidityDeployed,
+      pendingPayouts: pendingMarkets || 0
     });
   } catch (error) {
     console.error('Analytics error:', error);
@@ -2463,50 +2689,139 @@ const canManageMarket = (user: any, market: any) => (
   user.role === 'super_admin' || market.created_by === user.id
 );
 
-const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, adminUser: any) => {
-  if (normalizeMarketStatus(market) === 'resolved') {
-    throw new Error('This market has already been resolved.');
-  }
-
+const loadSettlementPositions = async (marketId: string) => {
   const { data: positions, error: positionsError } = await supabase
     .from('positions')
     .select('*')
-    .eq('market_id', market.id);
+    .eq('market_id', marketId);
 
   if (positionsError) throw positionsError;
+  return positions || [];
+};
 
-  const allPositions = positions || [];
+const fixedShareSettlementForPosition = (position: any, outcome: PredictionSide) => {
+  const stakeSmallestUnit = Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0);
+  const won = position.side === outcome;
+  const priceAtPurchase = Number(position.price_at_purchase || position.entry_price || 0);
+  const storedShares = Number(position.shares_received || 0);
+  const sharesReceived = storedShares > 0
+    ? storedShares
+    : priceAtPurchase > 0
+      ? toAmount(stakeSmallestUnit) / priceAtPurchase
+      : 0;
+  // Fixed-share settlement: purchased shares are locked at entry and each winning
+  // share settles at ₦100. Later buyers can move market prices, but cannot change
+  // this position's payout.
+  const payoutSmallestUnit = won ? Math.max(0, Math.round(sharesReceived * PAYOUT_PER_SHARE_SMALLEST_UNIT)) : 0;
+  const profitSmallestUnit = won ? payoutSmallestUnit - stakeSmallestUnit : -stakeSmallestUnit;
+
+  return {
+    won,
+    stakeSmallestUnit,
+    priceAtPurchase,
+    sharesReceived,
+    payoutSmallestUnit,
+    profitSmallestUnit
+  };
+};
+
+const buildSettlementPreview = (market: any, outcome: PredictionSide, allPositions: any[]) => {
   const winningPositions = allPositions.filter((position: any) => position.side === outcome);
   const losingPositions = allPositions.filter((position: any) => position.side !== outcome);
-  const winningPool = winningPositions.reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || 0), 0);
-  const losingPool = losingPositions.reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || 0), 0);
-  const totalPayoutPool = winningPositions.reduce((sum: number, position: any) => {
-    const shares = Number(position.shares_received || 0);
-    const fallbackEntryPrice = Number(position.entry_price || 0);
-    const fallbackShares = fallbackEntryPrice > 0 ? toAmount(Number(position.amount_smallest_unit || 0)) / fallbackEntryPrice : 0;
-    return sum + Math.floor((shares || fallbackShares) * PAYOUT_PER_SHARE_SMALLEST_UNIT);
-  }, 0);
+  const settledPositions = allPositions.map((position: any) => {
+    const settlement = fixedShareSettlementForPosition(position, outcome);
+
+    return {
+      id: position.id,
+      userId: position.user_id,
+      username: position.username || position.user_id,
+      side: position.side,
+      status: settlement.won ? 'won' : 'lost',
+      stakeSmallestUnit: settlement.stakeSmallestUnit,
+      priceAtPurchase: settlement.priceAtPurchase,
+      sharesReceived: settlement.sharesReceived,
+      payoutSmallestUnit: settlement.payoutSmallestUnit,
+      profitSmallestUnit: settlement.profitSmallestUnit,
+      alreadySettled: Boolean(position.settled_at || position.resolved_at || ['won', 'lost', 'settled'].includes(String(position.status || ''))),
+      stake: toAmount(settlement.stakeSmallestUnit),
+      price: settlement.priceAtPurchase,
+      shares: settlement.sharesReceived,
+      payout: toAmount(settlement.payoutSmallestUnit),
+      profit: toAmount(settlement.profitSmallestUnit)
+    };
+  });
+  const totalWinningStake = winningPositions.reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0), 0);
+  const totalLosingStake = losingPositions.reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0), 0);
+
+  return {
+    marketId: market.id,
+    marketQuestion: market.question,
+    winningOutcome: outcome,
+    totalYesStake: toAmount(allPositions.filter((position: any) => position.side === 'YES').reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || 0), 0)),
+    totalNoStake: toAmount(allPositions.filter((position: any) => position.side === 'NO').reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || 0), 0)),
+    totalWinningStake: toAmount(totalWinningStake),
+    totalLosingStake: toAmount(totalLosingStake),
+    totalWinners: winningPositions.length,
+    totalLosers: losingPositions.length,
+    totalPayout: toAmount(settledPositions.reduce((sum: number, position: any) => sum + position.payoutSmallestUnit, 0)),
+    platformFee: 0,
+    positions: settledPositions
+  };
+};
+
+const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, adminUser: any) => {
+  if (normalizeMarketStatus(market) === 'resolved' || market.resolved_at) {
+    throw new Error('This market has already been resolved.');
+  }
+
+  const marketStatus = displayStatusForMarket(market);
+  if (!['closed', 'pending_resolution'].includes(marketStatus)) {
+    throw new Error('Market must be ended or pending resolution before settlement.');
+  }
+
+  const allPositions = await loadSettlementPositions(market.id);
+  const preview = buildSettlementPreview(market, outcome, allPositions);
   const now = new Date().toISOString();
 
-  for (const position of allPositions) {
-    const isWinner = position.side === outcome;
-    const shares = Number(position.shares_received || 0);
-    const fallbackEntryPrice = Number(position.entry_price || 0);
-    const fallbackShares = fallbackEntryPrice > 0 ? toAmount(Number(position.amount_smallest_unit || 0)) / fallbackEntryPrice : 0;
-    const payout = isWinner ? Math.floor((shares || fallbackShares) * PAYOUT_PER_SHARE_SMALLEST_UNIT) : 0;
+  for (const result of preview.positions) {
+    const position = allPositions.find((candidate: any) => candidate.id === result.id);
+    if (!position) continue;
+    if (position.settled_at || position.resolved_at || ['won', 'lost', 'settled'].includes(String(position.status || ''))) {
+      continue;
+    }
 
-    await supabase
+    let { error: positionUpdateError } = await supabase
       .from('positions')
       .update({
-        is_winner: isWinner,
-        payout_smallest_unit: payout,
-        final_payout_smallest_unit: payout,
-        status: isWinner ? 'won' : 'lost',
-        resolved_at: now
+        is_winner: result.status === 'won',
+        payout_smallest_unit: result.payoutSmallestUnit,
+        final_payout_smallest_unit: result.payoutSmallestUnit,
+        profit_smallest_unit: result.profitSmallestUnit,
+        status: result.status,
+        resolved_at: now,
+        settled_at: now,
+        winning_outcome: outcome,
+        market_question_snapshot: market.question,
+        market_category_snapshot: market.category || 'General'
       })
       .eq('id', position.id);
 
-    if (payout > 0) {
+    if (positionUpdateError && /profit_smallest_unit|settled_at|winning_outcome|market_question_snapshot|market_category_snapshot/i.test(positionUpdateError.message || '')) {
+      const retry = await supabase
+        .from('positions')
+        .update({
+          is_winner: result.status === 'won',
+          payout_smallest_unit: result.payoutSmallestUnit,
+          final_payout_smallest_unit: result.payoutSmallestUnit,
+          status: result.status,
+          resolved_at: now
+        })
+        .eq('id', position.id);
+      positionUpdateError = retry.error;
+    }
+    if (positionUpdateError) throw positionUpdateError;
+
+    if (result.payoutSmallestUnit > 0) {
       const { data: wallet } = await supabase
         .from('wallets')
         .select('*')
@@ -2516,13 +2831,11 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
       if (wallet) {
         const balanceField = position.currency === 'USD' ? 'available_usd_cents' : 'available_ngn_kobo';
         const totalBalanceField = position.currency === 'USD' ? 'balance_usd_cents' : 'balance_ngn_kobo';
-        const stake = Number(position.amount_smallest_unit || 0);
-        const totalBalanceAdjustment = payout - stake;
         await supabase
           .from('wallets')
           .update({
-            [balanceField]: Number(wallet[balanceField] || 0) + payout,
-            [totalBalanceField]: Number(wallet[totalBalanceField] || 0) + totalBalanceAdjustment,
+            [balanceField]: Number(wallet[balanceField] || 0) + result.payoutSmallestUnit,
+            [totalBalanceField]: Number(wallet[totalBalanceField] || 0) + Math.max(0, result.profitSmallestUnit),
             updated_at: now
           })
           .eq('id', wallet.id);
@@ -2533,17 +2846,22 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
             user_id: position.user_id,
             wallet_id: wallet.id,
             type: 'position_payout',
-            amount_smallest_unit: payout,
+            amount_smallest_unit: result.payoutSmallestUnit,
             currency: position.currency || 'NGN',
             direction: 'IN',
             reference_id: position.id,
             reference_type: 'position',
+            market_id: market.id,
+            position_id: position.id,
             status: 'completed',
             metadata: {
               marketId: market.id,
+              marketQuestion: market.question,
               outcome,
-              stakeSmallestUnit: position.amount_smallest_unit,
-              profitSmallestUnit: payout - Number(position.amount_smallest_unit || 0)
+              description: `Payout for ${market.question}`,
+              stake: result.stake,
+              payout: result.payout,
+              profit: result.profit
             }
           });
 
@@ -2560,15 +2878,15 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
               marketId: market.id,
               marketQuestion: market.question,
               outcome,
-              payoutSmallestUnit: payout,
-              profitSmallestUnit: payout - Number(position.amount_smallest_unit || 0)
+              payoutSmallestUnit: result.payoutSmallestUnit,
+              profitSmallestUnit: result.profitSmallestUnit
             }
           })
           .then(({ error }) => {
             if (error) console.warn('Payout notification not saved:', error.message);
           });
       }
-    } else if (!isWinner) {
+    } else {
       const { data: wallet } = await supabase
         .from('wallets')
         .select('*')
@@ -2580,7 +2898,7 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
         await supabase
           .from('wallets')
           .update({
-            [totalBalanceField]: Math.max(0, Number(wallet[totalBalanceField] || 0) - Number(position.amount_smallest_unit || 0)),
+            [totalBalanceField]: Math.max(0, Number(wallet[totalBalanceField] || 0) - result.stakeSmallestUnit),
             updated_at: now
           })
           .eq('id', wallet.id);
@@ -2592,7 +2910,7 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
       .insert({
         user_id: position.user_id,
         type: 'market_resolved',
-        title: isWinner ? 'Market resolved: you won' : 'Market resolved',
+        title: result.status === 'won' ? 'Market resolved: you won' : 'Market resolved',
         message: `"${market.question}" resolved as ${outcome}.`,
         reference_id: market.id,
         reference_type: 'market',
@@ -2600,7 +2918,7 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
           marketId: market.id,
           marketQuestion: market.question,
           outcome,
-          isWinner
+          isWinner: result.status === 'won'
         }
       })
       .then(({ error }) => {
@@ -2614,20 +2932,23 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
       market_id: market.id,
       resolved_by: adminUser.id,
       outcome,
-      winning_pool_smallest_unit: winningPool,
-      losing_pool_smallest_unit: losingPool,
-      payout_pool_smallest_unit: totalPayoutPool,
-      resolved_position_count: allPositions.length
+      winning_pool_smallest_unit: Math.round(preview.totalWinningStake * 100),
+      losing_pool_smallest_unit: Math.round(preview.totalLosingStake * 100),
+      payout_pool_smallest_unit: Math.round(preview.totalPayout * 100),
+      resolved_position_count: allPositions.length,
+      payout_summary: preview
     });
 
-  const { data: updatedMarket, error: marketError } = await supabase
+  let { data: updatedMarket, error: marketError }: { data: any; error: any } = await supabase
     .from('markets')
     .update({
       status: 'resolved',
       state: 'resolved',
       outcome,
       winning_outcome: outcome,
+      resolved_outcome: outcome,
       resolved_at: now,
+      resolved_by: adminUser.id,
       resolution_source: market.resolution_source || 'Admin resolution',
       updated_at: now
     })
@@ -2636,8 +2957,29 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
     .select()
     .single();
 
+  if (marketError && /resolved_by/i.test(marketError.message || '')) {
+    const retry = await supabase
+      .from('markets')
+      .update({
+        status: 'resolved',
+        state: 'resolved',
+        outcome,
+        winning_outcome: outcome,
+        resolved_outcome: outcome,
+        resolved_at: now,
+        resolution_source: market.resolution_source || 'Admin resolution',
+        updated_at: now
+      })
+      .eq('id', market.id)
+      .neq('status', 'resolved')
+      .select()
+      .single();
+    updatedMarket = retry.data;
+    marketError = retry.error;
+  }
+
   if (marketError) throw marketError;
-  return updatedMarket;
+  return { market: updatedMarket, payoutSummary: preview };
 };
 
 /**
@@ -2914,6 +3256,72 @@ app.put('/api/admin/markets/:marketId', authenticate, requireRole('admin'), asyn
   }
 });
 
+app.get('/api/admin/markets/:marketId/resolution-preview', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const marketId = String(req.params.marketId || '');
+    const outcome = normalizePredictionSide(req.query.outcome);
+    if (!outcome) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_OUTCOME', message: 'Choose YES or NO.' } });
+    }
+    if (user.role !== 'super_admin') {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Only super admins can resolve markets.' } });
+    }
+
+    const { data: market, error } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('id', marketId)
+      .single();
+
+    if (error || !market) return res.status(404).json({ success: false, error: { code: 'MARKET_NOT_FOUND', message: 'Market not found.' } });
+
+    const positions = await loadSettlementPositions(marketId);
+    res.json({ success: true, preview: buildSettlementPreview(market, outcome, positions) });
+  } catch (error: any) {
+    console.error('Resolution preview error:', error);
+    res.status(500).json({ success: false, error: { code: 'RESOLUTION_PREVIEW_FAILED', message: error.message || 'Failed to preview settlement.' } });
+  }
+});
+
+app.post('/api/admin/markets/:marketId/resolve', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const marketId = String(req.params.marketId || '');
+    const outcome = normalizePredictionSide(req.body.winningOutcome || req.body.outcome);
+    if (!outcome) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_OUTCOME', message: 'Choose YES or NO.' } });
+    }
+    if (user.role !== 'super_admin') {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Only super admins can resolve markets.' } });
+    }
+
+    const { data: market, error } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('id', marketId)
+      .single();
+
+    if (error || !market) return res.status(404).json({ success: false, error: { code: 'MARKET_NOT_FOUND', message: 'Market not found.' } });
+    if (normalizeMarketStatus(market) === 'resolved' || market.resolved_at) {
+      const positions = await loadSettlementPositions(marketId);
+      return res.json({
+        success: true,
+        alreadyResolved: true,
+        market: normalizeAdminMarket(market),
+        summary: buildSettlementPreview(market, outcome, positions),
+        message: 'Market is already resolved. No payouts were created.'
+      });
+    }
+
+    const result = await resolveMarketWithPayouts(market, outcome, user);
+    res.json({ success: true, market: normalizeAdminMarket(result.market), summary: result.payoutSummary });
+  } catch (error: any) {
+    console.error('Resolve market error:', error);
+    res.status(500).json({ success: false, error: { code: 'RESOLVE_MARKET_FAILED', message: error.message || 'Failed to resolve market.' } });
+  }
+});
+
 app.patch('/api/admin/markets/:marketId/status', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
@@ -2947,13 +3355,13 @@ app.patch('/api/admin/markets/:marketId/status', authenticate, requireRole('admi
         return res.status(400).json({ success: false, error: { code: 'OUTCOME_REQUIRED', message: 'Choose YES or NO before resolving.' } });
       }
 
-      const resolvedMarket = await resolveMarketWithPayouts(
+      const result = await resolveMarketWithPayouts(
         { ...existingMarket, resolution_source: req.body.resolution_source || existingMarket.resolution_source },
         requestedOutcome,
         user
       );
 
-      return res.json({ success: true, market: normalizeAdminMarket(resolvedMarket) });
+      return res.json({ success: true, market: normalizeAdminMarket(result.market), summary: result.payoutSummary });
     }
 
     if (requestedStatus === 'archived' && normalizeMarketStatus(existingMarket) !== 'resolved') {
@@ -2978,7 +3386,7 @@ app.patch('/api/admin/markets/:marketId/status', authenticate, requireRole('admi
     res.json({ success: true, market: normalizeAdminMarket(market) });
   } catch (error: any) {
     console.error('Admin market status error:', error);
-    res.status(500).json({ success: false, error: { code: 'STATUS_MARKET_FAILED', message: 'Could not change market status.' } });
+    res.status(500).json({ success: false, error: { code: 'STATUS_MARKET_FAILED', message: error.message || 'Could not change market status.' } });
   }
 });
 
@@ -3056,3 +3464,4 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 export default (req: VercelRequest, res: VercelResponse) => {
   app(req as any, res as any);
 };
+

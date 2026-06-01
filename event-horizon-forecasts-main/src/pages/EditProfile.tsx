@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Camera, Save } from "lucide-react";
+import { Camera, Loader2, Save } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import apiService from "@/lib/api";
 import { toast } from "sonner";
 
 export default function EditProfile() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, isLoading: authLoading } = useAuth();
   const [uploading, setUploading] = useState(false);
 
   const handleImage = async (file?: File) => {
@@ -25,6 +25,34 @@ export default function EditProfile() {
       setUploading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#050711] text-white xl:pl-64">
+        <Header />
+        <main className="grid min-h-[70vh] place-items-center px-4">
+          <div className="text-center">
+            <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-violet-300" />
+            <p className="text-sm font-bold text-slate-400">Restoring your profile...</p>
+          </div>
+        </main>
+        <MobileNav />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[#050711] text-white xl:pl-64">
+        <Header />
+        <main className="mx-auto max-w-3xl px-4 py-20 text-center">
+          <h2 className="text-2xl font-black">Log in to edit your profile</h2>
+          <p className="mt-2 text-sm text-slate-400">Your profile will appear here after your session restores.</p>
+        </main>
+        <MobileNav />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#050711] pb-24 text-white md:pb-0 xl:pl-64">

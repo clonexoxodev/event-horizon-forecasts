@@ -19,13 +19,15 @@ const emptyStats: ApiProfileStats = {
 };
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [positions, setPositions] = useState<ApiPosition[]>([]);
   const [stats, setStats] = useState<ApiProfileStats>(emptyStats);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<PortfolioTab>("positions");
 
   useEffect(() => {
+    if (authLoading) return;
+
     if (!user) {
       setLoading(false);
       return;
@@ -44,10 +46,9 @@ const Dashboard = () => {
         if (!mounted) return;
         setPositions(positionResponse.positions || []);
         setStats(statsResponse.stats || emptyStats);
-      } catch {
+      } catch (error) {
         if (!mounted) return;
-        setPositions([]);
-        setStats(emptyStats);
+        console.warn("Portfolio request failed", error);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -57,7 +58,7 @@ const Dashboard = () => {
     return () => {
       mounted = false;
     };
-  }, [user]);
+  }, [authLoading, user]);
 
   const activePositions = useMemo(
     () => positions.filter((position) => position.marketStatus === "active"),
@@ -72,6 +73,10 @@ const Dashboard = () => {
   const portfolioValue = activePositions.reduce((sum, position) => sum + Number(position.currentValue || position.stake || 0), 0);
   const roi = stats.totalStaked > 0 ? Math.round(((stats.totalEarnings - stats.totalStaked) / stats.totalStaked) * 100) : 0;
   const streak = Math.min(stats.wonPredictions, 7);
+
+  if (authLoading) {
+    return <SessionLoading label="Restoring your portfolio..." />;
+  }
 
   if (!user) {
     return (
@@ -270,3 +275,16 @@ const EmptyState = ({ icon: Icon, title, body, action }: { icon: any; title: str
 );
 
 export default Dashboard;
+
+const SessionLoading = ({ label }: { label: string }) => (
+  <div className="min-h-screen bg-[#050711] text-white xl:pl-64">
+    <Header />
+    <main className="grid min-h-[70vh] place-items-center px-4">
+      <div className="text-center">
+        <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-violet-300" />
+        <p className="text-sm font-bold text-slate-400">{label}</p>
+      </div>
+    </main>
+    <MobileNav />
+  </div>
+);

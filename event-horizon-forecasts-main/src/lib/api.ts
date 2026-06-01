@@ -1,5 +1,6 @@
 const LOCAL_API_URL = 'http://localhost:5004';
 const API_URL_ENV_NAME = 'VITE_API_URL';
+const REQUEST_TIMEOUT_MS = 12000;
 
 const normalizeApiBaseUrl = () => {
   const configuredUrl = import.meta.env.VITE_API_URL?.trim();
@@ -101,8 +102,10 @@ export type ApiMarket = {
   video_url?: string | null;
   isTrending?: boolean;
   is_trending?: boolean;
-  priceHistory?: Array<{ timestamp: string; yesPrice: number; noPrice: number; yesPool?: number; noPool?: number; volume?: number; tradeCount?: number }>;
+  priceHistory?: Array<{ timestamp: string; yesPrice: number; noPrice: number; yesPool?: number; noPool?: number; volume?: number; tradeCount?: number; side?: 'YES' | 'NO' | null; amount?: number }>;
 };
+
+export type ApiPriceHistoryPoint = NonNullable<ApiMarket['priceHistory']>[number];
 
 export type AdminMarket = {
   id: string;
@@ -310,6 +313,10 @@ class ApiService {
     return window.localStorage.getItem(this.authTokenKey) || '';
   }
 
+  hasAuthToken() {
+    return Boolean(this.getAuthToken());
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
@@ -322,6 +329,8 @@ class ApiService {
 
     const isFormData = options.body instanceof FormData;
     const token = this.getAuthToken();
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     const config: RequestInit = {
       headers: {
         ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
@@ -330,6 +339,7 @@ class ApiService {
       },
       credentials: 'include',
       ...options,
+      signal: options.signal || controller.signal,
     };
 
     try {
@@ -337,6 +347,12 @@ class ApiService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.warn('API request failed', {
+          endpoint,
+          status: response.status,
+          code: errorData.error?.code,
+          message: errorData.error?.message || errorData.message,
+        });
 
         if (response.status === 409) {
           if (errorData.error?.code === 'EMAIL_EXISTS') {
@@ -385,10 +401,17 @@ class ApiService {
 
       return await response.json();
     } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        console.warn('API request timed out', { endpoint, url });
+        throw new Error('The server took too long to respond. Please try again.');
+      }
       if (error instanceof TypeError) {
+        console.warn('API network request failed', { endpoint, url, error });
         throw new Error('Unable to reach the server. Please check your connection and try again.');
       }
       throw error;
+    } finally {
+      window.clearTimeout(timeout);
     }
   }
 
@@ -429,6 +452,10 @@ class ApiService {
 
   async getMarket(marketId: string): Promise<{ market: ApiMarket }> {
     return this.request(`/api/markets/${encodeURIComponent(marketId)}`);
+  }
+
+  async getMarketPriceHistory(marketId: string): Promise<{ priceHistory: ApiPriceHistoryPoint[]; count: number }> {
+    return this.request(`/api/markets/${encodeURIComponent(marketId)}/price-history`);
   }
 
   async placePrediction(
@@ -559,6 +586,17 @@ class ApiService {
     return this.request<{ success: boolean; market: AdminMarket }>(`/api/admin/markets/${encodeURIComponent(marketId)}/status`, {
       method: 'PATCH',
       body: JSON.stringify(data),
+    });
+  }
+
+  async previewAdminMarketResolution(marketId: string, outcome: 'YES' | 'NO') {
+    return this.request<{ success: boolean; preview: any }>(`/api/admin/markets/${encodeURIComponent(marketId)}/resolution-preview?outcome=${outcome}`);
+  }
+
+  async resolveAdminMarket(marketId: string, winningOutcome: 'YES' | 'NO') {
+    return this.request<{ success: boolean; market: AdminMarket; summary: any; alreadyResolved?: boolean; message?: string }>(`/api/admin/markets/${encodeURIComponent(marketId)}/resolve`, {
+      method: 'POST',
+      body: JSON.stringify({ winningOutcome }),
     });
   }
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, Clock, RefreshCw, TrendingDown, TrendingUp, Wallet as WalletIcon } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Clock, Loader2, RefreshCw, TrendingDown, TrendingUp, Wallet as WalletIcon } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ type WalletRow = {
 };
 
 export default function Wallet() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, isLoading: authLoading } = useAuth();
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [transactions, setTransactions] = useState<WalletRow[]>([]);
@@ -28,7 +28,7 @@ export default function Wallet() {
   const [refreshing, setRefreshing] = useState(false);
 
   const loadHistory = async () => {
-    if (!user) return;
+    if (!user || authLoading) return;
 
     setHistoryLoading(true);
     try {
@@ -44,9 +44,7 @@ export default function Wallet() {
         }))
       );
     } catch (error: any) {
-      toast("Could not load history", {
-        description: error.message || "Please refresh and try again.",
-      });
+      console.warn("Wallet history request failed", error);
     } finally {
       setHistoryLoading(false);
     }
@@ -56,7 +54,7 @@ export default function Wallet() {
     setRefreshing(true);
     try {
       await refreshUser();
-      await loadHistory();
+      if (user) await loadHistory();
       toast.success("Wallet refreshed.");
     } catch (error: any) {
       toast.error(error.message || "Could not refresh wallet.");
@@ -66,10 +64,26 @@ export default function Wallet() {
   };
 
   useEffect(() => {
+    if (authLoading) return;
     loadHistory();
-  }, [user]);
+  }, [authLoading, user]);
 
   const ngnBalance = user?.balance || 0;
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#050711] text-white xl:pl-64">
+        <Header />
+        <main className="grid min-h-[70vh] place-items-center px-4">
+          <div className="text-center">
+            <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-violet-300" />
+            <p className="text-sm font-bold text-slate-400">Restoring your wallet...</p>
+          </div>
+        </main>
+        <MobileNav />
+      </div>
+    );
+  }
 
   if (!user) {
     return (

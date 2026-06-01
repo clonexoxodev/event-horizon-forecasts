@@ -66,6 +66,10 @@ const normalizePosition = (position: any) => {
   const yesPrice = totalPool > 0 ? Math.round((yesPool / totalPool) * 100) : Number(market.yes_price ?? 50);
   const currentPrice = position.side === 'YES' ? yesPrice : 100 - yesPrice;
   const stake = toAmount(position.amount_smallest_unit ?? position.stake);
+  const sharesReceived = Number(position.shares_received || 0);
+  const finalPayout = toAmount(position.final_payout_smallest_unit ?? position.payout_smallest_unit);
+  const liveValue = sharesReceived > 0 ? (sharesReceived * currentPrice) : 0;
+  const status = position.status || (position.resolved_at ? (position.is_winner ? 'won' : 'lost') : 'active');
 
   return {
     id: position.id,
@@ -75,11 +79,20 @@ const normalizePosition = (position: any) => {
     stake,
     entryPrice: Number(position.entry_price ?? currentPrice),
     currentPrice,
-    currentValue: toAmount(position.potential_return_smallest_unit) || stake,
-    marketQuestion: market.question || 'Market unavailable',
+    sharesReceived,
+    currentValue: finalPayout || liveValue || toAmount(position.estimated_payout_smallest_unit ?? position.potential_return_smallest_unit) || stake,
+    estimatedPayout: toAmount(position.estimated_payout_smallest_unit ?? position.potential_return_smallest_unit),
+    estimatedProfit: toAmount(position.estimated_profit_smallest_unit),
+    finalPayout,
+    payout: toAmount(position.payout_smallest_unit),
+    profit: toAmount(position.profit_smallest_unit),
+    status,
+    isWinner: position.is_winner,
+    marketQuestion: market.question || position.market_question_snapshot || 'Market unavailable',
     marketIcon: market.icon || '',
-    category: market.category || 'General',
+    category: market.category || position.market_category_snapshot || 'General',
     marketStatus: market.state || market.status || 'active',
+    resolvedAt: position.resolved_at || position.settled_at || null,
     createdAt: position.created_at,
     isListed: false
   };

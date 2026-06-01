@@ -59,11 +59,55 @@ const calculatePoolTrade = (market: any, side: 'YES' | 'NO', amountSmallestUnit:
   };
 };
 
+const loadOpenSideLiabilitySmallestUnit = async (marketId: string, side: 'YES' | 'NO') => {
+  const { data, error } = await supabase
+    .from('positions')
+    .select('amount_smallest_unit, price_at_purchase, entry_price, shares_received, estimated_payout_smallest_unit, status, settled_at, resolved_at')
+    .eq('market_id', marketId)
+    .eq('side', side);
+
+  if (error) throw error;
+
+  return (data || [])
+    .filter((position: any) => !position.settled_at && !position.resolved_at && !['won', 'lost', 'settled'].includes(String(position.status || 'active')))
+    .reduce((sum: number, position: any) => {
+      const storedPayout = Number(position.estimated_payout_smallest_unit || 0);
+      if (storedPayout > 0) return sum + storedPayout;
+      const stakeSmallestUnit = Number(position.amount_smallest_unit || 0);
+      const price = Number(position.price_at_purchase || position.entry_price || 0);
+      const shares = Number(position.shares_received || 0) || (price > 0 ? toAmount(stakeSmallestUnit) / price : 0);
+      return sum + Math.max(0, Math.round(shares * PAYOUT_PER_SHARE_SMALLEST_UNIT));
+    }, 0);
+};
+
+const calculateSolventStakeLimitSmallestUnit = (
+  totalPoolAfterSeedsSmallestUnit: number,
+  currentSideLiabilitySmallestUnit: number,
+  sidePrice: number
+) => {
+  const remainingBacking = Math.max(0, totalPoolAfterSeedsSmallestUnit - currentSideLiabilitySmallestUnit);
+  const liabilityMultiplier = sidePrice > 0 ? (100 / sidePrice) - 1 : Number.POSITIVE_INFINITY;
+  if (!Number.isFinite(liabilityMultiplier) || liabilityMultiplier <= 0) return remainingBacking;
+  return Math.max(0, Math.floor(remainingBacking / liabilityMultiplier));
+};
+
 const normalizePredictionSide = (side: unknown): 'YES' | 'NO' | null => {
   const normalizedSide = String(side || '').toUpperCase();
   if (normalizedSide === 'YES' || normalizedSide === 'UP') return 'YES';
   if (normalizedSide === 'NO' || normalizedSide === 'DOWN') return 'NO';
   return null;
+};
+
+type PriceHistoryPoint = {
+  timestamp: string;
+  yesPrice: number;
+  noPrice: number;
+  yesPool?: number;
+  noPool?: number;
+  volume?: number;
+  tradeCount?: number;
+  side?: 'YES' | 'NO' | null;
+  amount?: number;
 };
 
 const savePriceHistory = async (
@@ -73,19 +117,39 @@ const savePriceHistory = async (
   yesPoolSmallestUnit: number,
   noPoolSmallestUnit: number,
   volumeSmallestUnit: number,
-  tradeCount = 0
+  tradeCount = 0,
+  side?: 'YES' | 'NO',
+  amountSmallestUnit?: number
 ) => {
-  const { error } = await supabase
-    .from('market_price_history')
-    .insert({
-      market_id: marketId,
-      yes_price: yesPrice,
-      no_price: noPrice,
-      yes_pool_smallest_unit: yesPoolSmallestUnit,
-      no_pool_smallest_unit: noPoolSmallestUnit,
-      volume_smallest_unit: volumeSmallestUnit,
-      trade_count: tradeCount
-    });
+  const payload = {
+    market_id: marketId,
+    yes_price: Math.round(yesPrice),
+    no_price: Math.round(noPrice),
+    yes_pool_smallest_unit: yesPoolSmallestUnit,
+    no_pool_smallest_unit: noPoolSmallestUnit,
+    volume_smallest_unit: volumeSmallestUnit,
+    trade_count: tradeCount,
+    ...(side ? { side, amount_smallest_unit: amountSmallestUnit || 0 } : {})
+  };
+
+  let { error } = await supabase.from('market_price_history').insert(payload);
+
+  // Older Supabase projects may not have the side/amount columns yet. Keep the
+  // chart write durable and let the migration add richer metadata safely.
+  if (error && side && /amount_smallest_unit|side/i.test(error.message || '')) {
+    const { error: retryError } = await supabase
+      .from('market_price_history')
+      .insert({
+        market_id: payload.market_id,
+        yes_price: payload.yes_price,
+        no_price: payload.no_price,
+        yes_pool_smallest_unit: payload.yes_pool_smallest_unit,
+        no_pool_smallest_unit: payload.no_pool_smallest_unit,
+        volume_smallest_unit: payload.volume_smallest_unit,
+        trade_count: payload.trade_count
+      });
+    error = retryError;
+  }
 
   if (error) {
     console.warn('Failed to save market price history:', error.message);
@@ -118,12 +182,25 @@ const autoCloseExpiredMarket = async (market: any) => {
   return data || { ...market, status: 'pending_resolution', state: 'closed' };
 };
 
-const fetchPriceHistory = async (marketId: string) => {
-  const { data, error } = await supabase
+const fetchStoredPriceHistory = async (marketId: string): Promise<PriceHistoryPoint[]> => {
+  const baseSelect = 'created_at, yes_price, no_price, yes_pool_smallest_unit, no_pool_smallest_unit, volume_smallest_unit, trade_count';
+  const withTradeMetaSelect = `${baseSelect}, side, amount_smallest_unit`;
+
+  let { data, error }: { data: any[] | null; error: any } = await supabase
     .from('market_price_history')
-    .select('created_at, yes_price, no_price, yes_pool_smallest_unit, no_pool_smallest_unit, volume_smallest_unit, trade_count')
+    .select(withTradeMetaSelect)
     .eq('market_id', marketId)
     .order('created_at', { ascending: true });
+
+  if (error && /side|amount_smallest_unit/i.test(error.message || '')) {
+    const retry = await supabase
+      .from('market_price_history')
+      .select(baseSelect)
+      .eq('market_id', marketId)
+      .order('created_at', { ascending: true });
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     console.warn('Failed to fetch market price history:', error.message);
@@ -137,8 +214,111 @@ const fetchPriceHistory = async (marketId: string) => {
     yesPool: toAmount(point.yes_pool_smallest_unit),
     noPool: toAmount(point.no_pool_smallest_unit),
     volume: toAmount(point.volume_smallest_unit),
-    tradeCount: Number(point.trade_count || 0)
+    tradeCount: Number(point.trade_count || 0),
+    side: normalizePredictionSide(point.side),
+    amount: toAmount(point.amount_smallest_unit)
   }));
+};
+
+const buildTradeDerivedPriceHistory = async (market: any): Promise<PriceHistoryPoint[]> => {
+  const marketId = market.id || market;
+  const { data, error } = await supabase
+    .from('market_trades')
+    .select('created_at, side, amount_smallest_unit, price_before, price_after, yes_price_after, no_price_after')
+    .eq('market_id', marketId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.warn('Failed to fetch market trades for price history:', error.message);
+    return [];
+  }
+
+  const trades = data || [];
+  if (!trades.length) return [];
+
+  const firstTrade = trades[0] as any;
+  const firstSide = normalizePredictionSide(firstTrade.side) || 'YES';
+  const sidePriceBefore = Number(firstTrade.price_before || 50);
+  const startingYesPrice = firstSide === 'YES'
+    ? sidePriceBefore
+    : 100 - sidePriceBefore;
+  const startingNoPrice = 100 - startingYesPrice;
+  const firstTimestamp = new Date(firstTrade.created_at).getTime();
+  const startTimestamp = Number.isFinite(firstTimestamp)
+    ? new Date(firstTimestamp - 1000).toISOString()
+    : (market.created_at || new Date().toISOString());
+
+  let cumulativeVolume = 0;
+  const points: PriceHistoryPoint[] = [{
+    timestamp: startTimestamp,
+    yesPrice: Math.round(startingYesPrice),
+    noPrice: Math.round(startingNoPrice),
+    yesPool: toAmount(market.yes_pool_smallest_unit),
+    noPool: toAmount(market.no_pool_smallest_unit),
+    volume: 0,
+    tradeCount: 0,
+    side: null,
+    amount: 0
+  }];
+
+  trades.forEach((trade: any, index: number) => {
+    const side = normalizePredictionSide(trade.side);
+    const amountSmallestUnit = Number(trade.amount_smallest_unit || 0);
+    cumulativeVolume += amountSmallestUnit;
+    const yesPrice = Number(trade.yes_price_after ?? (side === 'YES' ? trade.price_after : 100 - Number(trade.price_after || 50)));
+    const noPrice = Number(trade.no_price_after ?? 100 - yesPrice);
+
+    points.push({
+      timestamp: trade.created_at,
+      yesPrice: Math.round(yesPrice),
+      noPrice: Math.round(noPrice),
+      volume: toAmount(cumulativeVolume),
+      tradeCount: index + 1,
+      side,
+      amount: toAmount(amountSmallestUnit)
+    });
+  });
+
+  return points;
+};
+
+const fetchPriceHistory = async (marketOrId: any): Promise<PriceHistoryPoint[]> => {
+  const marketId = typeof marketOrId === 'string' ? marketOrId : marketOrId.id;
+  const [storedHistory, tradeDerivedHistory] = await Promise.all([
+    fetchStoredPriceHistory(marketId),
+    typeof marketOrId === 'string' ? Promise.resolve([]) : buildTradeDerivedPriceHistory(marketOrId)
+  ]);
+
+  if (tradeDerivedHistory.length > storedHistory.length) {
+    return tradeDerivedHistory;
+  }
+
+  return storedHistory;
+};
+
+const ensureInitialPriceHistory = async (market: any) => {
+  const existingHistory = await fetchPriceHistory(market);
+  if (existingHistory.length > 0) return existingHistory;
+
+  const yesPoolSmallestUnit = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
+  const noPoolSmallestUnit = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
+  const startingYesPrice = Number(market.yes_price ?? 50);
+  const startingNoPrice = Number(market.no_price ?? 100 - startingYesPrice);
+  const { yesPrice, noPrice } = yesPoolSmallestUnit + noPoolSmallestUnit > 0
+    ? calculatePoolPrices(yesPoolSmallestUnit, noPoolSmallestUnit)
+    : { yesPrice: startingYesPrice, noPrice: startingNoPrice };
+
+  await savePriceHistory(
+    market.id,
+    yesPrice,
+    noPrice,
+    yesPoolSmallestUnit,
+    noPoolSmallestUnit,
+    Number(market.total_volume_smallest_unit || 0),
+    Number(market.trade_count || 0)
+  );
+
+  return fetchPriceHistory(market);
 };
 
 const normalizeMarket = (market: any, positionCount = 0, priceHistory: Array<{ timestamp: string; yesPrice: number; noPrice: number; yesPool?: number; noPool?: number; volume?: number }> = []) => {
@@ -248,7 +428,7 @@ router.get('/', async (req: Request, res: Response) => {
       markets.map(async (market) => {
         const [positionCount, priceHistory] = await Promise.all([
           marketService.getPositionCount(market.id),
-          fetchPriceHistory(market.id)
+          ensureInitialPriceHistory(market)
         ]);
         return normalizeMarket(market, positionCount, priceHistory);
       })
@@ -324,7 +504,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     // Enrich with additional data
     const [positionCount, priceHistory] = await Promise.all([
       marketService.getPositionCount(market.id),
-      fetchPriceHistory(market.id)
+      ensureInitialPriceHistory(market)
     ]);
     res.json({
       market: normalizeMarket(market, positionCount, priceHistory)
@@ -336,6 +516,35 @@ router.get('/:id', async (req: Request, res: Response) => {
       error: {
         code: 'GET_MARKET_FAILED',
         message: 'Failed to fetch market. Please try again.',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+router.get('/:id/price-history', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params as { id: string };
+    const market = await marketService.getMarketById(id);
+
+    if (!market) {
+      return res.status(404).json({
+        error: {
+          code: 'MARKET_NOT_FOUND',
+          message: 'Market not found',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const priceHistory = await ensureInitialPriceHistory(market);
+    res.json({ priceHistory, count: priceHistory.length });
+  } catch (error) {
+    console.error('Get price history error:', error);
+    res.status(500).json({
+      error: {
+        code: 'GET_PRICE_HISTORY_FAILED',
+        message: 'Failed to fetch price history',
         timestamp: new Date().toISOString()
       }
     });
@@ -466,11 +675,18 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
     }
 
     const trade = calculatePoolTrade(market, side, amountSmallestUnit);
-    if (amountSmallestUnit > trade.maxStakeSmallestUnit) {
+    const sideLiabilitySmallestUnit = await loadOpenSideLiabilitySmallestUnit(id, side);
+    const maxSolventStakeSmallestUnit = calculateSolventStakeLimitSmallestUnit(
+      trade.nextTotalPool,
+      sideLiabilitySmallestUnit,
+      trade.sidePriceBefore
+    );
+    const maxSafeStakeSmallestUnit = Math.max(0, Math.min(trade.maxStakeSmallestUnit, maxSolventStakeSmallestUnit));
+    if (amountSmallestUnit > maxSafeStakeSmallestUnit) {
       return res.status(400).json({
         error: {
           code: 'STAKE_EXCEEDS_LIQUIDITY',
-          message: `Maximum available for this side is ₦${Math.floor(toAmount(trade.maxStakeSmallestUnit)).toLocaleString()} based on current liquidity.`,
+          message: `Maximum available for this side is NGN ${Math.floor(toAmount(maxSafeStakeSmallestUnit)).toLocaleString()} based on current liquidity and payout backing.`,
           timestamp: new Date().toISOString()
         }
       });
@@ -586,8 +802,8 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
         currency
       });
 
-    await savePriceHistory(id, trade.pricesAfter.yesPrice, trade.pricesAfter.noPrice, trade.nextYesPool, trade.nextNoPool, currentVolume + amountSmallestUnit, nextTradeCount);
-    const priceHistory = await fetchPriceHistory(id);
+    await savePriceHistory(id, trade.pricesAfter.yesPrice, trade.pricesAfter.noPrice, trade.nextYesPool, trade.nextNoPool, currentVolume + amountSmallestUnit, nextTradeCount, side, amountSmallestUnit);
+    const priceHistory = await fetchPriceHistory(marketForResponse);
 
     const { data: transaction } = await supabase
       .from('transactions')
@@ -760,3 +976,4 @@ router.get('/:id/positions', authMiddleware.authenticate, async (req: Request, r
 });
 
 export default router;
+

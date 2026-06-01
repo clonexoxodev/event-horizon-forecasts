@@ -40,7 +40,7 @@ const queryClient = new QueryClient();
 
 const ForecastSlipContainer = () => {
   const { selection, closeForecastSlip } = useForecastSlip();
-  const { setMarkets } = useMarketState();
+  const { upsertMarket } = useMarketState();
   const { user, refreshUser } = useAuth();
   const { notifyForecastConfirmed, notifyWalletLow } = useNotificationHelpers();
 
@@ -55,11 +55,7 @@ const ForecastSlipContainer = () => {
       currency: "NGN",
     });
 
-    setMarkets((prevMarkets) =>
-      prevMarkets.map((market) =>
-        market.id === result.market.id ? result.market : market
-      )
-    );
+    upsertMarket(result.market);
 
     await refreshUser();
 

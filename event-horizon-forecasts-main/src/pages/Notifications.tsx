@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity as ActivityIcon, Clock, Trophy, Wallet, XCircle, Zap } from "lucide-react";
+import { Activity as ActivityIcon, Clock, Loader2, Trophy, Wallet, XCircle, Zap } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
@@ -8,13 +8,13 @@ import apiService, { type ApiActivity, type ApiPosition } from "@/lib/api";
 import { toast } from "sonner";
 
 export default function Notifications() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [positions, setPositions] = useState<ApiPosition[]>([]);
   const [activity, setActivity] = useState<ApiActivity[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (authLoading || !user) return;
 
     const loadActivity = async () => {
       setLoading(true);
@@ -35,7 +35,7 @@ export default function Notifications() {
     };
 
     loadActivity();
-  }, [user]);
+  }, [authLoading, user]);
 
   const groups = useMemo(() => {
     const active = positions.filter((position) => position.marketStatus === "active");
@@ -44,6 +44,21 @@ export default function Notifications() {
 
     return { active, won, lost };
   }, [positions]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#050711] text-white xl:pl-64">
+        <Header />
+        <main className="grid min-h-[70vh] place-items-center px-4">
+          <div className="text-center">
+            <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-violet-300" />
+            <p className="text-sm font-bold text-slate-400">Restoring your activity...</p>
+          </div>
+        </main>
+        <MobileNav />
+      </div>
+    );
+  }
 
   if (!user) {
     return (

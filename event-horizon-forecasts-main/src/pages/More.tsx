@@ -1,4 +1,4 @@
-import { BookOpen, HelpCircle, Info, LogOut, Shield, ShieldCheck, User, FileText, Settings, AlertTriangle } from "lucide-react";
+import { BookOpen, HelpCircle, Info, Loader2, LogOut, Shield, ShieldCheck, User, FileText, Settings, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
 
 export default function More() {
-  const { user, logout, isAdmin, isSuperAdmin } = useAuth();
+  const { user, logout, isAdmin, isSuperAdmin, isLoading } = useAuth();
   const adminPath = isSuperAdmin() ? "/super-admin" : "/admin";
 
   return (
@@ -15,8 +15,14 @@ export default function More() {
       <main className="mx-auto max-w-3xl px-4 py-5 sm:px-6 lg:py-8">
         <section className="rounded-[1.75rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.28),rgba(9,13,25,0.95)_48%)] p-5">
           <div className="flex items-center gap-4">
-            <div className="grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-500 text-2xl font-black">
-              {user?.username?.charAt(0).toUpperCase() || "F"}
+            <div className="grid h-16 w-16 overflow-hidden rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-500 text-2xl font-black">
+              {isLoading ? (
+                <Loader2 className="m-auto h-6 w-6 animate-spin" />
+              ) : user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <div className="grid h-full w-full place-items-center">{user?.username?.charAt(0).toUpperCase() || "F"}</div>
+              )}
             </div>
             <div className="min-w-0">
               <h1 className="truncate text-2xl font-black">{user ? user.username : "Welcome to Flippe"}</h1>

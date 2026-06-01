@@ -34,6 +34,7 @@ const ROLE_HIERARCHY: Record<UserRole, number> = {
 };
 
 const PRIMARY_SUPER_ADMIN_EMAIL = "fehintoluwaolu@gmail.com";
+const AUTH_USER_CACHE_KEY = "flippe_auth_user";
 
 const Ctx = createContext<AuthCtx | null>(null);
 
@@ -61,9 +62,35 @@ const isConfirmedAuthFailure = (error: unknown) => (
   ["UNAUTHORIZED", "INVALID_TOKEN"].includes(error.code || "")
 );
 
+const readCachedUser = (): AuthUser | null => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(AUTH_USER_CACHE_KEY);
+    return raw ? JSON.parse(raw) as AuthUser : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeCachedUser = (authUser: AuthUser | null) => {
+  if (typeof window === "undefined") return;
+
+  try {
+    if (authUser) {
+      window.localStorage.setItem(AUTH_USER_CACHE_KEY, JSON.stringify(authUser));
+    } else {
+      window.localStorage.removeItem(AUTH_USER_CACHE_KEY);
+    }
+  } catch {
+    // Session cache is a convenience only; token handling remains authoritative.
+  }
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [session, setSession] = useState<{ user: AuthUser } | null>(null);
+  const cachedUser = readCachedUser();
+  const [user, setUser] = useState<AuthUser | null>(cachedUser);
+  const [session, setSession] = useState<{ user: AuthUser } | null>(cachedUser ? { user: cachedUser } : null);
   const [isLoading, setIsLoading] = useState(true);
   const [authOpen, setAuthOpen] = useState(false);
 
@@ -78,11 +105,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const authUser = toAuthUser(apiUser, balance);
+    writeCachedUser(authUser);
     setUser(authUser);
     setSession({ user: authUser });
   };
 
   const clearUser = () => {
+    writeCachedUser(null);
     setUser(null);
     setSession(null);
   };
@@ -95,6 +124,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (isConfirmedAuthFailure(error)) {
         apiService.setAuthToken(null);
         clearUser();
+      } else {
+        console.warn("Auth refresh failed without confirmed session invalidation:", error);
       }
     }
   };
@@ -104,6 +135,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const restoreSession = async () => {
       setIsLoading(true);
+      if (!apiService.hasAuthToken()) {
+        if (!cancelled) {
+          clearUser();
+          setIsLoading(false);
+        }
+        return;
+      }
+
       try {
         const response = await apiService.getCurrentUser();
         if (!cancelled) {
@@ -114,6 +153,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (isConfirmedAuthFailure(error)) {
             apiService.setAuthToken(null);
             clearUser();
+          } else {
+            console.warn("Session restore failed without confirmed session invalidation:", error);
           }
         }
       } finally {

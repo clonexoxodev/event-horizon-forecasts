@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { MarketCard } from "@/components/MarketCard";
-import { fetchMarkets, getTrendingScore } from "@/lib/markets";
+import { getTrendingScore } from "@/lib/markets";
 import { useMarketState } from "@/lib/market-state";
 import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
@@ -21,16 +21,15 @@ const Index = () => {
   const { user } = useAuth();
   const [category, setCategory] = useState("Trending");
   const [searchQuery, setSearchQuery] = useState("");
-  const { markets, setMarkets } = useMarketState();
-  const [loading, setLoading] = useState(true);
+  const { markets, loadMarkets, isLoadingMarkets, marketError } = useMarketState();
   const [now, setNow] = useState(Date.now());
   const [pulseIndex, setPulseIndex] = useState(0);
 
   useEffect(() => {
-    fetchMarkets()
-      .then(setMarkets)
-      .finally(() => setLoading(false));
-  }, [setMarkets]);
+    loadMarkets().catch(() => {
+      // The shared market state keeps the last successful list, so Home should not flash empty.
+    });
+  }, [loadMarkets]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -141,11 +140,23 @@ const Index = () => {
           </div>
         </section>
 
-        {loading ? (
+        {isLoadingMarkets && markets.length === 0 ? (
           <div className="space-y-3">
             {[1, 2, 3, 4].map((item) => (
               <div key={item} className="h-56 animate-pulse rounded-[1.35rem] border border-white/10 bg-white/[0.055]" />
             ))}
+          </div>
+        ) : marketError && filtered.length === 0 ? (
+          <div className="rounded-[1.35rem] border border-amber-300/20 bg-amber-400/10 p-10 text-center">
+            <Flame className="mx-auto mb-3 h-8 w-8 text-amber-200" />
+            <h3 className="text-lg font-black">Could not load markets</h3>
+            <p className="mt-1 text-sm text-amber-100/70">{marketError}</p>
+            <button
+              onClick={() => loadMarkets({ force: true })}
+              className="mt-5 rounded-2xl bg-white px-5 py-3 text-sm font-black text-[#050711]"
+            >
+              Retry
+            </button>
           </div>
         ) : filtered.length > 0 ? (
           <div className="space-y-3">

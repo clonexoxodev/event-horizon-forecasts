@@ -212,56 +212,76 @@ router.get('/list-admins', authMiddleware.authenticate, requireRole('super_admin
  */
 router.get('/analytics', authMiddleware.authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
   try {
-    // Query total users count
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const todayIso = startOfToday.toISOString();
+
     const { count: totalUsers, error: usersError } = await supabase
       .from('users')
       .select('*', { count: 'exact', head: true });
 
-    // Query total forecasts (positions) count
     const { count: totalForecasts, error: forecastsError } = await supabase
       .from('positions')
       .select('*', { count: 'exact', head: true });
 
-    // Query total volume (sum of all position amounts in NGN kobo)
+    const { count: predictionsToday, error: predictionsTodayError } = await supabase
+      .from('positions')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', todayIso);
+
     const { data: volumeData, error: volumeError } = await supabase
       .from('positions')
-      .select('amount_smallest_unit, currency');
+      .select('amount_smallest_unit, currency, created_at, user_id');
 
     let totalVolume = 0;
+    let todayVolume = 0;
     if (volumeData) {
-      // Sum all NGN positions (convert USD to NGN if needed, or just sum NGN)
       totalVolume = volumeData
         .filter(p => p.currency === 'NGN')
         .reduce((sum, p) => sum + (p.amount_smallest_unit || 0), 0);
+      todayVolume = volumeData
+        .filter(p => p.currency === 'NGN' && new Date(p.created_at).getTime() >= startOfToday.getTime())
+        .reduce((sum, p) => sum + (p.amount_smallest_unit || 0), 0);
     }
 
-    // Query active markets count
     const { count: activeMarkets, error: activeError } = await supabase
       .from('markets')
       .select('*', { count: 'exact', head: true })
-      .eq('state', 'active');
+      .eq('status', 'active');
 
-    // Query resolved markets count
     const { count: resolvedMarkets, error: resolvedError } = await supabase
       .from('markets')
       .select('*', { count: 'exact', head: true })
-      .eq('state', 'resolved');
+      .eq('status', 'resolved');
 
-    // Query pending markets count (closed but not resolved)
     const { count: pendingMarkets, error: pendingError } = await supabase
       .from('markets')
       .select('*', { count: 'exact', head: true })
-      .eq('state', 'closed');
+      .in('status', ['closed', 'pending_resolution']);
 
-    // Check for errors
-    if (usersError || forecastsError || volumeError || activeError || resolvedError || pendingError) {
+    const { data: marketLiquidity, error: liquidityError } = await supabase
+      .from('markets')
+      .select('seed_liquidity_yes_smallest_unit, seed_liquidity_no_smallest_unit, yes_pool_smallest_unit, no_pool_smallest_unit');
+
+    const platformLiquidityDeployed = (marketLiquidity || []).reduce((sum, market) => (
+      sum + Number(market.seed_liquidity_yes_smallest_unit || 0) + Number(market.seed_liquidity_no_smallest_unit || 0)
+    ), 0);
+
+    const activeUsersToday = new Set((volumeData || [])
+      .filter((p) => new Date(p.created_at).getTime() >= startOfToday.getTime())
+      .map((p) => p.user_id)
+      .filter(Boolean)).size;
+
+    if (usersError || forecastsError || predictionsTodayError || volumeError || activeError || resolvedError || pendingError || liquidityError) {
       console.error('Analytics query errors:', {
         usersError,
         forecastsError,
+        predictionsTodayError,
         volumeError,
         activeError,
         resolvedError,
-        pendingError
+        pendingError,
+        liquidityError
       });
       return res.status(500).json({
         error: {
@@ -275,10 +295,18 @@ router.get('/analytics', authMiddleware.authenticate, requireRole('super_admin')
     res.json({
       totalUsers: totalUsers || 0,
       totalForecasts: totalForecasts || 0,
-      totalVolume: totalVolume,
+      totalPredictions: totalForecasts || 0,
+      predictionsToday: predictionsToday || 0,
+      todayPredictions: predictionsToday || 0,
+      totalVolume,
+      todayVolume,
       activeMarkets: activeMarkets || 0,
       resolvedMarkets: resolvedMarkets || 0,
-      pendingMarkets: pendingMarkets || 0
+      pendingMarkets: pendingMarkets || 0,
+      pendingResolution: pendingMarkets || 0,
+      activeUsersToday: activeUsersToday || 0,
+      platformLiquidityDeployed,
+      pendingPayouts: pendingMarkets || 0
     });
   } catch (error) {
     console.error('Analytics error:', error);

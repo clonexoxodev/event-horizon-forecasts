@@ -82,6 +82,8 @@ const Admin = () => {
   const [editingMarket, setEditingMarket] = useState<AdminMarket | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [resolutionPreview, setResolutionPreview] = useState<{ market: AdminMarket; outcome: "YES" | "NO"; summary: any } | null>(null);
+  const [resolving, setResolving] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) navigate("/login");
@@ -253,8 +255,14 @@ const Admin = () => {
   const changeStatus = async (market: AdminMarket, status: string, outcome?: "YES" | "NO" | "INVALID") => {
     try {
       if (status === "resolved") {
-        const confirmed = window.confirm(`Resolve this market as ${outcome}?\n\n${market.question}\nVolume: ${formatNaira(Number(market.pool_amount_smallest_unit || 0) / 100)}\nParticipants: ${market.participant_count || 0}\nTrades: ${market.trade_count || 0}\n\nWinners will be paid proportionally from the full pool. This cannot be undone.`);
-        if (!confirmed) return;
+        if (outcome !== "YES" && outcome !== "NO") {
+          toast.error("Choose YES or NO before resolving.");
+          return;
+        }
+        setResolving(true);
+        const previewResponse = await apiService.previewAdminMarketResolution(market.id, outcome);
+        setResolutionPreview({ market, outcome, summary: previewResponse.preview });
+        return;
       }
       if (status === "archived") {
         const confirmed = window.confirm("Archive this resolved market? It will disappear from live feeds but remain in admin history.");
@@ -272,7 +280,26 @@ const Admin = () => {
       toast.success("Market updated.");
       await loadData();
     } catch (error: any) {
+      console.error("Admin status action failed:", error);
       toast.error(error.message || "Could not update market.");
+    } finally {
+      setResolving(false);
+    }
+  };
+
+  const confirmResolution = async () => {
+    if (!resolutionPreview) return;
+    setResolving(true);
+    try {
+      const result = await apiService.resolveAdminMarket(resolutionPreview.market.id, resolutionPreview.outcome);
+      toast.success(result.alreadyResolved ? (result.message || "Market already resolved.") : "Market resolved and payouts recorded.");
+      setResolutionPreview(null);
+      await loadData();
+    } catch (error: any) {
+      console.error("Admin market resolution failed:", error);
+      toast.error(error.message || "Could not resolve market.");
+    } finally {
+      setResolving(false);
     }
   };
 
@@ -391,6 +418,16 @@ const Admin = () => {
           {view === "settings" && <SettingsView />}
         </div>
       </main>
+      {resolutionPreview && (
+        <ResolutionConfirmModal
+          market={resolutionPreview.market}
+          outcome={resolutionPreview.outcome}
+          summary={resolutionPreview.summary}
+          loading={resolving}
+          onCancel={() => setResolutionPreview(null)}
+          onConfirm={confirmResolution}
+        />
+      )}
     </div>
   );
 };
@@ -433,14 +470,15 @@ const DashboardView = ({ analytics, markets, loading, superAdmin }: { analytics:
     { label: "Live markets", value: markets.filter((market) => market.status === "active").length, tone: "green" },
     { label: "Pending resolution", value: markets.filter((market) => ["closed", "pending_resolution"].includes(market.status)).length, tone: "amber" },
     { label: "Resolved markets", value: markets.filter((market) => market.status === "resolved").length, tone: "violet" },
-    { label: "Today’s volume", value: formatNaira(markets.reduce((sum, market) => sum + Number(market.total_volume_smallest_unit || 0) / 100, 0)), tone: "violet" },
+    { label: "Today's volume", value: formatNaira(Number(analytics?.todayVolume || 0) / 100), tone: "violet" },
   ];
 
   if (superAdmin && analytics) {
     stats.push({ label: "Total users", value: analytics.totalUsers || 0, tone: "green" });
-    stats.push({ label: "Today’s active users", value: analytics.activeUsersToday || 0, tone: "green" });
-    stats.push({ label: "Today’s predictions", value: analytics.predictionsToday || analytics.totalForecasts || 0, tone: "violet" });
-    stats.push({ label: "Pending payouts", value: markets.filter((market) => ["closed", "pending_resolution"].includes(market.status)).length, tone: "amber" });
+    stats.push({ label: "Today's active users", value: analytics.activeUsersToday || 0, tone: "green" });
+    stats.push({ label: "Today's predictions", value: analytics.predictionsToday || 0, tone: "violet" });
+    stats.push({ label: "Pending payouts", value: analytics.pendingPayouts || 0, tone: "amber" });
+    stats.push({ label: "Platform liquidity", value: formatNaira(Number(analytics.platformLiquidityDeployed || 0) / 100), tone: "violet" });
   }
 
   return (
@@ -451,6 +489,76 @@ const DashboardView = ({ analytics, markets, loading, superAdmin }: { analytics:
     </div>
   );
 };
+
+const ResolutionConfirmModal = ({ market, outcome, summary, loading, onCancel, onConfirm }: {
+  market: AdminMarket;
+  outcome: "YES" | "NO";
+  summary: any;
+  loading: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) => (
+  <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
+    <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-white/10 bg-[#080d19] p-5 shadow-2xl">
+      <p className="text-xs font-black uppercase tracking-[0.24em] text-violet-300">Confirm settlement</p>
+      <h2 className="mt-2 text-2xl font-black text-white">{market.question}</h2>
+      <p className="mt-2 text-sm font-bold text-slate-400">
+        You are about to resolve this market as <span className={outcome === "YES" ? "text-emerald-300" : "text-red-300"}>{outcome}</span>. Winners will be paid from their locked shares at purchase. This cannot be undone.
+      </p>
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <PreviewStat label="YES stake" value={formatNaira(summary?.totalYesStake || 0)} />
+        <PreviewStat label="NO stake" value={formatNaira(summary?.totalNoStake || 0)} />
+        <PreviewStat label="Winners" value={summary?.totalWinners || 0} />
+        <PreviewStat label="Losers" value={summary?.totalLosers || 0} />
+        <PreviewStat label="Total payout" value={formatNaira(summary?.totalPayout || 0)} highlight />
+        <PreviewStat label="Platform fee" value={formatNaira(summary?.platformFee || 0)} />
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.035]">
+        <div className="border-b border-white/10 px-4 py-3 text-sm font-black text-white">Locked-share payout preview</div>
+        <div className="max-h-64 overflow-y-auto">
+          {(summary?.positions || []).length === 0 ? (
+            <div className="px-4 py-5 text-sm font-bold text-slate-500">No positions in this market yet.</div>
+          ) : (
+            summary.positions.map((position: any) => (
+              <div key={position.id} className="grid grid-cols-[1fr_auto] gap-3 border-b border-white/10 px-4 py-3 text-sm last:border-0">
+                <div>
+                  <div className="font-black text-white">{position.username || position.userId}</div>
+                  <div className="text-xs font-bold text-slate-500">
+                    {position.side} · Stake {formatNaira(position.stake || 0)} · Entry ₦{Number(position.price || position.priceAtPurchase || 0).toFixed(1)} · Shares {Number(position.shares || position.sharesReceived || 0).toFixed(2)}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={position.status === "won" ? "font-black text-emerald-300" : "font-black text-red-300"}>{position.status}</div>
+                  <div className="text-xs font-bold text-slate-400">Payout {formatNaira(position.payout || 0)}</div>
+                  <div className={`text-xs font-bold ${Number(position.profit || 0) >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                    {Number(position.profit || 0) >= 0 ? "+" : ""}{formatNaira(position.profit || 0)}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="mt-5 flex gap-3">
+        <Button type="button" onClick={onCancel} disabled={loading} variant="outline" className="h-12 flex-1 rounded-2xl border-white/10 bg-white/5 font-black text-white hover:bg-white/10">Cancel</Button>
+        <Button type="button" onClick={onConfirm} disabled={loading} className="h-12 flex-1 rounded-2xl bg-violet-500 font-black text-white hover:bg-violet-400">
+          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Resolve {outcome}
+        </Button>
+      </div>
+    </div>
+  </div>
+);
+
+const PreviewStat = ({ label, value, highlight = false }: { label: string; value: string | number; highlight?: boolean }) => (
+  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+    <div className="text-xs font-bold text-slate-500">{label}</div>
+    <div className={`mt-1 text-xl font-black ${highlight ? "text-emerald-300" : "text-white"}`}>{value}</div>
+  </div>
+);
 
 const MarketsView = ({ markets, loading, search, statusFilter, setSearch, setStatusFilter, reload, onEdit, onResolve, superAdmin, currentUserId, goCreate }: {
   markets: AdminMarket[];

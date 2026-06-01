@@ -209,8 +209,8 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                 <>
                 <Row label="You enter" value={formatNaira(numAmount)} />
                 <Row label="Shares" value={sharesReceived.toFixed(2)} />
-                <Row label="Possible return" value={formatNaira(projectedReturn)} />
-                <Row label="Possible profit" value={`+${formatNaira(projectedProfit)}`} highlight />
+                <Row label="Payout if correct" value={formatNaira(projectedReturn)} />
+                <Row label="Profit if correct" value={`+${formatNaira(projectedProfit)}`} highlight />
                 <Row label="Max available" value={formatNaira(maxLiquidityStake)} />
                 </>
               ) : (

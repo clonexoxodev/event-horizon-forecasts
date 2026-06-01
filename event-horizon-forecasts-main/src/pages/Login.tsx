@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, Eye, EyeOff, Flame, Loader2, Lock, Mail, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,18 @@ import { toast } from "sonner";
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const location = useLocation();
+  const { login, user, isLoading: authLoading } = useAuth();
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const from = (location.state as any)?.from?.pathname || "/";
+
+  useEffect(() => {
+    if (!authLoading && user) navigate(from, { replace: true });
+  }, [authLoading, from, navigate, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +37,7 @@ export default function Login() {
       if (loginError) {
         setError(loginError);
       } else {
-        navigate("/");
+        navigate(from, { replace: true });
       }
     } finally {
       setLoading(false);
