@@ -7,6 +7,22 @@ const router = Router();
 // All routes require authentication
 router.use(authMiddleware.authenticate);
 
+const stripNotificationMetadata = (payload: Record<string, any>) => {
+  const { metadata: _metadata, ...fallbackPayload } = payload;
+  return fallbackPayload;
+};
+
+const insertNotificationSafely = async (payload: Record<string, any>) => {
+  const result = await supabase.from('notifications').insert(payload).select().single();
+  if (!result.error) return result;
+
+  if (/metadata/i.test(result.error.message || '')) {
+    return supabase.from('notifications').insert(stripNotificationMetadata(payload)).select().single();
+  }
+
+  return result;
+};
+
 /**
  * GET /api/notifications
  * Get user's notifications with pagination
@@ -326,17 +342,13 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
 
-    const { data, error } = await supabase
-      .from('notifications')
-      .insert({
-        user_id: userId,
-        type,
-        title,
-        message,
-        metadata: metadata || {},
-      })
-      .select()
-      .single();
+    const { data, error } = await insertNotificationSafely({
+      user_id: userId,
+      type,
+      title,
+      message,
+      metadata: metadata || {},
+    });
 
     if (error) {
       console.error('Create notification error:', error);

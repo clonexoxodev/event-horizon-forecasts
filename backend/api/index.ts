@@ -812,6 +812,28 @@ const PAYOUT_PER_SHARE_SMALLEST_UNIT = 10000; // ₦100 per winning share.
 const roundPrice = (value: number) => Math.round(value * 10) / 10;
 const clampPrice = (value: number) => Math.min(MAX_MARKET_PRICE, Math.max(MIN_MARKET_PRICE, roundPrice(value)));
 
+const stripNotificationMetadata = (payload: Record<string, any> | Record<string, any>[]) => {
+  if (Array.isArray(payload)) {
+    return payload.map(({ metadata: _metadata, ...item }) => item);
+  }
+  const { metadata: _metadata, ...fallbackPayload } = payload;
+  return fallbackPayload;
+};
+
+const insertNotificationSafely = async (payload: Record<string, any> | Record<string, any>[], label = 'Notification') => {
+  const { error } = await supabase.from('notifications').insert(payload);
+  if (!error) return;
+
+  if (/metadata/i.test(error.message || '')) {
+    const retry = await supabase.from('notifications').insert(stripNotificationMetadata(payload));
+    if (!retry.error) return;
+    console.warn(`${label} not saved:`, retry.error.message);
+    return;
+  }
+
+  console.warn(`${label} not saved:`, error.message);
+};
+
 const calculatePoolPrices = (yesPoolSmallestUnit: number, noPoolSmallestUnit: number) => {
   const totalPool = yesPoolSmallestUnit + noPoolSmallestUnit;
   if (totalPool <= 0) return { yesPrice: 50, noPrice: 50 };
@@ -2143,25 +2165,20 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
       .select()
       .single();
 
-    await supabase
-      .from('notifications')
-      .insert({
-        user_id: user.id,
-        type: 'forecast_confirmed',
-        title: 'Prediction placed',
-        message: `Your ${side} prediction on "${updatedMarket.question || currentMarket.question}" is active.`,
-        reference_id: marketId,
-        reference_type: 'market',
-        metadata: {
-          marketId,
-          marketQuestion: updatedMarket.question || currentMarket.question || null,
-          side,
-          amount: toAmount(amountSmallestUnit)
-        }
-      })
-      .then(({ error }) => {
-        if (error) console.warn('Prediction notification not saved:', error.message);
-      });
+    await insertNotificationSafely({
+      user_id: user.id,
+      type: 'forecast_confirmed',
+      title: 'Prediction placed',
+      message: `Your ${side} prediction on "${updatedMarket.question || currentMarket.question}" is active.`,
+      reference_id: marketId,
+      reference_type: 'market',
+      metadata: {
+        marketId,
+        marketQuestion: updatedMarket.question || currentMarket.question || null,
+        side,
+        amount: toAmount(amountSmallestUnit)
+      }
+    }, 'Prediction notification');
 
     const activity = transaction ? [{
       id: transaction.id,
@@ -2865,26 +2882,21 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
             }
           });
 
-        await supabase
-          .from('notifications')
-          .insert({
-            user_id: position.user_id,
-            type: 'position_payout',
-            title: 'Prediction won',
-            message: `You won a payout from "${market.question}".`,
-            reference_id: market.id,
-            reference_type: 'market',
-            metadata: {
-              marketId: market.id,
-              marketQuestion: market.question,
-              outcome,
-              payoutSmallestUnit: result.payoutSmallestUnit,
-              profitSmallestUnit: result.profitSmallestUnit
-            }
-          })
-          .then(({ error }) => {
-            if (error) console.warn('Payout notification not saved:', error.message);
-          });
+        await insertNotificationSafely({
+          user_id: position.user_id,
+          type: 'position_payout',
+          title: 'Prediction won',
+          message: `You won a payout from "${market.question}".`,
+          reference_id: market.id,
+          reference_type: 'market',
+          metadata: {
+            marketId: market.id,
+            marketQuestion: market.question,
+            outcome,
+            payoutSmallestUnit: result.payoutSmallestUnit,
+            profitSmallestUnit: result.profitSmallestUnit
+          }
+        }, 'Payout notification');
       }
     } else {
       const { data: wallet } = await supabase
@@ -2905,25 +2917,20 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
       }
     }
 
-    await supabase
-      .from('notifications')
-      .insert({
-        user_id: position.user_id,
-        type: 'market_resolved',
-        title: result.status === 'won' ? 'Market resolved: you won' : 'Market resolved',
-        message: `"${market.question}" resolved as ${outcome}.`,
-        reference_id: market.id,
-        reference_type: 'market',
-        metadata: {
-          marketId: market.id,
-          marketQuestion: market.question,
-          outcome,
-          isWinner: result.status === 'won'
-        }
-      })
-      .then(({ error }) => {
-        if (error) console.warn('Resolution notification not saved:', error.message);
-      });
+    await insertNotificationSafely({
+      user_id: position.user_id,
+      type: 'market_resolved',
+      title: result.status === 'won' ? 'Market resolved: you won' : 'Market resolved',
+      message: `"${market.question}" resolved as ${outcome}.`,
+      reference_id: market.id,
+      reference_type: 'market',
+      metadata: {
+        marketId: market.id,
+        marketQuestion: market.question,
+        outcome,
+        isWinner: result.status === 'won'
+      }
+    }, 'Resolution notification');
   }
 
   await supabase

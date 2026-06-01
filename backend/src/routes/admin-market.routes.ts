@@ -19,6 +19,28 @@ const router = Router();
 const marketRepo = new AdminMarketRepository();
 const auditRepo = new AuditTrailRepository();
 
+const stripNotificationMetadata = (payload: Record<string, any> | Record<string, any>[]) => {
+  if (Array.isArray(payload)) {
+    return payload.map(({ metadata: _metadata, ...item }) => item);
+  }
+  const { metadata: _metadata, ...fallbackPayload } = payload;
+  return fallbackPayload;
+};
+
+const insertNotificationSafely = async (payload: Record<string, any> | Record<string, any>[], label = 'Notification') => {
+  const { error } = await supabase.from('notifications').insert(payload);
+  if (!error) return;
+
+  if (/metadata/i.test(error.message || '')) {
+    const retry = await supabase.from('notifications').insert(stripNotificationMetadata(payload));
+    if (!retry.error) return;
+    console.warn(`${label} not saved:`, retry.error.message);
+    return;
+  }
+
+  console.warn(`${label} not saved:`, error.message);
+};
+
 const notifyUsersForNewMarket = async (market: any, adminUserId: string) => {
   if (market.status !== 'active' || !market.category) return;
 
@@ -38,9 +60,7 @@ const notifyUsersForNewMarket = async (market: any, adminUserId: string) => {
 
   if (!userIds.length) return;
 
-  await supabase
-    .from('notifications')
-    .insert(userIds.map((userId) => ({
+  await insertNotificationSafely(userIds.map((userId) => ({
       user_id: userId,
       type: 'new_market_available',
       title: `New ${market.category} market`,
@@ -52,10 +72,7 @@ const notifyUsersForNewMarket = async (market: any, adminUserId: string) => {
         marketQuestion: market.question,
         category: market.category
       }
-    })))
-    .then(({ error: notificationError }) => {
-      if (notificationError) console.warn('New-market notifications not saved:', notificationError.message);
-    });
+    })), 'New-market notifications');
 };
 
 const notifyMarketResolution = async (market: any, outcome?: string) => {
@@ -72,9 +89,7 @@ const notifyMarketResolution = async (market: any, outcome?: string) => {
   const userIds = Array.from(new Set((positions || []).map((position: any) => position.user_id).filter(Boolean)));
   if (!userIds.length) return;
 
-  await supabase
-    .from('notifications')
-    .insert(userIds.map((userId) => ({
+  await insertNotificationSafely(userIds.map((userId) => ({
       user_id: userId,
       type: 'market_resolved',
       title: 'Market resolved',
@@ -86,24 +101,16 @@ const notifyMarketResolution = async (market: any, outcome?: string) => {
         marketQuestion: market.question,
         outcome: outcome || market.outcome || null
       }
-    })))
-    .then(({ error: notificationError }) => {
-      if (notificationError) console.warn('Market resolution notifications not saved:', notificationError.message);
-    });
+    })), 'Market resolution notifications');
 };
 
 const toAmount = (smallestUnit: number | null | undefined) => Number(smallestUnit || 0) / 100;
 
 const notifyUser = async (userId: string, notification: Record<string, any>) => {
-  await supabase
-    .from('notifications')
-    .insert({
-      user_id: userId,
-      ...notification
-    })
-    .then(({ error }) => {
-      if (error) console.warn('Notification not saved:', error.message);
-    });
+  await insertNotificationSafely({
+    user_id: userId,
+    ...notification
+  });
 };
 
 const loadMarketPositions = async (marketId: string) => {

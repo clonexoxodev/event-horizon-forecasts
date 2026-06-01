@@ -34,6 +34,27 @@ alter table public.users add column if not exists avatar_url text;
 alter table public.users add column if not exists profile_image_url text;
 alter table public.users add column if not exists updated_at timestamptz not null default now();
 
+alter table public.notifications add column if not exists metadata jsonb not null default '{}'::jsonb;
+alter table public.notifications drop constraint if exists notifications_type_check;
+alter table public.notifications drop constraint if exists valid_notification_type;
+alter table public.notifications drop constraint if exists notifications_type_v1_check;
+alter table public.notifications
+  add constraint notifications_type_v1_check
+  check (type in (
+    'forecast_confirmed',
+    'market_closing_soon',
+    'market_moved_significantly',
+    'market_resolved',
+    'position_sold',
+    'position_won',
+    'position_lost',
+    'position_payout',
+    'new_market_available',
+    'deposit_confirmed',
+    'withdrawal_confirmed',
+    'wallet_low'
+  ));
+
 alter table public.markets drop constraint if exists markets_status_check;
 alter table public.markets drop constraint if exists status_enum;
 alter table public.markets drop constraint if exists valid_market_status;

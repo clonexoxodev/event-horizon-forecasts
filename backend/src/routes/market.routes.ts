@@ -13,6 +13,28 @@ const PAYOUT_PER_SHARE_SMALLEST_UNIT = 10000; // ₦100 per winning share.
 const roundPrice = (value: number) => Math.round(value * 10) / 10;
 const clampPrice = (value: number) => Math.min(MAX_MARKET_PRICE, Math.max(MIN_MARKET_PRICE, roundPrice(value)));
 
+const stripNotificationMetadata = (payload: Record<string, any> | Record<string, any>[]) => {
+  if (Array.isArray(payload)) {
+    return payload.map(({ metadata: _metadata, ...item }) => item);
+  }
+  const { metadata: _metadata, ...fallbackPayload } = payload;
+  return fallbackPayload;
+};
+
+const insertNotificationSafely = async (payload: Record<string, any> | Record<string, any>[], label = 'Notification') => {
+  const { error } = await supabase.from('notifications').insert(payload);
+  if (!error) return;
+
+  if (/metadata/i.test(error.message || '')) {
+    const retry = await supabase.from('notifications').insert(stripNotificationMetadata(payload));
+    if (!retry.error) return;
+    console.warn(`${label} not saved:`, retry.error.message);
+    return;
+  }
+
+  console.warn(`${label} not saved:`, error.message);
+};
+
 const calculatePoolPrices = (yesPoolSmallestUnit: number, noPoolSmallestUnit: number) => {
   const totalPool = yesPoolSmallestUnit + noPoolSmallestUnit;
   if (totalPool <= 0) return { yesPrice: 50, noPrice: 50 };
@@ -836,25 +858,20 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
       .select()
       .single();
 
-    await supabase
-      .from('notifications')
-      .insert({
-        user_id: req.user.userId,
-        type: 'forecast_confirmed',
-        title: 'Prediction placed',
-        message: `Your ${side} prediction on "${(updatedMarket as any).question || (market as any).question}" is active.`,
-        reference_id: id,
-        reference_type: 'market',
-        metadata: {
-          marketId: id,
-          marketQuestion: (updatedMarket as any).question || (market as any).question || null,
-          side,
-          amount: toAmount(amountSmallestUnit)
-        }
-      })
-      .then(({ error }) => {
-        if (error) console.warn('Prediction notification not saved:', error.message);
-      });
+    await insertNotificationSafely({
+      user_id: req.user.userId,
+      type: 'forecast_confirmed',
+      title: 'Prediction placed',
+      message: `Your ${side} prediction on "${(updatedMarket as any).question || (market as any).question}" is active.`,
+      reference_id: id,
+      reference_type: 'market',
+      metadata: {
+        marketId: id,
+        marketQuestion: (updatedMarket as any).question || (market as any).question || null,
+        side,
+        amount: toAmount(amountSmallestUnit)
+      }
+    }, 'Prediction notification');
 
     const activity = transaction ? [{
       id: transaction.id,
