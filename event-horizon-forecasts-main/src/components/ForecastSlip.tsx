@@ -46,6 +46,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
   const exceedsLiquidity = numAmount > 0 && numAmount > maxLiquidityStake;
 
   const handleConfirm = async () => {
+    if (loading) return;
     if (!selection || numAmount <= 0) {
       toast.error("Enter a valid amount.");
       return;
@@ -87,7 +88,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm" onClick={() => !loading && onClose()} />
 
       <div className="fixed bottom-0 left-0 right-0 z-50 max-h-[88vh] overflow-y-auto rounded-t-[2rem] border border-white/10 bg-[#080b16] pb-[calc(90px+env(safe-area-inset-bottom))] shadow-[0_-24px_80px_rgba(0,0,0,0.55)] md:bottom-auto md:left-auto md:top-0 md:h-screen md:w-[460px] md:rounded-none md:border-l md:pb-0">
         <div className="flex justify-center pt-3 md:hidden">

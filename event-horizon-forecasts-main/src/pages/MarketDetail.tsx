@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Bookmark, CheckCircle, Clock, Flame, Loader2, Share2, TrendingUp, Users, X, Zap } from "lucide-react";
 import { toast } from "sonner";
@@ -16,7 +16,7 @@ type Timeframe = "1H" | "24H" | "7D" | "ALL";
 export default function MarketDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { markets, getMarket, loadMarkets, upsertMarket } = useMarketState();
+  const { markets, upsertMarket } = useMarketState();
   const { user, refreshUser, setAuthOpen } = useAuth();
   const [market, setMarket] = useState<Market | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,19 +27,39 @@ export default function MarketDetail() {
   const [justPredicted, setJustPredicted] = useState<"YES" | "NO" | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>("24H");
   const [now, setNow] = useState(Date.now());
+  const marketsRef = useRef(markets);
+  const marketRef = useRef<Market | null>(null);
+  const latestLoadRef = useRef(0);
+
+  useEffect(() => {
+    marketsRef.current = markets;
+  }, [markets]);
+
+  useEffect(() => {
+    marketRef.current = market;
+  }, [market]);
 
   useEffect(() => {
     if (!id) return;
 
+    const loadId = latestLoadRef.current + 1;
+    latestLoadRef.current = loadId;
+    const readCachedMarket = () => marketsRef.current.find((item) => item.id === id);
+
     const loadMarket = async () => {
-      setLoading(true);
+      if (!marketRef.current || marketRef.current.id !== id) {
+        setLoading(true);
+      }
       try {
-        const cached = getMarket(id);
-        if (cached) setMarket(cached);
+        const cached = readCachedMarket();
+        if (cached && (!marketRef.current || marketRef.current.id !== id)) {
+          setMarket(cached);
+        }
         const [response, historyResponse] = await Promise.all([
           apiService.getMarket(id),
           apiService.getMarketPriceHistory(id).catch(() => null),
         ]);
+        if (latestLoadRef.current !== loadId) return;
         const enrichedMarket = {
           ...response.market,
           priceHistory: historyResponse?.priceHistory?.length
@@ -48,17 +68,14 @@ export default function MarketDetail() {
         };
         setMarket(enrichedMarket);
         upsertMarket(enrichedMarket);
-        loadMarkets({ force: true })
-          .catch(() => {
-            // Related markets are helpful but should not block the detail page.
-          });
       } catch (error: any) {
-        const cached = getMarket(id);
+        if (latestLoadRef.current !== loadId) return;
+        const cached = readCachedMarket();
         if (cached) {
-          setMarket(cached);
-          toast("Using saved market data", {
-            description: "Live refresh failed. Your page will stay open so you can retry.",
-          });
+          if (!marketRef.current || marketRef.current.id !== id) {
+            setMarket(cached);
+          }
+          console.warn("Market detail refresh failed; keeping saved market data", error);
         } else if (error instanceof ApiRequestError && error.status === 404) {
           toast.error("Market not found.");
           navigate("/");
@@ -66,12 +83,12 @@ export default function MarketDetail() {
           toast.error(error.message || "Could not load market. Please retry.");
         }
       } finally {
-        setLoading(false);
+        if (latestLoadRef.current === loadId) setLoading(false);
       }
     };
 
     loadMarket();
-  }, [getMarket, id, loadMarkets, navigate, upsertMarket]);
+  }, [id, navigate, upsertMarket]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -100,6 +117,7 @@ export default function MarketDetail() {
   };
 
   const confirmPrediction = async () => {
+    if (submitting) return;
     if (!market || !sheetSide) return;
     if (!user) {
       setAuthOpen(true);
@@ -118,7 +136,7 @@ export default function MarketDetail() {
       const result = await apiService.placePrediction(market.id, { side: sheetSide, amount: numericAmount, currency: "NGN" });
       setMarket(result.market);
       upsertMarket(result.market);
-      await refreshUser();
+      refreshUser().catch((error) => console.warn("User refresh after prediction failed", error));
       setJustPredicted(sheetSide);
       setAmount("");
       setSheetSide(null);
@@ -248,7 +266,7 @@ export default function MarketDetail() {
       </div>
 
       {sheetSide && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => setSheetSide(null)}>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => !submitting && setSheetSide(null)}>
           <div className="absolute bottom-0 left-0 right-0 max-h-[88vh] overflow-y-auto rounded-t-[2rem] border border-white/10 bg-[#080b16] p-5 pb-[calc(90px+env(safe-area-inset-bottom))] text-white shadow-[0_-24px_80px_rgba(0,0,0,0.55)] md:left-auto md:right-6 md:top-24 md:h-fit md:w-[380px] md:rounded-[2rem] md:pb-5" onClick={(event) => event.stopPropagation()}>
             <div className="mb-5 flex items-center justify-between">
               <div>
@@ -258,18 +276,18 @@ export default function MarketDetail() {
                 </p>
                 <h2 className="mt-1 text-2xl font-black">Predict {sheetSide} {formatNairaPrice(selectedPrice)}</h2>
               </div>
-              <button onClick={() => setSheetSide(null)} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/[0.055]">
+              <button onClick={() => setSheetSide(null)} disabled={submitting} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/[0.055] disabled:cursor-not-allowed disabled:opacity-50">
                 <X className="h-4 w-4" />
               </button>
             </div>
             <label className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-500">Amount</label>
-            <Input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0" className="h-13 rounded-2xl border-white/10 bg-white/[0.055] text-lg font-black text-white placeholder:text-slate-600" />
+            <Input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} disabled={submitting} placeholder="0" className="h-13 rounded-2xl border-white/10 bg-white/[0.055] text-lg font-black text-white placeholder:text-slate-600" />
             {exceedsLiquidity && (
               <p className="mt-2 text-xs font-bold text-amber-200">Maximum available for this side is {formatNaira(maxLiquidityStake)} based on current liquidity.</p>
             )}
             <div className="mt-3 grid grid-cols-4 gap-2">
               {[100, 500, 1000, 5000].map((value) => (
-                <button key={value} onClick={() => setAmount(value.toString())} className="h-10 rounded-xl border border-white/10 bg-white/[0.055] text-xs font-black text-slate-300">
+                <button key={value} onClick={() => setAmount(value.toString())} disabled={submitting} className="h-10 rounded-xl border border-white/10 bg-white/[0.055] text-xs font-black text-slate-300 disabled:cursor-not-allowed disabled:opacity-50">
                   {formatNaira(value)}
                 </button>
               ))}

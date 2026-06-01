@@ -30,6 +30,43 @@ const writeCachedMarkets = (markets: Market[]) => {
   }
 };
 
+const marketFreshnessScore = (market: Market) => {
+  const tradeScore = Number(market.tradeCount || 0) * 1_000_000;
+  const historyScore = Number(market.priceHistory?.length || 0) * 10_000;
+  const volumeScore = Number(market.totalVolume || market.totalPool || market.pool || 0);
+  return tradeScore + historyScore + volumeScore;
+};
+
+const shouldReplaceMarket = (incoming: Market, existing?: Market) => {
+  if (!existing) return true;
+  return marketFreshnessScore(incoming) >= marketFreshnessScore(existing);
+};
+
+const mergeMarketData = (incoming: Market, existing?: Market) => {
+  if (!existing) return incoming;
+
+  const incomingHistory = incoming.priceHistory || [];
+  const existingHistory = existing.priceHistory || [];
+  const priceHistory = incomingHistory.length >= existingHistory.length ? incomingHistory : existingHistory;
+
+  return {
+    ...existing,
+    ...incoming,
+    priceHistory,
+  };
+};
+
+const mergeMarketsByFreshness = (incoming: Market[], existing: Market[]) => {
+  const existingById = new Map(existing.map((market) => [market.id, market]));
+  const incomingIds = new Set(incoming.map((market) => market.id));
+  const mergedIncoming = incoming.map((market) => {
+    const previous = existingById.get(market.id);
+    return shouldReplaceMarket(market, previous) ? mergeMarketData(market, previous) : previous!;
+  });
+  const preserved = existing.filter((market) => !incomingIds.has(market.id));
+  return [...mergedIncoming, ...preserved];
+};
+
 type MarketStateContextType = {
   markets: Market[];
   setMarkets: Dispatch<SetStateAction<Market[]>>;
@@ -71,8 +108,9 @@ export const MarketStateProvider = ({ children }: { children: ReactNode }) => {
     setMarketError(null);
     try {
       const loaded = await fetchMarkets();
-      setMarkets(loaded);
-      return loaded;
+      const merged = mergeMarketsByFreshness(loaded, markets);
+      setMarkets(merged);
+      return merged;
     } catch (error: any) {
       const message = error?.message || "Could not load markets.";
       console.warn("Market list request failed", error);
@@ -86,7 +124,7 @@ export const MarketStateProvider = ({ children }: { children: ReactNode }) => {
   const upsertMarket = useCallback((market: Market) => {
     setMarkets((prev) =>
       prev.some((item) => item.id === market.id)
-        ? prev.map((item) => (item.id === market.id ? market : item))
+        ? prev.map((item) => (item.id === market.id && shouldReplaceMarket(market, item) ? mergeMarketData(market, item) : item))
         : [...prev, market]
     );
   }, [setMarkets]);

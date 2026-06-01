@@ -57,7 +57,7 @@ const ForecastSlipContainer = () => {
 
     upsertMarket(result.market);
 
-    await refreshUser();
+    refreshUser().catch((error) => console.warn("User refresh after prediction failed", error));
 
     notifyForecastConfirmed(
       selection.marketId,
