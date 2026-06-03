@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ArrowLeft, Bookmark, CheckCircle, Clock, Flame, Loader2, Share2, TrendingUp, Users, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
@@ -330,12 +331,12 @@ export default function MarketDetail() {
 }
 
 const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) => {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const rawHistory = useMemo(() => {
     const stored = (market.priceHistory || [])
       .filter((point) => point?.timestamp)
       .map((point) => ({
         timestamp: point.timestamp,
+        time: new Date(point.timestamp).getTime(),
         yesPrice: Number(point.yesPrice || market.yesPrice || 50),
         noPrice: Number(point.noPrice || market.noPrice || 50),
         volume: Number(point.volume || 0),
@@ -346,8 +347,10 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
 
     if (stored.length > 0) return stored;
 
+    const timestamp = new Date().toISOString();
     return [{
-      timestamp: new Date().toISOString(),
+      timestamp,
+      time: new Date(timestamp).getTime(),
       yesPrice: Number(market.yesPrice || 50),
       noPrice: Number(market.noPrice || 50),
       volume: Number(market.totalVolume || 0),
@@ -357,28 +360,30 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
     }];
   }, [market.noPrice, market.priceHistory, market.totalVolume, market.tradeCount, market.yesPrice]);
 
-  const history = useMemo(() => {
+  const chartData = useMemo(() => {
+    const sortedHistory = rawHistory
+      .filter((point) => Number.isFinite(point.time))
+      .sort((a, b) => a.time - b.time);
     const cutoff = getTimeframeCutoff(timeframe);
     const filtered = cutoff
-      ? rawHistory.filter((point) => new Date(point.timestamp).getTime() >= cutoff)
-      : rawHistory;
-    let source = filtered.length ? filtered : rawHistory.slice(-1);
+      ? sortedHistory.filter((point) => point.time >= cutoff)
+      : sortedHistory;
+    let source = filtered.length ? filtered : sortedHistory.slice(-1);
 
-    if (source.length < 2 && rawHistory.length > 1) {
-      const latest = source[source.length - 1] || rawHistory[rawHistory.length - 1];
-      const previous = rawHistory
+    if (source.length < 2 && sortedHistory.length > 1) {
+      const latest = source[source.length - 1] || sortedHistory[sortedHistory.length - 1];
+      const previous = sortedHistory
         .slice()
         .reverse()
-        .find((point) => point.timestamp !== latest.timestamp) || rawHistory[0];
-      source = [previous, latest].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        .find((point) => point.time < latest.time) || sortedHistory[0];
+      source = [previous, latest].sort((a, b) => a.time - b.time);
     }
 
     if (source.length === 1) {
       const point = source[0];
-      const timestamp = new Date(point.timestamp).getTime();
-      const startTimestamp = Number.isFinite(timestamp) ? timestamp - 5 * 60_000 : Date.now() - 5 * 60_000;
+      const startTimestamp = point.time - 5 * 60_000;
       return [
-        { ...point, timestamp: new Date(startTimestamp).toISOString() },
+        { ...point, timestamp: new Date(startTimestamp).toISOString(), time: startTimestamp },
         point,
       ];
     }
@@ -387,137 +392,137 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
   }, [rawHistory, timeframe]);
 
   const timeDomain = useMemo(() => {
-    const times = history
-      .map((point) => new Date(point.timestamp).getTime())
-      .filter(Number.isFinite);
+    const times = chartData.map((point) => point.time).filter(Number.isFinite);
     const min = times.length ? Math.min(...times) : Date.now() - 5 * 60_000;
     const max = times.length ? Math.max(...times) : Date.now();
     if (min === max) return { min: min - 5 * 60_000, max: max + 5 * 60_000 };
     const padding = Math.max(1000, (max - min) * 0.06);
     return { min: min - padding, max: max + padding };
-  }, [history]);
+  }, [chartData]);
 
-  const { domainMin, domainMax, yTicks } = useMemo(() => {
-    const values = history.flatMap((point) => [point.yesPrice, point.noPrice]).filter(Number.isFinite);
-    const min = values.length ? Math.min(...values) : 45;
-    const max = values.length ? Math.max(...values) : 55;
-    const center = (min + max) / 2;
-    const paddedRange = Math.max(10, max - min + 6);
-    const lower = Math.max(0, center - paddedRange / 2);
-    const upper = Math.min(100, center + paddedRange / 2);
-    return {
-      domainMin: lower,
-      domainMax: upper === lower ? lower + 10 : upper,
-      yTicks: [upper, (upper + lower) / 2, lower],
-    };
-  }, [history]);
-
-  const hasStoredMovement = Boolean((market.priceHistory?.length || 0) > 1 || Number(market.tradeCount || 0) > 0);
-  const activePoint = activeIndex === null ? history[history.length - 1] : history[activeIndex];
-
-  const xFor = (point: typeof history[number]) => {
-    const timestamp = new Date(point.timestamp).getTime();
-    const ratio = Number.isFinite(timestamp)
-      ? (timestamp - timeDomain.min) / (timeDomain.max - timeDomain.min)
-      : 0.5;
-    return 4 + Math.max(0, Math.min(1, ratio)) * 92;
-  };
-
-  const pointFor = (point: typeof history[number]) => {
-    const x = xFor(point);
-    const y = 8 + ((domainMax - Number(point.yesPrice || 0)) / (domainMax - domainMin)) * 84;
-    return { x, y: Math.max(5, Math.min(95, y)) };
-  };
-
-  const noPointFor = (point: typeof history[number]) => {
-    const x = xFor(point);
-    const y = 8 + ((domainMax - Number(point.noPrice || 0)) / (domainMax - domainMin)) * 84;
-    return { x, y: Math.max(5, Math.min(95, y)) };
-  };
-
-  const toPolyline = (key: "yesPrice" | "noPrice") => history.map((point, index) => {
-    const current = key === "yesPrice" ? pointFor(point) : noPointFor(point);
-    return `${current.x},${current.y}`;
-  }).join(" ");
-
-  const activeX = activeIndex === null
-    ? pointFor(history[history.length - 1]).x
-    : pointFor(history[activeIndex]).x;
-
-  const updateActivePoint = (clientX: number, currentTarget: SVGSVGElement) => {
-    const rect = currentTarget.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    const targetX = 4 + ratio * 92;
-    const nearestIndex = history.reduce((bestIndex, point, index) => {
-      const bestDistance = Math.abs(pointFor(history[bestIndex]).x - targetX);
-      const currentDistance = Math.abs(pointFor(point).x - targetX);
-      return currentDistance < bestDistance ? index : bestIndex;
-    }, 0);
-    setActiveIndex(nearestIndex);
-  };
+  const hasSavedHistory = Boolean(market.priceHistory?.length);
+  const hasStoredMovement = Boolean(
+    (market.priceHistory?.length || 0) > 1 ||
+    Number(market.tradeCount || 0) > 0 ||
+    rawHistory.some((point) => point.side || point.tradeCount > 0)
+  );
+  const axisTickFormatter = useMemo(
+    () => (timestamp: number) => formatAxisTime(timestamp, timeDomain.max - timeDomain.min),
+    [timeDomain.max, timeDomain.min]
+  );
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#080d19]/90 p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+    <div className="rounded-2xl border border-white/10 bg-[#080d19]/90 p-3 sm:p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-300"><span className="h-2 w-2 rounded-full bg-emerald-300" />YES {formatNairaPrice(market.yesPrice)}</span>
-          <span className="inline-flex items-center gap-1.5 text-xs font-black text-red-300"><span className="h-2 w-2 rounded-full bg-red-300" />NO {formatNairaPrice(market.noPrice)}</span>
+          <span className="inline-flex items-center gap-1.5 text-xs font-black text-violet-300"><span className="h-2 w-2 rounded-full bg-violet-300" />NO {formatNairaPrice(market.noPrice)}</span>
         </div>
         <span className="text-xs font-bold text-slate-500">{market.tradeCount || 0} trades</span>
       </div>
-      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,rgba(139,92,246,0.14),rgba(8,13,25,0.94)_52%)] p-3">
-      <svg
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-        className="h-64 w-full touch-none overflow-visible"
-        onMouseMove={(event) => updateActivePoint(event.clientX, event.currentTarget)}
-        onMouseLeave={() => setActiveIndex(null)}
-        onTouchMove={(event) => updateActivePoint(event.touches[0].clientX, event.currentTarget)}
-        onTouchEnd={() => setActiveIndex(null)}
-      >
-        <defs>
-          <linearGradient id="yesDetailLine" x1="0" x2="1">
-            <stop offset="0%" stopColor="#34d399" />
-            <stop offset="100%" stopColor="#a78bfa" />
-          </linearGradient>
-          <linearGradient id="noDetailLine" x1="0" x2="1">
-            <stop offset="0%" stopColor="#fb7185" />
-            <stop offset="100%" stopColor="#f43f5e" />
-          </linearGradient>
-        </defs>
-        {[8, 29, 50, 71, 92].map((line) => <line key={line} x1="0" x2="100" y1={line} y2={line} stroke="rgba(255,255,255,0.07)" strokeWidth="0.5" />)}
-        <polyline points={toPolyline("noPrice")} fill="none" stroke="url(#noDetailLine)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.6" vectorEffect="non-scaling-stroke" className="drop-shadow-[0_0_12px_rgba(244,63,94,0.36)]" />
-        <polyline points={toPolyline("yesPrice")} fill="none" stroke="url(#yesDetailLine)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.4" vectorEffect="non-scaling-stroke" className="drop-shadow-[0_0_18px_rgba(52,211,153,0.48)]" />
-        {history.map((point, index) => {
-          const yesPoint = pointFor(point);
-          return <circle key={`${point.timestamp}-${index}`} cx={yesPoint.x} cy={yesPoint.y} r="1.35" fill="#d1fae5" stroke="#34d399" strokeWidth="0.8" vectorEffect="non-scaling-stroke" />;
-        })}
-        {activeX !== null && (
-          <line x1={activeX} x2={activeX} y1="5" y2="95" stroke="rgba(255,255,255,0.35)" strokeWidth="0.7" vectorEffect="non-scaling-stroke" />
-        )}
-      </svg>
-      <div className="pointer-events-none absolute inset-y-3 right-3 flex flex-col justify-between text-[10px] font-black text-slate-500">
-        {yTicks.map((tick) => <span key={tick}>{Math.round(tick)}</span>)}
-      </div>
-      {activePoint && activeX !== null && (
-        <div
-          className="pointer-events-none absolute top-3 min-w-[170px] rounded-2xl border border-white/10 bg-[#050711]/95 p-3 text-xs shadow-2xl backdrop-blur-xl"
-          style={{ left: `${Math.min(78, Math.max(0, activeX))}%` }}
-        >
-          <div className="font-black text-white">{formatChartTime(activePoint.timestamp)}</div>
-          <div className="mt-2 grid gap-1 font-bold">
-            <span className="text-emerald-300">YES {formatNairaPrice(activePoint.yesPrice)}</span>
-            <span className="text-red-300">NO {formatNairaPrice(activePoint.noPrice)}</span>
-            <span className="text-slate-400">Volume {formatNaira(activePoint.volume || 0)}</span>
-            <span className="text-slate-500">Trades {activePoint.tradeCount || 0}</span>
-            {activePoint.side && <span className="text-violet-200">{activePoint.side} trade {formatNaira(activePoint.amount || 0)}</span>}
-          </div>
+      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.12),rgba(8,13,25,0.96)_54%)] px-1 pb-2 pt-3 sm:px-3">
+        <div className="h-[230px] w-full sm:h-[300px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 10, right: 8, bottom: 6, left: 0 }}>
+              <CartesianGrid stroke="rgba(148,163,184,0.12)" strokeDasharray="3 6" vertical={false} />
+              <XAxis
+                dataKey="time"
+                type="number"
+                domain={[timeDomain.min, timeDomain.max]}
+                tickFormatter={axisTickFormatter}
+                stroke="rgba(148,163,184,0.52)"
+                tick={{ fill: "rgba(148,163,184,0.75)", fontSize: 10, fontWeight: 700 }}
+                tickLine={false}
+                axisLine={false}
+                minTickGap={24}
+              />
+              <YAxis
+                domain={[0, 100]}
+                ticks={[0, 25, 50, 75, 100]}
+                orientation="right"
+                width={28}
+                stroke="rgba(148,163,184,0.52)"
+                tick={{ fill: "rgba(148,163,184,0.75)", fontSize: 10, fontWeight: 800 }}
+                tickFormatter={(value) => `${value}`}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip
+                cursor={{ stroke: "rgba(255,255,255,0.28)", strokeWidth: 1 }}
+                content={<PriceTooltip />}
+                isAnimationActive={false}
+                allowEscapeViewBox={{ x: false, y: false }}
+                wrapperStyle={{ outline: "none", maxWidth: "min(220px, calc(100vw - 48px))" }}
+              />
+              <Line
+                type="monotone"
+                dataKey="yesPrice"
+                stroke="#22d3ee"
+                strokeWidth={3}
+                dot={false}
+                activeDot={{ r: 4, strokeWidth: 2, stroke: "#08111f", fill: "#67e8f9" }}
+                isAnimationActive
+                animationDuration={450}
+                animationEasing="ease-out"
+              />
+              <Line
+                type="monotone"
+                dataKey="noPrice"
+                stroke="#8b5cf6"
+                strokeWidth={2.4}
+                dot={false}
+                activeDot={{ r: 3.5, strokeWidth: 2, stroke: "#08111f", fill: "#a78bfa" }}
+                isAnimationActive
+                animationDuration={450}
+                animationEasing="ease-out"
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
-      )}
+        {!hasSavedHistory && (
+          <div className="pointer-events-none absolute inset-x-4 top-5 rounded-2xl border border-white/10 bg-[#050711]/72 px-3 py-2 text-center text-xs font-bold text-slate-400 backdrop-blur-xl">
+            Price movement starts after predictions.
+          </div>
+        )}
       </div>
-      <div className="mt-3 flex items-center justify-between text-xs font-bold text-slate-500">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-500">
         <span>{hasStoredMovement ? "Live price history from saved trades" : "Flat starting line until the first prediction."}</span>
         <span>YES {formatNairaPrice(market.yesPrice)} / NO {formatNairaPrice(market.noPrice)}</span>
+      </div>
+    </div>
+  );
+};
+
+const PriceTooltip = ({ active, payload }: any) => {
+  if (!active || !payload?.length) return null;
+  const point = payload[0]?.payload;
+  if (!point) return null;
+
+  return (
+    <div className="max-w-[210px] rounded-2xl border border-white/10 bg-[#050711]/95 p-3 text-xs shadow-2xl backdrop-blur-xl">
+      <div className="font-black text-white">{formatChartTime(point.timestamp)}</div>
+      <div className="mt-2 grid gap-1.5 font-bold">
+        <div className="flex items-center justify-between gap-5 text-cyan-200">
+          <span>YES</span>
+          <span>{formatNairaPrice(point.yesPrice)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-5 text-violet-200">
+          <span>NO</span>
+          <span>{formatNairaPrice(point.noPrice)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-5 text-slate-400">
+          <span>Volume</span>
+          <span>{formatNaira(point.volume || 0)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-5 text-slate-500">
+          <span>Trades</span>
+          <span>{point.tradeCount || 0}</span>
+        </div>
+        {point.side && (
+          <div className="mt-1 rounded-xl bg-white/[0.055] px-2 py-1 text-center text-[11px] font-black text-white">
+            Last trade: {point.side} {formatNaira(point.amount || 0)}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -534,6 +539,18 @@ const getTimeframeCutoff = (timeframe: Timeframe) => {
 const formatChartTime = (timestamp: string) => {
   const date = new Date(timestamp);
   return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+};
+
+const formatAxisTime = (timestamp: number, spanMs = 0) => {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "";
+  if (spanMs <= 60 * 60 * 1000) {
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+  if (spanMs > 24 * 60 * 60 * 1000) {
+    return date.toLocaleDateString([], { month: "short", day: "numeric" });
+  }
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
 const Row = ({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) => (
