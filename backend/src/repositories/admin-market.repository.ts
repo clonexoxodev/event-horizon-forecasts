@@ -25,6 +25,12 @@ export interface Market {
   no_pool_smallest_unit?: number | null;
   seed_liquidity_yes_smallest_unit?: number | null;
   seed_liquidity_no_smallest_unit?: number | null;
+  starting_yes_price?: number | null;
+  starting_no_price?: number | null;
+  yes_volume_smallest_unit?: number | null;
+  no_volume_smallest_unit?: number | null;
+  total_yes_shares?: number | null;
+  total_no_shares?: number | null;
   currency: 'NGN' | 'USD';
   image_url: string | null;
   video_url?: string | null;
@@ -64,21 +70,20 @@ export class AdminMarketRepository {
     return 'closed';
   }
 
-  private calculatePoolPrices(yesPool: number, noPool: number) {
-    const total = yesPool + noPool;
-    if (total <= 0) return { yesPrice: 50, noPrice: 50 };
-    const yesPrice = Math.round((yesPool / total) * 1000) / 10;
-    return { yesPrice, noPrice: Math.round((100 - yesPrice) * 10) / 10 };
+  private getStartingPrices(data: MarketCreateInput) {
+    const yesPrice = Number(data.starting_yes_price ?? data.yes_price ?? 50);
+    const noPrice = Number(data.starting_no_price ?? data.no_price ?? (100 - yesPrice));
+    if (!Number.isFinite(yesPrice) || !Number.isFinite(noPrice) || yesPrice < 1 || noPrice < 1 || Math.round(yesPrice + noPrice) !== 100) {
+      throw new Error('Starting YES and NO prices must be valid and add up to 100.');
+    }
+    return { yesPrice, noPrice };
   }
 
   /**
    * Create a new market
    */
   async create(data: MarketCreateInput, createdBy: string): Promise<Market> {
-    const seedYes = data.seed_liquidity_yes_smallest_unit ?? 50000;
-    const seedNo = data.seed_liquidity_no_smallest_unit ?? 50000;
-    const seedTotal = seedYes + seedNo;
-    const prices = this.calculatePoolPrices(seedYes, seedNo);
+    const prices = this.getStartingPrices(data);
 
     const { data: market, error } = await supabase
       .from('markets')
@@ -106,11 +111,19 @@ export class AdminMarketRepository {
         max_position_smallest_unit: data.max_position_smallest_unit || null,
         created_by: createdBy,
         closes_at: data.close_date,
-        pool_amount_smallest_unit: seedTotal,
-        seed_liquidity_yes_smallest_unit: seedYes,
-        seed_liquidity_no_smallest_unit: seedNo,
-        yes_pool_smallest_unit: seedYes,
-        no_pool_smallest_unit: seedNo,
+        pricing_model: 'ownership_shares',
+        starting_yes_price: prices.yesPrice,
+        starting_no_price: prices.noPrice,
+        pool_amount_smallest_unit: 0,
+        settlement_pool_smallest_unit: 0,
+        seed_liquidity_yes_smallest_unit: 0,
+        seed_liquidity_no_smallest_unit: 0,
+        yes_pool_smallest_unit: 0,
+        no_pool_smallest_unit: 0,
+        yes_volume_smallest_unit: 0,
+        no_volume_smallest_unit: 0,
+        total_yes_shares: 0,
+        total_no_shares: 0,
         total_volume_smallest_unit: 0,
         participant_count: 0,
         trade_count: 0,
@@ -128,8 +141,12 @@ export class AdminMarketRepository {
         market_id: market.id,
         yes_price: prices.yesPrice,
         no_price: prices.noPrice,
-        yes_pool_smallest_unit: seedYes,
-        no_pool_smallest_unit: seedNo,
+        yes_pool_smallest_unit: 0,
+        no_pool_smallest_unit: 0,
+        yes_volume_smallest_unit: 0,
+        no_volume_smallest_unit: 0,
+        total_yes_shares: 0,
+        total_no_shares: 0,
         volume_smallest_unit: 0,
         trade_count: 0
       })

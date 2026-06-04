@@ -16,26 +16,37 @@ type WithdrawModalProps = {
 
 export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSaved }: WithdrawModalProps) => {
   const [amount, setAmount] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [accountName, setAccountName] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [reference, setReference] = useState("");
   const { toast } = useToast();
 
   const quickAmounts = currency === "NGN" ? [5000, 10000, 25000, 50000] : [10, 25, 50, 100];
   const numAmount = Number.parseFloat(amount) || 0;
   const insufficientFunds = numAmount > availableBalance;
+  const belowMinimum = numAmount > 0 && numAmount < 500;
+  const missingBankDetails = !bankName.trim() || !accountNumber.trim() || !accountName.trim();
 
   const handleWithdraw = async () => {
-    if (numAmount <= 0 || insufficientFunds) return;
+    if (numAmount <= 0 || insufficientFunds || belowMinimum || missingBankDetails) return;
 
     setLoading(true);
     try {
-      await apiService.withdraw(numAmount, currency, "bank_account");
+      const response = await apiService.createWithdrawalRequest(numAmount, { bankName, accountNumber, accountName });
+      setReference(response.withdrawalRequest.reference);
       setSuccess(true);
       onSaved?.();
       toast({ title: "Request saved", description: `${currency} ${numAmount.toLocaleString()} is pending.` });
       setTimeout(() => {
         setSuccess(false);
         setAmount("");
+        setReference("");
+        setBankName("");
+        setAccountNumber("");
+        setAccountName("");
         onClose();
       }, 1600);
     } catch (error: any) {
@@ -52,6 +63,10 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
   const handleClose = () => {
     if (loading) return;
     setAmount("");
+    setReference("");
+    setBankName("");
+    setAccountNumber("");
+    setAccountName("");
     setSuccess(false);
     onClose();
   };
@@ -69,6 +84,7 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
             <p className="text-sm text-slate-400">
               {currency} {numAmount.toLocaleString()} is pending.
             </p>
+            {reference && <p className="mt-3 text-sm font-black text-violet-200">Reference: {reference}</p>}
           </div>
         ) : (
           <div className="p-6">
@@ -106,6 +122,7 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
               {insufficientFunds && <AlertCircle className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-red-300" />}
             </div>
             {insufficientFunds && <p className="mb-4 text-xs font-bold text-red-300">Insufficient balance.</p>}
+            {belowMinimum && <p className="mb-4 text-xs font-bold text-amber-200">Minimum withdrawal is ₦500.</p>}
 
             <div className="mb-4 grid grid-cols-4 gap-2">
               {quickAmounts.filter((value) => value <= availableBalance).map((value) => (
@@ -135,15 +152,18 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
               </button>
             </div>
 
-            <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.055] p-4">
-              <div className="text-xs font-bold text-slate-500">Withdrawal to</div>
-              <div className="mt-1 text-sm font-black text-white">Bank account ending 1234</div>
-              <div className="mt-1 text-xs text-slate-500">Status: pending review</div>
+            <div className="mb-6 grid gap-3">
+              <Input value={bankName} onChange={(event) => setBankName(event.target.value)} disabled={loading} placeholder="Bank name" className="h-12 rounded-2xl border-white/10 bg-white/[0.055] text-white placeholder:text-slate-600" />
+              <Input value={accountNumber} onChange={(event) => setAccountNumber(event.target.value)} disabled={loading} placeholder="Account number" className="h-12 rounded-2xl border-white/10 bg-white/[0.055] text-white placeholder:text-slate-600" />
+              <Input value={accountName} onChange={(event) => setAccountName(event.target.value)} disabled={loading} placeholder="Account name" className="h-12 rounded-2xl border-white/10 bg-white/[0.055] text-white placeholder:text-slate-600" />
+              <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 text-xs font-bold text-slate-500">
+                Funds move to locked balance while admin reviews the payout. Requests above ₦10,000 require manual review.
+              </div>
             </div>
 
             <Button
               onClick={handleWithdraw}
-              disabled={loading || numAmount <= 0 || insufficientFunds}
+              disabled={loading || numAmount <= 0 || insufficientFunds || belowMinimum || missingBankDetails}
               className="h-12 w-full rounded-2xl bg-red-500 text-base font-black text-white hover:bg-red-400 disabled:opacity-50"
             >
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowUpRight className="mr-2 h-4 w-4" />}

@@ -18,6 +18,8 @@ export const DepositModal = ({ open, onClose, currency, onSaved }: DepositModalP
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"card" | "transfer">("card");
+  const [depositReference, setDepositReference] = useState("");
+  const [paymentInstruction, setPaymentInstruction] = useState("");
   const { toast } = useToast();
 
   const quickAmounts = currency === "NGN" ? [5000, 10000, 25000, 50000] : [10, 25, 50, 100];
@@ -28,15 +30,19 @@ export const DepositModal = ({ open, onClose, currency, onSaved }: DepositModalP
 
     setLoading(true);
     try {
-      await apiService.deposit(numAmount, currency, paymentMethod === "transfer" ? "bank_transfer" : "card");
+      const response = await apiService.createDepositRequest(numAmount, paymentMethod === "transfer" ? "bank_transfer" : "card");
+      setDepositReference(response.depositRequest.reference);
+      setPaymentInstruction(response.depositRequest.paymentInstruction);
       setSuccess(true);
       onSaved?.();
       toast({ title: "Request saved", description: "Your add money request is pending." });
       setTimeout(() => {
         setSuccess(false);
         setAmount("");
+        setDepositReference("");
+        setPaymentInstruction("");
         onClose();
-      }, 1600);
+      }, 5000);
     } catch (error: any) {
       toast({
         title: "Add money failed",
@@ -51,6 +57,8 @@ export const DepositModal = ({ open, onClose, currency, onSaved }: DepositModalP
   const handleClose = () => {
     if (loading) return;
     setAmount("");
+    setDepositReference("");
+    setPaymentInstruction("");
     setSuccess(false);
     onClose();
   };
@@ -68,6 +76,13 @@ export const DepositModal = ({ open, onClose, currency, onSaved }: DepositModalP
             <p className="text-sm text-slate-400">
               {currency} {numAmount.toLocaleString()} is pending.
             </p>
+            {depositReference && (
+              <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.055] p-4 text-left">
+                <div className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Reference</div>
+                <div className="mt-1 text-lg font-black text-white">{depositReference}</div>
+                <p className="mt-3 text-sm font-bold text-slate-300">{paymentInstruction}</p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="p-6">
@@ -82,7 +97,7 @@ export const DepositModal = ({ open, onClose, currency, onSaved }: DepositModalP
             <div className="mb-6">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Wallet</p>
               <h3 className="mt-1 text-2xl font-black">Add Money</h3>
-              <p className="mt-1 text-sm text-slate-400">Your request will show as pending.</p>
+              <p className="mt-1 text-sm text-slate-400">Create a pending bank-transfer request. Admin credits after confirmation.</p>
             </div>
 
             <label className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-500">

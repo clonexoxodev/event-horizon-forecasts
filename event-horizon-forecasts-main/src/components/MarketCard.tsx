@@ -27,6 +27,9 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
       currentPrice: side === "YES" ? m.yesPrice : m.noPrice,
       yesPool: m.yesPool,
       noPool: m.noPool,
+      totalYesShares: m.totalYesShares,
+      totalNoShares: m.totalNoShares,
+      participants: m.participants,
       minAmount: m.minAmount,
       maxAmount: m.maxAmount,
     });
@@ -85,7 +88,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
               <Users className="h-3.5 w-3.5 text-violet-300" />
               {m.participants}
             </span>
-            <span>{formatNaira(m.totalPool)}</span>
+            <span>{formatNaira(m.totalVolume ?? m.totalPool)} vol.</span>
             <span className="flex items-center gap-1">
               <Clock className="h-3.5 w-3.5" />
               {formatCountdown(m.closeTime, m.closesIn)}

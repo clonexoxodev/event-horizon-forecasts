@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertCircle, CheckCircle, Flame, Loader2, Sparkles, TrendingUp, X, Zap } from "lucide-react";
+import { CheckCircle, Flame, Loader2, Sparkles, TrendingUp, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
@@ -14,6 +14,9 @@ type ForecastSelection = {
   currentPrice: number;
   yesPool?: number;
   noPool?: number;
+  totalYesShares?: number;
+  totalNoShares?: number;
+  participants?: number;
   minAmount?: number;
   maxAmount?: number;
 };
@@ -34,16 +37,12 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
   const numAmount = Number.parseFloat(amount) || 0;
   const probability = selection?.currentPrice || 50;
   const isPositiveSide = selection?.side === "YES" || selection?.side === "UP";
-  const yesPool = selection?.yesPool ?? 500;
-  const noPool = selection?.noPool ?? 500;
-  const oppositePool = isPositiveSide ? noPool : yesPool;
-  const maxLiquidityStake = Math.floor(oppositePool * 0.5);
+  const sideShares = isPositiveSide ? selection?.totalYesShares ?? 0 : selection?.totalNoShares ?? 0;
   const sharesReceived = probability > 0 && numAmount > 0 ? numAmount / probability : 0;
-  const projectedReturn = sharesReceived * 100;
-  const projectedProfit = projectedReturn - numAmount;
+  const ownershipAfterPurchase = sideShares + sharesReceived > 0 ? (sharesReceived / (sideShares + sharesReceived)) * 100 : 0;
+  const positionValue = sharesReceived * probability;
   const userBalance = user?.balance || 0;
   const insufficientBalance = numAmount > userBalance;
-  const exceedsLiquidity = numAmount > 0 && numAmount > maxLiquidityStake;
 
   const handleConfirm = async () => {
     if (loading) return;
@@ -54,11 +53,6 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
 
     if (insufficientBalance) {
       toast.error("Insufficient balance. Add money to continue.");
-      return;
-    }
-
-    if (exceedsLiquidity) {
-      toast.error(`Maximum available for this side is ${formatNaira(maxLiquidityStake)} based on current liquidity.`);
       return;
     }
 
@@ -170,15 +164,9 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                     insufficientBalance && numAmount > 0 ? "border-red-400" : "border-white/10"
                   }`}
                 />
-                {insufficientBalance && numAmount > 0 && (
-                  <AlertCircle className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-red-300" />
-                )}
               </div>
               {insufficientBalance && numAmount > 0 && (
                 <p className="mt-2 text-xs font-bold text-red-300">Insufficient balance.</p>
-              )}
-              {exceedsLiquidity && (
-                <p className="mt-2 text-xs font-bold text-amber-200">Maximum available for this side is {formatNaira(maxLiquidityStake)} based on current liquidity.</p>
               )}
             </div>
 
@@ -208,20 +196,24 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
               </div>
               {numAmount > 0 && !insufficientBalance ? (
                 <>
-                <Row label="You enter" value={formatNaira(numAmount)} />
-                <Row label="Shares" value={sharesReceived.toFixed(2)} />
-                <Row label="Payout if correct" value={formatNaira(projectedReturn)} />
-                <Row label="Profit if correct" value={`+${formatNaira(projectedProfit)}`} highlight />
-                <Row label="Max available" value={formatNaira(maxLiquidityStake)} />
+                <Row label="Amount" value={formatNaira(numAmount)} />
+                <Row label="Current price" value={formatNairaPrice(probability)} />
+                <Row label="Shares received" value={sharesReceived.toFixed(2)} highlight />
+                <Row label="Ownership after purchase" value={`${ownershipAfterPurchase.toFixed(2)}%`} />
+                <Row label="Position value" value={formatNaira(positionValue)} />
+                <Row label="Market participants" value={`${selection.participants ?? 0}`} />
+                <p className="mt-3 text-xs font-bold leading-relaxed text-slate-400">
+                  This position may rise or fall as market sentiment changes.
+                </p>
                 </>
               ) : (
-                <p className="text-sm font-bold text-slate-400">Choose an amount to see your payout instantly.</p>
+                <p className="text-sm font-bold text-slate-400">Choose an amount to see how many market shares you will own.</p>
               )}
             </div>
 
             <Button
               onClick={handleConfirm}
-              disabled={!user || loading || numAmount <= 0 || insufficientBalance || exceedsLiquidity}
+              disabled={!user || loading || numAmount <= 0 || insufficientBalance}
               className={`h-13 w-full rounded-2xl text-base font-black text-white shadow-lg transition ${
                 isPositiveSide
                   ? "bg-emerald-500 hover:bg-emerald-400"
@@ -263,7 +255,7 @@ const SuccessState = ({ selection, amount }: { selection: ForecastSelection; amo
       <div>
         <div className="mx-auto mb-4 flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-4 py-2 text-xs font-black text-violet-100">
           <Flame className="h-4 w-4 text-violet-300" />
-          Streak momentum saved
+          Ownership position saved
         </div>
         <div className={`mx-auto mb-6 grid h-24 w-24 animate-pulse place-items-center rounded-full ${isPositiveSide ? "bg-emerald-400/10 text-emerald-300 shadow-[0_0_70px_rgba(52,211,153,0.22)]" : "bg-red-400/10 text-red-300 shadow-[0_0_70px_rgba(248,113,113,0.22)]"}`}>
           <CheckCircle className="h-10 w-10" />

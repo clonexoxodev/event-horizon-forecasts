@@ -7,6 +7,78 @@ const router = Router();
 
 // Primary super admin email
 const PRIMARY_SUPER_ADMIN_EMAIL = 'fehintoluwaolu@gmail.com';
+const toAmount = (smallestUnit: number) => Number(smallestUnit || 0) / 100;
+const nowIso = () => new Date().toISOString();
+
+const stripNotificationMetadata = (payload: Record<string, any>) => {
+  const { metadata, ...rest } = payload;
+  return rest;
+};
+
+const notifyUser = async (payload: Record<string, any>) => {
+  const result = await supabase.from('notifications').insert(payload);
+  if (result.error && /metadata/i.test(result.error.message || '')) {
+    await supabase.from('notifications').insert(stripNotificationMetadata(payload));
+  }
+};
+
+const serializeFinanceTransaction = (tx: any) => ({
+  id: tx.id,
+  userId: tx.user_id,
+  walletId: tx.wallet_id,
+  type: tx.type,
+  amount: toAmount(tx.amount_smallest_unit),
+  amountSmallestUnit: tx.amount_smallest_unit,
+  currency: tx.currency,
+  direction: tx.direction,
+  reference: tx.reference || tx.metadata?.reference || null,
+  referenceId: tx.reference_id,
+  referenceType: tx.reference_type,
+  status: tx.status,
+  description: tx.description || null,
+  metadata: tx.metadata || {},
+  approvedBy: tx.approved_by || null,
+  approvedAt: tx.approved_at || null,
+  createdAt: tx.created_at,
+  updatedAt: tx.updated_at,
+});
+
+const serializeDepositRequest = (request: any) => ({
+  id: request.id,
+  userId: request.user_id,
+  walletId: request.wallet_id,
+  transactionId: request.transaction_id,
+  amount: toAmount(request.amount_smallest_unit),
+  amountSmallestUnit: request.amount_smallest_unit,
+  currency: request.currency,
+  reference: request.reference,
+  provider: request.provider,
+  paymentInstruction: request.payment_instruction,
+  status: request.status,
+  user: request.users ? { email: request.users.email, username: request.users.username } : null,
+  createdAt: request.created_at,
+  updatedAt: request.updated_at,
+});
+
+const serializeWithdrawalRequest = (request: any) => ({
+  id: request.id,
+  userId: request.user_id,
+  walletId: request.wallet_id,
+  transactionId: request.transaction_id,
+  amount: toAmount(request.amount_smallest_unit),
+  amountSmallestUnit: request.amount_smallest_unit,
+  currency: request.currency,
+  reference: request.reference,
+  provider: request.provider,
+  bankName: request.bank_name,
+  accountNumber: request.account_number,
+  accountName: request.account_name,
+  reviewTier: request.review_tier,
+  status: request.status,
+  user: request.users ? { email: request.users.email, username: request.users.username } : null,
+  createdAt: request.created_at,
+  updatedAt: request.updated_at,
+});
 
 /**
  * POST /api/admin/add-admin
@@ -391,6 +463,272 @@ router.get('/transactions', authMiddleware.authenticate, requireRole('super_admi
         timestamp: new Date().toISOString()
       }
     });
+  }
+});
+
+/**
+ * GET /api/admin/finance/overview
+ * Real finance metrics for Wallet V1.
+ */
+router.get('/finance/overview', authMiddleware.authenticate, requireRole('super_admin'), async (_req: Request, res: Response) => {
+  try {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const todayIso = startOfToday.toISOString();
+
+    const [
+      walletsResult,
+      depositsResult,
+      withdrawalsResult,
+      pendingDepositsResult,
+      pendingWithdrawalsResult,
+      todayDepositsResult,
+      todayWithdrawalsResult,
+      todayPredictionsResult,
+      pendingPayoutsResult,
+    ] = await Promise.all([
+      supabase.from('wallets').select('balance_ngn_kobo, available_ngn_kobo, locked_ngn_kobo'),
+      supabase.from('deposit_requests').select('amount_smallest_unit').eq('status', 'completed'),
+      supabase.from('withdrawal_requests').select('amount_smallest_unit').eq('status', 'completed'),
+      supabase.from('deposit_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('deposit_requests').select('amount_smallest_unit').eq('status', 'completed').gte('approved_at', todayIso),
+      supabase.from('withdrawal_requests').select('amount_smallest_unit').eq('status', 'completed').gte('approved_at', todayIso),
+      supabase.from('positions').select('amount_smallest_unit').gte('created_at', todayIso),
+      supabase.from('positions').select('id', { count: 'exact', head: true }).eq('status', 'won'),
+    ]);
+
+    const sum = (rows?: any[] | null) => (rows || []).reduce((total, row) => total + Number(row.amount_smallest_unit || 0), 0);
+    const totalUserBalances = (walletsResult.data || []).reduce((total, wallet) => total + Number(wallet.balance_ngn_kobo || 0), 0);
+    const totalLocked = (walletsResult.data || []).reduce((total, wallet) => total + Number(wallet.locked_ngn_kobo || 0), 0);
+
+    res.json({
+      overview: {
+        totalUserBalances: toAmount(totalUserBalances),
+        totalLocked: toAmount(totalLocked),
+        totalDeposits: toAmount(sum(depositsResult.data)),
+        totalWithdrawals: toAmount(sum(withdrawalsResult.data)),
+        pendingDeposits: pendingDepositsResult.count || 0,
+        pendingWithdrawals: pendingWithdrawalsResult.count || 0,
+        todayDeposits: toAmount(sum(todayDepositsResult.data)),
+        todayWithdrawals: toAmount(sum(todayWithdrawalsResult.data)),
+        todayPredictionVolume: toAmount(sum(todayPredictionsResult.data)),
+        pendingPayouts: pendingPayoutsResult.count || 0,
+      }
+    });
+  } catch (error) {
+    console.error('Finance overview error:', error);
+    res.status(500).json({ error: { code: 'FINANCE_OVERVIEW_FAILED', message: 'Could not load finance overview.', timestamp: nowIso() } });
+  }
+});
+
+router.get('/finance/deposits', authMiddleware.authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+  try {
+    const status = String(req.query.status || 'pending');
+    let query = supabase.from('deposit_requests').select('*, users(email, username)').order('created_at', { ascending: false }).limit(200);
+    if (status !== 'all') query = query.eq('status', status);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ deposits: (data || []).map(serializeDepositRequest) });
+  } catch (error) {
+    console.error('Finance deposits error:', error);
+    res.status(500).json({ error: { code: 'FINANCE_DEPOSITS_FAILED', message: 'Could not load deposit queue.', timestamp: nowIso() } });
+  }
+});
+
+router.post('/finance/deposits/:id/approve', authMiddleware.authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+  try {
+    const adminId = req.user!.userId;
+    const { data: request, error: requestError } = await supabase.from('deposit_requests').select('*').eq('id', req.params.id).single();
+    if (requestError || !request) return res.status(404).json({ error: { code: 'DEPOSIT_NOT_FOUND', message: 'Deposit request not found.', timestamp: nowIso() } });
+    if (request.status !== 'pending') return res.status(409).json({ error: { code: 'DEPOSIT_ALREADY_HANDLED', message: 'This deposit request has already been handled.', timestamp: nowIso() } });
+
+    const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('id', request.wallet_id).single();
+    if (walletError || !wallet) throw walletError || new Error('Wallet not found');
+    const approvedAt = nowIso();
+    const { data: updatedWallet, error: walletUpdateError } = await supabase.from('wallets').update({
+      balance_ngn_kobo: Number(wallet.balance_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
+      available_ngn_kobo: Number(wallet.available_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
+      total_deposited_ngn_kobo: Number(wallet.total_deposited_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
+      updated_at: approvedAt,
+    }).eq('id', wallet.id).select().single();
+    if (walletUpdateError || !updatedWallet) throw walletUpdateError || new Error('Wallet credit failed');
+
+    await supabase.from('deposit_requests').update({ status: 'completed', approved_by: adminId, approved_at: approvedAt, updated_at: approvedAt }).eq('id', request.id).eq('status', 'pending');
+    if (request.transaction_id) {
+      await supabase.from('transactions').update({ status: 'completed', approved_by: adminId, approved_at: approvedAt, updated_at: approvedAt }).eq('id', request.transaction_id);
+    }
+    const { data: approvedTx } = await supabase.from('transactions').insert({
+      user_id: request.user_id,
+      wallet_id: request.wallet_id,
+      type: 'deposit_approved',
+      direction: 'IN',
+      amount_smallest_unit: request.amount_smallest_unit,
+      currency: request.currency,
+      status: 'completed',
+      reference: request.reference,
+      reference_id: request.id,
+      reference_type: 'deposit_request',
+      approved_by: adminId,
+      approved_at: approvedAt,
+      description: `Approved deposit ${request.reference}`,
+      metadata: { reference: request.reference, provider: request.provider }
+    }).select().single();
+
+    await notifyUser({ user_id: request.user_id, type: 'deposit_approved', title: 'Deposit approved', message: `₦${toAmount(request.amount_smallest_unit).toLocaleString()} has been added to your wallet.`, reference_id: request.id, reference_type: 'deposit_request', metadata: { reference: request.reference } });
+    res.json({ success: true, wallet: updatedWallet, transaction: approvedTx ? serializeFinanceTransaction(approvedTx) : null });
+  } catch (error: any) {
+    console.error('Approve deposit error:', error);
+    res.status(500).json({ error: { code: 'APPROVE_DEPOSIT_FAILED', message: error.message || 'Could not approve deposit.', timestamp: nowIso() } });
+  }
+});
+
+router.post('/finance/deposits/:id/reject', authMiddleware.authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+  try {
+    const adminId = req.user!.userId;
+    const { data: request, error: requestError } = await supabase.from('deposit_requests').select('*').eq('id', req.params.id).single();
+    if (requestError || !request) return res.status(404).json({ error: { code: 'DEPOSIT_NOT_FOUND', message: 'Deposit request not found.', timestamp: nowIso() } });
+    if (request.status !== 'pending') return res.status(409).json({ error: { code: 'DEPOSIT_ALREADY_HANDLED', message: 'This deposit request has already been handled.', timestamp: nowIso() } });
+    const rejectedAt = nowIso();
+    await supabase.from('deposit_requests').update({ status: 'rejected', rejected_by: adminId, rejected_at: rejectedAt, updated_at: rejectedAt }).eq('id', request.id).eq('status', 'pending');
+    if (request.transaction_id) await supabase.from('transactions').update({ status: 'rejected', approved_by: adminId, approved_at: rejectedAt, updated_at: rejectedAt }).eq('id', request.transaction_id);
+    const { data: rejectedTx } = await supabase.from('transactions').insert({
+      user_id: request.user_id,
+      wallet_id: request.wallet_id,
+      type: 'deposit_rejected',
+      direction: 'RELEASE',
+      amount_smallest_unit: request.amount_smallest_unit,
+      currency: request.currency,
+      status: 'rejected',
+      reference: request.reference,
+      reference_id: request.id,
+      reference_type: 'deposit_request',
+      approved_by: adminId,
+      approved_at: rejectedAt,
+      description: `Rejected deposit ${request.reference}`,
+      metadata: { reason: req.body?.reason || 'Rejected by admin' }
+    }).select().single();
+    await notifyUser({ user_id: request.user_id, type: 'deposit_rejected', title: 'Deposit rejected', message: `Your ₦${toAmount(request.amount_smallest_unit).toLocaleString()} deposit request was rejected.`, reference_id: request.id, reference_type: 'deposit_request', metadata: { reference: request.reference } });
+    res.json({ success: true, transaction: rejectedTx ? serializeFinanceTransaction(rejectedTx) : null });
+  } catch (error: any) {
+    console.error('Reject deposit error:', error);
+    res.status(500).json({ error: { code: 'REJECT_DEPOSIT_FAILED', message: error.message || 'Could not reject deposit.', timestamp: nowIso() } });
+  }
+});
+
+router.get('/finance/withdrawals', authMiddleware.authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+  try {
+    const status = String(req.query.status || 'pending');
+    let query = supabase.from('withdrawal_requests').select('*, users(email, username)').order('created_at', { ascending: false }).limit(200);
+    if (status !== 'all') query = query.eq('status', status);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ withdrawals: (data || []).map(serializeWithdrawalRequest) });
+  } catch (error) {
+    console.error('Finance withdrawals error:', error);
+    res.status(500).json({ error: { code: 'FINANCE_WITHDRAWALS_FAILED', message: 'Could not load withdrawal queue.', timestamp: nowIso() } });
+  }
+});
+
+router.post('/finance/withdrawals/:id/approve', authMiddleware.authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+  try {
+    const adminId = req.user!.userId;
+    const { data: request, error: requestError } = await supabase.from('withdrawal_requests').select('*').eq('id', req.params.id).single();
+    if (requestError || !request) return res.status(404).json({ error: { code: 'WITHDRAWAL_NOT_FOUND', message: 'Withdrawal request not found.', timestamp: nowIso() } });
+    if (request.status !== 'pending') return res.status(409).json({ error: { code: 'WITHDRAWAL_ALREADY_HANDLED', message: 'This withdrawal request has already been handled.', timestamp: nowIso() } });
+    const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('id', request.wallet_id).single();
+    if (walletError || !wallet) throw walletError || new Error('Wallet not found');
+    if (Number(wallet.locked_ngn_kobo || 0) < Number(request.amount_smallest_unit || 0)) throw new Error('Locked balance is lower than withdrawal amount.');
+    const approvedAt = nowIso();
+    const { data: updatedWallet, error: walletUpdateError } = await supabase.from('wallets').update({
+      balance_ngn_kobo: Math.max(0, Number(wallet.balance_ngn_kobo || 0) - Number(request.amount_smallest_unit || 0)),
+      locked_ngn_kobo: Math.max(0, Number(wallet.locked_ngn_kobo || 0) - Number(request.amount_smallest_unit || 0)),
+      total_withdrawn_ngn_kobo: Number(wallet.total_withdrawn_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
+      updated_at: approvedAt,
+    }).eq('id', wallet.id).select().single();
+    if (walletUpdateError || !updatedWallet) throw walletUpdateError || new Error('Wallet withdrawal update failed');
+    await supabase.from('withdrawal_requests').update({ status: 'completed', approved_by: adminId, approved_at: approvedAt, updated_at: approvedAt }).eq('id', request.id).eq('status', 'pending');
+    if (request.transaction_id) await supabase.from('transactions').update({ status: 'completed', approved_by: adminId, approved_at: approvedAt, updated_at: approvedAt }).eq('id', request.transaction_id);
+    const { data: approvedTx } = await supabase.from('transactions').insert({
+      user_id: request.user_id,
+      wallet_id: request.wallet_id,
+      type: 'withdrawal_approved',
+      direction: 'OUT',
+      amount_smallest_unit: request.amount_smallest_unit,
+      currency: request.currency,
+      status: 'completed',
+      reference: request.reference,
+      reference_id: request.id,
+      reference_type: 'withdrawal_request',
+      approved_by: adminId,
+      approved_at: approvedAt,
+      description: `Paid withdrawal ${request.reference}`,
+      metadata: { bankName: request.bank_name, accountNumber: request.account_number, accountName: request.account_name }
+    }).select().single();
+    await notifyUser({ user_id: request.user_id, type: 'withdrawal_approved', title: 'Withdrawal paid', message: `Your ₦${toAmount(request.amount_smallest_unit).toLocaleString()} withdrawal has been marked paid.`, reference_id: request.id, reference_type: 'withdrawal_request', metadata: { reference: request.reference } });
+    res.json({ success: true, wallet: updatedWallet, transaction: approvedTx ? serializeFinanceTransaction(approvedTx) : null });
+  } catch (error: any) {
+    console.error('Approve withdrawal error:', error);
+    res.status(500).json({ error: { code: 'APPROVE_WITHDRAWAL_FAILED', message: error.message || 'Could not approve withdrawal.', timestamp: nowIso() } });
+  }
+});
+
+router.post('/finance/withdrawals/:id/reject', authMiddleware.authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+  try {
+    const adminId = req.user!.userId;
+    const { data: request, error: requestError } = await supabase.from('withdrawal_requests').select('*').eq('id', req.params.id).single();
+    if (requestError || !request) return res.status(404).json({ error: { code: 'WITHDRAWAL_NOT_FOUND', message: 'Withdrawal request not found.', timestamp: nowIso() } });
+    if (request.status !== 'pending') return res.status(409).json({ error: { code: 'WITHDRAWAL_ALREADY_HANDLED', message: 'This withdrawal request has already been handled.', timestamp: nowIso() } });
+    const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('id', request.wallet_id).single();
+    if (walletError || !wallet) throw walletError || new Error('Wallet not found');
+    const rejectedAt = nowIso();
+    const { data: updatedWallet, error: walletUpdateError } = await supabase.from('wallets').update({
+      available_ngn_kobo: Number(wallet.available_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
+      locked_ngn_kobo: Math.max(0, Number(wallet.locked_ngn_kobo || 0) - Number(request.amount_smallest_unit || 0)),
+      updated_at: rejectedAt,
+    }).eq('id', wallet.id).select().single();
+    if (walletUpdateError || !updatedWallet) throw walletUpdateError || new Error('Wallet release failed');
+    await supabase.from('withdrawal_requests').update({ status: 'rejected', rejected_by: adminId, rejected_at: rejectedAt, updated_at: rejectedAt }).eq('id', request.id).eq('status', 'pending');
+    if (request.transaction_id) await supabase.from('transactions').update({ status: 'rejected', approved_by: adminId, approved_at: rejectedAt, updated_at: rejectedAt }).eq('id', request.transaction_id);
+    const { data: rejectedTx } = await supabase.from('transactions').insert({
+      user_id: request.user_id,
+      wallet_id: request.wallet_id,
+      type: 'withdrawal_rejected',
+      direction: 'RELEASE',
+      amount_smallest_unit: request.amount_smallest_unit,
+      currency: request.currency,
+      status: 'completed',
+      reference: request.reference,
+      reference_id: request.id,
+      reference_type: 'withdrawal_request',
+      approved_by: adminId,
+      approved_at: rejectedAt,
+      description: `Rejected withdrawal ${request.reference}`,
+      metadata: { reason: req.body?.reason || 'Rejected by admin' }
+    }).select().single();
+    await notifyUser({ user_id: request.user_id, type: 'withdrawal_rejected', title: 'Withdrawal rejected', message: `Your ₦${toAmount(request.amount_smallest_unit).toLocaleString()} withdrawal was rejected and funds returned.`, reference_id: request.id, reference_type: 'withdrawal_request', metadata: { reference: request.reference } });
+    res.json({ success: true, wallet: updatedWallet, transaction: rejectedTx ? serializeFinanceTransaction(rejectedTx) : null });
+  } catch (error: any) {
+    console.error('Reject withdrawal error:', error);
+    res.status(500).json({ error: { code: 'REJECT_WITHDRAWAL_FAILED', message: error.message || 'Could not reject withdrawal.', timestamp: nowIso() } });
+  }
+});
+
+router.get('/finance/transactions', authMiddleware.authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+  try {
+    const type = String(req.query.type || '');
+    const status = String(req.query.status || '');
+    const search = String(req.query.search || '').trim();
+    let query = supabase.from('transactions').select('*').order('created_at', { ascending: false }).limit(300);
+    if (type && type !== 'all') query = query.eq('type', type);
+    if (status && status !== 'all') query = query.eq('status', status);
+    if (search) query = query.or(`reference.ilike.%${search}%,description.ilike.%${search}%`);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ transactions: (data || []).map(serializeFinanceTransaction) });
+  } catch (error) {
+    console.error('Finance transactions error:', error);
+    res.status(500).json({ error: { code: 'FINANCE_TRANSACTIONS_FAILED', message: 'Could not load finance transactions.', timestamp: nowIso() } });
   }
 });
 

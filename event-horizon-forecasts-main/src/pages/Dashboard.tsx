@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Activity, BarChart3, Clock, Flame, LineChart, Loader2, Target, Trophy, Wallet } from "lucide-react";
+import { Activity, BarChart3, Clock, LineChart, Loader2, Target, Trophy } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
@@ -71,8 +71,9 @@ const Dashboard = () => {
   );
 
   const portfolioValue = activePositions.reduce((sum, position) => sum + Number(position.currentValue || position.stake || 0), 0);
-  const roi = stats.totalStaked > 0 ? Math.round(((stats.totalEarnings - stats.totalStaked) / stats.totalStaked) * 100) : 0;
-  const streak = Math.min(stats.wonPredictions, 7);
+  const openStake = activePositions.reduce((sum, position) => sum + Number(position.stake || 0), 0);
+  const openPnl = portfolioValue - openStake;
+  const openPnlPercent = openStake > 0 ? (openPnl / openStake) * 100 : 0;
 
   if (authLoading) {
     return <SessionLoading label="Restoring your portfolio..." />;
@@ -108,12 +109,12 @@ const Dashboard = () => {
             <div>
               <p className="text-xs font-black uppercase tracking-[0.24em] text-violet-200">Portfolio</p>
               <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-5xl">{formatNaira(portfolioValue)}</h1>
-              <p className="mt-2 text-sm text-slate-400">Active prediction value</p>
+              <p className="mt-2 text-sm text-slate-400">Total open position value</p>
             </div>
             <div className="grid grid-cols-3 gap-2 sm:min-w-[340px]">
-              <HeroStat icon={Target} label="Win rate" value={stats.totalPredictions ? `${Math.round(stats.winRate)}%` : "-"} />
-              <HeroStat icon={BarChart3} label="ROI" value={stats.totalStaked ? `${roi}%` : "-"} tone={roi >= 0 ? "green" : "red"} />
-              <HeroStat icon={Flame} label="Streak" value={streak ? `${streak}` : "-"} />
+              <HeroStat icon={Target} label="Open positions" value={`${activePositions.length}`} />
+              <HeroStat icon={BarChart3} label="Open P/L" value={`${openPnl >= 0 ? "+" : ""}${formatNaira(openPnl)}`} tone={openPnl >= 0 ? "green" : "red"} />
+              <HeroStat icon={LineChart} label="Change" value={openStake ? `${openPnlPercent >= 0 ? "+" : ""}${openPnlPercent.toFixed(1)}%` : "-"} tone={openPnlPercent >= 0 ? "green" : "red"} />
             </div>
           </div>
         </section>
@@ -140,7 +141,7 @@ const Dashboard = () => {
           <div className="mt-5">
             {tab === "positions" && <PositionsView positions={activePositions} />}
             {tab === "activity" && <ActivityView positions={positions} settledCount={settledPositions.length} />}
-            {tab === "performance" && <PerformanceView stats={stats} roi={roi} />}
+            {tab === "performance" && <PerformanceView positions={positions} stats={stats} />}
           </div>
         )}
       </main>
@@ -185,10 +186,15 @@ const PositionsView = ({ positions }: { positions: ApiPosition[] }) => {
               {position.side}
             </span>
           </div>
-          <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
+          <div className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+            <Metric label="Entry price" value={`NGN ${Math.round(position.entryPrice || 0)}`} />
+            <Metric label="Current price" value={`NGN ${Math.round(position.currentPrice || position.entryPrice || 0)}`} />
+            <Metric label="Shares" value={String(Number(position.sharesOwned ?? position.sharesReceived ?? 0).toFixed(2))} />
+            <Metric label="Ownership" value={`${Number(position.ownershipPercent || 0).toFixed(2)}%`} />
             <Metric label="Stake" value={formatNaira(position.stake)} />
-            <Metric label="Current" value={formatNaira(position.currentValue || position.stake)} />
-            <Metric label="Price" value={`₦${Math.round(position.currentPrice || position.entryPrice || 0)}`} />
+            <Metric label="Position value" value={formatNaira(position.currentValue || position.positionValue || position.stake)} />
+            <Metric label="Profit/Loss" value={`${Number(position.unrealizedPnl || (Number(position.currentValue || position.stake) - position.stake)) >= 0 ? "+" : ""}${formatNaira(Number(position.unrealizedPnl || (Number(position.currentValue || position.stake) - position.stake)))}`} />
+            <Metric label="Status" value={position.marketStatus.replace(/_/g, " ")} />
           </div>
         </Link>
       ))}
@@ -236,18 +242,28 @@ const ActivityView = ({ positions, settledCount }: { positions: ApiPosition[]; s
   );
 };
 
-const PerformanceView = ({ stats, roi }: { stats: ApiProfileStats; roi: number }) => {
+const PerformanceView = ({ positions, stats }: { positions: ApiPosition[]; stats: ApiProfileStats }) => {
+  const openPositions = positions.filter((position) => position.marketStatus === "active");
+  const totalValue = openPositions.reduce((sum, position) => sum + Number(position.currentValue || position.positionValue || position.stake || 0), 0);
+  const totalStake = openPositions.reduce((sum, position) => sum + Number(position.stake || 0), 0);
+  const dailyChange = totalValue - totalStake;
+  const ranked = [...openPositions].sort((a, b) => Number(b.unrealizedPnl || (Number(b.currentValue || b.stake) - b.stake)) - Number(a.unrealizedPnl || (Number(a.currentValue || a.stake) - a.stake)));
+  const best = ranked[0];
+  const worst = ranked[ranked.length - 1];
+
   return (
     <div className="grid gap-4">
       <section className="rounded-3xl border border-white/10 bg-white/[0.055] p-5">
         <h2 className="text-xl font-black">Performance</h2>
         <div className="mt-5 grid grid-cols-2 gap-3">
+          <Metric label="Portfolio value" value={formatNaira(totalValue)} large />
+          <Metric label="Daily change" value={`${dailyChange >= 0 ? "+" : ""}${formatNaira(dailyChange)}`} large />
+          <Metric label="Weekly change" value="Not enough history" large />
+          <Metric label="Monthly change" value="Not enough history" large />
+          <Metric label="Best position" value={best ? `${best.side} ${formatNaira(Number(best.unrealizedPnl || (Number(best.currentValue || best.stake) - best.stake)))}` : "-"} large />
+          <Metric label="Worst position" value={worst ? `${worst.side} ${formatNaira(Number(worst.unrealizedPnl || (Number(worst.currentValue || worst.stake) - worst.stake)))}` : "-"} large />
           <Metric label="Predictions" value={String(stats.totalPredictions)} large />
-          <Metric label="Active" value={String(stats.activePredictions)} large />
-          <Metric label="Won" value={String(stats.wonPredictions)} large />
-          <Metric label="ROI" value={stats.totalStaked ? `${roi}%` : "-"} large />
-          <Metric label="Staked" value={formatNaira(stats.totalStaked)} large />
-          <Metric label="Earned" value={formatNaira(stats.totalEarnings)} large />
+          <Metric label="Open positions" value={String(openPositions.length)} large />
         </div>
       </section>
     </div>

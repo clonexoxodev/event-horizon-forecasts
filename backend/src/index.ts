@@ -60,16 +60,18 @@ const toAmount = (smallestUnit: number | null | undefined) => Number(smallestUni
 
 const normalizePosition = (position: any) => {
   const market = position.markets || {};
-  const yesPool = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
-  const noPool = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
-  const totalPool = Number(market.pool_amount_smallest_unit ?? market.pool ?? yesPool + noPool);
-  const yesPrice = totalPool > 0 ? Math.round((yesPool / totalPool) * 100) : Number(market.yes_price ?? 50);
-  const currentPrice = position.side === 'YES' ? yesPrice : 100 - yesPrice;
+  const yesPrice = Number(market.yes_price ?? market.starting_yes_price ?? 50);
+  const noPrice = Number(market.no_price ?? market.starting_no_price ?? (100 - yesPrice));
+  const currentPrice = position.side === 'YES' ? yesPrice : noPrice;
   const stake = toAmount(position.amount_smallest_unit ?? position.stake);
-  const sharesReceived = Number(position.shares_received || 0);
-  const finalPayout = toAmount(position.final_payout_smallest_unit ?? position.payout_smallest_unit);
+  const sharesReceived = Number(position.shares_owned || position.shares_received || 0);
+  const finalPayout = toAmount(position.settlement_payout_smallest_unit ?? position.final_payout_smallest_unit ?? position.payout_smallest_unit);
   const liveValue = sharesReceived > 0 ? (sharesReceived * currentPrice) : 0;
   const status = position.status || (position.resolved_at ? (position.is_winner ? 'won' : 'lost') : 'active');
+  const sideShares = position.side === 'YES'
+    ? Number(market.total_yes_shares || 0)
+    : Number(market.total_no_shares || 0);
+  const currentValue = finalPayout || liveValue || toAmount(position.current_value_smallest_unit) || stake;
 
   return {
     id: position.id,
@@ -80,9 +82,11 @@ const normalizePosition = (position: any) => {
     entryPrice: Number(position.entry_price ?? currentPrice),
     currentPrice,
     sharesReceived,
-    currentValue: finalPayout || liveValue || toAmount(position.estimated_payout_smallest_unit ?? position.potential_return_smallest_unit) || stake,
-    estimatedPayout: toAmount(position.estimated_payout_smallest_unit ?? position.potential_return_smallest_unit),
-    estimatedProfit: toAmount(position.estimated_profit_smallest_unit),
+    sharesOwned: sharesReceived,
+    ownershipPercent: Number(position.ownership_percent || (sideShares > 0 ? (sharesReceived / sideShares) * 100 : 0)),
+    currentValue,
+    positionValue: currentValue,
+    unrealizedPnl: currentValue - stake,
     finalPayout,
     payout: toAmount(position.payout_smallest_unit),
     profit: toAmount(position.profit_smallest_unit),

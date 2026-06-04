@@ -25,9 +25,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth";
 import apiService, { type AdminCreateMarketInput, type AdminMarket, type ApiTransaction, type UserRole } from "@/lib/api";
+import type { DepositRequest, WithdrawalRequest } from "@/lib/api";
 import { formatNaira } from "@/lib/markets";
 
-type AdminView = "dashboard" | "markets" | "create" | "resolution" | "transactions" | "users" | "add-admin" | "reports" | "settings";
+type AdminView = "dashboard" | "markets" | "create" | "resolution" | "finance" | "transactions" | "users" | "add-admin" | "reports" | "settings";
 type MarketKind = "YES/NO" | "UP/DOWN" | "Bigger/Smaller";
 
 type AdminUser = {
@@ -44,9 +45,8 @@ const emptyForm = {
   question: "",
   category: "Sports",
   marketKind: "YES/NO" as MarketKind,
-  startingProbability: 50,
-  seedYes: "500",
-  seedNo: "500",
+  startingYesPrice: "50",
+  startingNoPrice: "50",
   endDateTime: "",
   description: "",
   minAmount: "100",
@@ -75,6 +75,10 @@ const Admin = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [admins, setAdmins] = useState<AdminRecord[]>([]);
   const [transactions, setTransactions] = useState<ApiTransaction[]>([]);
+  const [financeOverview, setFinanceOverview] = useState<Record<string, number> | null>(null);
+  const [depositQueue, setDepositQueue] = useState<DepositRequest[]>([]);
+  const [withdrawalQueue, setWithdrawalQueue] = useState<WithdrawalRequest[]>([]);
+  const [financeTransactions, setFinanceTransactions] = useState<ApiTransaction[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
@@ -102,17 +106,25 @@ const Admin = () => {
       setMarkets(marketResponse.markets || []);
 
       if (superAdmin) {
-        const [analyticsResponse, adminsResponse, usersResponse, transactionsResponse] = await Promise.allSettled([
+        const [analyticsResponse, adminsResponse, usersResponse, transactionsResponse, financeOverviewResponse, depositsResponse, withdrawalsResponse, financeTransactionsResponse] = await Promise.allSettled([
           apiService.getAnalytics(),
           apiService.listAdmins(),
           apiService.listAdminUsers(),
           apiService.listAdminTransactions(),
+          apiService.getAdminFinanceOverview(),
+          apiService.listAdminFinanceDeposits("pending"),
+          apiService.listAdminFinanceWithdrawals("pending"),
+          apiService.listAdminFinanceTransactions(),
         ]);
 
         if (analyticsResponse.status === "fulfilled") setAnalytics(analyticsResponse.value);
         if (adminsResponse.status === "fulfilled") setAdmins(adminsResponse.value.admins || []);
         if (usersResponse.status === "fulfilled") setUsers(usersResponse.value.users || []);
         if (transactionsResponse.status === "fulfilled") setTransactions(transactionsResponse.value.transactions || []);
+        if (financeOverviewResponse.status === "fulfilled") setFinanceOverview(financeOverviewResponse.value.overview || null);
+        if (depositsResponse.status === "fulfilled") setDepositQueue(depositsResponse.value.deposits || []);
+        if (withdrawalsResponse.status === "fulfilled") setWithdrawalQueue(withdrawalsResponse.value.withdrawals || []);
+        if (financeTransactionsResponse.status === "fulfilled") setFinanceTransactions(financeTransactionsResponse.value.transactions || []);
       }
     } catch (error: any) {
       toast.error(error.message || "Could not load admin data.");
@@ -152,8 +164,8 @@ const Admin = () => {
       question: market.question,
       category: market.category,
       marketKind: labelsToKind(market.yes_label, market.no_label),
-      seedYes: String(Number(market.seed_liquidity_yes_smallest_unit || market.yes_pool_smallest_unit || 50000) / 100),
-      seedNo: String(Number(market.seed_liquidity_no_smallest_unit || market.no_pool_smallest_unit || 50000) / 100),
+      startingYesPrice: String(Number(market.starting_yes_price || market.yes_price || 50)),
+      startingNoPrice: String(Number(market.starting_no_price || market.no_price || 50)),
       endDateTime: toDatetimeLocal(market.close_date),
       description: market.description || "",
       minAmount: String(Number(market.min_position_smallest_unit || 0) / 100 || 100),
@@ -195,9 +207,11 @@ const Admin = () => {
     const resolutionDate = new Date(closeDate.getTime() + 24 * 60 * 60 * 1000);
     const description = form.description.trim() || form.question.trim();
     const resolutionSource = form.resolutionSource.trim();
-    const seedYes = Math.round(Number(form.seedYes || 0) * 100);
-    const seedNo = Math.round(Number(form.seedNo || 0) * 100);
-    if (seedYes <= 0 || seedNo <= 0) throw new Error("Seed liquidity must be greater than zero for both sides.");
+    const startingYesPrice = Number(form.startingYesPrice || 0);
+    const startingNoPrice = Number(form.startingNoPrice || 0);
+    if (!Number.isFinite(startingYesPrice) || !Number.isFinite(startingNoPrice) || startingYesPrice < 1 || startingNoPrice < 1 || Math.round(startingYesPrice + startingNoPrice) !== 100) {
+      throw new Error("Starting YES and NO prices must add up to 100.");
+    }
 
     return {
       question: form.question.trim(),
@@ -206,8 +220,10 @@ const Admin = () => {
       market_type: "binary",
       yes_label: labels.yes,
       no_label: labels.no,
-      seed_liquidity_yes_smallest_unit: seedYes,
-      seed_liquidity_no_smallest_unit: seedNo,
+      yes_price: startingYesPrice,
+      no_price: startingNoPrice,
+      starting_yes_price: startingYesPrice,
+      starting_no_price: startingNoPrice,
       close_date: closeDate.toISOString(),
       resolution_date: resolutionDate.toISOString(),
       resolution_source: resolutionSource,
@@ -232,11 +248,7 @@ const Admin = () => {
         toast.success("Market updated.");
       } else {
         if (payload.status === "active") {
-          const seedYes = Number(payload.seed_liquidity_yes_smallest_unit || 0) / 100;
-          const seedNo = Number(payload.seed_liquidity_no_smallest_unit || 0) / 100;
-          const total = seedYes + seedNo;
-          const yesPrice = total > 0 ? Math.round((seedYes / total) * 100) : 50;
-          const confirmed = window.confirm(`Confirm market funding\n\n${payload.question}\n\nYES seed liquidity: ${formatNaira(seedYes)}\nNO seed liquidity: ${formatNaira(seedNo)}\nTotal seed liquidity: ${formatNaira(total)}\nStarting prices: YES ₦${yesPrice} / NO ₦${100 - yesPrice}\n\nThis liquidity affects payouts. Publish now?`);
+          const confirmed = window.confirm(`Confirm market publish\n\n${payload.question}\n\nStarting prices: YES ${payload.starting_yes_price} / NO ${payload.starting_no_price}\n\nUsers will buy ownership shares at the live side price. Publish now?`);
           if (!confirmed) return;
         }
         await apiService.createAdminMarket(payload);
@@ -300,6 +312,16 @@ const Admin = () => {
       toast.error(error.message || "Could not resolve market.");
     } finally {
       setResolving(false);
+    }
+  };
+
+  const handleFinanceAction = async (action: () => Promise<unknown>, success: string) => {
+    try {
+      await action();
+      toast.success(success);
+      await loadData();
+    } catch (error: any) {
+      toast.error(error.message || "Finance action failed.");
     }
   };
 
@@ -411,6 +433,20 @@ const Admin = () => {
               />
             </SuperOnly>
           )}
+          {view === "finance" && (
+            <SuperOnly allowed={superAdmin}>
+              <FinanceView
+                overview={financeOverview}
+                deposits={depositQueue}
+                withdrawals={withdrawalQueue}
+                transactions={financeTransactions}
+                onApproveDeposit={(id) => handleFinanceAction(() => apiService.approveAdminDeposit(id), "Deposit approved.")}
+                onRejectDeposit={(id) => handleFinanceAction(() => apiService.rejectAdminDeposit(id), "Deposit rejected.")}
+                onApproveWithdrawal={(id) => handleFinanceAction(() => apiService.approveAdminWithdrawal(id), "Withdrawal marked paid.")}
+                onRejectWithdrawal={(id) => handleFinanceAction(() => apiService.rejectAdminWithdrawal(id), "Withdrawal rejected and refunded.")}
+              />
+            </SuperOnly>
+          )}
           {view === "transactions" && <SuperOnly allowed={superAdmin}><TransactionsView transactions={transactions} /></SuperOnly>}
           {view === "users" && <SuperOnly allowed={superAdmin}><UsersView users={users} /></SuperOnly>}
           {view === "add-admin" && <SuperOnly allowed={superAdmin}><AddAdminView admins={admins} email={newAdminEmail} setEmail={setNewAdminEmail} onSubmit={addAdmin} onRemove={removeAdmin} /></SuperOnly>}
@@ -437,6 +473,7 @@ const navItems: Array<{ view: AdminView; label: string; icon: any; superOnly?: b
   { view: "markets", label: "Markets", icon: BarChart3 },
   { view: "create", label: "Create Market", icon: Plus },
   { view: "resolution", label: "Resolution", icon: CheckCircle, superOnly: true },
+  { view: "finance", label: "Finance", icon: ReceiptText, superOnly: true },
   { view: "transactions", label: "Transactions", icon: ReceiptText },
   { view: "users", label: "Users", icon: Users, superOnly: true },
   { view: "add-admin", label: "Add Admin", icon: ShieldPlus, superOnly: true },
@@ -478,7 +515,6 @@ const DashboardView = ({ analytics, markets, loading, superAdmin }: { analytics:
     stats.push({ label: "Today's active users", value: analytics.activeUsersToday || 0, tone: "green" });
     stats.push({ label: "Today's predictions", value: analytics.predictionsToday || 0, tone: "violet" });
     stats.push({ label: "Pending payouts", value: analytics.pendingPayouts || 0, tone: "amber" });
-    stats.push({ label: "Platform liquidity", value: formatNaira(Number(analytics.platformLiquidityDeployed || 0) / 100), tone: "violet" });
   }
 
   return (
@@ -662,13 +698,9 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
   onSubmit: (event: React.FormEvent) => void;
   onCancel: () => void;
 }) => {
-  const seedYes = Number(form.seedYes || 0);
-  const seedNo = Number(form.seedNo || 0);
-  const seedTotal = seedYes + seedNo;
-  const yesPrice = seedTotal > 0 ? Math.round((seedYes / seedTotal) * 100) : 50;
-  const noPrice = 100 - yesPrice;
-  const maxYesStake = Math.floor(seedNo * 0.5);
-  const maxNoStake = Math.floor(seedYes * 0.5);
+  const yesPrice = Number(form.startingYesPrice || 50);
+  const noPrice = Number(form.startingNoPrice || 50);
+  const pricesValid = Number.isFinite(yesPrice) && Number.isFinite(noPrice) && Math.round(yesPrice + noPrice) === 100;
 
   return (
   <form onSubmit={onSubmit} className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
@@ -685,11 +717,11 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="End date"><Input type="datetime-local" value={form.endDateTime} onChange={(event) => setForm((prev) => ({ ...prev, endDateTime: event.target.value }))} className={adminInputClass} /></Field>
-          <Field label="YES seed liquidity"><Input type="number" min={1} value={form.seedYes} onChange={(event) => setForm((prev) => ({ ...prev, seedYes: event.target.value }))} className={adminInputClass} /></Field>
+          <Field label="Starting YES price"><Input type="number" min={1} max={99} value={form.startingYesPrice} onChange={(event) => setForm((prev) => ({ ...prev, startingYesPrice: event.target.value, startingNoPrice: String(100 - Number(event.target.value || 0)) }))} className={adminInputClass} /></Field>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="NO seed liquidity"><Input type="number" min={1} value={form.seedNo} onChange={(event) => setForm((prev) => ({ ...prev, seedNo: event.target.value }))} className={adminInputClass} /></Field>
-          <Field label="Starting prices"><div className="flex h-12 items-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-black text-slate-200">YES ₦{yesPrice} / NO ₦{noPrice}</div></Field>
+          <Field label="Starting NO price"><Input type="number" min={1} max={99} value={form.startingNoPrice} onChange={(event) => setForm((prev) => ({ ...prev, startingNoPrice: event.target.value, startingYesPrice: String(100 - Number(event.target.value || 0)) }))} className={adminInputClass} /></Field>
+          <Field label="Price check"><div className={`flex h-12 items-center rounded-2xl border px-4 text-sm font-black ${pricesValid ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-200" : "border-red-300/20 bg-red-400/10 text-red-200"}`}>YES {yesPrice || 0} / NO {noPrice || 0}</div></Field>
         </div>
         <Field label="Rules"><Textarea value={form.resolutionInstructions} onChange={(event) => setForm((prev) => ({ ...prev, resolutionInstructions: event.target.value }))} rows={3} placeholder="What exactly must happen for this market to resolve?" className={`${adminInputClass} min-h-24`} /></Field>
         <Field label="Resolution source"><Input value={form.resolutionSource} onChange={(event) => setForm((prev) => ({ ...prev, resolutionSource: event.target.value }))} placeholder="Official source, exchange, sports body, public result..." className={adminInputClass} /></Field>
@@ -733,10 +765,10 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
           </div>
           <div className="line-clamp-3 text-lg font-black">{form.question || "Market question appears here"}</div>
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <div className="rounded-2xl bg-emerald-400/10 p-3 text-sm font-black text-emerald-200">YES ₦{yesPrice}</div>
-            <div className="rounded-2xl bg-red-400/10 p-3 text-sm font-black text-red-200">NO ₦{noPrice}</div>
+            <div className="rounded-2xl bg-emerald-400/10 p-3 text-sm font-black text-emerald-200">YES {yesPrice || 0}</div>
+            <div className="rounded-2xl bg-red-400/10 p-3 text-sm font-black text-red-200">NO {noPrice || 0}</div>
           </div>
-          <p className="mt-3 text-xs text-slate-500">Seed liquidity: YES {formatNaira(seedYes)} / NO {formatNaira(seedNo)}. First max stake: YES {formatNaira(maxYesStake)} / NO {formatNaira(maxNoStake)}.</p>
+          <p className="mt-3 text-xs text-slate-500">Users buy ownership shares at the live side price. Prices must always add up to 100.</p>
           <p className="mt-2 text-xs text-slate-500">This is how users will see the market. Confirm before publishing.</p>
         </div>
       </section>
@@ -760,6 +792,86 @@ const TransactionsView = ({ transactions }: { transactions: ApiTransaction[] }) 
     ))}
   </DataPanel>
 );
+
+const FinanceView = ({ overview, deposits, withdrawals, transactions, onApproveDeposit, onRejectDeposit, onApproveWithdrawal, onRejectWithdrawal }: {
+  overview: Record<string, number> | null;
+  deposits: DepositRequest[];
+  withdrawals: WithdrawalRequest[];
+  transactions: ApiTransaction[];
+  onApproveDeposit: (id: string) => void;
+  onRejectDeposit: (id: string) => void;
+  onApproveWithdrawal: (id: string) => void;
+  onRejectWithdrawal: (id: string) => void;
+}) => (
+  <div className="space-y-5">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <StatCard label="Total user balances" value={formatNaira(overview?.totalUserBalances || 0)} tone="green" />
+      <StatCard label="Pending deposits" value={overview?.pendingDeposits || 0} tone="amber" />
+      <StatCard label="Pending withdrawals" value={overview?.pendingWithdrawals || 0} tone="amber" />
+      <StatCard label="Today prediction volume" value={formatNaira(overview?.todayPredictionVolume || 0)} tone="violet" />
+      <StatCard label="Total deposits" value={formatNaira(overview?.totalDeposits || 0)} tone="green" />
+      <StatCard label="Total withdrawals" value={formatNaira(overview?.totalWithdrawals || 0)} tone="violet" />
+      <StatCard label="Today deposits" value={formatNaira(overview?.todayDeposits || 0)} tone="green" />
+      <StatCard label="Today withdrawals" value={formatNaira(overview?.todayWithdrawals || 0)} tone="violet" />
+    </div>
+
+    <section className="grid gap-5 xl:grid-cols-2">
+      <FinanceQueue title="Deposit queue" empty="No pending deposits.">
+        {deposits.map((item) => (
+          <div key={item.id} className="rounded-2xl border border-white/10 bg-[#0b1020]/80 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="font-black text-white">{item.user?.username || item.user?.email || "User"}</div>
+                <div className="mt-1 text-xs font-bold text-slate-500">{item.reference} · {new Date(item.createdAt).toLocaleString()}</div>
+                <div className="mt-2 text-sm font-black text-emerald-300">{formatNaira(item.amount)}</div>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={() => onApproveDeposit(item.id)} className="rounded-xl bg-emerald-500 font-black text-white hover:bg-emerald-400">Approve</Button>
+                <Button onClick={() => onRejectDeposit(item.id)} variant="outline" className="rounded-xl border-red-300/20 bg-red-400/10 font-black text-red-200 hover:bg-red-400/20">Reject</Button>
+              </div>
+            </div>
+            <p className="mt-3 text-xs font-bold text-slate-500">{item.paymentInstruction}</p>
+          </div>
+        ))}
+      </FinanceQueue>
+
+      <FinanceQueue title="Withdrawal queue" empty="No pending withdrawals.">
+        {withdrawals.map((item) => (
+          <div key={item.id} className="rounded-2xl border border-white/10 bg-[#0b1020]/80 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="font-black text-white">{item.user?.username || item.user?.email || "User"}</div>
+                <div className="mt-1 text-xs font-bold text-slate-500">{item.reference} · {new Date(item.createdAt).toLocaleString()}</div>
+                <div className="mt-2 text-sm font-black text-red-300">{formatNaira(item.amount)}</div>
+                <div className="mt-2 text-xs font-bold text-slate-400">{item.bankName} · {item.accountNumber} · {item.accountName}</div>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={() => onApproveWithdrawal(item.id)} className="rounded-xl bg-emerald-500 font-black text-white hover:bg-emerald-400">Paid</Button>
+                <Button onClick={() => onRejectWithdrawal(item.id)} variant="outline" className="rounded-xl border-red-300/20 bg-red-400/10 font-black text-red-200 hover:bg-red-400/20">Reject</Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </FinanceQueue>
+    </section>
+
+    <DataPanel title="Finance ledger" empty="No ledger records yet.">
+      {transactions.slice(0, 80).map((tx) => (
+        <DataRow key={tx.id} title={tx.type.replace(/_/g, " ")} subtitle={`${tx.reference || tx.status} · ${tx.createdAt ? new Date(tx.createdAt).toLocaleString() : ""}`} value={`${tx.direction === "IN" ? "+" : tx.direction === "OUT" || tx.direction === "HOLD" ? "-" : ""}${formatNaira(tx.amount)}`} />
+      ))}
+    </DataPanel>
+  </div>
+);
+
+const FinanceQueue = ({ title, empty, children }: { title: string; empty: string; children: React.ReactNode }) => {
+  const items = Array.isArray(children) ? children.filter(Boolean) : children;
+  return (
+    <section className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
+      <h2 className="mb-4 text-xl font-black">{title}</h2>
+      {Array.isArray(items) && items.length === 0 ? <EmptyState title={empty} body="Nothing needs review right now." /> : <div className="space-y-3">{children}</div>}
+    </section>
+  );
+};
 
 const UsersView = ({ users }: { users: AdminUser[] }) => (
   <DataPanel title="Users" empty="No users found.">

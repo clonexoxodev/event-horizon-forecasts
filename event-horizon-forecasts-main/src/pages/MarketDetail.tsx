@@ -126,11 +126,6 @@ export default function MarketDetail() {
     }
     const numericAmount = Number.parseFloat(amount) || 0;
     if (numericAmount <= 0) return toast.error("Enter an amount.");
-    const oppositePool = sheetSide === "YES" ? market.noPool : market.yesPool;
-    const maxLiquidityStake = Math.floor((oppositePool || 0) * 0.5);
-    if (numericAmount > maxLiquidityStake) {
-      return toast.error(`Maximum available for this side is ${formatNaira(maxLiquidityStake)} based on current liquidity.`);
-    }
 
     setSubmitting(true);
     try {
@@ -166,14 +161,19 @@ export default function MarketDetail() {
   const media = getMarketMedia(market);
   const selectedPrice = sheetSide === "YES" ? market.yesPrice : market.noPrice;
   const numericAmount = Number.parseFloat(amount) || 0;
-  const oppositePool = sheetSide === "YES" ? market.noPool : market.yesPool;
-  const maxLiquidityStake = Math.floor((oppositePool || 0) * 0.5);
+  const sideShares = sheetSide === "YES" ? market.totalYesShares || 0 : market.totalNoShares || 0;
   const sharesReceived = numericAmount > 0 && selectedPrice > 0 ? numericAmount / selectedPrice : 0;
-  const estimatedReturn = numericAmount > 0 && sheetSide ? sharesReceived * 100 : 0;
-  const estimatedProfit = Math.max(0, estimatedReturn - numericAmount);
-  const exceedsLiquidity = Boolean(sheetSide && numericAmount > 0 && numericAmount > maxLiquidityStake);
+  const ownershipAfterPurchase = sideShares + sharesReceived > 0 ? (sharesReceived / (sideShares + sharesReceived)) * 100 : 0;
+  const positionValue = sharesReceived * selectedPrice;
   const hasMarketEnded = market.closeTime ? new Date(market.closeTime).getTime() <= now : false;
   const marketIsActive = market.status === "active" && !hasMarketEnded;
+  const totalShares = Number(market.totalYesShares || 0) + Number(market.totalNoShares || 0);
+  const yesOwnershipShare = totalShares > 0 ? (Number(market.totalYesShares || 0) / totalShares) * 100 : 50;
+  const noOwnershipShare = 100 - yesOwnershipShare;
+  const recentTrades = [...(market.priceHistory || [])]
+    .filter((point) => point.side && Number(point.amount || 0) > 0)
+    .slice(-5)
+    .reverse();
 
   return (
     <div className="min-h-screen bg-[#050711] pb-[calc(150px+env(safe-area-inset-bottom))] text-white md:pb-24 xl:pl-64">
@@ -234,6 +234,44 @@ export default function MarketDetail() {
           <Chart market={market} timeframe={timeframe} />
         </section>
 
+        <section className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.055] p-4">
+            <h2 className="text-lg font-black">Ownership</h2>
+            <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full bg-emerald-400" style={{ width: `${yesOwnershipShare}%` }} />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Metric label="YES shares" value={`${Number(market.totalYesShares || 0).toFixed(2)} (${yesOwnershipShare.toFixed(1)}%)`} />
+              <Metric label="NO shares" value={`${Number(market.totalNoShares || 0).toFixed(2)} (${noOwnershipShare.toFixed(1)}%)`} />
+              <Metric label="YES volume" value={formatNaira(Number(market.yesVolume || market.yesPool || 0))} />
+              <Metric label="NO volume" value={formatNaira(Number(market.noVolume || market.noPool || 0))} />
+            </div>
+          </div>
+
+          <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.055] p-4">
+            <h2 className="text-lg font-black">Recent trades</h2>
+            <div className="mt-3 space-y-2">
+              {recentTrades.length ? recentTrades.map((trade) => (
+                <div key={`${trade.timestamp}-${trade.side}-${trade.amount}`} className="flex items-center justify-between rounded-2xl bg-white/[0.045] px-3 py-2 text-xs">
+                  <span className={`font-black ${trade.side === "YES" ? "text-emerald-300" : "text-red-300"}`}>Bought {trade.side}</span>
+                  <span className="text-slate-400">{formatNaira(Number(trade.amount || 0))}</span>
+                </div>
+              )) : (
+                <p className="text-sm text-slate-500">Recent trades appear after predictions.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.055] p-4">
+            <h2 className="text-lg font-black">Market sentiment</h2>
+            <div className="mt-4 grid gap-2">
+              <Metric label="YES price" value={formatNairaPrice(market.yesPrice)} />
+              <Metric label="NO price" value={formatNairaPrice(market.noPrice)} />
+              <Metric label="Largest holders" value="Available after holder ranking" />
+            </div>
+          </div>
+        </section>
+
         <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.055] p-4">
           <h2 className="text-lg font-black">Rules</h2>
           <p className="mt-2 text-sm leading-6 text-slate-400">{market.rules || market.description || "This market resolves based on the stated outcome and admin review."}</p>
@@ -283,9 +321,6 @@ export default function MarketDetail() {
             </div>
             <label className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-500">Amount</label>
             <Input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} disabled={submitting} placeholder="0" className="h-13 rounded-2xl border-white/10 bg-white/[0.055] text-lg font-black text-white placeholder:text-slate-600" />
-            {exceedsLiquidity && (
-              <p className="mt-2 text-xs font-bold text-amber-200">Maximum available for this side is {formatNaira(maxLiquidityStake)} based on current liquidity.</p>
-            )}
             <div className="mt-3 grid grid-cols-4 gap-2">
               {[100, 500, 1000, 5000].map((value) => (
                 <button key={value} onClick={() => setAmount(value.toString())} disabled={submitting} className="h-10 rounded-xl border border-white/10 bg-white/[0.055] text-xs font-black text-slate-300 disabled:cursor-not-allowed disabled:opacity-50">
@@ -295,12 +330,16 @@ export default function MarketDetail() {
             </div>
             <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.055] p-4">
               <Row label="Wallet balance" value={user ? formatNaira(user.balance || 0) : "Login required"} />
-              <Row label="Shares" value={sharesReceived.toFixed(2)} />
-              <Row label="Payout if correct" value={formatNaira(estimatedReturn)} highlight />
-              <Row label="Profit if correct" value={formatNaira(estimatedProfit)} highlight />
-              <Row label="Max available" value={formatNaira(maxLiquidityStake)} />
+              <Row label="Current price" value={formatNairaPrice(selectedPrice)} />
+              <Row label="Shares received" value={sharesReceived.toFixed(2)} highlight />
+              <Row label="Ownership after purchase" value={`${ownershipAfterPurchase.toFixed(2)}%`} />
+              <Row label="Position value" value={formatNaira(positionValue)} />
+              <Row label="Market participants" value={`${market.participants || 0}`} />
+              <p className="mt-3 text-xs font-bold leading-relaxed text-slate-400">
+                This position may rise or fall as market sentiment changes.
+              </p>
             </div>
-            <Button onClick={confirmPrediction} disabled={submitting || numericAmount <= 0 || exceedsLiquidity} className={`mt-5 h-12 w-full rounded-2xl text-base font-black text-white ${sheetSide === "YES" ? "bg-emerald-500 hover:bg-emerald-400" : "bg-red-500 hover:bg-red-400"}`}>
+            <Button onClick={confirmPrediction} disabled={submitting || numericAmount <= 0} className={`mt-5 h-12 w-full rounded-2xl text-base font-black text-white ${sheetSide === "YES" ? "bg-emerald-500 hover:bg-emerald-400" : "bg-red-500 hover:bg-red-400"}`}>
               {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <TrendingUp className="mr-2 h-4 w-4" />}
               {user ? "Lock prediction" : "Login to predict"}
             </Button>
@@ -557,6 +596,13 @@ const Row = ({ label, value, highlight = false }: { label: string; value: string
   <div className="flex items-center justify-between border-b border-white/10 py-2 last:border-0">
     <span className="text-sm font-bold text-slate-400">{label}</span>
     <span className={`text-sm font-black ${highlight ? "text-emerald-300" : "text-white"}`}>{value}</span>
+  </div>
+);
+
+const Metric = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-2xl border border-white/10 bg-[#0b1020]/70 p-3">
+    <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</div>
+    <div className="mt-1 text-sm font-black text-white">{value}</div>
   </div>
 );
 

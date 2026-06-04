@@ -24,6 +24,7 @@ export default function Wallet() {
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [transactions, setTransactions] = useState<WalletRow[]>([]);
+  const [walletSnapshot, setWalletSnapshot] = useState<{ availableNgn?: number; lockedNgn?: number; balanceNgn?: number } | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -32,7 +33,8 @@ export default function Wallet() {
 
     setHistoryLoading(true);
     try {
-      const response = await apiService.getTransactions();
+      const [walletResponse, response] = await Promise.all([apiService.getWallet().catch(() => null), apiService.getTransactions()]);
+      if (walletResponse?.wallet) setWalletSnapshot(walletResponse.wallet);
       setTransactions(
         response.transactions.map((tx) => ({
           id: tx.id,
@@ -68,7 +70,8 @@ export default function Wallet() {
     loadHistory();
   }, [authLoading, user]);
 
-  const ngnBalance = user?.balance || 0;
+  const ngnBalance = walletSnapshot?.availableNgn ?? user?.balance ?? 0;
+  const lockedBalance = walletSnapshot?.lockedNgn || 0;
 
   if (authLoading) {
     return (
@@ -133,6 +136,14 @@ export default function Wallet() {
             </div>
             <div className="mt-8 text-4xl font-black tracking-tight sm:text-5xl">
               {formatNaira(ngnBalance)}
+            </div>
+            <div className="mt-3 grid gap-2 text-sm font-bold text-slate-300 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3">
+                Available: <span className="text-white">{formatNaira(ngnBalance)}</span>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3">
+                Locked: <span className="text-white">{formatNaira(lockedBalance)}</span>
+              </div>
             </div>
             <div className="mt-8 grid grid-cols-2 gap-3">
               <Button
@@ -223,6 +234,15 @@ const labelForTransaction = (tx: ApiTransaction) => {
     position_entry: "Prediction",
     position_payout: "Winning",
     refund: "Refund",
+    deposit_request: "Deposit requested",
+    deposit_approved: "Deposit approved",
+    deposit_rejected: "Deposit rejected",
+    withdrawal_request: "Withdrawal requested",
+    withdrawal_approved: "Withdrawal paid",
+    withdrawal_rejected: "Withdrawal rejected",
+    prediction_stake: "Prediction",
+    market_payout: "Winning",
+    admin_adjustment: "Admin adjustment",
   };
 
   return labels[tx.type] || tx.type.replace(/_/g, " ");

@@ -1,11 +1,5 @@
 import apiService, { type ApiMarket } from "./api";
-import {
-  calculateMarketPrices,
-  updateMarketWithTrade,
-  calculateMarketConfidence,
-  calculateVolatility,
-  type MarketPricingState,
-} from "./market-pricing";
+import { calculateMarketPrices } from "./market-pricing";
 
 export type Market = ApiMarket;
 
@@ -24,45 +18,32 @@ export const updateMarketPricing = (
   isNewParticipant: boolean = false
 ): Market => {
   const newParticipants = isNewParticipant ? market.participants + 1 : market.participants;
-
-  let hoursToClose: number | undefined;
-  if (market.closeTime) {
-    const closeDate = new Date(market.closeTime);
-    const now = new Date();
-    hoursToClose = Math.max(0, (closeDate.getTime() - now.getTime()) / (1000 * 60 * 60));
-  }
-
-  const currentState: MarketPricingState = {
-    yesPool: market.yesPool,
-    noPool: market.noPool,
-    totalPool: market.totalPool,
-    yesPrice: market.yesPrice,
-    noPrice: market.noPrice,
-    liquidity: market.totalPool,
-    confidence: market.confidence || calculateMarketConfidence(market.totalPool, market.participants),
-    volatility: market.volatility || calculateVolatility(market.totalPool, market.participants),
-  };
-
-  const newState = updateMarketWithTrade(currentState, {
-    tradeSize: amount,
-    side,
-    timeToClose: hoursToClose,
-    participantCount: newParticipants,
-  });
+  const nextYesVolume = Number(market.yesVolume ?? market.yesPool ?? 0) + (side === "YES" ? amount : 0);
+  const nextNoVolume = Number(market.noVolume ?? market.noPool ?? 0) + (side === "NO" ? amount : 0);
+  const nextTotalVolume = nextYesVolume + nextNoVolume;
+  const startingYes = Number(market.startingYesPrice ?? market.yesPrice ?? 50);
+  const activityWeight = nextTotalVolume > 0 ? Math.min(0.95, nextTotalVolume / (nextTotalVolume + 5000)) : 0;
+  const activityYes = nextTotalVolume > 0 ? (nextYesVolume / nextTotalVolume) * 100 : startingYes;
+  const yesPrice = Math.max(1, Math.min(99, Math.round((startingYes * (1 - activityWeight) + activityYes * activityWeight) * 10) / 10));
+  const noPrice = Math.round((100 - yesPrice) * 10) / 10;
+  const sidePrice = side === "YES" ? market.yesPrice : market.noPrice;
+  const sharesReceived = sidePrice > 0 ? amount / sidePrice : 0;
 
   return {
     ...market,
-    yesPool: newState.yesPool,
-    noPool: newState.noPool,
-    totalPool: newState.totalPool,
+    yesPool: nextYesVolume,
+    noPool: nextNoVolume,
+    yesVolume: nextYesVolume,
+    noVolume: nextNoVolume,
+    totalPool: nextTotalVolume,
+    totalVolume: Number(market.totalVolume || 0) + amount,
+    totalYesShares: Number(market.totalYesShares || 0) + (side === "YES" ? sharesReceived : 0),
+    totalNoShares: Number(market.totalNoShares || 0) + (side === "NO" ? sharesReceived : 0),
     participants: newParticipants,
-    yesPrice: newState.yesPrice,
-    noPrice: newState.noPrice,
-    yesPercent: newState.yesPrice,
-    pool: newState.totalPool,
-    confidence: newState.confidence,
-    volatility: newState.volatility,
-    liquidity: newState.liquidity,
+    yesPrice,
+    noPrice,
+    yesPercent: yesPrice,
+    pool: nextTotalVolume,
   };
 };
 

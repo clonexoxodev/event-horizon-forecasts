@@ -62,6 +62,16 @@ export const MarketCreateSchema = z.object({
     .min(0, 'NO price must be at least 0')
     .max(100, 'NO price must be at most 100')
     .optional(),
+
+  starting_yes_price: z.number()
+    .min(1, 'Starting YES price must be at least 1')
+    .max(99, 'Starting YES price must be at most 99')
+    .optional(),
+
+  starting_no_price: z.number()
+    .min(1, 'Starting NO price must be at least 1')
+    .max(99, 'Starting NO price must be at most 99')
+    .optional(),
   
   close_date: z.string()
     .datetime({ message: 'Close date must be a valid ISO 8601 datetime' }),
@@ -95,19 +105,19 @@ export const MarketCreateSchema = z.object({
 
   is_trending: z.boolean().default(false).optional(),
 
-  seed_liquidity_yes_smallest_unit: z.number().int().positive().default(50000),
-
-  seed_liquidity_no_smallest_unit: z.number().int().positive().default(50000),
-
   min_position_smallest_unit: z.number().int().nonnegative().optional(),
 
   max_position_smallest_unit: z.number().int().positive().optional(),
 })
 .refine(
-  (data) => data.yes_price === undefined || data.no_price === undefined || data.yes_price + data.no_price === 100,
+  (data) => {
+    const yesPrice = data.starting_yes_price ?? data.yes_price;
+    const noPrice = data.starting_no_price ?? data.no_price;
+    return yesPrice === undefined || noPrice === undefined || Math.round(yesPrice + noPrice) === 100;
+  },
   {
     message: 'YES and NO prices must sum to 100',
-    path: ['yes_price'],
+    path: ['starting_yes_price'],
   }
 )
 .refine(

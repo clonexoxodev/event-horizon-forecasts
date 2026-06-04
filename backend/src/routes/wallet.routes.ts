@@ -10,6 +10,65 @@ import {
 } from '../services/wallet.service.js';
 
 const router = Router();
+const MIN_WITHDRAWAL_KOBO = 500 * 100;
+const FAST_REVIEW_THRESHOLD_KOBO = 10000 * 100;
+const MAX_DAILY_WITHDRAWAL_KOBO = 250000 * 100;
+
+const toAmount = (smallestUnit: number) => Number(smallestUnit || 0) / 100;
+const toSmallestUnit = (amount: unknown) => Math.round(Number(amount || 0) * 100);
+const makeReference = (prefix: 'DEP' | 'WDR') => `FLP-${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 90000 + 10000)}`;
+const depositInstruction = (amountSmallestUnit: number, reference: string) =>
+  `Transfer exactly ₦${toAmount(amountSmallestUnit).toLocaleString()} and use ${reference} as your payment reference. Your wallet will be credited after admin confirmation.`;
+
+const stripNotificationMetadata = (payload: Record<string, any>) => {
+  const { metadata, ...rest } = payload;
+  return rest;
+};
+
+const notifyUser = async (payload: Record<string, any>) => {
+  const result = await supabase.from('notifications').insert(payload);
+  if (result.error && /metadata/i.test(result.error.message || '')) {
+    await supabase.from('notifications').insert(stripNotificationMetadata(payload));
+  }
+};
+
+const serializeWallet = (wallet: any) => ({
+  id: wallet.id,
+  userId: wallet.user_id,
+  balanceNgn: toAmount(wallet.balance_ngn_kobo),
+  balanceUsd: toAmount(wallet.balance_usd_cents),
+  availableNgn: toAmount(wallet.available_ngn_kobo),
+  availableUsd: toAmount(wallet.available_usd_cents),
+  lockedNgn: toAmount(wallet.locked_ngn_kobo || 0),
+  totalDepositedNgn: toAmount(wallet.total_deposited_ngn_kobo || 0),
+  totalWithdrawnNgn: toAmount(wallet.total_withdrawn_ngn_kobo || 0),
+  totalWinningsNgn: toAmount(wallet.total_winnings_ngn_kobo || 0),
+  totalStakedNgn: toAmount(wallet.total_staked_ngn_kobo || 0),
+  currency: wallet.currency || 'NGN',
+  createdAt: wallet.created_at,
+  updatedAt: wallet.updated_at,
+});
+
+const serializeTransaction = (tx: any) => ({
+  id: tx.id,
+  userId: tx.user_id,
+  walletId: tx.wallet_id,
+  type: tx.type,
+  amount: toAmount(tx.amount_smallest_unit),
+  amountSmallestUnit: tx.amount_smallest_unit,
+  currency: tx.currency,
+  direction: tx.direction,
+  reference: tx.reference || tx.metadata?.reference || null,
+  referenceId: tx.reference_id,
+  referenceType: tx.reference_type,
+  status: tx.status,
+  description: tx.description || null,
+  metadata: tx.metadata || {},
+  approvedBy: tx.approved_by || null,
+  approvedAt: tx.approved_at || null,
+  createdAt: tx.created_at,
+  updatedAt: tx.updated_at,
+});
 
 // All wallet routes require authentication
 router.use(authMiddleware.authenticate);
@@ -50,14 +109,12 @@ router.get('/', async (req: Request, res: Response) => {
 
     res.json({
       wallet: {
-        id: wallet.id,
-        userId: wallet.user_id,
+        ...serializeWallet(wallet),
         balanceNgnKobo: wallet.balance_ngn_kobo,
         balanceUsdCents: wallet.balance_usd_cents,
         availableNgnKobo: wallet.available_ngn_kobo,
         availableUsdCents: wallet.available_usd_cents,
-        createdAt: wallet.created_at,
-        updatedAt: wallet.updated_at
+        lockedNgnKobo: (wallet as any).locked_ngn_kobo || 0,
       },
       display: walletDisplay
     });
@@ -81,6 +138,84 @@ router.get('/', async (req: Request, res: Response) => {
         timestamp: new Date().toISOString()
       }
     });
+  }
+});
+
+/**
+ * POST /api/wallet/deposit-request
+ * Create a manual deposit request. Wallet is credited only after admin approval.
+ */
+router.post('/deposit-request', async (req: Request, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'User not authenticated', timestamp: new Date().toISOString() } });
+    const userId = req.user.userId;
+    const amountSmallestUnit = Number(req.body.amount_smallest_unit || req.body.amountSmallestUnit || toSmallestUnit(req.body.amount));
+    if (!Number.isFinite(amountSmallestUnit) || amountSmallestUnit <= 0) {
+      return res.status(400).json({ error: { code: 'INVALID_AMOUNT', message: 'Amount must be greater than 0.', timestamp: new Date().toISOString() } });
+    }
+
+    const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('user_id', userId).single();
+    if (walletError || !wallet) return res.status(404).json({ error: { code: 'WALLET_NOT_FOUND', message: 'Wallet not found', timestamp: new Date().toISOString() } });
+
+    const reference = makeReference('DEP');
+    const instruction = depositInstruction(amountSmallestUnit, reference);
+    const { data: transaction, error: txError } = await supabase.from('transactions').insert({
+      user_id: userId,
+      wallet_id: wallet.id,
+      type: 'deposit_request',
+      direction: 'IN',
+      amount_smallest_unit: amountSmallestUnit,
+      currency: 'NGN',
+      status: 'pending',
+      reference,
+      reference_type: 'deposit',
+      description: `Deposit request ${reference}`,
+      metadata: { provider: 'manual', reference, paymentInstruction: instruction }
+    }).select().single();
+    if (txError || !transaction) throw txError || new Error('Could not create transaction');
+
+    const { data: request, error: requestError } = await supabase.from('deposit_requests').insert({
+      user_id: userId,
+      wallet_id: wallet.id,
+      transaction_id: transaction.id,
+      amount_smallest_unit: amountSmallestUnit,
+      currency: 'NGN',
+      reference,
+      provider: 'manual',
+      payment_instruction: instruction,
+      status: 'pending',
+      metadata: { method: req.body.method || 'bank_transfer' }
+    }).select().single();
+    if (requestError || !request) throw requestError || new Error('Could not create deposit request');
+
+    await notifyUser({
+      user_id: userId,
+      type: 'deposit_request_created',
+      title: 'Deposit request created',
+      message: `Transfer ₦${toAmount(amountSmallestUnit).toLocaleString()} with reference ${reference}.`,
+      reference_id: request.id,
+      reference_type: 'deposit_request',
+      metadata: { reference, amount: toAmount(amountSmallestUnit) }
+    });
+
+    res.status(201).json({
+      message: 'Deposit request created',
+      wallet: serializeWallet(wallet),
+      depositRequest: {
+        id: request.id,
+        amount: toAmount(request.amount_smallest_unit),
+        amountSmallestUnit: request.amount_smallest_unit,
+        currency: request.currency,
+        reference: request.reference,
+        paymentInstruction: request.payment_instruction,
+        status: request.status,
+        createdAt: request.created_at,
+      },
+      transaction: serializeTransaction(transaction),
+    });
+  } catch (error) {
+    console.error('Deposit request error:', error);
+    res.status(500).json({ error: { code: 'DEPOSIT_REQUEST_FAILED', message: 'Failed to create deposit request.', timestamp: new Date().toISOString() } });
   }
 });
 
@@ -196,6 +331,117 @@ router.post('/deposit', async (req: Request, res: Response) => {
         timestamp: new Date().toISOString()
       }
     });
+  }
+});
+
+/**
+ * POST /api/wallet/withdrawal-request
+ * Create a withdrawal request and move funds from available to locked balance.
+ */
+router.post('/withdrawal-request', async (req: Request, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'User not authenticated', timestamp: new Date().toISOString() } });
+    const userId = req.user.userId;
+    const amountSmallestUnit = Number(req.body.amount_smallest_unit || req.body.amountSmallestUnit || toSmallestUnit(req.body.amount));
+    const bankName = String(req.body.bankName || req.body.bank_name || '').trim();
+    const accountNumber = String(req.body.accountNumber || req.body.account_number || '').trim();
+    const accountName = String(req.body.accountName || req.body.account_name || '').trim();
+
+    if (!Number.isFinite(amountSmallestUnit) || amountSmallestUnit < MIN_WITHDRAWAL_KOBO) {
+      return res.status(400).json({ error: { code: 'INVALID_AMOUNT', message: 'Minimum withdrawal is ₦500.', timestamp: new Date().toISOString() } });
+    }
+    if (!bankName || !accountNumber || !accountName) {
+      return res.status(400).json({ error: { code: 'BANK_DETAILS_REQUIRED', message: 'Bank name, account number, and account name are required.', timestamp: new Date().toISOString() } });
+    }
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const { data: todayRows } = await supabase
+      .from('withdrawal_requests')
+      .select('amount_smallest_unit')
+      .eq('user_id', userId)
+      .in('status', ['pending', 'completed'])
+      .gte('created_at', startOfToday.toISOString());
+    const todayTotal = (todayRows || []).reduce((sum, row) => sum + Number(row.amount_smallest_unit || 0), 0);
+    if (todayTotal + amountSmallestUnit > MAX_DAILY_WITHDRAWAL_KOBO) {
+      return res.status(422).json({ error: { code: 'DAILY_LIMIT_EXCEEDED', message: `Daily withdrawal limit is ₦${toAmount(MAX_DAILY_WITHDRAWAL_KOBO).toLocaleString()}.`, timestamp: new Date().toISOString() } });
+    }
+
+    const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('user_id', userId).single();
+    if (walletError || !wallet) return res.status(404).json({ error: { code: 'WALLET_NOT_FOUND', message: 'Wallet not found', timestamp: new Date().toISOString() } });
+    if (Number(wallet.available_ngn_kobo || 0) < amountSmallestUnit) {
+      return res.status(422).json({ error: { code: 'INSUFFICIENT_BALANCE', message: 'Insufficient available balance.', timestamp: new Date().toISOString() } });
+    }
+
+    const reference = makeReference('WDR');
+    const reviewTier = amountSmallestUnit > FAST_REVIEW_THRESHOLD_KOBO ? 'manual_review' : 'fast_review';
+    const { data: updatedWallet, error: updateError } = await supabase.from('wallets').update({
+      available_ngn_kobo: Number(wallet.available_ngn_kobo || 0) - amountSmallestUnit,
+      locked_ngn_kobo: Number(wallet.locked_ngn_kobo || 0) + amountSmallestUnit,
+      updated_at: new Date().toISOString(),
+    }).eq('id', wallet.id).gte('available_ngn_kobo', amountSmallestUnit).select().single();
+    if (updateError || !updatedWallet) throw updateError || new Error('Could not reserve withdrawal funds');
+
+    const { data: transaction, error: txError } = await supabase.from('transactions').insert({
+      user_id: userId,
+      wallet_id: wallet.id,
+      type: 'withdrawal_request',
+      direction: 'HOLD',
+      amount_smallest_unit: amountSmallestUnit,
+      currency: 'NGN',
+      status: 'pending',
+      reference,
+      reference_type: 'withdrawal',
+      description: `Withdrawal request ${reference}`,
+      metadata: { reference, bankName, accountNumber, accountName, reviewTier }
+    }).select().single();
+    if (txError || !transaction) throw txError || new Error('Could not create withdrawal transaction');
+
+    const { data: request, error: requestError } = await supabase.from('withdrawal_requests').insert({
+      user_id: userId,
+      wallet_id: wallet.id,
+      transaction_id: transaction.id,
+      amount_smallest_unit: amountSmallestUnit,
+      currency: 'NGN',
+      reference,
+      provider: 'manual',
+      bank_name: bankName,
+      account_number: accountNumber,
+      account_name: accountName,
+      review_tier: reviewTier,
+      status: 'pending',
+      metadata: { destination: 'bank_account' }
+    }).select().single();
+    if (requestError || !request) throw requestError || new Error('Could not create withdrawal request');
+
+    await notifyUser({
+      user_id: userId,
+      type: 'withdrawal_requested',
+      title: 'Withdrawal requested',
+      message: `Your ₦${toAmount(amountSmallestUnit).toLocaleString()} withdrawal is pending review.`,
+      reference_id: request.id,
+      reference_type: 'withdrawal_request',
+      metadata: { reference, amount: toAmount(amountSmallestUnit), reviewTier }
+    });
+
+    res.status(201).json({
+      message: 'Withdrawal request created',
+      wallet: serializeWallet(updatedWallet),
+      withdrawalRequest: {
+        id: request.id,
+        amount: toAmount(request.amount_smallest_unit),
+        amountSmallestUnit: request.amount_smallest_unit,
+        currency: request.currency,
+        reference: request.reference,
+        status: request.status,
+        reviewTier: request.review_tier,
+        createdAt: request.created_at,
+      },
+      transaction: serializeTransaction(transaction),
+    });
+  } catch (error) {
+    console.error('Withdrawal request error:', error);
+    res.status(500).json({ error: { code: 'WITHDRAWAL_REQUEST_FAILED', message: 'Failed to create withdrawal request.', timestamp: new Date().toISOString() } });
   }
 });
 
@@ -337,7 +583,7 @@ router.get('/transactions', async (req: Request, res: Response) => {
     const userId = req.user.userId;
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
-    const type = req.query.type as 'deposit' | 'withdrawal' | 'position_entry' | 'position_payout' | undefined;
+    const type = req.query.type as string | undefined;
     const currency = req.query.currency as 'NGN' | 'USD' | undefined;
 
     // Validate pagination parameters
@@ -363,12 +609,12 @@ router.get('/transactions', async (req: Request, res: Response) => {
 
     // Validate type parameter if provided
     if (type) {
-      const validTypes = ['deposit', 'withdrawal', 'position_entry', 'position_payout'];
+      const validTypes = ['deposit', 'withdrawal', 'position_entry', 'position_payout', 'refund', 'deposit_request', 'deposit_approved', 'deposit_rejected', 'withdrawal_request', 'withdrawal_approved', 'withdrawal_rejected', 'prediction_stake', 'market_payout', 'admin_adjustment'];
       if (!validTypes.includes(type)) {
         return res.status(400).json({
           error: {
             code: 'INVALID_TYPE',
-            message: 'Type must be one of: deposit, withdrawal, position_entry, position_payout',
+            message: 'Invalid transaction type.',
             timestamp: new Date().toISOString()
           }
         });
@@ -392,7 +638,7 @@ router.get('/transactions', async (req: Request, res: Response) => {
       // Use type-specific query from transaction repository
       const { TransactionRepository } = await import('../repositories/transaction.repository.js');
       const transactionRepo = new TransactionRepository();
-      transactions = await transactionRepo.findByType(userId, type, limit, offset);
+      transactions = await transactionRepo.findByType(userId, type as any, limit, offset);
       
       // Apply currency filter if specified
       if (currency) {
@@ -422,23 +668,12 @@ router.get('/transactions', async (req: Request, res: Response) => {
     );
 
     res.json({
-      transactions: transactions.map(tx => ({
-        id: tx.id,
-        userId: tx.user_id,
-        walletId: tx.wallet_id,
-        type: tx.type,
-        amount: tx.amount_smallest_unit / 100,
-        amountSmallestUnit: tx.amount_smallest_unit,
-        currency: tx.currency,
-        direction: tx.direction,
-        referenceId: tx.reference_id,
-        referenceType: tx.reference_type,
-        status: tx.status,
+      transactions: transactions.map(tx => serializeTransaction({
+        ...tx,
         metadata: {
           ...(tx.metadata || {}),
           marketQuestion: marketQuestionByPosition.get(tx.reference_id) || tx.metadata?.marketQuestion || null
-        },
-        createdAt: tx.created_at
+        }
       })),
       pagination: {
         limit,

@@ -123,11 +123,11 @@ const loadMarketPositions = async (marketId: string) => {
   return positions || [];
 };
 
-const fixedShareSettlementForPosition = (position: any, outcome: 'YES' | 'NO') => {
+const ownershipSettlementForPosition = (position: any, outcome: 'YES' | 'NO', totalWinningShares: number, totalLosingStakeSmallestUnit: number) => {
   const stakeSmallestUnit = Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0);
   const won = position.side === outcome;
   const priceAtPurchase = Number(position.price_at_purchase || position.entry_price || 0);
-  const storedShares = Number(position.shares_received || 0);
+  const storedShares = Number(position.shares_owned || position.shares_received || 0);
   const sharesReceived = storedShares > 0
     ? storedShares
     : priceAtPurchase > 0
@@ -136,7 +136,9 @@ const fixedShareSettlementForPosition = (position: any, outcome: 'YES' | 'NO') =
   // Fixed-share settlement: purchased shares are locked at entry and each winning
   // share settles at ₦100. Later buyers can move market prices, but cannot change
   // this position's payout.
-  const payoutSmallestUnit = won ? Math.max(0, Math.round(sharesReceived * 10000)) : 0;
+  const ownershipShare = won && totalWinningShares > 0 ? sharesReceived / totalWinningShares : 0;
+  const poolProfitSmallestUnit = Math.max(0, Math.round(ownershipShare * totalLosingStakeSmallestUnit));
+  const payoutSmallestUnit = won ? stakeSmallestUnit + poolProfitSmallestUnit : 0;
   const profitSmallestUnit = won ? payoutSmallestUnit - stakeSmallestUnit : -stakeSmallestUnit;
 
   return {
@@ -144,6 +146,7 @@ const fixedShareSettlementForPosition = (position: any, outcome: 'YES' | 'NO') =
     stakeSmallestUnit,
     priceAtPurchase,
     sharesReceived,
+    ownershipShare,
     payoutSmallestUnit,
     profitSmallestUnit
   };
@@ -156,9 +159,15 @@ const buildSettlementPreview = (market: any, outcome: 'YES' | 'NO', positions: a
   const losers = positions.filter((position) => position.side !== outcome);
   const totalWinningStakeSmallestUnit = winners.reduce((sum, position) => sum + Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0), 0);
   const totalLosingStakeSmallestUnit = losers.reduce((sum, position) => sum + Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0), 0);
+  const totalWinningShares = winners.reduce((sum, position) => {
+    const stakeSmallestUnit = Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0);
+    const entryPrice = Number(position.price_at_purchase || position.entry_price || 0);
+    const shares = Number(position.shares_owned || position.shares_received || 0) || (entryPrice > 0 ? toAmount(stakeSmallestUnit) / entryPrice : 0);
+    return sum + shares;
+  }, 0);
 
   const settledPositions = positions.map((position) => {
-    const settlement = fixedShareSettlementForPosition(position, outcome);
+    const settlement = ownershipSettlementForPosition(position, outcome, totalWinningShares, totalLosingStakeSmallestUnit);
 
     return {
       id: position.id,
@@ -175,6 +184,7 @@ const buildSettlementPreview = (market: any, outcome: 'YES' | 'NO', positions: a
       stake: toAmount(settlement.stakeSmallestUnit),
       price: settlement.priceAtPurchase,
       shares: settlement.sharesReceived,
+      ownershipPercent: settlement.ownershipShare * 100,
       payout: toAmount(settlement.payoutSmallestUnit),
       profit: toAmount(settlement.profitSmallestUnit)
     };
@@ -188,6 +198,7 @@ const buildSettlementPreview = (market: any, outcome: 'YES' | 'NO', positions: a
     totalNoStake: toAmount(noPositions.reduce((sum, position) => sum + Number(position.amount_smallest_unit || 0), 0)),
     totalWinningStake: toAmount(totalWinningStakeSmallestUnit),
     totalLosingStake: toAmount(totalLosingStakeSmallestUnit),
+    totalWinningShares,
     totalWinners: winners.length,
     totalLosers: losers.length,
     totalPayout: toAmount(settledPositions.reduce((sum, position) => sum + position.payoutSmallestUnit, 0)),
@@ -296,6 +307,9 @@ const resolveMarketPoolPayouts = async (market: any, outcome: 'YES' | 'NO', admi
         payout_smallest_unit: result.payoutSmallestUnit,
         final_payout_smallest_unit: result.payoutSmallestUnit,
         profit_smallest_unit: result.profitSmallestUnit,
+        settlement_payout_smallest_unit: result.payoutSmallestUnit,
+        settlement_profit_smallest_unit: result.profitSmallestUnit,
+        ownership_percent: result.ownershipPercent,
         status: result.status,
         resolved_at: now,
         settled_at: now,

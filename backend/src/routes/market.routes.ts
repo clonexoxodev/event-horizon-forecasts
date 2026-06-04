@@ -9,7 +9,6 @@ const marketService = new MarketService();
 const toAmount = (smallestUnit: number | null | undefined) => Number(smallestUnit || 0) / 100;
 const MIN_MARKET_PRICE = 1;
 const MAX_MARKET_PRICE = 99;
-const PAYOUT_PER_SHARE_SMALLEST_UNIT = 10000; // ₦100 per winning share.
 const roundPrice = (value: number) => Math.round(value * 10) / 10;
 const clampPrice = (value: number) => Math.min(MAX_MARKET_PRICE, Math.max(MIN_MARKET_PRICE, roundPrice(value)));
 
@@ -35,82 +34,82 @@ const insertNotificationSafely = async (payload: Record<string, any> | Record<st
   console.warn(`${label} not saved:`, error.message);
 };
 
-const calculatePoolPrices = (yesPoolSmallestUnit: number, noPoolSmallestUnit: number) => {
-  const totalPool = yesPoolSmallestUnit + noPoolSmallestUnit;
-  if (totalPool <= 0) return { yesPrice: 50, noPrice: 50 };
-
-  const yesPrice = clampPrice((yesPoolSmallestUnit / totalPool) * 100);
+const getStartingPrices = (market: any) => {
+  const yesPrice = clampPrice(Number(market.starting_yes_price ?? market.yes_price ?? 50));
   return { yesPrice, noPrice: roundPrice(100 - yesPrice) };
 };
 
-const calculatePoolTrade = (market: any, side: 'YES' | 'NO', amountSmallestUnit: number) => {
-  const yesPool = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
-  const noPool = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
-  const oppositePool = side === 'YES' ? noPool : yesPool;
-  const maxStakeSmallestUnit = Math.floor(oppositePool * 0.5);
+const getOwnershipState = (market: any) => {
+  const starting = getStartingPrices(market);
+  const yesVolume = Number(market.yes_volume_smallest_unit ?? market.yes_pool_smallest_unit ?? 0);
+  const noVolume = Number(market.no_volume_smallest_unit ?? market.no_pool_smallest_unit ?? 0);
+  const totalVolume = yesVolume + noVolume;
+  const yesShares = Number(market.total_yes_shares ?? 0);
+  const noShares = Number(market.total_no_shares ?? 0);
 
-  const nextYesPool = side === 'YES' ? yesPool + amountSmallestUnit : yesPool;
-  const nextNoPool = side === 'NO' ? noPool + amountSmallestUnit : noPool;
-  const pricesBefore = calculatePoolPrices(yesPool, noPool);
-  const entryPrice = side === 'YES' ? pricesBefore.yesPrice : pricesBefore.noPrice;
-  // Fixed-share prediction-market math:
-  // shares = stake / purchase price. Each winning share settles at ₦100.
-  // Later price moves change display value only; purchased shares never change.
-  const sharesReceived = entryPrice > 0 ? toAmount(amountSmallestUnit) / entryPrice : 0;
-  const estimatedPayoutSmallestUnit = Math.floor(sharesReceived * PAYOUT_PER_SHARE_SMALLEST_UNIT);
-  const estimatedProfitSmallestUnit = Math.max(0, estimatedPayoutSmallestUnit - amountSmallestUnit);
-  const pricesAfter = calculatePoolPrices(nextYesPool, nextNoPool);
+  if (totalVolume <= 0) {
+    return {
+      yesPrice: starting.yesPrice,
+      noPrice: starting.noPrice,
+      yesVolume,
+      noVolume,
+      totalVolume,
+      yesShares,
+      noShares
+    };
+  }
+
+  const activityTargetYes = (yesVolume / totalVolume) * 100;
+  const activityWeight = Math.min(0.95, totalVolume / (totalVolume + 500000)); // 500k kobo / ₦5,000 soft depth.
+  const yesPrice = clampPrice((starting.yesPrice * (1 - activityWeight)) + (activityTargetYes * activityWeight));
 
   return {
-    yesPool,
-    noPool,
-    nextYesPool,
-    nextNoPool,
-    nextTotalPool: nextYesPool + nextNoPool,
-    maxStakeSmallestUnit,
-    sharesReceived,
-    estimatedPayoutSmallestUnit,
-    estimatedProfitSmallestUnit,
-    pricesBefore,
-    pricesAfter,
-    sidePriceBefore: entryPrice,
-    sidePriceAfter: side === 'YES' ? pricesAfter.yesPrice : pricesAfter.noPrice,
-    priceChange: side === 'YES'
-      ? pricesAfter.yesPrice - pricesBefore.yesPrice
-      : pricesAfter.noPrice - pricesBefore.noPrice
+    yesPrice,
+    noPrice: roundPrice(100 - yesPrice),
+    yesVolume,
+    noVolume,
+    totalVolume,
+    yesShares,
+    noShares
   };
 };
 
-const loadOpenSideLiabilitySmallestUnit = async (marketId: string, side: 'YES' | 'NO') => {
-  const { data, error } = await supabase
-    .from('positions')
-    .select('amount_smallest_unit, price_at_purchase, entry_price, shares_received, estimated_payout_smallest_unit, status, settled_at, resolved_at')
-    .eq('market_id', marketId)
-    .eq('side', side);
+const calculateOwnershipTrade = (market: any, side: 'YES' | 'NO', amountSmallestUnit: number) => {
+  const before = getOwnershipState(market);
+  const entryPrice = side === 'YES' ? before.yesPrice : before.noPrice;
+  const sharesOwned = entryPrice > 0 ? toAmount(amountSmallestUnit) / entryPrice : 0;
+  const nextYesVolume = side === 'YES' ? before.yesVolume + amountSmallestUnit : before.yesVolume;
+  const nextNoVolume = side === 'NO' ? before.noVolume + amountSmallestUnit : before.noVolume;
+  const nextYesShares = side === 'YES' ? before.yesShares + sharesOwned : before.yesShares;
+  const nextNoShares = side === 'NO' ? before.noShares + sharesOwned : before.noShares;
+  const after = getOwnershipState({
+    ...market,
+    yes_volume_smallest_unit: nextYesVolume,
+    no_volume_smallest_unit: nextNoVolume,
+    yes_pool_smallest_unit: nextYesVolume,
+    no_pool_smallest_unit: nextNoVolume,
+    total_yes_shares: nextYesShares,
+    total_no_shares: nextNoShares
+  });
+  const currentPrice = side === 'YES' ? after.yesPrice : after.noPrice;
+  const positionValueSmallestUnit = Math.round(sharesOwned * currentPrice * 100);
+  const sideSharesAfter = side === 'YES' ? nextYesShares : nextNoShares;
 
-  if (error) throw error;
-
-  return (data || [])
-    .filter((position: any) => !position.settled_at && !position.resolved_at && !['won', 'lost', 'settled'].includes(String(position.status || 'active')))
-    .reduce((sum: number, position: any) => {
-      const storedPayout = Number(position.estimated_payout_smallest_unit || 0);
-      if (storedPayout > 0) return sum + storedPayout;
-      const stakeSmallestUnit = Number(position.amount_smallest_unit || 0);
-      const price = Number(position.price_at_purchase || position.entry_price || 0);
-      const shares = Number(position.shares_received || 0) || (price > 0 ? toAmount(stakeSmallestUnit) / price : 0);
-      return sum + Math.max(0, Math.round(shares * PAYOUT_PER_SHARE_SMALLEST_UNIT));
-    }, 0);
-};
-
-const calculateSolventStakeLimitSmallestUnit = (
-  totalPoolAfterSeedsSmallestUnit: number,
-  currentSideLiabilitySmallestUnit: number,
-  sidePrice: number
-) => {
-  const remainingBacking = Math.max(0, totalPoolAfterSeedsSmallestUnit - currentSideLiabilitySmallestUnit);
-  const liabilityMultiplier = sidePrice > 0 ? (100 / sidePrice) - 1 : Number.POSITIVE_INFINITY;
-  if (!Number.isFinite(liabilityMultiplier) || liabilityMultiplier <= 0) return remainingBacking;
-  return Math.max(0, Math.floor(remainingBacking / liabilityMultiplier));
+  return {
+    before,
+    after,
+    entryPrice,
+    currentPrice,
+    sharesOwned,
+    positionValueSmallestUnit,
+    ownershipPercent: sideSharesAfter > 0 ? (sharesOwned / sideSharesAfter) * 100 : 0,
+    nextYesVolume,
+    nextNoVolume,
+    nextYesShares,
+    nextNoShares,
+    nextTotalVolume: nextYesVolume + nextNoVolume,
+    priceChange: currentPrice - entryPrice
+  };
 };
 
 const normalizePredictionSide = (side: unknown): 'YES' | 'NO' | null => {
@@ -322,20 +321,14 @@ const ensureInitialPriceHistory = async (market: any) => {
   const existingHistory = await fetchPriceHistory(market);
   if (existingHistory.length > 0) return existingHistory;
 
-  const yesPoolSmallestUnit = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
-  const noPoolSmallestUnit = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
-  const startingYesPrice = Number(market.yes_price ?? 50);
-  const startingNoPrice = Number(market.no_price ?? 100 - startingYesPrice);
-  const { yesPrice, noPrice } = yesPoolSmallestUnit + noPoolSmallestUnit > 0
-    ? calculatePoolPrices(yesPoolSmallestUnit, noPoolSmallestUnit)
-    : { yesPrice: startingYesPrice, noPrice: startingNoPrice };
+  const state = getOwnershipState(market);
 
   await savePriceHistory(
     market.id,
-    yesPrice,
-    noPrice,
-    yesPoolSmallestUnit,
-    noPoolSmallestUnit,
+    state.yesPrice,
+    state.noPrice,
+    state.yesVolume,
+    state.noVolume,
     Number(market.total_volume_smallest_unit || 0),
     Number(market.trade_count || 0)
   );
@@ -344,16 +337,10 @@ const ensureInitialPriceHistory = async (market: any) => {
 };
 
 const normalizeMarket = (market: any, positionCount = 0, priceHistory: Array<{ timestamp: string; yesPrice: number; noPrice: number; yesPool?: number; noPool?: number; volume?: number }> = []) => {
-  const yesPoolSmallestUnit = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
-  const noPoolSmallestUnit = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
+  const state = getOwnershipState(market);
   const totalPoolSmallestUnit = Number(
-    market.pool_amount_smallest_unit ?? market.pool ?? yesPoolSmallestUnit + noPoolSmallestUnit
-  ) || yesPoolSmallestUnit + noPoolSmallestUnit;
-  const startingYesPrice = Number(market.yes_price ?? 50);
-  const startingNoPrice = Number(market.no_price ?? 100 - startingYesPrice);
-  const { yesPrice, noPrice } = yesPoolSmallestUnit + noPoolSmallestUnit > 0
-    ? calculatePoolPrices(yesPoolSmallestUnit, noPoolSmallestUnit)
-    : { yesPrice: startingYesPrice, noPrice: startingNoPrice };
+    market.total_volume_smallest_unit ?? market.pool_amount_smallest_unit ?? market.pool ?? state.totalVolume
+  ) || state.totalVolume;
   const closeTime = getCloseTime(market);
   const status = market.status || market.state || 'active';
 
@@ -361,22 +348,28 @@ const normalizeMarket = (market: any, positionCount = 0, priceHistory: Array<{ t
     id: market.id,
     question: market.question,
     category: market.category || 'General',
-    yesPercent: yesPrice,
+    yesPercent: state.yesPrice,
     pool: toAmount(totalPoolSmallestUnit),
     closesIn: market.closes_in || '',
     description: market.description || '',
     source: market.source || '',
     icon: market.icon || '',
-    yesPool: toAmount(yesPoolSmallestUnit),
-    noPool: toAmount(noPoolSmallestUnit),
-    seedLiquidityYes: toAmount(market.seed_liquidity_yes_smallest_unit),
-    seedLiquidityNo: toAmount(market.seed_liquidity_no_smallest_unit),
+    yesPool: toAmount(state.yesVolume),
+    noPool: toAmount(state.noVolume),
+    yesVolume: toAmount(state.yesVolume),
+    noVolume: toAmount(state.noVolume),
+    totalYesShares: state.yesShares,
+    totalNoShares: state.noShares,
+    seedLiquidityYes: 0,
+    seedLiquidityNo: 0,
     totalPool: toAmount(totalPoolSmallestUnit),
     totalVolume: toAmount(market.total_volume_smallest_unit ?? 0),
     participants: Number(market.participant_count ?? market.participants ?? positionCount),
     tradeCount: Number(market.trade_count ?? market.tradeCount ?? priceHistory.length ?? 0),
-    yesPrice,
-    noPrice,
+    yesPrice: state.yesPrice,
+    noPrice: state.noPrice,
+    startingYesPrice: getStartingPrices(market).yesPrice,
+    startingNoPrice: getStartingPrices(market).noPrice,
     closeTime,
     status: status === 'open' ? 'active' : status,
     rules: market.rules || market.resolution_instructions || '',
@@ -396,9 +389,13 @@ const normalizePosition = (position: any, market: any) => {
   const normalizedMarket = normalizeMarket(market || {}, 0);
   const stake = toAmount(position.amount_smallest_unit ?? position.stake);
   const currentPrice = position.side === 'YES' ? normalizedMarket.yesPrice : normalizedMarket.noPrice;
-  const sharesReceived = Number(position.shares_received || 0);
+  const sharesReceived = Number(position.shares_owned || position.shares_received || 0);
   const liveValue = sharesReceived > 0 ? (sharesReceived * currentPrice) : 0;
-  const finalPayout = toAmount(position.final_payout_smallest_unit ?? position.payout_smallest_unit);
+  const finalPayout = toAmount(position.settlement_payout_smallest_unit ?? position.final_payout_smallest_unit ?? position.payout_smallest_unit);
+  const entryPrice = Number(position.entry_price ?? position.price_at_purchase ?? currentPrice);
+  const sideShares = position.side === 'YES'
+    ? Number((market || {}).total_yes_shares || 0)
+    : Number((market || {}).total_no_shares || 0);
 
   return {
     id: position.id,
@@ -406,17 +403,21 @@ const normalizePosition = (position: any, market: any) => {
     marketId: position.market_id,
     side: position.side,
     stake,
-    entryPrice: Number(position.entry_price ?? currentPrice),
+    entryPrice,
     currentPrice,
     sharesReceived,
+    sharesOwned: sharesReceived,
+    ownershipPercent: Number(position.ownership_percent || (sideShares > 0 ? (sharesReceived / sideShares) * 100 : 0)),
     currentValue: finalPayout || liveValue || toAmount(position.estimated_payout_smallest_unit ?? position.potential_return_smallest_unit) || stake,
+    positionValue: finalPayout || liveValue || stake,
+    unrealizedPnl: (finalPayout || liveValue || stake) - stake,
     estimatedPayout: toAmount(position.estimated_payout_smallest_unit ?? position.potential_return_smallest_unit),
     estimatedProfit: toAmount(position.estimated_profit_smallest_unit),
     finalPayout,
     status: position.status || (position.resolved_at ? (position.is_winner ? 'won' : 'lost') : 'active'),
-    marketQuestion: normalizedMarket.question || 'Market unavailable',
+    marketQuestion: position.market_question_snapshot || normalizedMarket.question || 'Market unavailable',
     marketIcon: normalizedMarket.icon,
-    category: normalizedMarket.category,
+    category: position.market_category_snapshot || normalizedMarket.category || 'General',
     marketStatus: normalizedMarket.status,
     createdAt: position.created_at,
     isListed: false
@@ -696,26 +697,10 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
       });
     }
 
-    const trade = calculatePoolTrade(market, side, amountSmallestUnit);
-    const sideLiabilitySmallestUnit = await loadOpenSideLiabilitySmallestUnit(id, side);
-    const maxSolventStakeSmallestUnit = calculateSolventStakeLimitSmallestUnit(
-      trade.nextTotalPool,
-      sideLiabilitySmallestUnit,
-      trade.sidePriceBefore
-    );
-    const maxSafeStakeSmallestUnit = Math.max(0, Math.min(trade.maxStakeSmallestUnit, maxSolventStakeSmallestUnit));
-    if (amountSmallestUnit > maxSafeStakeSmallestUnit) {
-      return res.status(400).json({
-        error: {
-          code: 'STAKE_EXCEEDS_LIQUIDITY',
-          message: `Maximum available for this side is NGN ${Math.floor(toAmount(maxSafeStakeSmallestUnit)).toLocaleString()} based on current liquidity and payout backing.`,
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
+    const trade = calculateOwnershipTrade(market, side, amountSmallestUnit);
     const currentVolume = Number((market as any).total_volume_smallest_unit || 0);
     const nextTradeCount = Number((market as any).trade_count || 0) + 1;
-    const entryPrice = trade.sidePriceBefore;
+    const entryPrice = trade.entryPrice;
 
     let positionResult = await supabase
       .from('positions')
@@ -726,13 +711,19 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
         amount_smallest_unit: amountSmallestUnit,
         stake_amount: toAmount(amountSmallestUnit),
         currency,
-        potential_return_smallest_unit: trade.estimatedPayoutSmallestUnit,
-        estimated_payout_smallest_unit: trade.estimatedPayoutSmallestUnit,
-        estimated_profit_smallest_unit: trade.estimatedProfitSmallestUnit,
-        estimated_payout_at_purchase: toAmount(trade.estimatedPayoutSmallestUnit),
-        estimated_profit_at_purchase: toAmount(trade.estimatedProfitSmallestUnit),
-        shares_received: trade.sharesReceived,
+        potential_return_smallest_unit: trade.positionValueSmallestUnit,
+        estimated_payout_smallest_unit: null,
+        estimated_profit_smallest_unit: null,
+        estimated_payout_at_purchase: null,
+        estimated_profit_at_purchase: null,
+        shares_received: trade.sharesOwned,
+        shares_owned: trade.sharesOwned,
         price_at_purchase: entryPrice,
+        current_price: trade.currentPrice,
+        current_value_smallest_unit: trade.positionValueSmallestUnit,
+        ownership_percent: trade.ownershipPercent,
+        market_question_snapshot: (market as any).question || null,
+        market_category_snapshot: (market as any).category || null,
         status: 'active',
         entry_price: entryPrice
       })
@@ -749,9 +740,9 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
           amount_smallest_unit: amountSmallestUnit,
           stake_amount: toAmount(amountSmallestUnit),
           currency,
-          shares_received: trade.sharesReceived,
+          shares_received: trade.sharesOwned,
           price_at_purchase: entryPrice,
-          potential_return_smallest_unit: trade.estimatedPayoutSmallestUnit
+          potential_return_smallest_unit: trade.positionValueSmallestUnit
         })
         .select()
         .single();
@@ -779,13 +770,19 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
     const { data: updatedMarket, error: updateMarketError } = await supabase
       .from('markets')
       .update({
-        yes_pool_smallest_unit: trade.nextYesPool,
-        no_pool_smallest_unit: trade.nextNoPool,
-        pool_amount_smallest_unit: trade.nextTotalPool,
-        yes_price: trade.pricesAfter.yesPrice,
-        no_price: trade.pricesAfter.noPrice,
+        yes_pool_smallest_unit: trade.nextYesVolume,
+        no_pool_smallest_unit: trade.nextNoVolume,
+        yes_volume_smallest_unit: trade.nextYesVolume,
+        no_volume_smallest_unit: trade.nextNoVolume,
+        total_yes_shares: trade.nextYesShares,
+        total_no_shares: trade.nextNoShares,
+        pool_amount_smallest_unit: trade.nextTotalVolume,
+        settlement_pool_smallest_unit: trade.nextTotalVolume,
+        yes_price: trade.after.yesPrice,
+        no_price: trade.after.noPrice,
         trade_count: nextTradeCount,
         total_volume_smallest_unit: currentVolume + amountSmallestUnit,
+        pricing_model: 'ownership_shares',
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -817,14 +814,30 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
         position_id: position.id,
         side,
         amount_smallest_unit: amountSmallestUnit,
-        price_before: trade.sidePriceBefore,
-        price_after: trade.sidePriceAfter,
-        yes_price_after: trade.pricesAfter.yesPrice,
-        no_price_after: trade.pricesAfter.noPrice,
+        price_before: entryPrice,
+        price_after: trade.currentPrice,
+        yes_price_after: trade.after.yesPrice,
+        no_price_after: trade.after.noPrice,
         currency
       });
 
-    await savePriceHistory(id, trade.pricesAfter.yesPrice, trade.pricesAfter.noPrice, trade.nextYesPool, trade.nextNoPool, currentVolume + amountSmallestUnit, nextTradeCount, side, amountSmallestUnit);
+    await savePriceHistory(id, trade.after.yesPrice, trade.after.noPrice, trade.nextYesVolume, trade.nextNoVolume, currentVolume + amountSmallestUnit, nextTradeCount, side, amountSmallestUnit);
+    await supabase.from('market_activity_events').insert({
+      user_id: req.user.userId,
+      market_id: id,
+      position_id: position.id,
+      event_type: side === 'YES' ? 'bought_yes' : 'bought_no',
+      side,
+      amount_smallest_unit: amountSmallestUnit,
+      price: entryPrice,
+      shares: trade.sharesOwned,
+      position_value_smallest_unit: trade.positionValueSmallestUnit,
+      metadata: {
+        marketQuestion: (market as any).question || null,
+        currentPrice: trade.currentPrice,
+        ownershipPercent: trade.ownershipPercent
+      }
+    });
     const priceHistory = await fetchPriceHistory(marketForResponse);
 
     const { data: transaction } = await supabase
@@ -845,13 +858,13 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
           category: (updatedMarket as any).category || (market as any).category || null,
           side,
           entryPrice,
-          sharesReceived: trade.sharesReceived,
-          estimatedPayoutSmallestUnit: trade.estimatedPayoutSmallestUnit,
-          estimatedProfitSmallestUnit: trade.estimatedProfitSmallestUnit,
-          yesPriceBefore: trade.pricesBefore.yesPrice,
-          noPriceBefore: trade.pricesBefore.noPrice,
-          yesPriceAfter: trade.pricesAfter.yesPrice,
-          noPriceAfter: trade.pricesAfter.noPrice,
+          sharesOwned: trade.sharesOwned,
+          positionValueSmallestUnit: trade.positionValueSmallestUnit,
+          ownershipPercent: trade.ownershipPercent,
+          yesPriceBefore: trade.before.yesPrice,
+          noPriceBefore: trade.before.noPrice,
+          yesPriceAfter: trade.after.yesPrice,
+          noPriceAfter: trade.after.noPrice,
           priceChange: trade.priceChange
         }
       })

@@ -802,12 +802,53 @@ app.patch('/api/notifications/mark-all-read', authenticate, async (req: Request,
 });
 
 const toAmount = (smallestUnit: number | null | undefined) => Number(smallestUnit || 0) / 100;
+const MIN_WITHDRAWAL_KOBO = 500 * 100;
+const FAST_REVIEW_THRESHOLD_KOBO = 10000 * 100;
+const MAX_DAILY_WITHDRAWAL_KOBO = 250000 * 100;
+const makeWalletReference = (prefix: 'DEP' | 'WDR') => `FLP-${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 90000 + 10000)}`;
+const depositInstruction = (amountSmallestUnit: number, reference: string) =>
+  `Transfer exactly ₦${toAmount(amountSmallestUnit).toLocaleString()} and use ${reference} as your payment reference. Your wallet will be credited after admin confirmation.`;
+const serializeWalletV1 = (wallet: any) => ({
+  id: wallet.id,
+  userId: wallet.user_id,
+  balanceNgn: toAmount(wallet.balance_ngn_kobo),
+  balanceUsd: toAmount(wallet.balance_usd_cents),
+  availableNgn: toAmount(wallet.available_ngn_kobo),
+  availableUsd: toAmount(wallet.available_usd_cents),
+  lockedNgn: toAmount(wallet.locked_ngn_kobo || 0),
+  totalDepositedNgn: toAmount(wallet.total_deposited_ngn_kobo || 0),
+  totalWithdrawnNgn: toAmount(wallet.total_withdrawn_ngn_kobo || 0),
+  totalWinningsNgn: toAmount(wallet.total_winnings_ngn_kobo || 0),
+  totalStakedNgn: toAmount(wallet.total_staked_ngn_kobo || 0),
+  currency: wallet.currency || 'NGN',
+  createdAt: wallet.created_at,
+  updatedAt: wallet.updated_at,
+});
+const serializeFinanceTransaction = (tx: any) => ({
+  id: tx.id,
+  userId: tx.user_id,
+  walletId: tx.wallet_id,
+  type: tx.type,
+  amount: toAmount(tx.amount_smallest_unit),
+  amountSmallestUnit: tx.amount_smallest_unit,
+  currency: tx.currency,
+  direction: tx.direction,
+  reference: tx.reference || tx.metadata?.reference || null,
+  referenceId: tx.reference_id,
+  referenceType: tx.reference_type,
+  status: tx.status,
+  description: tx.description || null,
+  metadata: tx.metadata || {},
+  approvedBy: tx.approved_by || null,
+  approvedAt: tx.approved_at || null,
+  createdAt: tx.created_at,
+  updatedAt: tx.updated_at,
+});
 type MarketStatus = 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived';
 type PredictionSide = 'YES' | 'NO';
 
 const MIN_MARKET_PRICE = 1;
 const MAX_MARKET_PRICE = 99;
-const PAYOUT_PER_SHARE_SMALLEST_UNIT = 10000; // ₦100 per winning share.
 
 const roundPrice = (value: number) => Math.round(value * 10) / 10;
 const clampPrice = (value: number) => Math.min(MAX_MARKET_PRICE, Math.max(MIN_MARKET_PRICE, roundPrice(value)));
@@ -834,11 +875,64 @@ const insertNotificationSafely = async (payload: Record<string, any> | Record<st
   console.warn(`${label} not saved:`, error.message);
 };
 
-const calculatePoolPrices = (yesPoolSmallestUnit: number, noPoolSmallestUnit: number) => {
-  const totalPool = yesPoolSmallestUnit + noPoolSmallestUnit;
-  if (totalPool <= 0) return { yesPrice: 50, noPrice: 50 };
-  const yesPrice = clampPrice((yesPoolSmallestUnit / totalPool) * 100);
+const getStartingPrices = (market: any) => {
+  const yesPrice = clampPrice(Number(market.starting_yes_price ?? market.yes_price ?? 50));
   return { yesPrice, noPrice: roundPrice(100 - yesPrice) };
+};
+
+const getOwnershipState = (market: any) => {
+  const starting = getStartingPrices(market);
+  const yesVolume = Number(market.yes_volume_smallest_unit ?? market.yes_pool_smallest_unit ?? 0);
+  const noVolume = Number(market.no_volume_smallest_unit ?? market.no_pool_smallest_unit ?? 0);
+  const totalVolume = yesVolume + noVolume;
+  const yesShares = Number(market.total_yes_shares ?? 0);
+  const noShares = Number(market.total_no_shares ?? 0);
+
+  if (totalVolume <= 0) {
+    return { yesPrice: starting.yesPrice, noPrice: starting.noPrice, yesVolume, noVolume, totalVolume, yesShares, noShares };
+  }
+
+  const activityTargetYes = (yesVolume / totalVolume) * 100;
+  const activityWeight = Math.min(0.95, totalVolume / (totalVolume + 500000));
+  const yesPrice = clampPrice((starting.yesPrice * (1 - activityWeight)) + (activityTargetYes * activityWeight));
+  return { yesPrice, noPrice: roundPrice(100 - yesPrice), yesVolume, noVolume, totalVolume, yesShares, noShares };
+};
+
+const calculateOwnershipTrade = (market: any, side: PredictionSide, amountSmallestUnit: number) => {
+  const before = getOwnershipState(market);
+  const entryPrice = side === 'YES' ? before.yesPrice : before.noPrice;
+  const sharesOwned = entryPrice > 0 ? toAmount(amountSmallestUnit) / entryPrice : 0;
+  const nextYesVolume = side === 'YES' ? before.yesVolume + amountSmallestUnit : before.yesVolume;
+  const nextNoVolume = side === 'NO' ? before.noVolume + amountSmallestUnit : before.noVolume;
+  const nextYesShares = side === 'YES' ? before.yesShares + sharesOwned : before.yesShares;
+  const nextNoShares = side === 'NO' ? before.noShares + sharesOwned : before.noShares;
+  const after = getOwnershipState({
+    ...market,
+    yes_volume_smallest_unit: nextYesVolume,
+    no_volume_smallest_unit: nextNoVolume,
+    yes_pool_smallest_unit: nextYesVolume,
+    no_pool_smallest_unit: nextNoVolume,
+    total_yes_shares: nextYesShares,
+    total_no_shares: nextNoShares
+  });
+  const currentPrice = side === 'YES' ? after.yesPrice : after.noPrice;
+  const positionValueSmallestUnit = Math.round(sharesOwned * currentPrice * 100);
+  const sideSharesAfter = side === 'YES' ? nextYesShares : nextNoShares;
+  return {
+    before,
+    after,
+    entryPrice,
+    currentPrice,
+    sharesOwned,
+    positionValueSmallestUnit,
+    ownershipPercent: sideSharesAfter > 0 ? (sharesOwned / sideSharesAfter) * 100 : 0,
+    nextYesVolume,
+    nextNoVolume,
+    nextYesShares,
+    nextNoShares,
+    nextTotalVolume: nextYesVolume + nextNoVolume,
+    priceChange: currentPrice - entryPrice
+  };
 };
 
 const normalizePredictionSide = (side: unknown): PredictionSide | null => {
@@ -900,80 +994,6 @@ const autoCloseExpiredMarket = async (market: any) => {
   }
 
   return data || { ...market, status: 'pending_resolution', state: 'closed' };
-};
-
-const currentMarketPrices = (market: any) => {
-  const yesPool = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
-  const noPool = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
-  if (yesPool + noPool <= 0) {
-    const yesPrice = roundPrice(Number(market.yes_price ?? 50));
-    return { yesPrice, noPrice: 100 - yesPrice };
-  }
-  return calculatePoolPrices(yesPool, noPool);
-};
-
-const calculatePoolTrade = (market: any, side: PredictionSide, amountSmallestUnit: number) => {
-  const yesPool = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
-  const noPool = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
-  const oppositePool = side === 'YES' ? noPool : yesPool;
-  const maxStakeSmallestUnit = Math.floor(oppositePool * 0.5);
-  const nextYesPool = side === 'YES' ? yesPool + amountSmallestUnit : yesPool;
-  const nextNoPool = side === 'NO' ? noPool + amountSmallestUnit : noPool;
-  const pricesBefore = currentMarketPrices(market);
-  const entryPrice = side === 'YES' ? pricesBefore.yesPrice : pricesBefore.noPrice;
-  // Fixed-share prediction-market math:
-  // shares = stake / purchase price. Each winning share settles at ₦100.
-  // Later price moves change display value only; purchased shares never change.
-  const sharesReceived = entryPrice > 0 ? toAmount(amountSmallestUnit) / entryPrice : 0;
-  const estimatedPayoutSmallestUnit = Math.floor(sharesReceived * PAYOUT_PER_SHARE_SMALLEST_UNIT);
-  const estimatedProfitSmallestUnit = Math.max(0, estimatedPayoutSmallestUnit - amountSmallestUnit);
-  const pricesAfter = calculatePoolPrices(nextYesPool, nextNoPool);
-  return {
-    yesPool,
-    noPool,
-    nextYesPool,
-    nextNoPool,
-    nextTotalPool: nextYesPool + nextNoPool,
-    maxStakeSmallestUnit,
-    sharesReceived,
-    estimatedPayoutSmallestUnit,
-    estimatedProfitSmallestUnit,
-    pricesAfter,
-    sidePriceBefore: entryPrice,
-    sidePriceAfter: side === 'YES' ? pricesAfter.yesPrice : pricesAfter.noPrice
-  };
-};
-
-const loadOpenSideLiabilitySmallestUnit = async (marketId: string, side: PredictionSide) => {
-  const { data, error } = await supabase
-    .from('positions')
-    .select('amount_smallest_unit, price_at_purchase, entry_price, shares_received, estimated_payout_smallest_unit, status, settled_at, resolved_at')
-    .eq('market_id', marketId)
-    .eq('side', side);
-
-  if (error) throw error;
-
-  return (data || [])
-    .filter((position: any) => !position.settled_at && !position.resolved_at && !['won', 'lost', 'settled'].includes(String(position.status || 'active')))
-    .reduce((sum: number, position: any) => {
-      const storedPayout = Number(position.estimated_payout_smallest_unit || 0);
-      if (storedPayout > 0) return sum + storedPayout;
-      const stakeSmallestUnit = Number(position.amount_smallest_unit || 0);
-      const price = Number(position.price_at_purchase || position.entry_price || 0);
-      const shares = Number(position.shares_received || 0) || (price > 0 ? toAmount(stakeSmallestUnit) / price : 0);
-      return sum + Math.max(0, Math.round(shares * PAYOUT_PER_SHARE_SMALLEST_UNIT));
-    }, 0);
-};
-
-const calculateSolventStakeLimitSmallestUnit = (
-  totalPoolAfterSeedsSmallestUnit: number,
-  currentSideLiabilitySmallestUnit: number,
-  sidePrice: number
-) => {
-  const remainingBacking = Math.max(0, totalPoolAfterSeedsSmallestUnit - currentSideLiabilitySmallestUnit);
-  const liabilityMultiplier = sidePrice > 0 ? (100 / sidePrice) - 1 : Number.POSITIVE_INFINITY;
-  if (!Number.isFinite(liabilityMultiplier) || liabilityMultiplier <= 0) return remainingBacking;
-  return Math.max(0, Math.floor(remainingBacking / liabilityMultiplier));
 };
 
 const savePriceHistory = async (
@@ -1135,16 +1155,14 @@ const ensureInitialPriceHistory = async (market: any) => {
   const existingHistory = await fetchPriceHistory(market);
   if (existingHistory.length > 0) return existingHistory;
 
-  const yesPool = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
-  const noPool = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
-  const prices = currentMarketPrices(market);
+  const state = getOwnershipState(market);
 
   await savePriceHistory(
     market.id,
-    prices.yesPrice,
-    prices.noPrice,
-    yesPool,
-    noPool,
+    state.yesPrice,
+    state.noPrice,
+    state.yesVolume,
+    state.noVolume,
     Number(market.total_volume_smallest_unit || 0),
     Number(market.trade_count || 0)
   );
@@ -1153,35 +1171,40 @@ const ensureInitialPriceHistory = async (market: any) => {
 };
 
 const normalizeMarket = (market: any, positionCount = 0, priceHistory: any[] = []) => {
-  const yesPoolSmallestUnit = Number(market.yes_pool_smallest_unit ?? market.yes_pool ?? 0);
-  const noPoolSmallestUnit = Number(market.no_pool_smallest_unit ?? market.no_pool ?? 0);
+  const state = getOwnershipState(market);
   const totalPoolSmallestUnit = Number(
-    market.pool_amount_smallest_unit ?? market.pool ?? yesPoolSmallestUnit + noPoolSmallestUnit
-  ) || yesPoolSmallestUnit + noPoolSmallestUnit;
-  const { yesPrice, noPrice } = currentMarketPrices(market);
+    market.total_volume_smallest_unit ?? market.pool_amount_smallest_unit ?? market.pool ?? state.totalVolume
+  ) || state.totalVolume;
   const closeTime = getCloseTime(market);
   const status = displayStatusForMarket(market);
+  const starting = getStartingPrices(market);
 
   return {
     id: market.id,
     question: market.question,
     category: market.category || 'General',
-    yesPercent: yesPrice,
+    yesPercent: state.yesPrice,
     pool: toAmount(totalPoolSmallestUnit),
     closesIn: market.closes_in || '',
     description: market.description || '',
     source: market.source || '',
     icon: market.icon || '',
-    yesPool: toAmount(yesPoolSmallestUnit),
-    noPool: toAmount(noPoolSmallestUnit),
-    seedLiquidityYes: toAmount(market.seed_liquidity_yes_smallest_unit),
-    seedLiquidityNo: toAmount(market.seed_liquidity_no_smallest_unit),
+    yesPool: toAmount(state.yesVolume),
+    noPool: toAmount(state.noVolume),
+    yesVolume: toAmount(state.yesVolume),
+    noVolume: toAmount(state.noVolume),
+    totalYesShares: state.yesShares,
+    totalNoShares: state.noShares,
+    seedLiquidityYes: 0,
+    seedLiquidityNo: 0,
     totalPool: toAmount(totalPoolSmallestUnit),
     totalVolume: toAmount(market.total_volume_smallest_unit ?? 0),
     participants: Number(market.participant_count ?? market.participants ?? positionCount),
     tradeCount: Number(market.trade_count ?? market.trades ?? 0),
-    yesPrice,
-    noPrice,
+    yesPrice: state.yesPrice,
+    noPrice: state.noPrice,
+    startingYesPrice: starting.yesPrice,
+    startingNoPrice: starting.noPrice,
     closeTime,
     status,
     marketType: market.market_type || 'binary',
@@ -1204,27 +1227,37 @@ const normalizePosition = (position: any, market: any) => {
   const normalizedMarket = normalizeMarket(market || {}, 0);
   const stake = toAmount(position.amount_smallest_unit ?? position.stake);
   const currentPrice = position.side === 'YES' ? normalizedMarket.yesPrice : normalizedMarket.noPrice;
-  const sharesReceived = Number(position.shares_received || 0);
+  const sharesReceived = Number(position.shares_owned || position.shares_received || 0);
   const liveValue = sharesReceived > 0 ? (sharesReceived * currentPrice) : 0;
 
-  const finalPayout = toAmount(position.final_payout_smallest_unit ?? position.payout_smallest_unit);
+  const finalPayout = toAmount(position.settlement_payout_smallest_unit ?? position.final_payout_smallest_unit ?? position.payout_smallest_unit);
+  const entryPrice = Number(position.entry_price ?? position.price_at_purchase ?? currentPrice);
+  const sideShares = position.side === 'YES'
+    ? Number((market || {}).total_yes_shares || 0)
+    : Number((market || {}).total_no_shares || 0);
+  const currentValue = finalPayout || liveValue || toAmount(position.current_value_smallest_unit) || stake;
+
   return {
     id: position.id,
     userId: position.user_id,
     marketId: position.market_id,
     side: position.side,
     stake,
-    entryPrice: Number(position.entry_price ?? currentPrice),
+    entryPrice,
     currentPrice,
     sharesReceived,
-    currentValue: finalPayout || liveValue || toAmount(position.estimated_payout_smallest_unit ?? position.potential_return_smallest_unit) || stake,
+    sharesOwned: sharesReceived,
+    ownershipPercent: Number(position.ownership_percent || (sideShares > 0 ? (sharesReceived / sideShares) * 100 : 0)),
+    currentValue,
+    positionValue: currentValue,
+    unrealizedPnl: currentValue - stake,
     estimatedPayout: toAmount(position.estimated_payout_smallest_unit ?? position.potential_return_smallest_unit),
     estimatedProfit: toAmount(position.estimated_profit_smallest_unit),
     finalPayout,
     status: position.status || (position.resolved_at ? (position.is_winner ? 'won' : 'lost') : 'active'),
-    marketQuestion: normalizedMarket.question || position.market_question_snapshot || 'Market unavailable',
+    marketQuestion: position.market_question_snapshot || normalizedMarket.question || 'Market unavailable',
     marketIcon: normalizedMarket.icon,
-    category: normalizedMarket.category || position.market_category_snapshot || 'General',
+    category: position.market_category_snapshot || normalizedMarket.category || 'General',
     marketStatus: normalizedMarket.status,
     isWinner: position.is_winner,
     payout: toAmount(position.payout_smallest_unit),
@@ -1262,16 +1295,7 @@ app.get('/api/wallet', authenticate, async (req: Request, res: Response) => {
       });
     }
 
-    res.json({
-      wallet: {
-        id: wallet.id,
-        userId: wallet.user_id,
-        balanceNgn: wallet.balance_ngn_kobo / 100,
-        balanceUsd: wallet.balance_usd_cents / 100,
-        availableNgn: wallet.available_ngn_kobo / 100,
-        availableUsd: wallet.available_usd_cents / 100
-      }
-    });
+    res.json({ wallet: serializeWalletV1(wallet) });
   } catch (error) {
     console.error('Get wallet error:', error);
     res.status(500).json({
@@ -1281,6 +1305,66 @@ app.get('/api/wallet', authenticate, async (req: Request, res: Response) => {
         timestamp: new Date().toISOString()
       }
     });
+  }
+});
+
+app.post('/api/wallet/deposit-request', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const amountSmallestUnit = Number(req.body.amount_smallest_unit || req.body.amountSmallestUnit || Math.round(Number(req.body.amount || 0) * 100));
+    if (!Number.isFinite(amountSmallestUnit) || amountSmallestUnit <= 0) {
+      return res.status(400).json({ error: { code: 'INVALID_AMOUNT', message: 'Amount must be greater than 0.', timestamp: new Date().toISOString() } });
+    }
+    const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('user_id', user.id).single();
+    if (walletError || !wallet) return res.status(404).json({ error: { code: 'WALLET_NOT_FOUND', message: 'Wallet not found', timestamp: new Date().toISOString() } });
+    const reference = makeWalletReference('DEP');
+    const instruction = depositInstruction(amountSmallestUnit, reference);
+    const { data: transaction, error: txError } = await supabase.from('transactions').insert({
+      user_id: user.id,
+      wallet_id: wallet.id,
+      type: 'deposit_request',
+      amount_smallest_unit: amountSmallestUnit,
+      currency: 'NGN',
+      direction: 'IN',
+      status: 'pending',
+      reference,
+      reference_type: 'deposit',
+      description: `Deposit request ${reference}`,
+      metadata: { provider: 'manual', reference, paymentInstruction: instruction }
+    }).select().single();
+    if (txError || !transaction) throw txError || new Error('Could not create deposit transaction');
+    const { data: depositRequest, error: requestError } = await supabase.from('deposit_requests').insert({
+      user_id: user.id,
+      wallet_id: wallet.id,
+      transaction_id: transaction.id,
+      amount_smallest_unit: amountSmallestUnit,
+      currency: 'NGN',
+      reference,
+      provider: 'manual',
+      payment_instruction: instruction,
+      status: 'pending',
+      metadata: { method: req.body.method || 'bank_transfer' }
+    }).select().single();
+    if (requestError || !depositRequest) throw requestError || new Error('Could not create deposit request');
+    await insertNotificationSafely({ user_id: user.id, type: 'deposit_request_created', title: 'Deposit request created', message: `Transfer ₦${toAmount(amountSmallestUnit).toLocaleString()} with reference ${reference}.`, reference_id: depositRequest.id, reference_type: 'deposit_request', metadata: { reference, amount: toAmount(amountSmallestUnit) } }, 'Deposit request notification');
+    res.status(201).json({
+      message: 'Deposit request created',
+      wallet: serializeWalletV1(wallet),
+      depositRequest: {
+        id: depositRequest.id,
+        amount: toAmount(depositRequest.amount_smallest_unit),
+        amountSmallestUnit: depositRequest.amount_smallest_unit,
+        currency: depositRequest.currency,
+        reference: depositRequest.reference,
+        paymentInstruction: depositRequest.payment_instruction,
+        status: depositRequest.status,
+        createdAt: depositRequest.created_at
+      },
+      transaction: serializeFinanceTransaction(transaction)
+    });
+  } catch (error) {
+    console.error('Deposit request error:', error);
+    res.status(500).json({ error: { code: 'DEPOSIT_REQUEST_FAILED', message: 'Failed to create deposit request.', timestamp: new Date().toISOString() } });
   }
 });
 
@@ -1393,6 +1477,89 @@ app.post('/api/wallet/deposit', authenticate, async (req: Request, res: Response
         timestamp: new Date().toISOString()
       }
     });
+  }
+});
+
+app.post('/api/wallet/withdrawal-request', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const amountSmallestUnit = Number(req.body.amount_smallest_unit || req.body.amountSmallestUnit || Math.round(Number(req.body.amount || 0) * 100));
+    const bankName = String(req.body.bankName || req.body.bank_name || '').trim();
+    const accountNumber = String(req.body.accountNumber || req.body.account_number || '').trim();
+    const accountName = String(req.body.accountName || req.body.account_name || '').trim();
+    if (!Number.isFinite(amountSmallestUnit) || amountSmallestUnit < MIN_WITHDRAWAL_KOBO) {
+      return res.status(400).json({ error: { code: 'INVALID_AMOUNT', message: 'Minimum withdrawal is ₦500.', timestamp: new Date().toISOString() } });
+    }
+    if (!bankName || !accountNumber || !accountName) {
+      return res.status(400).json({ error: { code: 'BANK_DETAILS_REQUIRED', message: 'Bank name, account number, and account name are required.', timestamp: new Date().toISOString() } });
+    }
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const { data: todayRows } = await supabase.from('withdrawal_requests').select('amount_smallest_unit').eq('user_id', user.id).in('status', ['pending', 'completed']).gte('created_at', startOfToday.toISOString());
+    const todayTotal = (todayRows || []).reduce((sum, row) => sum + Number(row.amount_smallest_unit || 0), 0);
+    if (todayTotal + amountSmallestUnit > MAX_DAILY_WITHDRAWAL_KOBO) {
+      return res.status(422).json({ error: { code: 'DAILY_LIMIT_EXCEEDED', message: `Daily withdrawal limit is ₦${toAmount(MAX_DAILY_WITHDRAWAL_KOBO).toLocaleString()}.`, timestamp: new Date().toISOString() } });
+    }
+    const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('user_id', user.id).single();
+    if (walletError || !wallet) return res.status(404).json({ error: { code: 'WALLET_NOT_FOUND', message: 'Wallet not found', timestamp: new Date().toISOString() } });
+    if (Number(wallet.available_ngn_kobo || 0) < amountSmallestUnit) return res.status(422).json({ error: { code: 'INSUFFICIENT_BALANCE', message: 'Insufficient available balance.', timestamp: new Date().toISOString() } });
+    const reference = makeWalletReference('WDR');
+    const reviewTier = amountSmallestUnit > FAST_REVIEW_THRESHOLD_KOBO ? 'manual_review' : 'fast_review';
+    const { data: updatedWallet, error: updateError } = await supabase.from('wallets').update({
+      available_ngn_kobo: Number(wallet.available_ngn_kobo || 0) - amountSmallestUnit,
+      locked_ngn_kobo: Number(wallet.locked_ngn_kobo || 0) + amountSmallestUnit,
+      updated_at: new Date().toISOString()
+    }).eq('id', wallet.id).gte('available_ngn_kobo', amountSmallestUnit).select().single();
+    if (updateError || !updatedWallet) throw updateError || new Error('Could not reserve withdrawal funds');
+    const { data: transaction, error: txError } = await supabase.from('transactions').insert({
+      user_id: user.id,
+      wallet_id: wallet.id,
+      type: 'withdrawal_request',
+      amount_smallest_unit: amountSmallestUnit,
+      currency: 'NGN',
+      direction: 'HOLD',
+      status: 'pending',
+      reference,
+      reference_type: 'withdrawal',
+      description: `Withdrawal request ${reference}`,
+      metadata: { reference, bankName, accountNumber, accountName, reviewTier }
+    }).select().single();
+    if (txError || !transaction) throw txError || new Error('Could not create withdrawal transaction');
+    const { data: withdrawalRequest, error: requestError } = await supabase.from('withdrawal_requests').insert({
+      user_id: user.id,
+      wallet_id: wallet.id,
+      transaction_id: transaction.id,
+      amount_smallest_unit: amountSmallestUnit,
+      currency: 'NGN',
+      reference,
+      provider: 'manual',
+      bank_name: bankName,
+      account_number: accountNumber,
+      account_name: accountName,
+      review_tier: reviewTier,
+      status: 'pending',
+      metadata: { destination: 'bank_account' }
+    }).select().single();
+    if (requestError || !withdrawalRequest) throw requestError || new Error('Could not create withdrawal request');
+    await insertNotificationSafely({ user_id: user.id, type: 'withdrawal_requested', title: 'Withdrawal requested', message: `Your ₦${toAmount(amountSmallestUnit).toLocaleString()} withdrawal is pending review.`, reference_id: withdrawalRequest.id, reference_type: 'withdrawal_request', metadata: { reference, amount: toAmount(amountSmallestUnit), reviewTier } }, 'Withdrawal notification');
+    res.status(201).json({
+      message: 'Withdrawal request created',
+      wallet: serializeWalletV1(updatedWallet),
+      withdrawalRequest: {
+        id: withdrawalRequest.id,
+        amount: toAmount(withdrawalRequest.amount_smallest_unit),
+        amountSmallestUnit: withdrawalRequest.amount_smallest_unit,
+        currency: withdrawalRequest.currency,
+        reference: withdrawalRequest.reference,
+        status: withdrawalRequest.status,
+        reviewTier: withdrawalRequest.review_tier,
+        createdAt: withdrawalRequest.created_at
+      },
+      transaction: serializeFinanceTransaction(transaction)
+    });
+  } catch (error) {
+    console.error('Withdrawal request error:', error);
+    res.status(500).json({ error: { code: 'WITHDRAWAL_REQUEST_FAILED', message: 'Failed to create withdrawal request.', timestamp: new Date().toISOString() } });
   }
 });
 
@@ -1582,21 +1749,12 @@ app.get('/api/wallet/transactions', authenticate, async (req: Request, res: Resp
     );
 
     res.json({
-      transactions: transactions.map(tx => ({
-        id: tx.id,
-        type: tx.type,
-        amount: tx.amount_smallest_unit / 100,
-        amountSmallestUnit: tx.amount_smallest_unit,
-        currency: tx.currency,
-        direction: tx.direction,
-        referenceId: tx.reference_id,
-        referenceType: tx.reference_type,
-        status: tx.status,
+      transactions: transactions.map(tx => serializeFinanceTransaction({
+        ...tx,
         metadata: {
           ...(tx.metadata || {}),
           marketQuestion: marketQuestionByPosition.get(tx.reference_id) || tx.metadata?.marketQuestion || null
-        },
-        createdAt: tx.created_at
+        }
       })),
       pagination: {
         limit,
@@ -2006,31 +2164,13 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
       });
     }
 
-    const trade = calculatePoolTrade(currentMarket, side, amountSmallestUnit);
-    const sideLiabilitySmallestUnit = await loadOpenSideLiabilitySmallestUnit(marketId, side);
-    const maxSolventStakeSmallestUnit = calculateSolventStakeLimitSmallestUnit(
-      trade.nextTotalPool,
-      sideLiabilitySmallestUnit,
-      trade.sidePriceBefore
-    );
-    const maxSafeStakeSmallestUnit = Math.max(0, Math.min(trade.maxStakeSmallestUnit, maxSolventStakeSmallestUnit));
-    if (amountSmallestUnit > maxSafeStakeSmallestUnit) {
-      return res.status(400).json({
-        error: {
-          code: 'STAKE_EXCEEDS_LIQUIDITY',
-          message: `Maximum available for this side is NGN ${Math.floor(toAmount(maxSafeStakeSmallestUnit)).toLocaleString()} based on current liquidity and payout backing.`,
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
+    const trade = calculateOwnershipTrade(currentMarket, side, amountSmallestUnit);
     const currentVolume = Number(currentMarket.total_volume_smallest_unit || 0);
     const nextTradeCount = Number(currentMarket.trade_count || 0) + 1;
-    const pricesBefore = currentMarketPrices(currentMarket);
-    const pricesAfter = trade.pricesAfter;
-    const entryPrice = trade.sidePriceBefore;
-    const priceChange = side === 'YES'
-      ? pricesAfter.yesPrice - pricesBefore.yesPrice
-      : pricesAfter.noPrice - pricesBefore.noPrice;
+    const pricesBefore = trade.before;
+    const pricesAfter = trade.after;
+    const entryPrice = trade.entryPrice;
+    const priceChange = trade.priceChange;
 
     let positionResult = await supabase
       .from('positions')
@@ -2041,15 +2181,21 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
         amount_smallest_unit: amountSmallestUnit,
         stake_amount: toAmount(amountSmallestUnit),
         currency,
-        potential_return_smallest_unit: trade.estimatedPayoutSmallestUnit,
-        estimated_payout_smallest_unit: trade.estimatedPayoutSmallestUnit,
-        estimated_profit_smallest_unit: trade.estimatedProfitSmallestUnit,
-        estimated_payout_at_purchase: toAmount(trade.estimatedPayoutSmallestUnit),
-        estimated_profit_at_purchase: toAmount(trade.estimatedProfitSmallestUnit),
-        shares_received: trade.sharesReceived,
+        potential_return_smallest_unit: trade.positionValueSmallestUnit,
+        estimated_payout_smallest_unit: null,
+        estimated_profit_smallest_unit: null,
+        estimated_payout_at_purchase: null,
+        estimated_profit_at_purchase: null,
+        shares_received: trade.sharesOwned,
+        shares_owned: trade.sharesOwned,
         price_at_purchase: entryPrice,
         status: 'active',
-        entry_price: entryPrice
+        entry_price: entryPrice,
+        current_price: trade.currentPrice,
+        current_value_smallest_unit: trade.positionValueSmallestUnit,
+        ownership_percent: trade.ownershipPercent,
+        market_question_snapshot: currentMarket.question,
+        market_category_snapshot: currentMarket.category || 'General'
       })
       .select()
       .single();
@@ -2064,9 +2210,9 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
           amount_smallest_unit: amountSmallestUnit,
           stake_amount: toAmount(amountSmallestUnit),
           currency,
-          shares_received: trade.sharesReceived,
+          shares_received: trade.sharesOwned,
           price_at_purchase: entryPrice,
-          potential_return_smallest_unit: trade.estimatedPayoutSmallestUnit
+          potential_return_smallest_unit: trade.positionValueSmallestUnit
         })
         .select()
         .single();
@@ -2084,7 +2230,7 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
         side,
         amount_smallest_unit: amountSmallestUnit,
         price_before: side === 'YES' ? pricesBefore.yesPrice : pricesBefore.noPrice,
-        price_after: entryPrice,
+        price_after: trade.currentPrice,
         yes_price_after: pricesAfter.yesPrice,
         no_price_after: pricesAfter.noPrice,
         currency
@@ -2113,11 +2259,17 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
     const { data: updatedMarket, error: marketUpdateError } = await supabase
       .from('markets')
       .update({
-        yes_pool_smallest_unit: trade.nextYesPool,
-        no_pool_smallest_unit: trade.nextNoPool,
-        pool_amount_smallest_unit: trade.nextTotalPool,
+        yes_pool_smallest_unit: trade.nextYesVolume,
+        no_pool_smallest_unit: trade.nextNoVolume,
+        yes_volume_smallest_unit: trade.nextYesVolume,
+        no_volume_smallest_unit: trade.nextNoVolume,
+        total_yes_shares: trade.nextYesShares,
+        total_no_shares: trade.nextNoShares,
+        pool_amount_smallest_unit: trade.nextTotalVolume,
+        settlement_pool_smallest_unit: trade.nextTotalVolume,
         yes_price: pricesAfter.yesPrice,
         no_price: pricesAfter.noPrice,
+        pricing_model: 'ownership_shares',
         trade_count: nextTradeCount,
         participant_count: participantCount || Number(currentMarket.participant_count || 0),
         total_volume_smallest_unit: currentVolume + amountSmallestUnit,
@@ -2129,7 +2281,24 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
 
     if (marketUpdateError || !updatedMarket) throw marketUpdateError;
 
-    await savePriceHistory(marketId, pricesAfter.yesPrice, pricesAfter.noPrice, trade.nextYesPool, trade.nextNoPool, currentVolume + amountSmallestUnit, nextTradeCount, side, amountSmallestUnit);
+    await savePriceHistory(marketId, pricesAfter.yesPrice, pricesAfter.noPrice, trade.nextYesVolume, trade.nextNoVolume, currentVolume + amountSmallestUnit, nextTradeCount, side, amountSmallestUnit);
+    await supabase.from('market_activity_events').insert({
+      market_id: marketId,
+      user_id: user.id,
+      position_id: position.id,
+      event_type: side === 'YES' ? 'bought_yes' : 'bought_no',
+      side,
+      amount_smallest_unit: amountSmallestUnit,
+      price: trade.currentPrice,
+      shares: trade.sharesOwned,
+      position_value_smallest_unit: trade.positionValueSmallestUnit,
+      metadata: {
+        marketQuestion: updatedMarket.question || currentMarket.question || null,
+        ownershipPercent: trade.ownershipPercent,
+        yesPriceAfter: pricesAfter.yesPrice,
+        noPriceAfter: pricesAfter.noPrice
+      }
+    });
     const priceHistory = await fetchPriceHistory(updatedMarket);
 
     const { data: transaction } = await supabase
@@ -2152,9 +2321,9 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
           category: updatedMarket.category || currentMarket.category || null,
           side,
           entryPrice,
-          sharesReceived: trade.sharesReceived,
-          estimatedPayoutSmallestUnit: trade.estimatedPayoutSmallestUnit,
-          estimatedProfitSmallestUnit: trade.estimatedProfitSmallestUnit,
+          sharesOwned: trade.sharesOwned,
+          positionValueSmallestUnit: trade.positionValueSmallestUnit,
+          ownershipPercent: trade.ownershipPercent,
           yesPriceBefore: pricesBefore.yesPrice,
           noPriceBefore: pricesBefore.noPrice,
           yesPriceAfter: pricesAfter.yesPrice,
@@ -2716,11 +2885,16 @@ const loadSettlementPositions = async (marketId: string) => {
   return positions || [];
 };
 
-const fixedShareSettlementForPosition = (position: any, outcome: PredictionSide) => {
+const ownershipSettlementForPosition = (
+  position: any,
+  outcome: PredictionSide,
+  totalWinningShares: number,
+  totalLosingStakeSmallestUnit: number
+) => {
   const stakeSmallestUnit = Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0);
   const won = position.side === outcome;
   const priceAtPurchase = Number(position.price_at_purchase || position.entry_price || 0);
-  const storedShares = Number(position.shares_received || 0);
+  const storedShares = Number(position.shares_owned || position.shares_received || 0);
   const sharesReceived = storedShares > 0
     ? storedShares
     : priceAtPurchase > 0
@@ -2729,7 +2903,9 @@ const fixedShareSettlementForPosition = (position: any, outcome: PredictionSide)
   // Fixed-share settlement: purchased shares are locked at entry and each winning
   // share settles at ₦100. Later buyers can move market prices, but cannot change
   // this position's payout.
-  const payoutSmallestUnit = won ? Math.max(0, Math.round(sharesReceived * PAYOUT_PER_SHARE_SMALLEST_UNIT)) : 0;
+  const ownershipShare = won && totalWinningShares > 0 ? sharesReceived / totalWinningShares : 0;
+  const poolProfitSmallestUnit = Math.max(0, Math.round(ownershipShare * totalLosingStakeSmallestUnit));
+  const payoutSmallestUnit = won ? stakeSmallestUnit + poolProfitSmallestUnit : 0;
   const profitSmallestUnit = won ? payoutSmallestUnit - stakeSmallestUnit : -stakeSmallestUnit;
 
   return {
@@ -2737,6 +2913,7 @@ const fixedShareSettlementForPosition = (position: any, outcome: PredictionSide)
     stakeSmallestUnit,
     priceAtPurchase,
     sharesReceived,
+    ownershipShare,
     payoutSmallestUnit,
     profitSmallestUnit
   };
@@ -2745,8 +2922,15 @@ const fixedShareSettlementForPosition = (position: any, outcome: PredictionSide)
 const buildSettlementPreview = (market: any, outcome: PredictionSide, allPositions: any[]) => {
   const winningPositions = allPositions.filter((position: any) => position.side === outcome);
   const losingPositions = allPositions.filter((position: any) => position.side !== outcome);
+  const totalWinningShares = winningPositions.reduce((sum: number, position: any) => {
+    const stakeSmallestUnit = Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0);
+    const entryPrice = Number(position.price_at_purchase || position.entry_price || 0);
+    const shares = Number(position.shares_owned || position.shares_received || 0) || (entryPrice > 0 ? toAmount(stakeSmallestUnit) / entryPrice : 0);
+    return sum + shares;
+  }, 0);
+  const totalLosingStake = losingPositions.reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0), 0);
   const settledPositions = allPositions.map((position: any) => {
-    const settlement = fixedShareSettlementForPosition(position, outcome);
+    const settlement = ownershipSettlementForPosition(position, outcome, totalWinningShares, totalLosingStake);
 
     return {
       id: position.id,
@@ -2757,6 +2941,7 @@ const buildSettlementPreview = (market: any, outcome: PredictionSide, allPositio
       stakeSmallestUnit: settlement.stakeSmallestUnit,
       priceAtPurchase: settlement.priceAtPurchase,
       sharesReceived: settlement.sharesReceived,
+      ownershipPercent: settlement.ownershipShare * 100,
       payoutSmallestUnit: settlement.payoutSmallestUnit,
       profitSmallestUnit: settlement.profitSmallestUnit,
       alreadySettled: Boolean(position.settled_at || position.resolved_at || ['won', 'lost', 'settled'].includes(String(position.status || ''))),
@@ -2768,7 +2953,6 @@ const buildSettlementPreview = (market: any, outcome: PredictionSide, allPositio
     };
   });
   const totalWinningStake = winningPositions.reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0), 0);
-  const totalLosingStake = losingPositions.reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0), 0);
 
   return {
     marketId: market.id,
@@ -2778,6 +2962,7 @@ const buildSettlementPreview = (market: any, outcome: PredictionSide, allPositio
     totalNoStake: toAmount(allPositions.filter((position: any) => position.side === 'NO').reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || 0), 0)),
     totalWinningStake: toAmount(totalWinningStake),
     totalLosingStake: toAmount(totalLosingStake),
+    totalWinningShares,
     totalWinners: winningPositions.length,
     totalLosers: losingPositions.length,
     totalPayout: toAmount(settledPositions.reduce((sum: number, position: any) => sum + position.payoutSmallestUnit, 0)),
@@ -2814,6 +2999,9 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
         payout_smallest_unit: result.payoutSmallestUnit,
         final_payout_smallest_unit: result.payoutSmallestUnit,
         profit_smallest_unit: result.profitSmallestUnit,
+        settlement_payout_smallest_unit: result.payoutSmallestUnit,
+        settlement_profit_smallest_unit: result.profitSmallestUnit,
+        ownership_percent: result.ownershipPercent,
         status: result.status,
         resolved_at: now,
         settled_at: now,
@@ -3131,10 +3319,8 @@ app.post('/api/admin/markets', authenticate, requireRole('admin'), async (req: R
     const status = String(req.body.status || 'active');
     const imageUrl = req.body.image_url || null;
     const videoUrl = req.body.video_url || null;
-    const seedYes = Number(req.body.seed_liquidity_yes_smallest_unit ?? 50000);
-    const seedNo = Number(req.body.seed_liquidity_no_smallest_unit ?? 50000);
-    const seedTotal = seedYes + seedNo;
-    const { yesPrice, noPrice } = calculatePoolPrices(seedYes, seedNo);
+    const yesPrice = Number(req.body.starting_yes_price ?? req.body.yes_price ?? 50);
+    const noPrice = Number(req.body.starting_no_price ?? req.body.no_price ?? (100 - yesPrice));
     const rules = String(req.body.resolution_instructions || req.body.rules || '').trim();
     const resolutionSource = String(req.body.resolution_source || '').trim();
 
@@ -3150,8 +3336,8 @@ app.post('/api/admin/markets', authenticate, requireRole('admin'), async (req: R
       return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Category is required.' } });
     }
 
-    if (!Number.isFinite(seedYes) || !Number.isFinite(seedNo) || seedYes <= 0 || seedNo <= 0) {
-      return res.status(400).json({ success: false, error: { code: 'INVALID_SEED_LIQUIDITY', message: 'Seed liquidity must be greater than zero for both sides.' } });
+    if (!Number.isFinite(yesPrice) || !Number.isFinite(noPrice) || yesPrice < 1 || noPrice < 1 || Math.round(yesPrice + noPrice) !== 100) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_STARTING_PRICES', message: 'Starting YES and NO prices must be valid and add up to 100.' } });
     }
 
     if (!rules) {
@@ -3192,11 +3378,19 @@ app.post('/api/admin/markets', authenticate, requireRole('admin'), async (req: R
         min_position_smallest_unit: Number(req.body.min_position_smallest_unit || 100),
         max_position_smallest_unit: Number(req.body.max_position_smallest_unit || 0) || null,
         created_by: user.id,
-        pool_amount_smallest_unit: seedTotal,
-        seed_liquidity_yes_smallest_unit: seedYes,
-        seed_liquidity_no_smallest_unit: seedNo,
-        yes_pool_smallest_unit: seedYes,
-        no_pool_smallest_unit: seedNo,
+        pricing_model: 'ownership_shares',
+        starting_yes_price: yesPrice,
+        starting_no_price: noPrice,
+        pool_amount_smallest_unit: 0,
+        settlement_pool_smallest_unit: 0,
+        seed_liquidity_yes_smallest_unit: 0,
+        seed_liquidity_no_smallest_unit: 0,
+        yes_pool_smallest_unit: 0,
+        no_pool_smallest_unit: 0,
+        yes_volume_smallest_unit: 0,
+        no_volume_smallest_unit: 0,
+        total_yes_shares: 0,
+        total_no_shares: 0,
         participant_count: 0,
         trade_count: 0,
         total_volume_smallest_unit: 0,
@@ -3207,7 +3401,7 @@ app.post('/api/admin/markets', authenticate, requireRole('admin'), async (req: R
 
     if (error) throw error;
 
-    await savePriceHistory(market.id, yesPrice, noPrice, seedYes, seedNo, 0, 0);
+    await savePriceHistory(market.id, yesPrice, noPrice, 0, 0, 0, 0);
 
     res.status(201).json({
       success: true,
@@ -3441,6 +3635,285 @@ app.get('/api/admin/transactions', authenticate, requireRole('super_admin'), asy
   } catch (error: any) {
     console.error('Admin transactions error:', error);
     res.status(500).json({ error: { code: 'ADMIN_TRANSACTIONS_FAILED', message: 'Could not load transactions.' } });
+  }
+});
+
+app.get('/api/admin/finance/overview', authenticate, requireRole('super_admin'), async (_req: Request, res: Response) => {
+  try {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const todayIso = startOfToday.toISOString();
+    const [walletsResult, depositsResult, withdrawalsResult, pendingDepositsResult, pendingWithdrawalsResult, todayDepositsResult, todayWithdrawalsResult, todayPredictionsResult, pendingPayoutsResult] = await Promise.all([
+      supabase.from('wallets').select('balance_ngn_kobo, locked_ngn_kobo'),
+      supabase.from('deposit_requests').select('amount_smallest_unit').eq('status', 'completed'),
+      supabase.from('withdrawal_requests').select('amount_smallest_unit').eq('status', 'completed'),
+      supabase.from('deposit_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('deposit_requests').select('amount_smallest_unit').eq('status', 'completed').gte('approved_at', todayIso),
+      supabase.from('withdrawal_requests').select('amount_smallest_unit').eq('status', 'completed').gte('approved_at', todayIso),
+      supabase.from('positions').select('amount_smallest_unit').gte('created_at', todayIso),
+      supabase.from('positions').select('id', { count: 'exact', head: true }).eq('status', 'won'),
+    ]);
+    const sum = (rows?: any[] | null) => (rows || []).reduce((total, row) => total + Number(row.amount_smallest_unit || 0), 0);
+    const totalUserBalances = (walletsResult.data || []).reduce((total, wallet) => total + Number(wallet.balance_ngn_kobo || 0), 0);
+    const totalLocked = (walletsResult.data || []).reduce((total, wallet) => total + Number(wallet.locked_ngn_kobo || 0), 0);
+    res.json({ overview: {
+      totalUserBalances: toAmount(totalUserBalances),
+      totalLocked: toAmount(totalLocked),
+      totalDeposits: toAmount(sum(depositsResult.data)),
+      totalWithdrawals: toAmount(sum(withdrawalsResult.data)),
+      pendingDeposits: pendingDepositsResult.count || 0,
+      pendingWithdrawals: pendingWithdrawalsResult.count || 0,
+      todayDeposits: toAmount(sum(todayDepositsResult.data)),
+      todayWithdrawals: toAmount(sum(todayWithdrawalsResult.data)),
+      todayPredictionVolume: toAmount(sum(todayPredictionsResult.data)),
+      pendingPayouts: pendingPayoutsResult.count || 0,
+    } });
+  } catch (error) {
+    console.error('Finance overview error:', error);
+    res.status(500).json({ error: { code: 'FINANCE_OVERVIEW_FAILED', message: 'Could not load finance overview.', timestamp: new Date().toISOString() } });
+  }
+});
+
+const serializeDepositRequest = (request: any) => ({
+  id: request.id,
+  userId: request.user_id,
+  walletId: request.wallet_id,
+  transactionId: request.transaction_id,
+  amount: toAmount(request.amount_smallest_unit),
+  amountSmallestUnit: request.amount_smallest_unit,
+  currency: request.currency,
+  reference: request.reference,
+  provider: request.provider,
+  paymentInstruction: request.payment_instruction,
+  status: request.status,
+  user: request.users ? { email: request.users.email, username: request.users.username } : null,
+  createdAt: request.created_at,
+  updatedAt: request.updated_at,
+});
+
+const serializeWithdrawalRequest = (request: any) => ({
+  id: request.id,
+  userId: request.user_id,
+  walletId: request.wallet_id,
+  transactionId: request.transaction_id,
+  amount: toAmount(request.amount_smallest_unit),
+  amountSmallestUnit: request.amount_smallest_unit,
+  currency: request.currency,
+  reference: request.reference,
+  provider: request.provider,
+  bankName: request.bank_name,
+  accountNumber: request.account_number,
+  accountName: request.account_name,
+  reviewTier: request.review_tier,
+  status: request.status,
+  user: request.users ? { email: request.users.email, username: request.users.username } : null,
+  createdAt: request.created_at,
+  updatedAt: request.updated_at,
+});
+
+app.get('/api/admin/finance/deposits', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+  try {
+    const status = String(req.query.status || 'pending');
+    let query = supabase.from('deposit_requests').select('*, users(email, username)').order('created_at', { ascending: false }).limit(200);
+    if (status !== 'all') query = query.eq('status', status);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ deposits: (data || []).map(serializeDepositRequest) });
+  } catch (error) {
+    console.error('Finance deposits error:', error);
+    res.status(500).json({ error: { code: 'FINANCE_DEPOSITS_FAILED', message: 'Could not load deposit queue.', timestamp: new Date().toISOString() } });
+  }
+});
+
+app.get('/api/admin/finance/withdrawals', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+  try {
+    const status = String(req.query.status || 'pending');
+    let query = supabase.from('withdrawal_requests').select('*, users(email, username)').order('created_at', { ascending: false }).limit(200);
+    if (status !== 'all') query = query.eq('status', status);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ withdrawals: (data || []).map(serializeWithdrawalRequest) });
+  } catch (error) {
+    console.error('Finance withdrawals error:', error);
+    res.status(500).json({ error: { code: 'FINANCE_WITHDRAWALS_FAILED', message: 'Could not load withdrawal queue.', timestamp: new Date().toISOString() } });
+  }
+});
+
+app.get('/api/admin/finance/transactions', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+  try {
+    const type = String(req.query.type || '');
+    const status = String(req.query.status || '');
+    const search = String(req.query.search || '').trim();
+    let query = supabase.from('transactions').select('*').order('created_at', { ascending: false }).limit(300);
+    if (type && type !== 'all') query = query.eq('type', type);
+    if (status && status !== 'all') query = query.eq('status', status);
+    if (search) query = query.or(`reference.ilike.%${search}%,description.ilike.%${search}%`);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ transactions: (data || []).map(serializeFinanceTransaction) });
+  } catch (error) {
+    console.error('Finance transactions error:', error);
+    res.status(500).json({ error: { code: 'FINANCE_TRANSACTIONS_FAILED', message: 'Could not load finance transactions.', timestamp: new Date().toISOString() } });
+  }
+});
+
+app.post('/api/admin/finance/deposits/:id/approve', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+  try {
+    const admin = (req as any).user;
+    const { data: request, error: requestError } = await supabase.from('deposit_requests').select('*').eq('id', req.params.id).single();
+    if (requestError || !request) return res.status(404).json({ error: { code: 'DEPOSIT_NOT_FOUND', message: 'Deposit request not found.', timestamp: new Date().toISOString() } });
+    if (request.status !== 'pending') return res.status(409).json({ error: { code: 'DEPOSIT_ALREADY_HANDLED', message: 'This deposit request has already been handled.', timestamp: new Date().toISOString() } });
+    const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('id', request.wallet_id).single();
+    if (walletError || !wallet) throw walletError || new Error('Wallet not found');
+    const approvedAt = new Date().toISOString();
+    const { data: updatedWallet, error: updateError } = await supabase.from('wallets').update({
+      balance_ngn_kobo: Number(wallet.balance_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
+      available_ngn_kobo: Number(wallet.available_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
+      total_deposited_ngn_kobo: Number(wallet.total_deposited_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
+      updated_at: approvedAt,
+    }).eq('id', wallet.id).select().single();
+    if (updateError || !updatedWallet) throw updateError || new Error('Wallet credit failed');
+    await supabase.from('deposit_requests').update({ status: 'completed', approved_by: admin.id, approved_at: approvedAt, updated_at: approvedAt }).eq('id', request.id).eq('status', 'pending');
+    if (request.transaction_id) await supabase.from('transactions').update({ status: 'completed', approved_by: admin.id, approved_at: approvedAt, updated_at: approvedAt }).eq('id', request.transaction_id);
+    const { data: approvedTx } = await supabase.from('transactions').insert({
+      user_id: request.user_id,
+      wallet_id: request.wallet_id,
+      type: 'deposit_approved',
+      direction: 'IN',
+      amount_smallest_unit: request.amount_smallest_unit,
+      currency: request.currency,
+      status: 'completed',
+      reference: request.reference,
+      reference_id: request.id,
+      reference_type: 'deposit_request',
+      approved_by: admin.id,
+      approved_at: approvedAt,
+      description: `Approved deposit ${request.reference}`,
+      metadata: { reference: request.reference, provider: request.provider }
+    }).select().single();
+    await insertNotificationSafely({ user_id: request.user_id, type: 'deposit_approved', title: 'Deposit approved', message: `₦${toAmount(request.amount_smallest_unit).toLocaleString()} has been added to your wallet.`, reference_id: request.id, reference_type: 'deposit_request', metadata: { reference: request.reference } }, 'Deposit approved notification');
+    res.json({ success: true, wallet: serializeWalletV1(updatedWallet), transaction: approvedTx ? serializeFinanceTransaction(approvedTx) : null });
+  } catch (error: any) {
+    console.error('Approve deposit error:', error);
+    res.status(500).json({ error: { code: 'APPROVE_DEPOSIT_FAILED', message: error.message || 'Could not approve deposit.', timestamp: new Date().toISOString() } });
+  }
+});
+
+app.post('/api/admin/finance/deposits/:id/reject', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+  try {
+    const admin = (req as any).user;
+    const { data: request, error: requestError } = await supabase.from('deposit_requests').select('*').eq('id', req.params.id).single();
+    if (requestError || !request) return res.status(404).json({ error: { code: 'DEPOSIT_NOT_FOUND', message: 'Deposit request not found.', timestamp: new Date().toISOString() } });
+    if (request.status !== 'pending') return res.status(409).json({ error: { code: 'DEPOSIT_ALREADY_HANDLED', message: 'This deposit request has already been handled.', timestamp: new Date().toISOString() } });
+    const rejectedAt = new Date().toISOString();
+    await supabase.from('deposit_requests').update({ status: 'rejected', rejected_by: admin.id, rejected_at: rejectedAt, updated_at: rejectedAt }).eq('id', request.id).eq('status', 'pending');
+    if (request.transaction_id) await supabase.from('transactions').update({ status: 'rejected', approved_by: admin.id, approved_at: rejectedAt, updated_at: rejectedAt }).eq('id', request.transaction_id);
+    const { data: rejectedTx } = await supabase.from('transactions').insert({
+      user_id: request.user_id,
+      wallet_id: request.wallet_id,
+      type: 'deposit_rejected',
+      direction: 'RELEASE',
+      amount_smallest_unit: request.amount_smallest_unit,
+      currency: request.currency,
+      status: 'rejected',
+      reference: request.reference,
+      reference_id: request.id,
+      reference_type: 'deposit_request',
+      approved_by: admin.id,
+      approved_at: rejectedAt,
+      description: `Rejected deposit ${request.reference}`,
+      metadata: { reason: req.body?.reason || 'Rejected by admin' }
+    }).select().single();
+    await insertNotificationSafely({ user_id: request.user_id, type: 'deposit_rejected', title: 'Deposit rejected', message: `Your ₦${toAmount(request.amount_smallest_unit).toLocaleString()} deposit request was rejected.`, reference_id: request.id, reference_type: 'deposit_request', metadata: { reference: request.reference } }, 'Deposit rejected notification');
+    res.json({ success: true, transaction: rejectedTx ? serializeFinanceTransaction(rejectedTx) : null });
+  } catch (error: any) {
+    console.error('Reject deposit error:', error);
+    res.status(500).json({ error: { code: 'REJECT_DEPOSIT_FAILED', message: error.message || 'Could not reject deposit.', timestamp: new Date().toISOString() } });
+  }
+});
+
+app.post('/api/admin/finance/withdrawals/:id/approve', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+  try {
+    const admin = (req as any).user;
+    const { data: request, error: requestError } = await supabase.from('withdrawal_requests').select('*').eq('id', req.params.id).single();
+    if (requestError || !request) return res.status(404).json({ error: { code: 'WITHDRAWAL_NOT_FOUND', message: 'Withdrawal request not found.', timestamp: new Date().toISOString() } });
+    if (request.status !== 'pending') return res.status(409).json({ error: { code: 'WITHDRAWAL_ALREADY_HANDLED', message: 'This withdrawal request has already been handled.', timestamp: new Date().toISOString() } });
+    const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('id', request.wallet_id).single();
+    if (walletError || !wallet) throw walletError || new Error('Wallet not found');
+    if (Number(wallet.locked_ngn_kobo || 0) < Number(request.amount_smallest_unit || 0)) throw new Error('Locked balance is lower than withdrawal amount.');
+    const approvedAt = new Date().toISOString();
+    const { data: updatedWallet, error: updateError } = await supabase.from('wallets').update({
+      balance_ngn_kobo: Math.max(0, Number(wallet.balance_ngn_kobo || 0) - Number(request.amount_smallest_unit || 0)),
+      locked_ngn_kobo: Math.max(0, Number(wallet.locked_ngn_kobo || 0) - Number(request.amount_smallest_unit || 0)),
+      total_withdrawn_ngn_kobo: Number(wallet.total_withdrawn_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
+      updated_at: approvedAt,
+    }).eq('id', wallet.id).select().single();
+    if (updateError || !updatedWallet) throw updateError || new Error('Wallet withdrawal update failed');
+    await supabase.from('withdrawal_requests').update({ status: 'completed', approved_by: admin.id, approved_at: approvedAt, updated_at: approvedAt }).eq('id', request.id).eq('status', 'pending');
+    if (request.transaction_id) await supabase.from('transactions').update({ status: 'completed', approved_by: admin.id, approved_at: approvedAt, updated_at: approvedAt }).eq('id', request.transaction_id);
+    const { data: approvedTx } = await supabase.from('transactions').insert({
+      user_id: request.user_id,
+      wallet_id: request.wallet_id,
+      type: 'withdrawal_approved',
+      direction: 'OUT',
+      amount_smallest_unit: request.amount_smallest_unit,
+      currency: request.currency,
+      status: 'completed',
+      reference: request.reference,
+      reference_id: request.id,
+      reference_type: 'withdrawal_request',
+      approved_by: admin.id,
+      approved_at: approvedAt,
+      description: `Paid withdrawal ${request.reference}`,
+      metadata: { bankName: request.bank_name, accountNumber: request.account_number, accountName: request.account_name }
+    }).select().single();
+    await insertNotificationSafely({ user_id: request.user_id, type: 'withdrawal_approved', title: 'Withdrawal paid', message: `Your ₦${toAmount(request.amount_smallest_unit).toLocaleString()} withdrawal has been marked paid.`, reference_id: request.id, reference_type: 'withdrawal_request', metadata: { reference: request.reference } }, 'Withdrawal approved notification');
+    res.json({ success: true, wallet: serializeWalletV1(updatedWallet), transaction: approvedTx ? serializeFinanceTransaction(approvedTx) : null });
+  } catch (error: any) {
+    console.error('Approve withdrawal error:', error);
+    res.status(500).json({ error: { code: 'APPROVE_WITHDRAWAL_FAILED', message: error.message || 'Could not approve withdrawal.', timestamp: new Date().toISOString() } });
+  }
+});
+
+app.post('/api/admin/finance/withdrawals/:id/reject', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+  try {
+    const admin = (req as any).user;
+    const { data: request, error: requestError } = await supabase.from('withdrawal_requests').select('*').eq('id', req.params.id).single();
+    if (requestError || !request) return res.status(404).json({ error: { code: 'WITHDRAWAL_NOT_FOUND', message: 'Withdrawal request not found.', timestamp: new Date().toISOString() } });
+    if (request.status !== 'pending') return res.status(409).json({ error: { code: 'WITHDRAWAL_ALREADY_HANDLED', message: 'This withdrawal request has already been handled.', timestamp: new Date().toISOString() } });
+    const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('id', request.wallet_id).single();
+    if (walletError || !wallet) throw walletError || new Error('Wallet not found');
+    const rejectedAt = new Date().toISOString();
+    const { data: updatedWallet, error: updateError } = await supabase.from('wallets').update({
+      available_ngn_kobo: Number(wallet.available_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
+      locked_ngn_kobo: Math.max(0, Number(wallet.locked_ngn_kobo || 0) - Number(request.amount_smallest_unit || 0)),
+      updated_at: rejectedAt,
+    }).eq('id', wallet.id).select().single();
+    if (updateError || !updatedWallet) throw updateError || new Error('Wallet release failed');
+    await supabase.from('withdrawal_requests').update({ status: 'rejected', rejected_by: admin.id, rejected_at: rejectedAt, updated_at: rejectedAt }).eq('id', request.id).eq('status', 'pending');
+    if (request.transaction_id) await supabase.from('transactions').update({ status: 'rejected', approved_by: admin.id, approved_at: rejectedAt, updated_at: rejectedAt }).eq('id', request.transaction_id);
+    const { data: rejectedTx } = await supabase.from('transactions').insert({
+      user_id: request.user_id,
+      wallet_id: request.wallet_id,
+      type: 'withdrawal_rejected',
+      direction: 'RELEASE',
+      amount_smallest_unit: request.amount_smallest_unit,
+      currency: request.currency,
+      status: 'completed',
+      reference: request.reference,
+      reference_id: request.id,
+      reference_type: 'withdrawal_request',
+      approved_by: admin.id,
+      approved_at: rejectedAt,
+      description: `Rejected withdrawal ${request.reference}`,
+      metadata: { reason: req.body?.reason || 'Rejected by admin' }
+    }).select().single();
+    await insertNotificationSafely({ user_id: request.user_id, type: 'withdrawal_rejected', title: 'Withdrawal rejected', message: `Your ₦${toAmount(request.amount_smallest_unit).toLocaleString()} withdrawal was rejected and funds returned.`, reference_id: request.id, reference_type: 'withdrawal_request', metadata: { reference: request.reference } }, 'Withdrawal rejected notification');
+    res.json({ success: true, wallet: serializeWalletV1(updatedWallet), transaction: rejectedTx ? serializeFinanceTransaction(rejectedTx) : null });
+  } catch (error: any) {
+    console.error('Reject withdrawal error:', error);
+    res.status(500).json({ error: { code: 'REJECT_WITHDRAWAL_FAILED', message: error.message || 'Could not reject withdrawal.', timestamp: new Date().toISOString() } });
   }
 });
 

@@ -80,6 +80,12 @@ export type ApiMarket = {
   noPool: number;
   totalPool: number;
   totalVolume?: number;
+  yesVolume?: number;
+  noVolume?: number;
+  totalYesShares?: number;
+  totalNoShares?: number;
+  startingYesPrice?: number;
+  startingNoPrice?: number;
   seedLiquidityYes?: number;
   seedLiquidityNo?: number;
   participants: number;
@@ -128,6 +134,12 @@ export type AdminMarket = {
   total_volume_smallest_unit?: number;
   seed_liquidity_yes_smallest_unit?: number;
   seed_liquidity_no_smallest_unit?: number;
+  starting_yes_price?: number;
+  starting_no_price?: number;
+  yes_volume_smallest_unit?: number;
+  no_volume_smallest_unit?: number;
+  total_yes_shares?: number;
+  total_no_shares?: number;
   yes_pool_smallest_unit?: number;
   no_pool_smallest_unit?: number;
   participant_count?: number;
@@ -153,8 +165,8 @@ export type AdminCreateMarketInput = {
   no_label: string;
   yes_price?: number;
   no_price?: number;
-  seed_liquidity_yes_smallest_unit: number;
-  seed_liquidity_no_smallest_unit: number;
+  starting_yes_price?: number;
+  starting_no_price?: number;
   close_date: string;
   resolution_date: string;
   resolution_source?: string;
@@ -177,6 +189,10 @@ export type ApiPosition = {
   entryPrice: number;
   currentPrice: number;
   sharesReceived?: number;
+  sharesOwned?: number;
+  ownershipPercent?: number;
+  positionValue?: number;
+  unrealizedPnl?: number;
   currentValue: number;
   estimatedPayout?: number;
   estimatedProfit?: number;
@@ -207,6 +223,13 @@ export type ApiWallet = {
   balanceUsdCents?: number;
   availableNgnKobo?: number;
   availableUsdCents?: number;
+  lockedNgn?: number;
+  lockedNgnKobo?: number;
+  totalDepositedNgn?: number;
+  totalWithdrawnNgn?: number;
+  totalWinningsNgn?: number;
+  totalStakedNgn?: number;
+  currency?: 'NGN';
   createdAt?: string;
   updatedAt?: string;
 };
@@ -215,15 +238,47 @@ export type ApiTransaction = {
   id: string;
   userId?: string;
   walletId?: string;
-  type: 'deposit' | 'withdrawal' | 'position_entry' | 'position_payout' | 'refund';
+  type: 'deposit' | 'withdrawal' | 'position_entry' | 'position_payout' | 'refund' | 'deposit_request' | 'deposit_approved' | 'deposit_rejected' | 'withdrawal_request' | 'withdrawal_approved' | 'withdrawal_rejected' | 'prediction_stake' | 'market_payout' | 'admin_adjustment';
   amount: number;
   amountSmallestUnit: number;
   currency: 'NGN' | 'USD';
-  direction: 'IN' | 'OUT';
+  direction: 'IN' | 'OUT' | 'HOLD' | 'RELEASE';
+  reference?: string | null;
   referenceId?: string | null;
   referenceType?: string | null;
   status: string;
+  description?: string | null;
   metadata?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt?: string;
+};
+
+export type DepositRequest = {
+  id: string;
+  userId?: string;
+  amount: number;
+  amountSmallestUnit: number;
+  currency: 'NGN';
+  reference: string;
+  paymentInstruction: string;
+  status: string;
+  user?: { email?: string; username?: string } | null;
+  createdAt: string;
+};
+
+export type WithdrawalRequest = {
+  id: string;
+  userId?: string;
+  amount: number;
+  amountSmallestUnit: number;
+  currency: 'NGN';
+  reference: string;
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  reviewTier?: string;
+  status: string;
+  user?: { email?: string; username?: string } | null;
   createdAt: string;
 };
 
@@ -483,27 +538,39 @@ class ApiService {
   }
 
   async deposit(amount: number, currency: 'NGN' | 'USD' = 'NGN', method: string = 'bank_transfer') {
-    return this.request('/api/wallet/deposit', {
+    return this.createDepositRequest(amount, method);
+  }
+
+  async createDepositRequest(amount: number, method: string = 'bank_transfer') {
+    return this.request<{ message: string; wallet: ApiWallet; depositRequest: DepositRequest; transaction: ApiTransaction }>('/api/wallet/deposit-request', {
       method: 'POST',
       body: JSON.stringify({
         amount,
         amountSmallestUnit: toSmallestUnit(amount),
         amount_smallest_unit: toSmallestUnit(amount),
-        currency,
+        currency: 'NGN',
         method,
       }),
     });
   }
 
   async withdraw(amount: number, currency: 'NGN' | 'USD' = 'NGN', destination: string = 'bank_account') {
-    return this.request('/api/wallet/withdraw', {
+    void currency;
+    void destination;
+    return this.createWithdrawalRequest(amount, { bankName: 'Bank account', accountNumber: '0000000000', accountName: 'Account holder' });
+  }
+
+  async createWithdrawalRequest(amount: number, bankDetails: { bankName: string; accountNumber: string; accountName: string }) {
+    return this.request<{ message: string; wallet: ApiWallet; withdrawalRequest: WithdrawalRequest; transaction: ApiTransaction }>('/api/wallet/withdrawal-request', {
       method: 'POST',
       body: JSON.stringify({
         amount,
         amountSmallestUnit: toSmallestUnit(amount),
         amount_smallest_unit: toSmallestUnit(amount),
-        currency,
-        destination,
+        currency: 'NGN',
+        bankName: bankDetails.bankName,
+        accountNumber: bankDetails.accountNumber,
+        accountName: bankDetails.accountName,
       }),
     });
   }
@@ -625,6 +692,49 @@ class ApiService {
 
   async listAdminTransactions() {
     return this.request<{ transactions: ApiTransaction[] }>('/api/admin/transactions');
+  }
+
+  async getAdminFinanceOverview() {
+    return this.request<{ overview: Record<string, number> }>('/api/admin/finance/overview');
+  }
+
+  async listAdminFinanceDeposits(status = 'pending') {
+    return this.request<{ deposits: DepositRequest[] }>(`/api/admin/finance/deposits?status=${encodeURIComponent(status)}`);
+  }
+
+  async approveAdminDeposit(id: string) {
+    return this.request<{ success: boolean; wallet?: ApiWallet; transaction?: ApiTransaction }>(`/api/admin/finance/deposits/${encodeURIComponent(id)}/approve`, { method: 'POST' });
+  }
+
+  async rejectAdminDeposit(id: string, reason?: string) {
+    return this.request<{ success: boolean; transaction?: ApiTransaction }>(`/api/admin/finance/deposits/${encodeURIComponent(id)}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  async listAdminFinanceWithdrawals(status = 'pending') {
+    return this.request<{ withdrawals: WithdrawalRequest[] }>(`/api/admin/finance/withdrawals?status=${encodeURIComponent(status)}`);
+  }
+
+  async approveAdminWithdrawal(id: string) {
+    return this.request<{ success: boolean; wallet?: ApiWallet; transaction?: ApiTransaction }>(`/api/admin/finance/withdrawals/${encodeURIComponent(id)}/approve`, { method: 'POST' });
+  }
+
+  async rejectAdminWithdrawal(id: string, reason?: string) {
+    return this.request<{ success: boolean; wallet?: ApiWallet; transaction?: ApiTransaction }>(`/api/admin/finance/withdrawals/${encodeURIComponent(id)}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  async listAdminFinanceTransactions(params: { type?: string; status?: string; search?: string } = {}) {
+    const query = new URLSearchParams();
+    if (params.type) query.set('type', params.type);
+    if (params.status) query.set('status', params.status);
+    if (params.search) query.set('search', params.search);
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.request<{ transactions: ApiTransaction[] }>(`/api/admin/finance/transactions${suffix}`);
   }
 
   async healthCheck() {
