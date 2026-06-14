@@ -44,7 +44,7 @@ export const MarketHealthIndicators = ({ market, variant = "compact" }: MarketHe
                 market.confidence >= 75
                   ? "text-emerald"
                   : market.confidence >= 50
-                  ? "text-purple"
+                  ? "text-emerald"
                   : market.confidence >= 25
                   ? "text-orange-500"
                   : "text-coral"
@@ -74,20 +74,20 @@ export const MarketHealthIndicators = ({ market, variant = "compact" }: MarketHe
         {/* Pool Size */}
         <div className="bg-graphite/5 rounded-xl p-3 border border-graphite/10">
           <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="w-4 h-4 text-purple" />
-            <span className="text-xs text-graphite font-medium">Pool Size</span>
+            <TrendingUp className="w-4 h-4 text-emerald" />
+            <span className="text-xs text-graphite font-medium">Market volume</span>
           </div>
           <div className="font-bold text-lg text-charcoal">{formatNaira(market.totalPool)}</div>
           <div className="text-xs text-graphite mt-0.5">
-            Liquidity: {health.liquidityLevel}
+            Pool activity: {health.liquidityLevel}
           </div>
         </div>
 
         {/* Participants */}
         <div className="bg-graphite/5 rounded-xl p-3 border border-graphite/10">
           <div className="flex items-center gap-2 mb-1">
-            <Users className="w-4 h-4 text-purple" />
-            <span className="text-xs text-graphite font-medium">Traders</span>
+            <Users className="w-4 h-4 text-emerald" />
+            <span className="text-xs text-graphite font-medium">Participants</span>
           </div>
           <div className="font-bold text-lg text-charcoal">{market.participants}</div>
           <div className="text-xs text-graphite mt-0.5">
@@ -102,8 +102,8 @@ export const MarketHealthIndicators = ({ market, variant = "compact" }: MarketHe
         {market.confidence !== undefined && (
           <div className="bg-graphite/5 rounded-xl p-3 border border-graphite/10">
             <div className="flex items-center gap-2 mb-1">
-              <Activity className="w-4 h-4 text-purple" />
-              <span className="text-xs text-graphite font-medium">Confidence</span>
+              <Activity className="w-4 h-4 text-emerald" />
+              <span className="text-xs text-graphite font-medium">Market sentiment</span>
             </div>
             <div className="flex items-baseline gap-2">
               <div
@@ -111,7 +111,7 @@ export const MarketHealthIndicators = ({ market, variant = "compact" }: MarketHe
                   market.confidence >= 75
                     ? "text-emerald"
                     : market.confidence >= 50
-                    ? "text-purple"
+                    ? "text-emerald"
                     : market.confidence >= 25
                     ? "text-orange-500"
                     : "text-coral"
@@ -127,7 +127,7 @@ export const MarketHealthIndicators = ({ market, variant = "compact" }: MarketHe
                   market.confidence >= 75
                     ? "bg-emerald"
                     : market.confidence >= 50
-                    ? "bg-purple"
+                    ? "bg-emerald"
                     : market.confidence >= 25
                     ? "bg-orange-500"
                     : "bg-coral"
@@ -142,7 +142,7 @@ export const MarketHealthIndicators = ({ market, variant = "compact" }: MarketHe
         {market.volatility !== undefined && (
           <div className="bg-graphite/5 rounded-xl p-3 border border-graphite/10">
             <div className="flex items-center gap-2 mb-1">
-              <Activity className="w-4 h-4 text-purple" />
+              <Activity className="w-4 h-4 text-emerald" />
               <span className="text-xs text-graphite font-medium">Volatility</span>
             </div>
             <div className="flex items-baseline gap-2">
@@ -177,13 +177,13 @@ export const MarketHealthIndicators = ({ market, variant = "compact" }: MarketHe
 
       {/* Time Remaining */}
       {market.closesIn && (
-        <div className="bg-purple/5 rounded-xl p-3 border border-purple/10">
+        <div className="bg-emerald/5 rounded-xl p-3 border border-emerald/10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-purple" />
+              <Clock className="w-4 h-4 text-emerald" />
               <span className="text-xs text-graphite font-medium">Closes in</span>
             </div>
-            <span className="font-bold text-sm text-purple">{market.closesIn}</span>
+            <span className="font-bold text-sm text-emerald">{market.closesIn}</span>
           </div>
         </div>
       )}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Flame, Radio, Search, UserCircle, Wallet, Zap } from "lucide-react";
+import { Search, UserCircle, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
@@ -23,7 +23,6 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const { markets, loadMarkets, isLoadingMarkets, marketError } = useMarketState();
   const [now, setNow] = useState(Date.now());
-  const [pulseIndex, setPulseIndex] = useState(0);
 
   useEffect(() => {
     loadMarkets().catch(() => {
@@ -37,9 +36,13 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setPulseIndex((value) => value + 1), 3500);
-    return () => window.clearInterval(timer);
-  }, []);
+    const refresh = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        loadMarkets({ force: true }).catch(() => {});
+      }
+    }, 15000);
+    return () => window.clearInterval(refresh);
+  }, [loadMarkets]);
 
   const filtered = useMemo(() => {
     let next = markets.filter(isLiveMarket);
@@ -59,59 +62,39 @@ const Index = () => {
   }, [markets, category, searchQuery]);
 
   const liveCount = markets.filter(isLiveMarket).length;
-  const activeMarkets = filtered.filter(isLiveMarket);
-  const pulseMarket = activeMarkets.length ? activeMarkets[pulseIndex % activeMarkets.length] : null;
-  const recentActivity = pulseMarket
-    ? `${Math.max(0, Number(pulseMarket.tradeCount || 0))} trades · ${pulseMarket.question}`
-    : "Live markets are warming up";
 
   return (
-    <div className="min-h-screen bg-[#050711] pb-24 text-white md:pb-0 xl:pl-64">
+    <div className="app-bg min-h-screen pb-24 text-white md:pb-0 xl:pl-64">
       <Header />
-      <main className="mx-auto max-w-[900px] px-4 py-4 sm:px-6">
+      <main className="mx-auto max-w-[1320px] px-4 py-4 sm:px-6 lg:py-6">
         <section className="mb-4 flex items-center justify-between gap-3 md:hidden">
           <div>
             <div className="text-2xl font-black tracking-tight">Flippe</div>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-violet-200/70">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" />
+            <div className="flex items-center gap-1.5 text-xs font-bold text-[#8B98A8]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#12B886]" />
               {liveCount} live markets
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-2 text-xs font-black">
-              <Wallet className="mr-1 inline h-3.5 w-3.5 text-violet-300" />
+            <Link to="/wallet" className="rounded-xl border border-[#263241] bg-[#101720] px-3 py-2 text-xs font-black">
+              <Wallet className="mr-1 inline h-3.5 w-3.5 text-[#12B886]" />
               {formatNaira(user?.balance || 0)}
-            </button>
+            </Link>
             <NotificationBell />
-            <button className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-500 text-white">
+            <Link to={user ? "/more" : "/login"} className="grid h-10 w-10 place-items-center rounded-full border border-[#263241] bg-[#151E28] text-white">
               {user?.username?.charAt(0).toUpperCase() || <UserCircle className="h-5 w-5" />}
-            </button>
+            </Link>
           </div>
         </section>
 
-        {pulseMarket && (
-        <Link to={`/market/${pulseMarket.id}`} className="mb-4 grid grid-cols-[1fr_auto] items-center gap-3 rounded-[1.5rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.24),rgba(255,255,255,0.045)_45%)] p-3 transition hover:border-violet-300/30">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-200">
-              <Radio className="h-3.5 w-3.5 animate-pulse" />
-              Live pulse
-            </div>
-            <div className="mt-1 truncate text-sm font-black text-white">{recentActivity}</div>
-          </div>
-          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-[#050711] shadow-[0_0_30px_rgba(255,255,255,0.16)]">
-            <Zap className="h-5 w-5 fill-current" />
-          </div>
-        </Link>
-        )}
-
-        <section className="sticky top-0 z-30 mb-4 space-y-3 border-b border-white/10 bg-[#050711]/94 py-2 backdrop-blur-2xl md:top-[65px]" data-now={now}>
+        <section className="sticky top-0 z-30 mb-4 space-y-3 border-b border-[#263241] bg-[#080c10]/94 py-2 backdrop-blur-xl md:top-[65px]" data-now={now}>
           <div className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8B98A8]" />
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search markets or topics"
-              className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.07] pl-11 pr-4 text-sm font-bold text-white outline-none placeholder:text-slate-500 focus:border-violet-300/50"
+              className="h-12 w-full rounded-xl border border-[#263241] bg-[#101720] pl-11 pr-4 text-sm font-bold text-white outline-none placeholder:text-[#8B98A8] focus:border-[#12B886]/70"
             />
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -121,8 +104,8 @@ const Index = () => {
                 onClick={() => setCategory(chip)}
                 className={`shrink-0 rounded-full px-4 py-2 text-sm font-black transition ${
                   category === chip
-                    ? "bg-white text-[#050711]"
-                    : "border border-white/10 bg-white/[0.055] text-slate-400"
+                    ? "bg-[#12B886] text-[#06100d]"
+                    : "border border-[#263241] bg-[#101720] text-[#8B98A8] hover:text-white"
                 }`}
               >
                 {chip}
@@ -132,34 +115,31 @@ const Index = () => {
         </section>
 
         <section className="mb-4">
-          <div className="flex items-end justify-between">
-            <div>
-              <h1 className="text-2xl font-black tracking-tight">For you</h1>
-              <p className="mt-1 text-xs font-bold text-slate-500">Fast markets, live prices, one-tap predictions.</p>
-            </div>
-          </div>
+          <h1 className="text-2xl font-black tracking-tight">Live markets</h1>
+          <p className="mt-1 text-xs font-bold text-[#8B98A8]">
+            Choose a market, pick YES or NO, and track how sentiment moves.
+          </p>
         </section>
 
         {isLoadingMarkets && markets.length === 0 ? (
-          <div className="space-y-3">
-            {[1, 2, 3, 4].map((item) => (
-              <div key={item} className="h-56 animate-pulse rounded-[1.35rem] border border-white/10 bg-white/[0.055]" />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((item) => (
+              <div key={item} className="h-64 rounded-2xl border border-[#263241] soft-shimmer" />
             ))}
           </div>
         ) : marketError && filtered.length === 0 ? (
-          <div className="rounded-[1.35rem] border border-amber-300/20 bg-amber-400/10 p-10 text-center">
-            <Flame className="mx-auto mb-3 h-8 w-8 text-amber-200" />
+          <div className="rounded-2xl border border-[#F2C94C]/25 bg-[#F2C94C]/10 p-10 text-center">
             <h3 className="text-lg font-black">Could not load markets</h3>
             <p className="mt-1 text-sm text-amber-100/70">{marketError}</p>
             <button
               onClick={() => loadMarkets({ force: true })}
-              className="mt-5 rounded-2xl bg-white px-5 py-3 text-sm font-black text-[#050711]"
+              className="mt-5 rounded-xl bg-white px-5 py-3 text-sm font-black text-[#080c10]"
             >
               Retry
             </button>
           </div>
         ) : filtered.length > 0 ? (
-          <div className="space-y-3">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {filtered.map((market, index) => (
               <div key={market.id} className="animate-fade-up" style={{ animationDelay: `${index * 30}ms` }}>
                 <MarketCard m={market} />
@@ -167,10 +147,9 @@ const Index = () => {
             ))}
           </div>
         ) : (
-          <div className="rounded-[1.35rem] border border-dashed border-white/10 bg-white/[0.035] p-10 text-center">
-            <Flame className="mx-auto mb-3 h-8 w-8 text-violet-300" />
+          <div className="rounded-2xl border border-dashed border-[#263241] bg-[#101720]/60 p-10 text-center">
             <h3 className="text-lg font-black">No live markets found</h3>
-            <p className="mt-1 text-sm text-slate-500">Try another category or search term.</p>
+            <p className="mt-1 text-sm text-[#8B98A8]">Try another category or search term.</p>
           </div>
         )}
       </main>

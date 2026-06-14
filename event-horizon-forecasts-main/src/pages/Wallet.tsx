@@ -75,12 +75,12 @@ export default function Wallet() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#050711] text-white xl:pl-64">
+      <div className="app-bg min-h-screen text-white xl:pl-64">
         <Header />
         <main className="grid min-h-[70vh] place-items-center px-4">
           <div className="text-center">
-            <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-violet-300" />
-            <p className="text-sm font-bold text-slate-400">Restoring your wallet...</p>
+            <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-[#12B886]" />
+            <p className="text-sm font-bold text-[#8B98A8]">Restoring your wallet...</p>
           </div>
         </main>
         <MobileNav />
@@ -90,11 +90,11 @@ export default function Wallet() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#050711] text-white xl:pl-64">
+      <div className="app-bg min-h-screen text-white xl:pl-64">
         <Header />
         <main className="mx-auto max-w-3xl px-4 py-20 text-center">
           <h2 className="text-2xl font-black">Log in to see your wallet</h2>
-          <p className="mt-2 text-sm text-slate-400">Your balance and history will show here.</p>
+          <p className="mt-2 text-sm text-[#8B98A8]">Your balance and history will show here.</p>
         </main>
         <MobileNav />
       </div>
@@ -102,33 +102,33 @@ export default function Wallet() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050711] pb-24 text-white md:pb-0 xl:pl-64">
+    <div className="app-bg min-h-screen pb-24 text-white md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
         <div className="mb-6">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.24em] text-violet-300">Wallet</p>
+            <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#8B98A8]">Wallet</p>
             <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Balance and history</h1>
-            <p className="mt-2 text-sm text-slate-400">Add money, withdraw, and review transactions.</p>
+            <p className="mt-2 text-sm text-[#8B98A8]">Add money, withdraw, and review transactions.</p>
           </div>
         </div>
 
         <section>
-          <div className="rounded-3xl border border-violet-400/20 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.42),rgba(10,13,25,0.96)_46%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.42)] sm:p-6">
+          <div className="rounded-2xl border border-[#263241] bg-[#101720] p-5 shadow-[0_18px_52px_rgba(0,0,0,0.28)] sm:p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10 text-violet-200">
+                <div className="grid h-12 w-12 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#12B886]">
                   <WalletIcon className="h-6 w-6" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-slate-300">Balance</div>
-                  <div className="text-xs text-slate-500">Ready to use</div>
+                  <div className="text-sm font-bold text-white">Available balance</div>
+                  <div className="text-xs text-[#8B98A8]">Ready to use</div>
                 </div>
               </div>
               <button
                 onClick={refreshWallet}
                 disabled={refreshing}
-                className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                className="grid h-10 w-10 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#8B98A8] transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                 title="Refresh"
               >
                 <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
@@ -137,18 +137,21 @@ export default function Wallet() {
             <div className="mt-8 text-4xl font-black tracking-tight sm:text-5xl">
               {formatNaira(ngnBalance)}
             </div>
-            <div className="mt-3 grid gap-2 text-sm font-bold text-slate-300 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3">
+            <div className="mt-3 grid gap-2 text-sm font-bold text-[#8B98A8] sm:grid-cols-3">
+              <div className="rounded-xl border border-[#263241] bg-[#151E28] px-4 py-3">
                 Available: <span className="text-white">{formatNaira(ngnBalance)}</span>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3">
-                Locked: <span className="text-white">{formatNaira(lockedBalance)}</span>
+              <div className="rounded-xl border border-[#263241] bg-[#151E28] px-4 py-3">
+                In active markets: <span className="text-white">{formatNaira(lockedBalance)}</span>
+              </div>
+              <div className="rounded-xl border border-[#263241] bg-[#151E28] px-4 py-3">
+                Total: <span className="text-white">{formatNaira(ngnBalance + lockedBalance)}</span>
               </div>
             </div>
             <div className="mt-8 grid grid-cols-2 gap-3">
               <Button
                 onClick={() => setDepositModalOpen(true)}
-                className="h-12 rounded-2xl bg-violet-500 font-black text-white shadow-[0_0_24px_rgba(139,92,246,0.35)] hover:bg-violet-400"
+                className="h-12 rounded-xl bg-[#12B886] font-black text-[#06100d] hover:bg-[#2dd4a0]"
               >
                 <ArrowDownRight className="mr-2 h-4 w-4" />
                 Add Money
@@ -156,7 +159,7 @@ export default function Wallet() {
               <Button
                 onClick={() => setWithdrawModalOpen(true)}
                 variant="outline"
-                className="h-12 rounded-2xl border-white/10 bg-white/5 font-black text-white hover:bg-white/10"
+                className="h-12 rounded-xl border-[#263241] bg-[#151E28] font-black text-white hover:bg-[#1a2530]"
               >
                 <ArrowUpRight className="mr-2 h-4 w-4" />
                 Withdraw
@@ -165,47 +168,47 @@ export default function Wallet() {
           </div>
         </section>
 
-        <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.055] p-4 backdrop-blur-2xl sm:p-5">
+        <section className="mt-6 rounded-2xl border border-[#263241] bg-[#101720] p-4 sm:p-5">
           <div className="mb-5 flex items-center justify-between">
             <div>
               <h2 className="text-xl font-black">History</h2>
-              <p className="text-sm text-slate-500">Deposits, withdrawals, predictions, winnings, and refunds.</p>
+              <p className="text-sm text-[#8B98A8]">Deposits, withdrawals, predictions, winnings, and refunds.</p>
             </div>
-            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-slate-300">
+            <span className="rounded-full border border-[#263241] bg-[#151E28] px-3 py-1 text-xs font-bold text-[#8B98A8]">
               {historyLoading ? "Loading" : `${transactions.length} items`}
             </span>
           </div>
 
           {transactions.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-white/10 py-14 text-center">
-              <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-white/5 text-violet-300">
+            <div className="rounded-2xl border border-dashed border-[#263241] py-14 text-center">
+              <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#12B886]">
                 <WalletIcon className="h-6 w-6" />
               </div>
               <div className="font-black">No history yet</div>
-              <p className="mt-1 text-sm text-slate-500">Add money or make a prediction to start.</p>
+              <p className="mt-1 text-sm text-[#8B98A8]">Add money or make a prediction to start.</p>
             </div>
           ) : (
             <ul className="space-y-2">
               {transactions.map((tx) => (
-                <li key={tx.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0b1020]/80 p-4">
+                <li key={tx.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#263241] bg-[#151E28] p-4">
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className={`grid h-11 w-11 place-items-center rounded-2xl ${tx.amount >= 0 ? "bg-emerald-400/10 text-emerald-300" : "bg-red-400/10 text-red-300"}`}>
+                    <div className={`grid h-11 w-11 place-items-center rounded-xl ${tx.amount >= 0 ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
                       {tx.amount >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
                     </div>
                     <div className="min-w-0">
                       <div className="truncate text-sm font-black text-white">{tx.label}</div>
-                      <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                      <div className="mt-1 flex items-center gap-1 text-xs text-[#8B98A8]">
                         <Clock className="h-3 w-3" />
                         {tx.date}
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className={`text-sm font-black ${tx.amount >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                    <div className={`text-sm font-black ${tx.amount >= 0 ? "text-[#12B886]" : "text-[#E85D5D]"}`}>
                       {tx.amount >= 0 ? "+" : "-"}
                       {formatNaira(Math.abs(tx.amount))}
                     </div>
-                    <div className="mt-1 text-xs capitalize text-slate-500">{tx.status}</div>
+                    <div className="mt-1 text-xs capitalize text-[#8B98A8]">{tx.status}</div>
                   </div>
                 </li>
               ))}

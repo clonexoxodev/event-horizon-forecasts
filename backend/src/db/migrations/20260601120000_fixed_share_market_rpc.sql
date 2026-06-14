@@ -1,5 +1,7 @@
--- Flippe fixed-share market engine RPCs.
--- Run this in Supabase before enabling real-money settlement.
+-- LEGACY / RETIRED: Flippe fixed-share market engine RPCs.
+-- The active MVP engine is the pool-safe pari-mutuel share model. Do not call
+-- these functions from new app flows because they imply fixed share payouts and
+-- old liquidity-backing assumptions.
 
 alter table public.notifications add column if not exists metadata jsonb not null default '{}'::jsonb;
 alter table public.notifications drop constraint if exists notifications_type_check;

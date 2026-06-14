@@ -133,9 +133,8 @@ const ownershipSettlementForPosition = (position: any, outcome: 'YES' | 'NO', to
     : priceAtPurchase > 0
       ? toAmount(stakeSmallestUnit) / priceAtPurchase
       : 0;
-  // Fixed-share settlement: purchased shares are locked at entry and each winning
-  // share settles at ₦100. Later buyers can move market prices, but cannot change
-  // this position's payout.
+  // Pool-safe settlement: price is sentiment/entry math. Winners recover stake
+  // plus pro-rata losing-pool profit, so payouts stay inside locked stakes.
   const ownershipShare = won && totalWinningShares > 0 ? sharesReceived / totalWinningShares : 0;
   const poolProfitSmallestUnit = Math.max(0, Math.round(ownershipShare * totalLosingStakeSmallestUnit));
   const payoutSmallestUnit = won ? stakeSmallestUnit + poolProfitSmallestUnit : 0;
@@ -166,7 +165,7 @@ const buildSettlementPreview = (market: any, outcome: 'YES' | 'NO', positions: a
     return sum + shares;
   }, 0);
 
-  const settledPositions = positions.map((position) => {
+  let settledPositions = positions.map((position) => {
     const settlement = ownershipSettlementForPosition(position, outcome, totalWinningShares, totalLosingStakeSmallestUnit);
 
     return {
@@ -189,6 +188,25 @@ const buildSettlementPreview = (market: any, outcome: 'YES' | 'NO', positions: a
       profit: toAmount(settlement.profitSmallestUnit)
     };
   });
+  const maxPayoutSmallestUnit = totalWinningStakeSmallestUnit + totalLosingStakeSmallestUnit;
+  let payoutOverflow = settledPositions.reduce((sum, position) => sum + position.payoutSmallestUnit, 0) - maxPayoutSmallestUnit;
+
+  if (payoutOverflow > 0) {
+    settledPositions = settledPositions.map((position) => {
+      if (payoutOverflow <= 0 || position.payoutSmallestUnit <= 0) return position;
+      const reduction = Math.min(payoutOverflow, position.payoutSmallestUnit);
+      payoutOverflow -= reduction;
+      const payoutSmallestUnit = position.payoutSmallestUnit - reduction;
+      const profitSmallestUnit = payoutSmallestUnit - position.stakeSmallestUnit;
+      return {
+        ...position,
+        payoutSmallestUnit,
+        profitSmallestUnit,
+        payout: toAmount(payoutSmallestUnit),
+        profit: toAmount(profitSmallestUnit)
+      };
+    });
+  }
 
   return {
     marketId: market.id,

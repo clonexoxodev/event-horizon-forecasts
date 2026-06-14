@@ -34,7 +34,6 @@ const Dashboard = () => {
     }
 
     let mounted = true;
-
     const loadPortfolio = async () => {
       setLoading(true);
       try {
@@ -42,7 +41,6 @@ const Dashboard = () => {
           apiService.getPositions(),
           apiService.getProfileStats(),
         ]);
-
         if (!mounted) return;
         setPositions(positionResponse.positions || []);
         setStats(statsResponse.stats || emptyStats);
@@ -55,8 +53,12 @@ const Dashboard = () => {
     };
 
     loadPortfolio();
+    const refresh = window.setInterval(() => {
+      if (document.visibilityState === "visible") loadPortfolio();
+    }, 20000);
     return () => {
       mounted = false;
+      window.clearInterval(refresh);
     };
   }, [authLoading, user]);
 
@@ -70,10 +72,10 @@ const Dashboard = () => {
     [positions]
   );
 
-  const portfolioValue = activePositions.reduce((sum, position) => sum + Number(position.currentValue || position.stake || 0), 0);
+  const projectedValue = activePositions.reduce((sum, position) => sum + Number(position.projectedPayout ?? position.currentValue ?? position.stake ?? 0), 0);
   const openStake = activePositions.reduce((sum, position) => sum + Number(position.stake || 0), 0);
-  const openPnl = portfolioValue - openStake;
-  const openPnlPercent = openStake > 0 ? (openPnl / openStake) * 100 : 0;
+  const projectedPnl = activePositions.reduce((sum, position) => sum + Number(position.projectedProfit ?? position.unrealizedPnl ?? 0), 0);
+  const resolvedWinnings = settledPositions.reduce((sum, position) => sum + Number(position.payout || 0), 0);
 
   if (authLoading) {
     return <SessionLoading label="Restoring your portfolio..." />;
@@ -81,16 +83,16 @@ const Dashboard = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#050711] text-white xl:pl-64">
+      <div className="app-bg min-h-screen text-white xl:pl-64">
         <Header />
         <main className="mx-auto grid min-h-[70vh] max-w-3xl place-items-center px-4 text-center">
           <div>
-            <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-3xl bg-violet-500/15 text-violet-200">
+            <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl border border-[#263241] bg-[#101720] text-[#12B886]">
               <LineChart className="h-8 w-8" />
             </div>
-            <h1 className="text-3xl font-black tracking-tight">Your prediction identity starts here</h1>
-            <p className="mt-3 text-sm text-slate-400">Log in to track positions, performance, and public forecasting progress.</p>
-            <Link to="/login" className="mt-6 inline-flex h-12 items-center rounded-2xl bg-violet-500 px-6 text-sm font-black text-white shadow-[0_0_28px_rgba(139,92,246,0.35)]">
+            <h1 className="text-3xl font-black tracking-tight">Track your predictions</h1>
+            <p className="mt-3 text-sm text-[#8B98A8]">Log in to see active positions, resolved markets, and wallet-linked activity.</p>
+            <Link to="/login" className="mt-6 inline-flex h-12 items-center rounded-xl bg-[#12B886] px-6 text-sm font-black text-[#06100d]">
               Log in
             </Link>
           </div>
@@ -101,31 +103,34 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#050711] pb-24 text-white md:pb-0 xl:pl-64">
+    <div className="app-bg min-h-screen overflow-x-hidden pb-24 text-white md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:py-8">
-        <section className="rounded-[2rem] border border-violet-400/20 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.42),rgba(8,11,22,0.96)_44%)] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.45)] sm:p-6">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5 shadow-[0_18px_52px_rgba(0,0,0,0.28)] sm:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-violet-200">Portfolio</p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-5xl">{formatNaira(portfolioValue)}</h1>
-              <p className="mt-2 text-sm text-slate-400">Total open position value</p>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Portfolio</p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-5xl">{formatNaira(projectedValue)}</h1>
+              <p className="mt-2 max-w-xl text-sm text-[#8B98A8]">
+                Projected portfolio value. Projected values move with market activity and are finalized only after resolution.
+              </p>
             </div>
-            <div className="grid grid-cols-3 gap-2 sm:min-w-[340px]">
-              <HeroStat icon={Target} label="Open positions" value={`${activePositions.length}`} />
-              <HeroStat icon={BarChart3} label="Open P/L" value={`${openPnl >= 0 ? "+" : ""}${formatNaira(openPnl)}`} tone={openPnl >= 0 ? "green" : "red"} />
-              <HeroStat icon={LineChart} label="Change" value={openStake ? `${openPnlPercent >= 0 ? "+" : ""}${openPnlPercent.toFixed(1)}%` : "-"} tone={openPnlPercent >= 0 ? "green" : "red"} />
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[520px]">
+              <HeroStat icon={Target} label="Active positions" value={`${activePositions.length}`} />
+              <HeroStat icon={BarChart3} label="Total staked" value={formatNaira(openStake)} />
+              <HeroStat icon={LineChart} label="Projected P/L" value={`${projectedPnl >= 0 ? "+" : ""}${formatNaira(projectedPnl)}`} tone={projectedPnl >= 0 ? "green" : "red"} />
+              <HeroStat icon={Trophy} label="Resolved winnings" value={formatNaira(resolvedWinnings)} />
             </div>
           </div>
         </section>
 
-        <div className="mt-5 grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-white/[0.055] p-1">
+        <div className="mt-5 grid grid-cols-3 gap-1 rounded-xl border border-[#263241] bg-[#101720] p-1">
           {(["positions", "activity", "performance"] as PortfolioTab[]).map((item) => (
             <button
               key={item}
               onClick={() => setTab(item)}
-              className={`h-11 rounded-xl text-sm font-black capitalize transition ${
-                tab === item ? "bg-violet-500 text-white shadow-[0_0_22px_rgba(139,92,246,0.28)]" : "text-slate-400 hover:bg-white/5 hover:text-white"
+              className={`h-11 rounded-lg text-sm font-black capitalize transition ${
+                tab === item ? "bg-[#12B886] text-[#06100d]" : "text-[#8B98A8] hover:bg-[#151E28] hover:text-white"
               }`}
             >
               {item}
@@ -135,7 +140,7 @@ const Dashboard = () => {
 
         {loading ? (
           <div className="grid min-h-[360px] place-items-center">
-            <Loader2 className="h-8 w-8 animate-spin text-violet-300" />
+            <Loader2 className="h-8 w-8 animate-spin text-[#12B886]" />
           </div>
         ) : (
           <div className="mt-5">
@@ -150,10 +155,10 @@ const Dashboard = () => {
   );
 };
 
-const HeroStat = ({ icon: Icon, label, value, tone = "violet" }: { icon: any; label: string; value: string; tone?: "violet" | "green" | "red" }) => (
-  <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-3">
-    <Icon className={`mb-3 h-4 w-4 ${tone === "green" ? "text-emerald-300" : tone === "red" ? "text-red-300" : "text-violet-200"}`} />
-    <div className="text-[11px] font-bold text-slate-500">{label}</div>
+const HeroStat = ({ icon: Icon, label, value, tone = "neutral" }: { icon: any; label: string; value: string; tone?: "neutral" | "green" | "red" }) => (
+  <div className="rounded-xl border border-[#263241] bg-[#151E28] p-3">
+    <Icon className={`mb-3 h-4 w-4 ${tone === "green" ? "text-[#12B886]" : tone === "red" ? "text-[#E85D5D]" : "text-[#8B98A8]"}`} />
+    <div className="text-[11px] font-bold text-[#8B98A8]">{label}</div>
     <div className="mt-1 text-lg font-black">{value}</div>
   </div>
 );
@@ -165,39 +170,45 @@ const PositionsView = ({ positions }: { positions: ApiPosition[] }) => {
         icon={Target}
         title="No active positions"
         body="Make a prediction and your live positions will appear here."
-        action={<Link to="/" className="rounded-2xl bg-violet-500 px-5 py-3 text-sm font-black text-white">Explore markets</Link>}
+        action={<Link to="/" className="rounded-xl bg-[#12B886] px-5 py-3 text-sm font-black text-[#06100d]">Explore markets</Link>}
       />
     );
   }
 
   return (
-    <div className="grid gap-3">
-      {positions.map((position) => (
-        <Link key={position.id} to={`/market/${position.marketId}`} className="rounded-3xl border border-white/10 bg-white/[0.055] p-4 transition hover:border-violet-300/30 hover:bg-white/[0.075]">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Active position</div>
-              <h2 className="mt-2 line-clamp-2 text-lg font-black leading-tight">{position.marketQuestion}</h2>
-              <div className="mt-2 text-xs font-bold text-slate-500">
-                {position.category || "General"} · {new Date(position.createdAt).toLocaleDateString()}
+    <div className="grid gap-3 lg:grid-cols-2">
+      {positions.map((position) => {
+        const projectedProfit = Number(position.projectedProfit ?? position.unrealizedPnl ?? 0);
+        return (
+          <Link key={position.id} to={`/market/${position.marketId}`} className="rounded-2xl border border-[#263241] bg-[#101720] p-4 transition hover:border-[#12B886]/45 hover:bg-[#151E28]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Active position</div>
+                <h2 className="mt-2 line-clamp-2 text-lg font-black leading-tight">{position.marketQuestion}</h2>
+                <div className="mt-2 text-xs font-bold text-[#8B98A8]">
+                  {position.category || "General"} · {new Date(position.createdAt).toLocaleDateString()}
+                </div>
               </div>
+              <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
+                {position.side}
+              </span>
             </div>
-            <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-emerald-400/10 text-emerald-300" : "bg-red-400/10 text-red-300"}`}>
-              {position.side}
-            </span>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-            <Metric label="Entry price" value={`NGN ${Math.round(position.entryPrice || 0)}`} />
-            <Metric label="Current price" value={`NGN ${Math.round(position.currentPrice || position.entryPrice || 0)}`} />
-            <Metric label="Shares" value={String(Number(position.sharesOwned ?? position.sharesReceived ?? 0).toFixed(2))} />
-            <Metric label="Ownership" value={`${Number(position.ownershipPercent || 0).toFixed(2)}%`} />
-            <Metric label="Stake" value={formatNaira(position.stake)} />
-            <Metric label="Position value" value={formatNaira(position.currentValue || position.positionValue || position.stake)} />
-            <Metric label="Profit/Loss" value={`${Number(position.unrealizedPnl || (Number(position.currentValue || position.stake) - position.stake)) >= 0 ? "+" : ""}${formatNaira(Number(position.unrealizedPnl || (Number(position.currentValue || position.stake) - position.stake)))}`} />
-            <Metric label="Status" value={position.marketStatus.replace(/_/g, " ")} />
-          </div>
-        </Link>
-      ))}
+            <div className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+              <Metric label="Stake" value={formatNaira(position.stake)} />
+              <Metric label="Entry price" value={`NGN ${Math.round(position.entryPrice || 0)}`} />
+              <Metric label="Current price" value={`NGN ${Math.round(position.currentPrice || position.entryPrice || 0)}`} />
+              <Metric label="Shares" value={String(Number(position.sharesOwned ?? position.sharesReceived ?? 0).toFixed(2))} />
+              <Metric label="Projected payout" value={formatNaira(position.projectedPayout ?? position.currentValue ?? position.positionValue ?? position.stake)} />
+              <Metric label="Projected P/L" value={`${projectedProfit >= 0 ? "+" : ""}${formatNaira(projectedProfit)}`} tone={projectedProfit >= 0 ? "green" : "red"} />
+              <Metric label="Status" value={position.marketStatus.replace(/_/g, " ")} />
+              <Metric label="Updated" value={new Date(position.createdAt).toLocaleDateString()} />
+            </div>
+            <p className="mt-3 text-xs font-bold text-[#8B98A8]">
+              Projected values are estimates based on the current pool and are only finalized when the market resolves.
+            </p>
+          </Link>
+        );
+      })}
     </div>
   );
 };
@@ -210,28 +221,28 @@ const ActivityView = ({ positions, settledCount }: { positions: ApiPosition[]; s
   }
 
   return (
-    <section className="rounded-3xl border border-white/10 bg-white/[0.055] p-4">
+    <section className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-black">Recent activity</h2>
-        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-slate-400">{settledCount} settled</span>
+        <span className="rounded-full border border-[#263241] bg-[#151E28] px-3 py-1 text-xs font-bold text-[#8B98A8]">{settledCount} settled</span>
       </div>
       <div className="space-y-2">
         {sorted.map((position) => (
-          <Link key={position.id} to={`/market/${position.marketId}`} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0b1020]/80 p-4">
+          <Link key={position.id} to={`/market/${position.marketId}`} className="flex items-center justify-between gap-3 rounded-xl border border-[#263241] bg-[#151E28] p-4 transition hover:border-[#12B886]/45">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-violet-500/15 text-violet-200">
+              <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#101720] text-[#12B886]">
                 {position.marketStatus === "active" ? <Clock className="h-5 w-5" /> : <Trophy className="h-5 w-5" />}
               </div>
               <div className="min-w-0">
                 <div className="truncate text-sm font-black">{position.marketQuestion}</div>
-                <div className="mt-1 text-xs text-slate-500">{position.category || "General"} · {position.side} prediction · {new Date(position.createdAt).toLocaleDateString()}</div>
+                <div className="mt-1 text-xs text-[#8B98A8]">{position.category || "General"} · {position.side} prediction · {new Date(position.createdAt).toLocaleDateString()}</div>
               </div>
             </div>
             <div className="shrink-0 text-right">
               <div className="text-sm font-black">
                 {position.resolvedAt ? formatNaira(position.payout || 0) : formatNaira(position.stake)}
               </div>
-              <div className={`mt-1 text-xs capitalize ${position.resolvedAt ? (position.isWinner ? "text-emerald-300" : "text-red-300") : "text-slate-500"}`}>
+              <div className={`mt-1 text-xs capitalize ${position.resolvedAt ? (position.isWinner ? "text-[#12B886]" : "text-[#E85D5D]") : "text-[#8B98A8]"}`}>
                 {position.resolvedAt ? (position.isWinner ? "won" : "lost") : position.marketStatus}
               </div>
             </div>
@@ -243,48 +254,45 @@ const ActivityView = ({ positions, settledCount }: { positions: ApiPosition[]; s
 };
 
 const PerformanceView = ({ positions, stats }: { positions: ApiPosition[]; stats: ApiProfileStats }) => {
-  const openPositions = positions.filter((position) => position.marketStatus === "active");
-  const totalValue = openPositions.reduce((sum, position) => sum + Number(position.currentValue || position.positionValue || position.stake || 0), 0);
-  const totalStake = openPositions.reduce((sum, position) => sum + Number(position.stake || 0), 0);
-  const dailyChange = totalValue - totalStake;
-  const ranked = [...openPositions].sort((a, b) => Number(b.unrealizedPnl || (Number(b.currentValue || b.stake) - b.stake)) - Number(a.unrealizedPnl || (Number(a.currentValue || a.stake) - a.stake)));
-  const best = ranked[0];
-  const worst = ranked[ranked.length - 1];
+  const resolved = positions.filter((position) => position.resolvedAt);
+  const won = resolved.filter((position) => position.isWinner);
+  const lost = resolved.filter((position) => !position.isWinner);
 
   return (
     <div className="grid gap-4">
-      <section className="rounded-3xl border border-white/10 bg-white/[0.055] p-5">
+      <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
         <h2 className="text-xl font-black">Performance</h2>
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <Metric label="Portfolio value" value={formatNaira(totalValue)} large />
-          <Metric label="Daily change" value={`${dailyChange >= 0 ? "+" : ""}${formatNaira(dailyChange)}`} large />
-          <Metric label="Weekly change" value="Not enough history" large />
-          <Metric label="Monthly change" value="Not enough history" large />
-          <Metric label="Best position" value={best ? `${best.side} ${formatNaira(Number(best.unrealizedPnl || (Number(best.currentValue || best.stake) - best.stake)))}` : "-"} large />
-          <Metric label="Worst position" value={worst ? `${worst.side} ${formatNaira(Number(worst.unrealizedPnl || (Number(worst.currentValue || worst.stake) - worst.stake)))}` : "-"} large />
-          <Metric label="Predictions" value={String(stats.totalPredictions)} large />
-          <Metric label="Open positions" value={String(openPositions.length)} large />
+        <p className="mt-1 text-sm text-[#8B98A8]">Only resolved outcomes are counted here. Open projected values stay in Positions.</p>
+        <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Metric label="Markets joined" value={String(stats.totalPredictions)} large />
+          <Metric label="Resolved wins" value={String(won.length)} large />
+          <Metric label="Resolved losses" value={String(lost.length)} large />
+          <Metric label="Win rate" value={resolved.length ? `${Math.round((won.length / resolved.length) * 100)}%` : "-"} large />
+          <Metric label="Total staked" value={formatNaira(stats.totalStaked)} large />
+          <Metric label="Resolved winnings" value={formatNaira(stats.totalEarnings)} large />
+          <Metric label="Open positions" value={String(positions.filter((position) => position.marketStatus === "active").length)} large />
+          <Metric label="Resolved markets" value={String(resolved.length)} large />
         </div>
       </section>
     </div>
   );
 };
 
-const Metric = ({ label, value, large = false }: { label: string; value: string; large?: boolean }) => (
-  <div className="rounded-2xl border border-white/10 bg-[#0b1020]/75 p-3">
-    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">{label}</div>
-    <div className={`mt-2 font-black ${large ? "text-2xl" : "text-sm"}`}>{value}</div>
+const Metric = ({ label, value, large = false, tone = "neutral" }: { label: string; value: string; large?: boolean; tone?: "neutral" | "green" | "red" }) => (
+  <div className="rounded-xl border border-[#263241] bg-[#151E28] p-3">
+    <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#8B98A8]">{label}</div>
+    <div className={`mt-2 font-black ${large ? "text-2xl" : "text-sm"} ${tone === "green" ? "text-[#12B886]" : tone === "red" ? "text-[#E85D5D]" : "text-white"}`}>{value}</div>
   </div>
 );
 
 const EmptyState = ({ icon: Icon, title, body, action }: { icon: any; title: string; body: string; action?: React.ReactNode }) => (
-  <div className="grid min-h-[360px] place-items-center rounded-3xl border border-dashed border-white/10 bg-white/[0.04] p-6 text-center">
+  <div className="grid min-h-[360px] place-items-center rounded-2xl border border-dashed border-[#263241] bg-[#101720]/70 p-6 text-center">
     <div>
-      <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-3xl bg-violet-500/15 text-violet-200">
+      <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl border border-[#263241] bg-[#151E28] text-[#12B886]">
         <Icon className="h-8 w-8" />
       </div>
       <div className="text-xl font-black">{title}</div>
-      <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">{body}</p>
+      <p className="mx-auto mt-2 max-w-sm text-sm text-[#8B98A8]">{body}</p>
       {action && <div className="mt-6">{action}</div>}
     </div>
   </div>
@@ -293,12 +301,12 @@ const EmptyState = ({ icon: Icon, title, body, action }: { icon: any; title: str
 export default Dashboard;
 
 const SessionLoading = ({ label }: { label: string }) => (
-  <div className="min-h-screen bg-[#050711] text-white xl:pl-64">
+  <div className="app-bg min-h-screen text-white xl:pl-64">
     <Header />
     <main className="grid min-h-[70vh] place-items-center px-4">
       <div className="text-center">
-        <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-violet-300" />
-        <p className="text-sm font-bold text-slate-400">{label}</p>
+        <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-[#12B886]" />
+        <p className="text-sm font-bold text-[#8B98A8]">{label}</p>
       </div>
     </main>
     <MobileNav />

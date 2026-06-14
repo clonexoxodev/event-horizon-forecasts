@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Flame, DollarSign, Landmark, Music2, BarChart2, Cpu, LayoutGrid } from "lucide-react";
+import { DollarSign, Landmark, Music2, BarChart2, Cpu, LayoutGrid, TrendingUp } from "lucide-react";
 
 const categories = [
-  { label: "Trending",      icon: Flame },
+  { label: "Trending",      icon: TrendingUp },
   { label: "Finance",       icon: DollarSign },
   { label: "Politics",      icon: Landmark },
   { label: "Entertainment", icon: Music2 },

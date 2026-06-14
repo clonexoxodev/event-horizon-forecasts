@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ShieldCheck, Zap } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 const links = [
   { name: "About", path: "/about" },
@@ -12,35 +12,32 @@ const links = [
 
 export const Footer = () => {
   return (
-    <footer className="mt-16 hidden border-t border-white/10 bg-[#070a14] text-white md:block">
+    <footer className="mt-16 hidden border-t border-[#263241] bg-[#080c10] text-white md:block">
       <div className="mx-auto flex max-w-[1280px] flex-col gap-8 px-6 py-10 lg:flex-row lg:items-center lg:justify-between">
         <div className="max-w-md">
           <Link to="/" className="flex items-center gap-2 text-xl font-black">
-            <span className="grid h-9 w-9 place-items-center rounded-2xl bg-violet-500/20 text-violet-200">F</span>
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#12B886] text-[#06100d]">F</span>
             Flippe
           </Link>
-          <p className="mt-3 text-sm leading-6 text-slate-400">
+          <p className="mt-3 text-sm leading-6 text-[#8B98A8]">
             Predict real-world outcomes with simple markets, clear wallet history, and safer controls.
           </p>
         </div>
 
         <nav className="flex flex-wrap gap-x-5 gap-y-3">
           {links.map((link) => (
-            <Link key={link.path} to={link.path} className="text-sm font-bold text-slate-400 transition hover:text-white">
+            <Link key={link.path} to={link.path} className="text-sm font-bold text-[#8B98A8] transition hover:text-white">
               {link.name}
             </Link>
           ))}
         </nav>
       </div>
 
-      <div className="border-t border-white/10">
-        <div className="mx-auto flex max-w-[1280px] flex-col gap-3 px-6 py-5 text-xs text-slate-500 lg:flex-row lg:items-center lg:justify-between">
+      <div className="border-t border-[#263241]">
+        <div className="mx-auto flex max-w-[1280px] flex-col gap-3 px-6 py-5 text-xs text-[#8B98A8] lg:flex-row lg:items-center lg:justify-between">
+          <span>© 2026 Flippe Technologies Ltd. All rights reserved.</span>
           <span className="flex items-center gap-2">
-            <Zap className="h-3.5 w-3.5 text-violet-300" />
-            © 2026 Flippe Technologies Ltd. All rights reserved.
-          </span>
-          <span className="flex items-center gap-2">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />
+            <ShieldCheck className="h-3.5 w-3.5 text-[#12B886]" />
             Use only money you can afford to lose.
           </span>
         </div>

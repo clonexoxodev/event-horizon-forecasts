@@ -65,22 +65,22 @@ export const DepositModal = ({ open, onClose, currency, onSaved }: DepositModalP
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="overflow-hidden rounded-[2rem] border border-white/10 bg-[#080b16] p-0 text-white shadow-[0_24px_80px_rgba(0,0,0,0.6)] sm:max-w-md">
-        <div className="h-1 w-full bg-emerald-400" />
+      <DialogContent className="overflow-hidden rounded-2xl border border-[#263241] bg-[#101720] p-0 text-white shadow-[0_24px_80px_rgba(0,0,0,0.6)] sm:max-w-md">
+        <div className="h-1 w-full bg-[#12B886]" />
         {success ? (
           <div className="p-8 text-center">
-            <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-emerald-400/10 text-emerald-300">
+            <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-[#12B886]/10 text-[#12B886]">
               <CheckCircle className="h-8 w-8" />
             </div>
             <h3 className="mb-2 text-xl font-black">Request saved</h3>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-[#8B98A8]">
               {currency} {numAmount.toLocaleString()} is pending.
             </p>
             {depositReference && (
-              <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.055] p-4 text-left">
-                <div className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Reference</div>
+              <div className="mt-5 rounded-xl border border-[#263241] bg-[#151E28] p-4 text-left">
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Reference</div>
                 <div className="mt-1 text-lg font-black text-white">{depositReference}</div>
-                <p className="mt-3 text-sm font-bold text-slate-300">{paymentInstruction}</p>
+                <p className="mt-3 text-sm font-bold text-[#D5DEE8]">{paymentInstruction}</p>
               </div>
             )}
           </div>
@@ -89,29 +89,29 @@ export const DepositModal = ({ open, onClose, currency, onSaved }: DepositModalP
             <button
               onClick={handleClose}
               disabled={loading}
-              className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 disabled:opacity-50"
+              className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#8B98A8] transition hover:text-white disabled:opacity-50"
             >
               <X className="h-4 w-4" />
             </button>
 
             <div className="mb-6">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Wallet</p>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#12B886]">Wallet</p>
               <h3 className="mt-1 text-2xl font-black">Add Money</h3>
-              <p className="mt-1 text-sm text-slate-400">Create a pending bank-transfer request. Admin credits after confirmation.</p>
+              <p className="mt-1 text-sm text-[#8B98A8]">Create a pending request. Your wallet is credited after confirmation.</p>
             </div>
 
-            <label className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+            <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">
               Amount ({currency})
             </label>
             <div className="relative mb-4">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-slate-500">{currency}</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-[#8B98A8]">{currency}</span>
               <Input
                 type="number"
                 placeholder="0"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 disabled={loading}
-                className="h-13 rounded-2xl border-white/10 bg-white/[0.055] pl-14 text-lg font-black text-white placeholder:text-slate-600 focus:border-emerald-300"
+                className="h-13 rounded-xl border-[#263241] bg-[#151E28] pl-14 text-lg font-black text-white placeholder:text-[#8B98A8] focus:border-[#12B886]"
               />
             </div>
 
@@ -123,8 +123,8 @@ export const DepositModal = ({ open, onClose, currency, onSaved }: DepositModalP
                   disabled={loading}
                   className={`h-10 rounded-xl border text-sm font-black transition ${
                     amount === value.toString()
-                      ? "border-emerald-300/40 bg-emerald-400/20 text-emerald-200"
-                      : "border-white/10 bg-white/[0.055] text-slate-300 hover:bg-white/10"
+                      ? "border-[#12B886]/40 bg-[#12B886]/18 text-[#7AE4BD]"
+                      : "border-[#263241] bg-[#151E28] text-[#8B98A8] hover:text-white"
                   }`}
                 >
                   {value >= 1000 ? `${value / 1000}k` : value}
@@ -140,7 +140,7 @@ export const DepositModal = ({ open, onClose, currency, onSaved }: DepositModalP
             <Button
               onClick={handleDeposit}
               disabled={loading || numAmount <= 0}
-              className="h-12 w-full rounded-2xl bg-emerald-500 text-base font-black text-white hover:bg-emerald-400 disabled:opacity-50"
+              className="h-12 w-full rounded-xl bg-[#12B886] text-base font-black text-[#06100d] hover:bg-[#2dd4a0] disabled:opacity-50"
             >
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowDownRight className="mr-2 h-4 w-4" />}
               Add {numAmount > 0 ? `${currency} ${numAmount.toLocaleString()}` : "money"}
@@ -156,8 +156,8 @@ const MethodButton = ({ active, onClick, disabled, icon: Icon, label }: { active
   <button
     onClick={onClick}
     disabled={disabled}
-    className={`flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-black transition ${
-      active ? "border-violet-300/40 bg-violet-400/20 text-violet-200" : "border-white/10 bg-white/[0.055] text-slate-300 hover:bg-white/10"
+    className={`flex h-12 items-center justify-center gap-2 rounded-xl border text-sm font-black transition ${
+      active ? "border-[#12B886]/40 bg-[#12B886]/18 text-[#7AE4BD]" : "border-[#263241] bg-[#151E28] text-[#8B98A8] hover:text-white"
     } disabled:opacity-50`}
   >
     <Icon className="h-4 w-4" />

@@ -68,16 +68,16 @@ export default function HowItWorks() {
             <h2 className="text-3xl font-bold text-charcoal mb-6">How Pricing Works</h2>
             <div className="space-y-4 text-graphite leading-relaxed">
               <p>
-                Flippe uses an <strong>Automated Market Maker (AMM)</strong> to set prices dynamically based on supply and demand.
+                Flippe uses live buying activity to set YES and NO sentiment prices without an order book or company-funded liquidity.
               </p>
               <p>
-                <strong>YES</strong> and <strong>NO</strong> shares always sum to ₦100. If YES is trading at ₦65, NO is at ₦35.
+                <strong>YES</strong> and <strong>NO</strong> prices always sum to 100. If YES is at 65, NO is at 35.
               </p>
               <p>
                 When you buy shares, the price moves slightly. The more you buy, the more the price increases. This ensures fair pricing for everyone.
               </p>
               <p>
-                When a market resolves, winning shares pay out ₦100 each. Losing shares pay out ₦0.
+                When a market resolves, the winning side splits the losing side's pool based on each winner's share of that side. Losing positions receive 0.
               </p>
             </div>
           </div>

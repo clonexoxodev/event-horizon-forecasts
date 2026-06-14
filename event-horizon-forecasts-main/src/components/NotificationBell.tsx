@@ -87,7 +87,7 @@ export const NotificationBell = () => {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="relative grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/[0.055] text-slate-300 transition hover:bg-white/10"
+        className="relative grid h-10 w-10 place-items-center rounded-xl border border-[#263241] bg-[#101720] text-[#8B98A8] transition hover:bg-[#151E28] hover:text-white"
         aria-label="Notifications"
       >
         <Bell className="h-4 w-4" />
@@ -95,14 +95,14 @@ export const NotificationBell = () => {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 z-[70] w-[min(340px,calc(100vw-2rem))] overflow-hidden rounded-3xl border border-white/10 bg-[#080b16]/98 text-white shadow-[0_24px_90px_rgba(0,0,0,0.58)] backdrop-blur-2xl">
-          <div className="flex items-center justify-between border-b border-white/10 p-4">
+        <div className="absolute right-0 top-12 z-[70] w-[min(340px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[#263241] bg-[#101720]/98 text-white shadow-[0_24px_90px_rgba(0,0,0,0.58)] backdrop-blur-xl">
+          <div className="flex items-center justify-between border-b border-[#263241] p-4">
             <div>
               <div className="text-sm font-black">Notifications</div>
-              <div className="text-xs text-slate-500">{unreadCount ? `${unreadCount} unread` : "All caught up"}</div>
+              <div className="text-xs text-[#8B98A8]">{unreadCount ? `${unreadCount} unread` : "All caught up"}</div>
             </div>
             {notifications.length > 0 && (
-              <button onClick={markAllRead} className="inline-flex items-center gap-1 rounded-full bg-white/[0.07] px-3 py-1.5 text-xs font-black text-slate-300">
+              <button onClick={markAllRead} className="inline-flex items-center gap-1 rounded-full border border-[#263241] bg-[#151E28] px-3 py-1.5 text-xs font-black text-[#8B98A8]">
                 <CheckCheck className="h-3.5 w-3.5" />
                 Read
               </button>
@@ -111,29 +111,29 @@ export const NotificationBell = () => {
 
           {loading ? (
             <div className="grid h-36 place-items-center">
-              <Loader2 className="h-5 w-5 animate-spin text-violet-300" />
+              <Loader2 className="h-5 w-5 animate-spin text-[#12B886]" />
             </div>
           ) : notifications.length === 0 ? (
             <div className="px-5 py-10 text-center">
-              <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-white/[0.055] text-violet-200">
+              <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#12B886]">
                 <Bell className="h-5 w-5" />
               </div>
               <div className="font-black">No notifications yet.</div>
-              <p className="mt-1 text-sm text-slate-500">Prediction updates, market results, and payouts will appear here.</p>
+              <p className="mt-1 text-sm text-[#8B98A8]">Prediction updates, market results, and payouts will appear here.</p>
             </div>
           ) : (
             <div className="max-h-[380px] overflow-y-auto p-2">
               {notifications.map((notification) => {
                 const content = (
-                  <div className={`rounded-2xl p-3 transition hover:bg-white/[0.06] ${notification.read ? "" : "bg-violet-400/10"}`}>
+                  <div className={`rounded-xl p-3 transition hover:bg-[#151E28] ${notification.read ? "" : "bg-[#12B886]/10"}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="line-clamp-1 text-sm font-black">{notification.title}</div>
-                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-400">{notification.message}</p>
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#8B98A8]">{notification.message}</p>
                       </div>
-                      {!notification.read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-violet-300" />}
+                      {!notification.read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#12B886]" />}
                     </div>
-                    <div className="mt-2 text-[11px] font-bold text-slate-600">{formatNotificationTime(notification.createdAt)}</div>
+                    <div className="mt-2 text-[11px] font-bold text-[#8B98A8]">{formatNotificationTime(notification.createdAt)}</div>
                   </div>
                 );
 

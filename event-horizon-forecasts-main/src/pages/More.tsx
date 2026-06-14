@@ -10,12 +10,12 @@ export default function More() {
   const adminPath = isSuperAdmin() ? "/super-admin" : "/admin";
 
   return (
-    <div className="min-h-screen bg-[#050711] pb-24 text-white md:pb-0 xl:pl-64">
+    <div className="app-bg min-h-screen pb-24 text-white md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-3xl px-4 py-5 sm:px-6 lg:py-8">
-        <section className="rounded-[1.75rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.28),rgba(9,13,25,0.95)_48%)] p-5">
+        <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
           <div className="flex items-center gap-4">
-            <div className="grid h-16 w-16 overflow-hidden rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-500 text-2xl font-black">
+            <div className="grid h-16 w-16 overflow-hidden rounded-full border border-[#263241] bg-[#151E28] text-2xl font-black">
               {isLoading ? (
                 <Loader2 className="m-auto h-6 w-6 animate-spin" />
               ) : user?.avatarUrl ? (
@@ -26,7 +26,7 @@ export default function More() {
             </div>
             <div className="min-w-0">
               <h1 className="truncate text-2xl font-black">{user ? user.username : "Welcome to Flippe"}</h1>
-              <p className="mt-1 text-sm text-slate-400">{user ? `${formatNaira(user.balance)} available` : "Sign in to build your prediction identity."}</p>
+              <p className="mt-1 text-sm text-[#8B98A8]">{user ? `${formatNaira(user.balance)} available` : "Sign in to track your predictions."}</p>
             </div>
           </div>
         </section>
@@ -70,19 +70,19 @@ export default function More() {
 
 const Group = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section>
-    <h2 className="mb-2 px-1 text-xs font-black uppercase tracking-[0.2em] text-slate-500">{title}</h2>
-    <div className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.055]">{children}</div>
+    <h2 className="mb-2 px-1 text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">{title}</h2>
+    <div className="overflow-hidden rounded-2xl border border-[#263241] bg-[#101720]">{children}</div>
   </section>
 );
 
 const MoreLink = ({ to, icon: Icon, title, subtitle }: { to: string; icon: any; title: string; subtitle: string }) => (
-  <Link to={to} className="flex items-center gap-3 border-b border-white/10 p-4 transition last:border-b-0 hover:bg-white/[0.045]">
-    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/[0.06] text-violet-200">
+  <Link to={to} className="flex items-center gap-3 border-b border-[#263241] p-4 transition last:border-b-0 hover:bg-[#151E28]">
+    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#12B886]">
       <Icon className="h-5 w-5" />
     </div>
     <div className="min-w-0">
       <div className="font-black text-white">{title}</div>
-      <div className="mt-1 line-clamp-1 text-sm text-slate-500">{subtitle}</div>
+      <div className="mt-1 line-clamp-1 text-sm text-[#8B98A8]">{subtitle}</div>
     </div>
   </Link>
 );

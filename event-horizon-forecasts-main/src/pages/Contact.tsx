@@ -21,24 +21,24 @@ export default function Contact() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const subject = encodeURIComponent(formData.subject || "Flippe support request");
+    const body = encodeURIComponent(`Name: ${formData.name}\nEmail: ${formData.email}\n\n${formData.message}`);
+    window.location.href = `mailto:support@flippe.com?subject=${subject}&body=${body}`;
 
-    toast.success("Message sent! We'll get back to you within 24 hours.");
-    setFormData({ name: "", email: "", subject: "", message: "" });
+    toast.success("Opening your email app.");
     setIsSubmitting(false);
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background pb-20 md:pb-0">
+    <div className="app-bg min-h-screen flex flex-col pb-20 md:pb-0">
       <Header />
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="container py-20 max-w-4xl text-center">
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-charcoal mb-6">
+        <section className="container py-16 max-w-4xl text-center">
+          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-[#F5F7FA] mb-6">
             Contact Us
           </h1>
-          <p className="text-xl text-graphite leading-relaxed">
+          <p className="text-xl text-[#8B98A8] leading-relaxed">
             Have a question or feedback? We'd love to hear from you.
           </p>
         </section>
@@ -47,11 +47,11 @@ export default function Contact() {
           <div className="grid md:grid-cols-3 gap-8">
             {/* Contact Form */}
             <div className="md:col-span-2">
-              <div className="bg-off-white rounded-2xl p-8 border border-graphite/10">
-                <h2 className="text-2xl font-bold text-charcoal mb-6">Send us a message</h2>
+              <div className="surface-raised rounded-2xl p-8">
+                <h2 className="text-2xl font-bold text-[#F5F7FA] mb-6">Send us a message</h2>
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div>
-                    <label className="block text-sm font-medium text-charcoal mb-2">
+                    <label className="block text-sm font-medium text-[#F5F7FA] mb-2">
                       Name
                     </label>
                     <Input
@@ -63,7 +63,7 @@ export default function Contact() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-charcoal mb-2">
+                    <label className="block text-sm font-medium text-[#F5F7FA] mb-2">
                       Email
                     </label>
                     <Input
@@ -75,7 +75,7 @@ export default function Contact() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-charcoal mb-2">
+                    <label className="block text-sm font-medium text-[#F5F7FA] mb-2">
                       Subject
                     </label>
                     <Input
@@ -87,7 +87,7 @@ export default function Contact() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-charcoal mb-2">
+                    <label className="block text-sm font-medium text-[#F5F7FA] mb-2">
                       Message
                     </label>
                     <Textarea
@@ -101,7 +101,7 @@ export default function Contact() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full"
+                    className="w-full bg-[#12B886] text-white hover:bg-[#0EA371]"
                   >
                     {isSubmitting ? "Sending..." : "Send Message"}
                   </Button>
@@ -111,38 +111,38 @@ export default function Contact() {
 
             {/* Contact Info */}
             <div className="space-y-6">
-              <div className="bg-off-white rounded-2xl p-6 border border-graphite/10">
-                <div className="w-10 h-10 rounded-xl bg-purple/10 grid place-items-center mb-4">
-                  <Mail className="w-5 h-5 text-purple" />
+              <div className="surface-raised rounded-2xl p-6">
+                <div className="w-10 h-10 rounded-xl bg-[#12B886]/10 grid place-items-center mb-4">
+                  <Mail className="w-5 h-5 text-[#12B886]" />
                 </div>
-                <h3 className="font-bold text-charcoal mb-2">Email</h3>
-                <a href="mailto:support@flippe.com" className="text-sm text-graphite hover:text-purple transition-fast">
+                <h3 className="font-bold text-[#F5F7FA] mb-2">Email</h3>
+                <a href="mailto:support@flippe.com" className="text-sm text-[#8B98A8] hover:text-[#12B886] transition-fast">
                   support@flippe.com
                 </a>
               </div>
 
-              <div className="bg-off-white rounded-2xl p-6 border border-graphite/10">
-                <div className="w-10 h-10 rounded-xl bg-emerald/10 grid place-items-center mb-4">
-                  <MessageCircle className="w-5 h-5 text-emerald" />
+              <div className="surface-raised rounded-2xl p-6">
+                <div className="w-10 h-10 rounded-xl bg-[#12B886]/10 grid place-items-center mb-4">
+                  <MessageCircle className="w-5 h-5 text-[#12B886]" />
                 </div>
-                <h3 className="font-bold text-charcoal mb-2">Live Chat</h3>
-                <p className="text-sm text-graphite">
+                <h3 className="font-bold text-[#F5F7FA] mb-2">Support hours</h3>
+                <p className="text-sm text-[#8B98A8]">
                   Available Mon-Fri, 9am-5pm WAT
                 </p>
               </div>
 
-              <div className="bg-off-white rounded-2xl p-6 border border-graphite/10">
-                <h3 className="font-bold text-charcoal mb-4">Follow Us</h3>
+              <div className="surface-raised rounded-2xl p-6">
+                <h3 className="font-bold text-[#F5F7FA] mb-4">Follow Us</h3>
                 <div className="flex gap-2">
                   <a
                     href="#"
-                    className="w-9 h-9 rounded-xl border border-border grid place-items-center text-graphite hover:text-charcoal hover:border-charcoal/30 hover:bg-graphite/8 transition-fast"
+                    className="w-9 h-9 rounded-xl border border-[#263241] grid place-items-center text-[#8B98A8] hover:text-[#F5F7FA] hover:border-[#12B886]/40 hover:bg-[#151E28] transition-fast"
                   >
                     <Twitter className="w-4 h-4" />
                   </a>
                   <a
                     href="#"
-                    className="w-9 h-9 rounded-xl border border-border grid place-items-center text-graphite hover:text-charcoal hover:border-charcoal/30 hover:bg-graphite/8 transition-fast"
+                    className="w-9 h-9 rounded-xl border border-[#263241] grid place-items-center text-[#8B98A8] hover:text-[#F5F7FA] hover:border-[#12B886]/40 hover:bg-[#151E28] transition-fast"
                   >
                     <Send className="w-4 h-4" />
                   </a>

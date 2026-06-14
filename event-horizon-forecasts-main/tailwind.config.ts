@@ -14,21 +14,21 @@ export default {
     },
     extend: {
       colors: {
-        // Premium Color Palette
-        charcoal: "hsl(220, 13%, 18%)",
-        graphite: "hsl(220, 9%, 46%)",
-        "off-white": "hsl(30, 18%, 97%)",
+        // Flippe product palette
+        charcoal: "hsl(210, 33%, 5%)",
+        graphite: "hsl(214, 16%, 60%)",
+        "off-white": "hsl(211, 33%, 9%)",
         purple: {
-          DEFAULT: "hsl(271, 70%, 60%)",
-          soft: "hsl(271, 70%, 95%)",
+          DEFAULT: "hsl(158, 100%, 33%)",
+          soft: "hsl(158, 45%, 14%)",
         },
         emerald: {
-          DEFAULT: "hsl(142, 50%, 45%)",
-          soft: "hsl(142, 50%, 95%)",
+          DEFAULT: "hsl(158, 76%, 40%)",
+          soft: "hsl(158, 55%, 14%)",
         },
         coral: {
-          DEFAULT: "hsl(350, 70%, 55%)",
-          soft: "hsl(350, 70%, 95%)",
+          DEFAULT: "hsl(0, 74%, 64%)",
+          soft: "hsl(0, 45%, 14%)",
         },
         
         // Existing theme colors (maintained for compatibility)

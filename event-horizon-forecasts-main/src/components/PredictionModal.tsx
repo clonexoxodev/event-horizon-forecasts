@@ -27,8 +27,7 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
   const quickAmounts = [1000, 5000, 10000, 25000];
   const numAmount = parseFloat(amount) || 0;
   const probability = side === "YES" ? market.yesPercent : 100 - market.yesPercent;
-  const projectedReturn = numAmount > 0 ? numAmount * (100 / probability) : 0;
-  const projectedProfit = projectedReturn - numAmount;
+  const projectedShares = numAmount > 0 && probability > 0 ? numAmount / probability : 0;
 
   const handleQuickAmount = (value: number) => {
     setAmount(value.toString());
@@ -37,26 +36,12 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
   const handleConfirm = async () => {
     if (numAmount <= 0) return;
 
-    setLoading(true);
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
     setLoading(false);
-    setSuccess(true);
-
-    // Show success toast
     toast({
-      title: "Forecast placed!",
-      description: `You staked ${formatNaira(numAmount)} on ${side}`,
+      title: "Use the market prediction slip",
+      description: "Open the market page to lock a real prediction with wallet validation.",
+      variant: "destructive",
     });
-
-    // Reset and close after animation
-    setTimeout(() => {
-      setSuccess(false);
-      setAmount("");
-      onClose();
-    }, 2000);
   };
 
   const handleClose = () => {
@@ -82,7 +67,7 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
             >
               <CheckCircle className="w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold mb-2 text-charcoal">Forecast Placed!</h3>
+            <h3 className="text-xl font-bold mb-2 text-charcoal">Prediction locked</h3>
             <p className="text-sm text-graphite">
               You staked {formatNaira(numAmount)} on {side}
             </p>
@@ -137,7 +122,7 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
                 Amount
               </label>
               <div className="relative group">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-graphite font-semibold transition-colors group-focus-within:text-purple">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-graphite font-semibold transition-colors group-focus-within:text-emerald">
                   ₦
                 </span>
                 <Input
@@ -146,7 +131,7 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   disabled={loading}
-                  className="pl-7 h-12 text-lg font-bold rounded-xl border-2 focus:border-purple transition-all duration-300 focus:shadow-lg focus:shadow-purple/10"
+                  className="pl-7 h-12 text-lg font-bold rounded-xl border-2 focus:border-emerald transition-all duration-300 focus:shadow-lg focus:shadow-emerald/10"
                 />
                 {/* Focus ring animation */}
                 <div className={`absolute inset-0 rounded-xl pointer-events-none transition-opacity duration-300 ${
@@ -171,15 +156,11 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
                   } disabled:opacity-50`}
                 >
                   <span className="relative z-10">₦{value / 1000}k</span>
-                  {/* Hover shimmer effect */}
-                  {amount !== value.toString() && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500" />
-                  )}
                 </button>
               ))}
             </div>
 
-            {/* Projected return preview */}
+            {/* Share preview */}
             {numAmount > 0 && (
               <div className={`rounded-xl p-4 mb-6 space-y-2 animate-fade-in border transition-all duration-500 ${
                 side === "YES" 
@@ -191,21 +172,15 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
                   <span className="font-bold text-charcoal">{formatNaira(numAmount)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-graphite">Probability</span>
+                  <span className="text-graphite">Current sentiment price</span>
                   <span className="font-bold text-charcoal">{probability}%</span>
                 </div>
                 <div className="h-px bg-border/50 my-2" />
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-charcoal">Projected return</span>
+                  <span className="text-sm font-medium text-charcoal">Shares received</span>
                   <div className="text-right">
-                    <div className="font-extrabold text-lg text-charcoal animate-fade-in">{formatNaira(projectedReturn)}</div>
-                    <div
-                      className={`text-xs font-semibold animate-fade-in ${
-                        side === "YES" ? "text-emerald" : "text-coral"
-                      }`}
-                    >
-                      +{formatNaira(projectedProfit)} profit
-                    </div>
+                    <div className="font-extrabold text-lg text-charcoal animate-fade-in">{projectedShares.toFixed(2)}</div>
+                    <div className="text-xs font-semibold text-graphite animate-fade-in">Final payout depends on resolution pools.</div>
                   </div>
                 </div>
               </div>
@@ -229,12 +204,8 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
               ) : (
                 <>
                   <TrendingUp className="w-4 h-4 mr-2" />
-                  Confirm Forecast
+                  Lock prediction
                 </>
-              )}
-              {/* Button shimmer effect on hover */}
-              {!loading && numAmount > 0 && (
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
               )}
             </Button>
 

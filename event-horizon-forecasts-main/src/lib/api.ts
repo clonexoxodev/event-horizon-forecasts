@@ -191,8 +191,12 @@ export type ApiPosition = {
   sharesReceived?: number;
   sharesOwned?: number;
   ownershipPercent?: number;
+  sideSharePercent?: number;
   positionValue?: number;
   unrealizedPnl?: number;
+  projectedPayout?: number;
+  projectedProfit?: number;
+  sentimentMarkValue?: number;
   currentValue: number;
   estimatedPayout?: number;
   estimatedProfit?: number;

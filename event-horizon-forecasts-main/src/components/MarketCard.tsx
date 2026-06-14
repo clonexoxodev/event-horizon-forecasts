@@ -1,4 +1,4 @@
-import { Clock, Play, Radio, Users } from "lucide-react";
+import { Clock, Play, TrendingUp, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Market,
@@ -38,35 +38,35 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
   return (
     <Link
       to={`/market/${m.id}`}
-      className="group block overflow-hidden rounded-[1.5rem] border border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.075),rgba(255,255,255,0.035))] shadow-[0_18px_54px_rgba(0,0,0,0.34)] backdrop-blur-2xl transition duration-300 hover:-translate-y-0.5 hover:border-violet-300/35 hover:bg-white/[0.08]"
+      className="group block overflow-hidden rounded-2xl border border-[#263241] bg-[#101720] shadow-[0_14px_38px_rgba(0,0,0,0.24)] transition duration-200 hover:-translate-y-0.5 hover:border-[#12B886]/45 hover:bg-[#151E28]"
     >
-      <div className="p-3.5">
+      <div className="p-3">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <span className="rounded-full border border-white/10 bg-white/[0.055] px-2.5 py-1 text-[11px] font-black text-slate-300">
+          <span className="rounded-full border border-[#263241] bg-[#151E28] px-2.5 py-1 text-[11px] font-bold text-[#8B98A8]">
             {m.category || "Market"}
           </span>
-          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black ${isLive ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-200" : "border-white/10 bg-white/[0.055] text-slate-400"}`}>
-            {isLive && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" />}
+          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black ${isLive ? "border-[#12B886]/25 bg-[#12B886]/10 text-[#7AE4BD]" : "border-[#263241] bg-[#151E28] text-[#8B98A8]"}`}>
+            {isLive && <span className="h-1.5 w-1.5 rounded-full bg-[#12B886]" />}
             {isLive ? "Live" : "Ended"}
           </span>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-[116px_minmax(0,1fr)]">
-          <div className={`relative ${compact ? "h-28" : "h-36"} overflow-hidden rounded-2xl bg-white/5 sm:h-full`}>
+        <div className="grid gap-3 sm:grid-cols-[112px_minmax(0,1fr)]">
+          <div className={`relative ${compact ? "h-28" : "h-36"} overflow-hidden rounded-xl bg-[#151E28] sm:h-full`}>
             {media.type === "video" ? (
               <video src={media.src} poster={media.poster} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" muted playsInline loop preload="metadata" />
             ) : (
               <img src={media.src} alt="" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" loading="lazy" />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
             {media.type === "video" && (
               <div className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-black/50 text-white backdrop-blur-xl">
                 <Play className="h-3 w-3 fill-current" />
               </div>
             )}
-            <div className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-1 text-[10px] font-black text-white backdrop-blur-xl">
-              <Radio className="h-3 w-3 text-emerald-300" />
-              moving
+            <div className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-black text-white backdrop-blur-xl">
+              <TrendingUp className="h-3 w-3 text-[#12B886]" />
+              {m.tradeCount || 0} trades
             </div>
           </div>
 
@@ -82,10 +82,10 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
           </div>
         </div>
 
-        <div className="mt-3 border-t border-white/10 pt-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500">
+        <div className="mt-3 border-t border-[#263241] pt-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 text-[11px] font-bold text-[#8B98A8]">
             <span className="flex items-center gap-1">
-              <Users className="h-3.5 w-3.5 text-violet-300" />
+              <Users className="h-3.5 w-3.5 text-[#12B886]" />
               {m.participants}
             </span>
             <span>{formatNaira(m.totalVolume ?? m.totalPool)} vol.</span>
@@ -104,10 +104,10 @@ const PriceButton = ({ label, value, tone, disabled = false, onClick }: { label:
   <button
     onClick={onClick}
     disabled={disabled}
-    className={`rounded-2xl border px-3 py-2 text-left transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 ${
+    className={`rounded-xl border px-3 py-2 text-left transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 ${
       tone === "green"
-        ? "border-emerald-300/18 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/16"
-        : "border-red-300/18 bg-red-400/10 text-red-200 hover:bg-red-400/16"
+        ? "border-[#12B886]/25 bg-[#12B886]/10 text-[#7AE4BD] hover:bg-[#12B886]/16"
+        : "border-[#E85D5D]/25 bg-[#E85D5D]/10 text-[#FF9C9C] hover:bg-[#E85D5D]/16"
     }`}
   >
     <span className="block text-[10px] font-black uppercase text-white/45">{label}</span>

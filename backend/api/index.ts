@@ -1228,14 +1228,28 @@ const normalizePosition = (position: any, market: any) => {
   const stake = toAmount(position.amount_smallest_unit ?? position.stake);
   const currentPrice = position.side === 'YES' ? normalizedMarket.yesPrice : normalizedMarket.noPrice;
   const sharesReceived = Number(position.shares_owned || position.shares_received || 0);
-  const liveValue = sharesReceived > 0 ? (sharesReceived * currentPrice) : 0;
-
   const finalPayout = toAmount(position.settlement_payout_smallest_unit ?? position.final_payout_smallest_unit ?? position.payout_smallest_unit);
   const entryPrice = Number(position.entry_price ?? position.price_at_purchase ?? currentPrice);
   const sideShares = position.side === 'YES'
     ? Number((market || {}).total_yes_shares || 0)
     : Number((market || {}).total_no_shares || 0);
-  const currentValue = finalPayout || liveValue || toAmount(position.current_value_smallest_unit) || stake;
+  const oppositeStakeSmallestUnit = position.side === 'YES'
+    ? Number((market || {}).no_volume_smallest_unit ?? (market || {}).no_pool_smallest_unit ?? 0)
+    : Number((market || {}).yes_volume_smallest_unit ?? (market || {}).yes_pool_smallest_unit ?? 0);
+  // Pool-safe projection: active positions do not have withdrawable paper profit.
+  // Projected payout estimates the payout if this market resolved right now,
+  // using the same losing-pool split used by settlement.
+  const sideSharePercent = sideShares > 0 ? (sharesReceived / sideShares) * 100 : 0;
+  const projectedProfitSmallestUnit = sideShares > 0 && oppositeStakeSmallestUnit > 0
+    ? Math.max(0, Math.round((sharesReceived / sideShares) * oppositeStakeSmallestUnit))
+    : 0;
+  const projectedPayoutSmallestUnit = Number(position.resolved_at || position.settled_at)
+    ? Math.round(finalPayout * 100)
+    : Math.round(stake * 100) + projectedProfitSmallestUnit;
+  const projectedPayout = toAmount(projectedPayoutSmallestUnit);
+  const projectedProfit = toAmount(projectedPayoutSmallestUnit - Math.round(stake * 100));
+  const sentimentMarkValue = sharesReceived > 0 ? sharesReceived * currentPrice : stake;
+  const currentValue = finalPayout || projectedPayout || stake;
 
   return {
     id: position.id,
@@ -1247,10 +1261,14 @@ const normalizePosition = (position: any, market: any) => {
     currentPrice,
     sharesReceived,
     sharesOwned: sharesReceived,
-    ownershipPercent: Number(position.ownership_percent || (sideShares > 0 ? (sharesReceived / sideShares) * 100 : 0)),
+    ownershipPercent: sideSharePercent,
+    sideSharePercent,
     currentValue,
     positionValue: currentValue,
-    unrealizedPnl: currentValue - stake,
+    projectedPayout,
+    projectedProfit,
+    sentimentMarkValue,
+    unrealizedPnl: projectedProfit,
     estimatedPayout: toAmount(position.estimated_payout_smallest_unit ?? position.potential_return_smallest_unit),
     estimatedProfit: toAmount(position.estimated_profit_smallest_unit),
     finalPayout,
@@ -2777,15 +2795,9 @@ app.get('/api/admin/analytics', authenticate, requireRole('super_admin'), async 
       .select('*', { count: 'exact', head: true })
       .in('status', ['closed', 'pending_resolution']);
 
-    const { data: marketLiquidity, error: liquidityError } = await supabase
-      .from('markets')
-      .select('seed_liquidity_yes_smallest_unit, seed_liquidity_no_smallest_unit');
+    const platformLiquidityDeployed = 0;
 
-    const platformLiquidityDeployed = (marketLiquidity || []).reduce((sum, market) => (
-      sum + Number(market.seed_liquidity_yes_smallest_unit || 0) + Number(market.seed_liquidity_no_smallest_unit || 0)
-    ), 0);
-
-    if (usersError || forecastsError || predictionsTodayError || volumeError || activeError || resolvedError || pendingError || liquidityError) {
+    if (usersError || forecastsError || predictionsTodayError || volumeError || activeError || resolvedError || pendingError) {
       console.error('Analytics query errors:', {
         usersError,
         forecastsError,
@@ -2793,8 +2805,7 @@ app.get('/api/admin/analytics', authenticate, requireRole('super_admin'), async 
         volumeError,
         activeError,
         resolvedError,
-        pendingError,
-        liquidityError
+        pendingError
       });
       return res.status(500).json({
         error: {
@@ -2900,9 +2911,8 @@ const ownershipSettlementForPosition = (
     : priceAtPurchase > 0
       ? toAmount(stakeSmallestUnit) / priceAtPurchase
       : 0;
-  // Fixed-share settlement: purchased shares are locked at entry and each winning
-  // share settles at ₦100. Later buyers can move market prices, but cannot change
-  // this position's payout.
+  // Pool-safe settlement: price is sentiment/entry math. Winners recover stake
+  // plus pro-rata losing-pool profit, so payouts stay inside locked stakes.
   const ownershipShare = won && totalWinningShares > 0 ? sharesReceived / totalWinningShares : 0;
   const poolProfitSmallestUnit = Math.max(0, Math.round(ownershipShare * totalLosingStakeSmallestUnit));
   const payoutSmallestUnit = won ? stakeSmallestUnit + poolProfitSmallestUnit : 0;
@@ -2929,7 +2939,7 @@ const buildSettlementPreview = (market: any, outcome: PredictionSide, allPositio
     return sum + shares;
   }, 0);
   const totalLosingStake = losingPositions.reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0), 0);
-  const settledPositions = allPositions.map((position: any) => {
+  let settledPositions = allPositions.map((position: any) => {
     const settlement = ownershipSettlementForPosition(position, outcome, totalWinningShares, totalLosingStake);
 
     return {
@@ -2953,6 +2963,25 @@ const buildSettlementPreview = (market: any, outcome: PredictionSide, allPositio
     };
   });
   const totalWinningStake = winningPositions.reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0), 0);
+  const maxPayoutSmallestUnit = totalWinningStake + totalLosingStake;
+  let payoutOverflow = settledPositions.reduce((sum: number, position: any) => sum + position.payoutSmallestUnit, 0) - maxPayoutSmallestUnit;
+
+  if (payoutOverflow > 0) {
+    settledPositions = settledPositions.map((position: any) => {
+      if (payoutOverflow <= 0 || position.payoutSmallestUnit <= 0) return position;
+      const reduction = Math.min(payoutOverflow, position.payoutSmallestUnit);
+      payoutOverflow -= reduction;
+      const payoutSmallestUnit = position.payoutSmallestUnit - reduction;
+      const profitSmallestUnit = payoutSmallestUnit - position.stakeSmallestUnit;
+      return {
+        ...position,
+        payoutSmallestUnit,
+        profitSmallestUnit,
+        payout: toAmount(payoutSmallestUnit),
+        profit: toAmount(profitSmallestUnit)
+      };
+    });
+  }
 
   return {
     marketId: market.id,

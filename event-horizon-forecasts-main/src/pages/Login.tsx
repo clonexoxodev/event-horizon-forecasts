@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, Eye, EyeOff, Flame, Loader2, Lock, Mail, TrendingUp } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, Loader2, Lock, Mail, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
@@ -47,19 +47,19 @@ export default function Login() {
   return (
     <AuthShell>
       <div className="w-full max-w-md">
-        <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-[#090d19]/90 shadow-[0_24px_90px_rgba(0,0,0,0.55)] backdrop-blur-2xl">
-          <div className="h-1 w-full bg-gradient-to-r from-violet-500 via-fuchsia-400 to-violet-300" />
+        <div className="overflow-hidden rounded-2xl border border-[#263241] bg-[#101720]/95 shadow-[0_24px_90px_rgba(0,0,0,0.55)]">
+          <div className="h-1 w-full bg-[#12B886]" />
 
           <div className="p-6 sm:p-8">
             <Link to="/" className="mb-7 inline-flex items-center gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-violet-500/20 text-2xl font-black text-violet-200 shadow-[0_0_30px_rgba(139,92,246,0.38)]">
+              <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#12B886] text-2xl font-black text-[#06100d]">
                 F
               </div>
               <span className="text-xl font-black text-white">Flippe</span>
             </Link>
 
             <div className="mb-8">
-              <p className="mb-2 text-xs font-black uppercase tracking-[0.24em] text-violet-300">Welcome back</p>
+              <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Welcome back</p>
               <h1 className="text-3xl font-black tracking-tight text-white">Log in</h1>
               <p className="mt-2 text-sm text-slate-400">Get back to your markets, wallet, and predictions.</p>
             </div>
@@ -72,7 +72,7 @@ export default function Login() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="h-13 rounded-2xl border-white/10 bg-white/[0.055] pl-11 text-base font-semibold text-white placeholder:text-slate-500 focus:border-violet-400"
+                  className="h-13 rounded-xl border-[#263241] bg-[#151E28] pl-11 text-base font-semibold text-white placeholder:text-[#8B98A8] focus:border-[#12B886]"
                   disabled={loading}
                 />
               </div>
@@ -84,7 +84,7 @@ export default function Login() {
                   type={showPass ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-13 rounded-2xl border-white/10 bg-white/[0.055] pl-11 pr-11 text-base font-semibold text-white placeholder:text-slate-500 focus:border-violet-400"
+                  className="h-13 rounded-xl border-[#263241] bg-[#151E28] pl-11 pr-11 text-base font-semibold text-white placeholder:text-[#8B98A8] focus:border-[#12B886]"
                   disabled={loading}
                 />
                 <button
@@ -106,7 +106,7 @@ export default function Login() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="h-13 w-full rounded-2xl bg-violet-500 text-base font-black text-white shadow-[0_0_26px_rgba(139,92,246,0.32)] hover:bg-violet-400 disabled:opacity-50"
+                className="h-13 w-full rounded-xl bg-[#12B886] text-base font-black text-[#06100d] hover:bg-[#2dd4a0] disabled:opacity-50"
               >
                 {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Log in"}
               </Button>
@@ -134,7 +134,7 @@ export default function Login() {
 
             <p className="mt-6 text-center text-sm text-slate-400">
               Don't have an account?{" "}
-              <Link to="/signup" className="font-black text-violet-300 hover:text-violet-200">
+              <Link to="/signup" className="font-black text-[#12B886] hover:text-[#7AE4BD]">
                 Sign up
               </Link>
             </p>
@@ -146,12 +146,11 @@ export default function Login() {
 }
 
 const AuthShell = ({ children }: { children: React.ReactNode }) => (
-  <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050711] p-4 text-white">
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(139,92,246,0.28),transparent_34%),radial-gradient(circle_at_80%_20%,rgba(236,72,153,0.18),transparent_30%),linear-gradient(180deg,#050711,#070a14)]" />
-    <div className="absolute left-6 top-6 hidden rounded-3xl border border-white/10 bg-white/[0.045] p-4 backdrop-blur-xl lg:block">
+  <div className="app-bg relative flex min-h-screen items-center justify-center overflow-hidden p-4 text-white">
+    <div className="absolute left-6 top-6 hidden rounded-2xl border border-[#263241] bg-[#101720] p-4 lg:block">
       <div className="flex items-center gap-3">
-        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-violet-500/20 text-violet-200">
-          <Flame className="h-5 w-5" />
+        <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#12B886]/10 text-[#12B886]">
+          <TrendingUp className="h-5 w-5" />
         </div>
         <div>
           <div className="text-sm font-black">Live predictions</div>
@@ -159,9 +158,9 @@ const AuthShell = ({ children }: { children: React.ReactNode }) => (
         </div>
       </div>
     </div>
-    <div className="absolute bottom-6 right-6 hidden rounded-3xl border border-white/10 bg-white/[0.045] p-4 backdrop-blur-xl lg:block">
+    <div className="absolute bottom-6 right-6 hidden rounded-2xl border border-[#263241] bg-[#101720] p-4 lg:block">
       <div className="flex items-center gap-3">
-        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-400/10 text-emerald-300">
+        <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#12B886]/10 text-[#12B886]">
           <TrendingUp className="h-5 w-5" />
         </div>
         <div>

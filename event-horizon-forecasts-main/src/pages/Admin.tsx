@@ -62,7 +62,7 @@ const emptyForm = {
 };
 
 const categories = ["Sports", "Music", "Crypto", "Politics", "Entertainment", "Finance", "Technology", "Other"];
-const adminInputClass = "h-12 rounded-2xl border-white/10 bg-white/[0.055] text-white placeholder:text-slate-500 focus:border-violet-300";
+const adminInputClass = "h-12 rounded-2xl border-white/10 bg-white/[0.055] text-white placeholder:text-slate-500 focus:border-emerald-300";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -248,7 +248,7 @@ const Admin = () => {
         toast.success("Market updated.");
       } else {
         if (payload.status === "active") {
-          const confirmed = window.confirm(`Confirm market publish\n\n${payload.question}\n\nStarting prices: YES ${payload.starting_yes_price} / NO ${payload.starting_no_price}\n\nUsers will buy ownership shares at the live side price. Publish now?`);
+          const confirmed = window.confirm(`Confirm market publish\n\n${payload.question}\n\nStarting prices: YES ${payload.starting_yes_price} / NO ${payload.starting_no_price}\n\nUsers will buy YES/NO shares at the live sentiment price. Publish now?`);
           if (!confirmed) return;
         }
         await apiService.createAdminMarket(payload);
@@ -352,10 +352,10 @@ const Admin = () => {
   if (isLoading || !user || !admin) return null;
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#050711] text-white">
-      <div className="fixed inset-y-0 left-0 hidden w-72 border-r border-white/10 bg-[#070a14]/95 p-5 xl:block">
+    <div className="min-h-screen overflow-x-hidden bg-[#080C10] text-white">
+      <div className="fixed inset-y-0 left-0 hidden w-72 border-r border-[#263241] bg-[#0B1118]/95 p-5 xl:block">
         <div className="mb-8 flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-violet-500/20 text-violet-200">
+          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-400/12 text-emerald-300">
             <Shield className="h-6 w-6" />
           </div>
           <div>
@@ -370,7 +370,7 @@ const Admin = () => {
         <div className="mx-auto min-w-0 max-w-7xl">
           <div className="mb-6 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/[0.055] p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.24em] text-violet-300">Admin</p>
+              <p className="text-sm font-black uppercase tracking-[0.24em] text-emerald-300">Admin</p>
               <h1 className="mt-1 text-3xl font-black tracking-tight">{titleForView(view)}</h1>
               <p className="mt-1 text-sm text-slate-400">Manage markets and platform controls.</p>
             </div>
@@ -490,7 +490,7 @@ const AdminSidebar = ({ view, setView, superAdmin, compact = false }: { view: Ad
           key={item.view}
           onClick={() => setView(item.view)}
           className={`${compact ? "rounded-xl px-3 py-2 text-xs" : "w-full rounded-2xl px-4 py-3 text-sm"} flex items-center gap-3 font-black transition ${
-            view === item.view ? "bg-violet-500/20 text-violet-100" : locked ? "text-slate-600 hover:bg-white/5" : "text-slate-400 hover:bg-white/5 hover:text-white"
+            view === item.view ? "bg-emerald-400/12 text-emerald-200" : locked ? "text-slate-600 hover:bg-white/5" : "text-slate-400 hover:bg-white/5 hover:text-white"
           }`}
         >
           <item.icon className="h-4 w-4" />
@@ -506,14 +506,14 @@ const DashboardView = ({ analytics, markets, loading, superAdmin }: { analytics:
   const stats = [
     { label: "Live markets", value: markets.filter((market) => market.status === "active").length, tone: "green" },
     { label: "Pending resolution", value: markets.filter((market) => ["closed", "pending_resolution"].includes(market.status)).length, tone: "amber" },
-    { label: "Resolved markets", value: markets.filter((market) => market.status === "resolved").length, tone: "violet" },
-    { label: "Today's volume", value: formatNaira(Number(analytics?.todayVolume || 0) / 100), tone: "violet" },
+    { label: "Resolved markets", value: markets.filter((market) => market.status === "resolved").length, tone: "slate" },
+    { label: "Today's volume", value: formatNaira(Number(analytics?.todayVolume || 0) / 100), tone: "slate" },
   ];
 
   if (superAdmin && analytics) {
     stats.push({ label: "Total users", value: analytics.totalUsers || 0, tone: "green" });
     stats.push({ label: "Today's active users", value: analytics.activeUsersToday || 0, tone: "green" });
-    stats.push({ label: "Today's predictions", value: analytics.predictionsToday || 0, tone: "violet" });
+    stats.push({ label: "Today's predictions", value: analytics.predictionsToday || 0, tone: "slate" });
     stats.push({ label: "Pending payouts", value: analytics.pendingPayouts || 0, tone: "amber" });
   }
 
@@ -536,7 +536,7 @@ const ResolutionConfirmModal = ({ market, outcome, summary, loading, onCancel, o
 }) => (
   <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
     <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-white/10 bg-[#080d19] p-5 shadow-2xl">
-      <p className="text-xs font-black uppercase tracking-[0.24em] text-violet-300">Confirm settlement</p>
+      <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-300">Confirm settlement</p>
       <h2 className="mt-2 text-2xl font-black text-white">{market.question}</h2>
       <p className="mt-2 text-sm font-bold text-slate-400">
         You are about to resolve this market as <span className={outcome === "YES" ? "text-emerald-300" : "text-red-300"}>{outcome}</span>. Winners will be paid from their locked shares at purchase. This cannot be undone.
@@ -580,7 +580,7 @@ const ResolutionConfirmModal = ({ market, outcome, summary, loading, onCancel, o
 
       <div className="mt-5 flex gap-3">
         <Button type="button" onClick={onCancel} disabled={loading} variant="outline" className="h-12 flex-1 rounded-2xl border-white/10 bg-white/5 font-black text-white hover:bg-white/10">Cancel</Button>
-        <Button type="button" onClick={onConfirm} disabled={loading} className="h-12 flex-1 rounded-2xl bg-violet-500 font-black text-white hover:bg-violet-400">
+        <Button type="button" onClick={onConfirm} disabled={loading} className="h-12 flex-1 rounded-2xl bg-emerald-500 font-black text-white hover:bg-emerald-400">
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Resolve {outcome}
         </Button>
@@ -629,11 +629,11 @@ const MarketsView = ({ markets, loading, search, statusFilter, setSearch, setSta
       </div>
       <div className="flex gap-2">
         <Button onClick={reload} variant="outline" className="rounded-2xl border-white/10 bg-white/5 text-white hover:bg-white/10">Refresh</Button>
-        <Button onClick={goCreate} className="rounded-2xl bg-violet-500 font-black text-white hover:bg-violet-400"><Plus className="mr-2 h-4 w-4" />Create Market</Button>
+        <Button onClick={goCreate} className="rounded-2xl bg-emerald-500 font-black text-white hover:bg-emerald-400"><Plus className="mr-2 h-4 w-4" />Create Market</Button>
       </div>
     </div>
     {loading ? (
-      <div className="grid min-h-[240px] place-items-center"><Loader2 className="h-8 w-8 animate-spin text-violet-300" /></div>
+      <div className="grid min-h-[240px] place-items-center"><Loader2 className="h-8 w-8 animate-spin text-emerald-300" /></div>
     ) : markets.length === 0 ? (
       <EmptyState title="No markets found" body="Create your first market or change your filters." />
     ) : (
@@ -750,13 +750,13 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
         <div className="space-y-3">
           <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
             <span className="font-black">Mark as trending</span>
-            <input type="checkbox" checked={form.trending} onChange={(event) => setForm((prev) => ({ ...prev, trending: event.target.checked }))} className="h-5 w-5 accent-violet-500" />
+            <input type="checkbox" checked={form.trending} onChange={(event) => setForm((prev) => ({ ...prev, trending: event.target.checked }))} className="h-5 w-5 accent-emerald-500" />
           </label>
           <Field label="Status"><Select value={form.status} onChange={(value) => setForm((prev) => ({ ...prev, status: value as "draft" | "active" }))} options={["active", "draft"]} /></Field>
         </div>
       </section>
 
-      <section className="min-w-0 rounded-[2rem] border border-violet-300/20 bg-violet-500/10 p-5">
+      <section className="min-w-0 rounded-[2rem] border border-emerald-300/20 bg-emerald-400/10 p-5">
         <h2 className="mb-4 text-xl font-black">User preview</h2>
         <div className="rounded-3xl border border-white/10 bg-[#080d19] p-4">
           <div className="mb-3 flex items-center justify-between">
@@ -768,14 +768,14 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
             <div className="rounded-2xl bg-emerald-400/10 p-3 text-sm font-black text-emerald-200">YES {yesPrice || 0}</div>
             <div className="rounded-2xl bg-red-400/10 p-3 text-sm font-black text-red-200">NO {noPrice || 0}</div>
           </div>
-          <p className="mt-3 text-xs text-slate-500">Users buy ownership shares at the live side price. Prices must always add up to 100.</p>
+          <p className="mt-3 text-xs text-slate-500">Users buy YES/NO shares at the live sentiment price. Prices must always add up to 100.</p>
           <p className="mt-2 text-xs text-slate-500">This is how users will see the market. Confirm before publishing.</p>
         </div>
       </section>
 
       <div className="flex min-w-0 gap-3">
         <Button type="button" onClick={onCancel} variant="outline" className="h-12 flex-1 rounded-2xl border-white/10 bg-white/5 font-black text-white hover:bg-white/10">Cancel</Button>
-        <Button type="submit" disabled={saving} className="h-12 flex-1 rounded-2xl bg-violet-500 font-black text-white hover:bg-violet-400">
+        <Button type="submit" disabled={saving} className="h-12 flex-1 rounded-2xl bg-emerald-500 font-black text-white hover:bg-emerald-400">
           {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
           {editing ? "Save" : "Create"}
         </Button>
@@ -808,11 +808,11 @@ const FinanceView = ({ overview, deposits, withdrawals, transactions, onApproveD
       <StatCard label="Total user balances" value={formatNaira(overview?.totalUserBalances || 0)} tone="green" />
       <StatCard label="Pending deposits" value={overview?.pendingDeposits || 0} tone="amber" />
       <StatCard label="Pending withdrawals" value={overview?.pendingWithdrawals || 0} tone="amber" />
-      <StatCard label="Today prediction volume" value={formatNaira(overview?.todayPredictionVolume || 0)} tone="violet" />
+      <StatCard label="Today prediction volume" value={formatNaira(overview?.todayPredictionVolume || 0)} tone="slate" />
       <StatCard label="Total deposits" value={formatNaira(overview?.totalDeposits || 0)} tone="green" />
-      <StatCard label="Total withdrawals" value={formatNaira(overview?.totalWithdrawals || 0)} tone="violet" />
+      <StatCard label="Total withdrawals" value={formatNaira(overview?.totalWithdrawals || 0)} tone="slate" />
       <StatCard label="Today deposits" value={formatNaira(overview?.todayDeposits || 0)} tone="green" />
-      <StatCard label="Today withdrawals" value={formatNaira(overview?.todayWithdrawals || 0)} tone="violet" />
+      <StatCard label="Today withdrawals" value={formatNaira(overview?.todayWithdrawals || 0)} tone="slate" />
     </div>
 
     <section className="grid gap-5 xl:grid-cols-2">
@@ -885,7 +885,7 @@ const AddAdminView = ({ admins, email, setEmail, onSubmit, onRemove }: { admins:
   <section className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
     <form onSubmit={onSubmit} className="mb-6 flex gap-3">
       <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="admin@example.com" className="h-12 rounded-2xl border-white/10 bg-white/[0.055] text-white" />
-      <Button className="h-12 rounded-2xl bg-violet-500 font-black text-white hover:bg-violet-400">Add Admin</Button>
+      <Button className="h-12 rounded-2xl bg-emerald-500 font-black text-white hover:bg-emerald-400">Add Admin</Button>
     </form>
     <div className="space-y-3">
       {admins.map((admin) => (
@@ -906,9 +906,9 @@ const ReportsView = ({ analytics }: { analytics: any }) => (
     <h2 className="text-xl font-black">Reports</h2>
     <p className="mt-1 text-sm text-slate-500">Platform summary for super admins.</p>
     <div className="mt-5 grid gap-4 md:grid-cols-3">
-      <StatCard label="Users" value={analytics?.totalUsers || 0} tone="violet" />
+      <StatCard label="Users" value={analytics?.totalUsers || 0} tone="slate" />
       <StatCard label="Predictions" value={analytics?.totalForecasts || 0} tone="green" />
-      <StatCard label="Volume" value={formatNaira(Number(analytics?.totalVolume || 0) / 100)} tone="violet" />
+      <StatCard label="Volume" value={formatNaira(Number(analytics?.totalVolume || 0) / 100)} tone="slate" />
     </div>
   </section>
 );
@@ -924,10 +924,10 @@ const SuperOnly = ({ allowed, children }: { allowed: boolean; children: React.Re
   allowed ? <>{children}</> : <EmptyState title="Super admin only" body="This page is locked for admin accounts." />
 );
 
-const StatCard = ({ label, value, tone = "violet", loading = false }: { label: string; value: React.ReactNode; tone?: string; loading?: boolean }) => (
+const StatCard = ({ label, value, tone = "slate", loading = false }: { label: string; value: React.ReactNode; tone?: string; loading?: boolean }) => (
   <div className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-5">
     <div className="text-sm font-bold text-slate-500">{label}</div>
-    <div className={`mt-3 text-3xl font-black ${tone === "green" ? "text-emerald-300" : tone === "amber" ? "text-amber-300" : tone === "slate" ? "text-slate-300" : "text-violet-300"}`}>{loading ? "..." : value}</div>
+    <div className={`mt-3 text-3xl font-black ${tone === "green" ? "text-emerald-300" : tone === "amber" ? "text-amber-300" : "text-slate-300"}`}>{loading ? "..." : value}</div>
   </div>
 );
 
@@ -947,14 +947,14 @@ const DataRow = ({ title, subtitle, value }: { title: string; subtitle?: string;
       <div className="truncate font-black capitalize">{title}</div>
       {subtitle && <div className="mt-1 truncate text-sm text-slate-500">{subtitle}</div>}
     </div>
-    {value && <div className="shrink-0 text-sm font-black text-violet-300">{value}</div>}
+    {value && <div className="shrink-0 text-sm font-black text-emerald-300">{value}</div>}
   </div>
 );
 
 const EmptyState = ({ title, body }: { title: string; body: string }) => (
   <div className="grid min-h-[220px] place-items-center rounded-3xl border border-dashed border-white/10 bg-[#0b1020]/70 text-center">
     <div>
-      <Activity className="mx-auto mb-3 h-8 w-8 text-violet-300" />
+      <Activity className="mx-auto mb-3 h-8 w-8 text-emerald-300" />
       <div className="font-black">{title}</div>
       <p className="mt-1 text-sm text-slate-500">{body}</p>
     </div>
@@ -976,7 +976,7 @@ const Select = ({ value, onChange, options }: { value: string; onChange: (value:
 
 const MediaInput = ({ label, accept, file, existing, onChange }: { label: string; accept: string; file: File | null; existing: string; onChange: (file: File | null) => void }) => (
   <label className="flex min-w-0 cursor-pointer items-center gap-3 overflow-hidden rounded-2xl border border-dashed border-white/15 bg-white/[0.04] p-4 transition hover:bg-white/[0.07]">
-    <div className="grid h-10 w-10 place-items-center rounded-2xl bg-violet-500/20 text-violet-200">
+    <div className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-400/12 text-emerald-300">
       {label === "Image" ? <Image className="h-5 w-5" /> : <Upload className="h-5 w-5" />}
     </div>
     <div className="min-w-0 flex-1 overflow-hidden">
@@ -992,13 +992,13 @@ const MediaInput = ({ label, accept, file, existing, onChange }: { label: string
 const StatusBadge = ({ status }: { status: string }) => (
   <span className={`rounded-full px-3 py-1 text-xs font-black capitalize ${
     status === "active" ? "bg-emerald-400/10 text-emerald-300" :
-    status === "resolved" ? "bg-violet-400/10 text-violet-300" :
+    status === "resolved" ? "bg-slate-400/10 text-slate-300" :
     status === "draft" ? "bg-slate-400/10 text-slate-300" :
     "bg-red-400/10 text-red-300"
   }`}>{status}</span>
 );
 
-const IconAction = ({ icon: Icon, label, onClick, disabled = false, tone = "violet" }: { icon: any; label: string; onClick: () => void; disabled?: boolean; tone?: "violet" | "green" | "red" }) => (
+const IconAction = ({ icon: Icon, label, onClick, disabled = false, tone = "slate" }: { icon: any; label: string; onClick: () => void; disabled?: boolean; tone?: "slate" | "green" | "red" }) => (
   <button disabled={disabled} onClick={onClick} title={label} className={`grid h-9 w-9 place-items-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-35 ${
     tone === "green" ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-300" :
     tone === "red" ? "border-red-300/20 bg-red-400/10 text-red-300" :

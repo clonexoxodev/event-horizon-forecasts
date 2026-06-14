@@ -72,7 +72,7 @@ export default function About() {
               </div>
               <h3 className="text-xl font-bold text-charcoal mb-3">Fair Markets</h3>
               <p className="text-graphite leading-relaxed">
-                Our automated market maker ensures fair pricing and liquidity for all participants.
+                Our pool-safe YES/NO market keeps pricing tied to real user activity and settles only from locked market stakes.
               </p>
             </div>
           </div>

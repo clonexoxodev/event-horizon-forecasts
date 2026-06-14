@@ -4,7 +4,7 @@ import { MobileNav } from "@/components/MobileNav";
 import { MarketCard } from "@/components/MarketCard";
 import { fetchMarkets, getTrendingScore } from "@/lib/markets";
 import { useMarketState } from "@/lib/market-state";
-import { Flame, TrendingUp } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 export default function Markets() {
@@ -27,26 +27,25 @@ export default function Markets() {
   }, [category, markets]);
 
   return (
-    <div className="min-h-screen bg-[#050711] pb-20 text-white md:pb-0 xl:pl-64">
+    <div className="app-bg min-h-screen pb-20 text-white md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
-        <div className="mb-6 rounded-[2rem] border border-white/10 bg-white/[0.055] p-5 backdrop-blur-xl">
-          <p className="mb-2 inline-flex items-center gap-2 rounded-full bg-red-500/15 px-3 py-1 text-xs font-bold text-red-200">
-            <Flame className="h-3.5 w-3.5" />
-            Trending now
+        <div className="mb-6 rounded-2xl border border-[#263241] bg-[#101720] p-5">
+          <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#263241] bg-[#151E28] px-3 py-1 text-xs font-bold text-[#8B98A8]">
+            Active markets
           </p>
           <h1 className="text-3xl font-black tracking-tight sm:text-5xl">
             {category ? `${category} markets` : "Most active markets"}
           </h1>
-          <p className="mt-2 max-w-xl text-sm text-slate-400">
-            Markets with the most money, people, and heat.
+          <p className="mt-2 max-w-xl text-sm text-[#8B98A8]">
+            Markets with the most volume, trades, and participation.
           </p>
         </div>
 
         {loading ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {[1, 2, 3, 4].map((item) => (
-              <div key={item} className="h-[360px] animate-pulse rounded-3xl border border-white/10 bg-white/5" />
+              <div key={item} className="h-[360px] rounded-2xl border border-[#263241] soft-shimmer" />
             ))}
           </div>
         ) : trending.length > 0 ? (
@@ -58,10 +57,10 @@ export default function Markets() {
             ))}
           </div>
         ) : (
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
-            <TrendingUp className="mx-auto mb-3 h-10 w-10 text-violet-300" />
+          <div className="rounded-2xl border border-[#263241] bg-[#101720] p-10 text-center">
+            <TrendingUp className="mx-auto mb-3 h-10 w-10 text-[#12B886]" />
             <h2 className="text-xl font-black">No active markets</h2>
-            <p className="mt-1 text-sm text-slate-400">Add markets in the backend to fill this page.</p>
+            <p className="mt-1 text-sm text-[#8B98A8]">Add markets in the backend to fill this page.</p>
           </div>
         )}
       </main>

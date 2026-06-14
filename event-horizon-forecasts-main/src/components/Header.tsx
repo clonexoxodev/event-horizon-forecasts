@@ -1,4 +1,4 @@
-import { Home, Menu, PieChart, Search, Shield, Wallet, Zap } from "lucide-react";
+import { Home, Menu, PieChart, Search, Shield, Wallet } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
@@ -17,14 +17,14 @@ export const Header = () => {
 
   return (
     <>
-      <aside className="fixed left-0 top-0 z-50 hidden h-screen w-64 border-r border-white/10 bg-[#060914]/92 p-5 backdrop-blur-2xl xl:block">
+      <aside className="fixed left-0 top-0 z-50 hidden h-screen w-64 border-r border-[#263241] bg-[#080c10]/96 p-5 backdrop-blur-xl xl:block">
         <Link to="/" className="mb-8 flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-violet-500 text-lg font-black text-white shadow-[0_0_28px_rgba(139,92,246,0.45)]">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#12B886] text-lg font-black text-[#06100d]">
             F
           </div>
           <div>
             <div className="text-xl font-black tracking-tight text-white">Flippe</div>
-            <div className="text-xs font-bold text-violet-200/70">Social prediction fintech</div>
+            <div className="text-xs font-bold text-[#8B98A8]">Real-world prediction markets</div>
           </div>
         </Link>
 
@@ -35,10 +35,10 @@ export const Header = () => {
               to={item.to}
               end={item.to === "/"}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-black transition ${
+                `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-black transition ${
                   isActive
-                    ? "bg-white text-[#050711] shadow-[0_0_32px_rgba(255,255,255,0.12)]"
-                    : "text-slate-400 hover:bg-white/5 hover:text-white"
+                    ? "border border-[#263241] bg-[#151E28] text-white"
+                    : "text-[#8B98A8] hover:bg-[#101720] hover:text-white"
                 }`
               }
             >
@@ -50,8 +50,8 @@ export const Header = () => {
             <NavLink
               to={adminPath}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-black transition ${
-                  isActive ? "bg-violet-500/20 text-violet-100" : "text-slate-500 hover:bg-white/5 hover:text-white"
+                `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-black transition ${
+                  isActive ? "border border-[#263241] bg-[#151E28] text-white" : "text-[#8B98A8] hover:bg-[#101720] hover:text-white"
                 }`
               }
             >
@@ -61,39 +61,39 @@ export const Header = () => {
           )}
         </nav>
 
-        <div className="absolute bottom-5 left-5 right-5 rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-4">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+        <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-[#263241] bg-[#101720] p-4">
+          <div className="flex items-center justify-between text-xs font-bold text-[#8B98A8]">
             <span>Available</span>
-            <Zap className="h-4 w-4 text-amber-300" />
+            <Wallet className="h-4 w-4 text-[#12B886]" />
           </div>
           <div className="mt-2 text-2xl font-black text-white">{formatNaira(user?.balance || 0)}</div>
-          <Link to="/wallet" className="mt-4 flex h-10 items-center justify-center rounded-xl bg-violet-500 text-sm font-black text-white transition hover:bg-violet-400">
+          <Link to="/wallet" className="mt-4 flex h-10 items-center justify-center rounded-xl bg-[#12B886] text-sm font-black text-[#06100d] transition hover:bg-[#2dd4a0]">
             Add funds
           </Link>
         </div>
       </aside>
 
-      <header className="sticky top-0 z-40 hidden border-b border-white/10 bg-[#060914]/78 backdrop-blur-2xl md:block">
+      <header className="sticky top-0 z-40 hidden border-b border-[#263241] bg-[#080c10]/90 backdrop-blur-xl md:block">
         <div className="mx-auto flex max-w-[1320px] items-center gap-3 px-4 py-3 sm:px-6">
           <Link to="/" className="flex shrink-0 items-center gap-2">
-            <div className="grid h-9 w-9 place-items-center rounded-2xl bg-violet-500 text-sm font-black text-white shadow-[0_0_24px_rgba(139,92,246,0.38)]">
+            <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#12B886] text-sm font-black text-[#06100d]">
               F
             </div>
             <span className="text-xl font-black tracking-tight text-white">Flippe</span>
           </Link>
 
-          <div className="ml-auto hidden h-10 max-w-md flex-1 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.055] px-3 text-sm font-bold text-slate-500 md:flex">
+          <div className="ml-auto hidden h-10 max-w-md flex-1 items-center gap-2 rounded-xl border border-[#263241] bg-[#101720] px-3 text-sm font-bold text-[#8B98A8] md:flex">
             <Search className="h-4 w-4" />
             Search markets
           </div>
 
           {user && (
-            <Link to="/wallet" className="hidden rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm font-black text-white md:block">
+            <Link to="/wallet" className="hidden rounded-xl border border-[#263241] bg-[#101720] px-3 py-2 text-sm font-black text-white transition hover:border-[#12B886]/60 md:block">
               {formatNaira(user.balance)}
             </Link>
           )}
           {user && <NotificationBell />}
-          <Link to={user ? "/more" : "/login"} className="grid h-10 w-10 overflow-hidden rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-500 text-sm font-black text-white">
+          <Link to={user ? "/more" : "/login"} className="grid h-10 w-10 overflow-hidden rounded-full border border-[#263241] bg-[#151E28] text-sm font-black text-white">
             {user?.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" /> : user?.username?.charAt(0).toUpperCase() || "?"}
           </Link>
         </div>

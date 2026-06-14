@@ -10,23 +10,23 @@ export default function FAQ() {
   const faqs = [
     {
       question: "What is Flippe?",
-      answer: "Flippe is a prediction market platform where you can forecast real-world events and earn from your accuracy. We use automated market makers to create fair, liquid markets on politics, sports, crypto, and more.",
+      answer: "Flippe is a prediction market platform where you can forecast real-world events and participate in pool-safe YES/NO markets on politics, sports, crypto, and more.",
     },
     {
       question: "How do I make money on Flippe?",
-      answer: "You earn by making accurate forecasts. Buy YES or NO shares based on your prediction. When the market resolves, winning shares pay out ₦100 each. The difference between your purchase price and the payout is your profit.",
+      answer: "You earn by making accurate forecasts. Buy YES or NO shares based on your prediction. When the market resolves, the winning side splits the losing side's pool based on each winner's share of that side.",
     },
     {
       question: "How are markets resolved?",
       answer: "Every market has clear resolution criteria stated upfront. Markets resolve based on objective, verifiable sources (like official election results, sports scores, or price data from exchanges). The resolution source is always specified before the market opens.",
     },
     {
-      question: "What is an Automated Market Maker (AMM)?",
-      answer: "An AMM is a system that automatically sets prices based on supply and demand. When you buy shares, the price moves up. When you sell, it moves down. This ensures fair pricing and instant liquidity without needing a traditional order book.",
+      question: "How does Flippe set prices?",
+      answer: "Flippe prices are live sentiment indicators. They move based on actual YES and NO buying activity, and YES plus NO always adds up to 100.",
     },
     {
-      question: "Can I sell my shares before the market closes?",
-      answer: "Yes! You can buy and sell shares anytime before the market closes. The AMM provides instant liquidity, so you can exit your position whenever you want.",
+      question: "Can I cash out before the market closes?",
+      answer: "Not in this MVP. Projected values are estimates based on the current pool and are only finalized when the market resolves.",
     },
     {
       question: "What happens if I'm wrong?",
@@ -34,7 +34,7 @@ export default function FAQ() {
     },
     {
       question: "How do prices work?",
-      answer: "YES and NO shares always sum to ₦100. If YES is at ₦65, NO is at ₦35. Prices reflect the crowd's collective forecast. A YES price of ₦65 means the market thinks there's a 65% chance the event will happen.",
+      answer: "YES and NO prices always sum to 100. If YES is at 65, NO is at 35. Prices reflect the crowd's current sentiment and are used to calculate how many shares you receive.",
     },
     {
       question: "Is Flippe legal?",
@@ -42,7 +42,7 @@ export default function FAQ() {
     },
     {
       question: "How do I add funds to my wallet?",
-      answer: "Go to your Wallet page and click 'Add Funds'. You can deposit using bank transfer, card, or other supported payment methods. Funds are credited instantly.",
+      answer: "Go to your Wallet page and click 'Add Funds'. Deposit requests are credited after admin approval or future payment-provider confirmation.",
     },
     {
       question: "How do I withdraw my winnings?",

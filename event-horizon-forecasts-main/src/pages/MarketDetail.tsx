@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowLeft, Bookmark, CheckCircle, Clock, Flame, Loader2, Share2, TrendingUp, Users, X, Zap } from "lucide-react";
+import { ArrowLeft, Bookmark, CheckCircle, Clock, Loader2, Share2, TrendingUp, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
@@ -147,10 +147,10 @@ export default function MarketDetail() {
 
   if (loading && !market) {
     return (
-      <div className="min-h-screen bg-[#050711] text-white xl:pl-64">
+      <div className="app-bg min-h-screen text-white xl:pl-64">
         <Header />
         <main className="grid min-h-[70vh] place-items-center px-4">
-          <Loader2 className="h-8 w-8 animate-spin text-violet-300" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#12B886]" />
         </main>
       </div>
     );
@@ -162,25 +162,28 @@ export default function MarketDetail() {
   const selectedPrice = sheetSide === "YES" ? market.yesPrice : market.noPrice;
   const numericAmount = Number.parseFloat(amount) || 0;
   const sideShares = sheetSide === "YES" ? market.totalYesShares || 0 : market.totalNoShares || 0;
+  const oppositeStake = sheetSide === "YES" ? market.noVolume || market.noPool || 0 : market.yesVolume || market.yesPool || 0;
   const sharesReceived = numericAmount > 0 && selectedPrice > 0 ? numericAmount / selectedPrice : 0;
-  const ownershipAfterPurchase = sideShares + sharesReceived > 0 ? (sharesReceived / (sideShares + sharesReceived)) * 100 : 0;
-  const positionValue = sharesReceived * selectedPrice;
+  const projectedProfit = sideShares + sharesReceived > 0 && oppositeStake > 0
+    ? (sharesReceived / (sideShares + sharesReceived)) * oppositeStake
+    : 0;
+  const projectedPayout = numericAmount + projectedProfit;
   const hasMarketEnded = market.closeTime ? new Date(market.closeTime).getTime() <= now : false;
   const marketIsActive = market.status === "active" && !hasMarketEnded;
   const totalShares = Number(market.totalYesShares || 0) + Number(market.totalNoShares || 0);
-  const yesOwnershipShare = totalShares > 0 ? (Number(market.totalYesShares || 0) / totalShares) * 100 : 50;
-  const noOwnershipShare = 100 - yesOwnershipShare;
+  const yesSideShare = totalShares > 0 ? (Number(market.totalYesShares || 0) / totalShares) * 100 : 50;
+  const noSideShare = 100 - yesSideShare;
   const recentTrades = [...(market.priceHistory || [])]
     .filter((point) => point.side && Number(point.amount || 0) > 0)
     .slice(-5)
     .reverse();
 
   return (
-    <div className="min-h-screen bg-[#050711] pb-[calc(150px+env(safe-area-inset-bottom))] text-white md:pb-24 xl:pl-64">
+    <div className="app-bg min-h-screen pb-[calc(150px+env(safe-area-inset-bottom))] text-white md:pb-24 xl:pl-64">
       <Header />
-      <main className="mx-auto max-w-4xl px-4 py-4 sm:px-6" data-now={now}>
+      <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:py-6" data-now={now}>
         <div className="mb-4 flex items-center justify-between">
-          <Link to="/" className="inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-3 text-sm font-black text-slate-300">
+          <Link to="/" className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#263241] bg-[#101720] px-3 text-sm font-black text-[#8B98A8] transition hover:text-white">
             <ArrowLeft className="h-4 w-4" />
             Home
           </Link>
@@ -190,42 +193,42 @@ export default function MarketDetail() {
           </div>
         </div>
 
-        <article className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.055]">
+        <article className="overflow-hidden rounded-2xl border border-[#263241] bg-[#101720]">
           <div className="relative aspect-[4/5] max-h-[620px] overflow-hidden sm:aspect-[16/10]">
             {media.type === "video" ? (
               <video src={media.src} poster={media.poster} className="absolute inset-0 h-full w-full object-cover" muted playsInline loop autoPlay />
             ) : (
               <img src={media.src} alt="" className="absolute inset-0 h-full w-full object-cover" />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#050711] via-[#050711]/40 to-black/10" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#080c10] via-[#080c10]/42 to-black/10" />
             <div className="absolute bottom-0 left-0 right-0 p-5">
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#050711]">{market.category}</span>
-                <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-200">{marketIsActive ? "Live" : "Ended"}</span>
-                <span className="rounded-full border border-white/10 bg-black/35 px-3 py-1 text-xs font-black text-white backdrop-blur-xl">
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#080c10]">{market.category}</span>
+                <span className="rounded-full border border-[#12B886]/25 bg-[#12B886]/10 px-3 py-1 text-xs font-black text-[#7AE4BD]">{marketIsActive ? "Live" : "Ended"}</span>
+                <span className="rounded-full border border-[#263241] bg-black/45 px-3 py-1 text-xs font-black text-white backdrop-blur-xl">
                   {formatCountdown(market.closeTime, market.closesIn)}
                 </span>
               </div>
               <h1 className="max-w-3xl text-3xl font-black leading-tight tracking-tight sm:text-5xl">{market.question}</h1>
-              <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-300">
-                <span className="flex items-center gap-1.5"><Users className="h-4 w-4 text-violet-300" />{market.participants} participants</span>
-                <span className="flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-violet-300" />{formatNaira(market.totalPool)} volume</span>
+              <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-bold text-[#D5DEE8]">
+                <span className="flex items-center gap-1.5"><Users className="h-4 w-4 text-[#12B886]" />{market.participants} participants</span>
+                <span className="flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-[#12B886]" />{formatNaira(market.totalPool)} volume</span>
                 <span>{market.tradeCount || 0} trades</span>
-                <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-violet-300" />Ends {formatCountdown(market.closeTime, market.closesIn)}</span>
+                <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-[#12B886]" />Ends {formatCountdown(market.closeTime, market.closesIn)}</span>
               </div>
             </div>
           </div>
         </article>
 
-        <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.055] p-4">
+        <section className="mt-4 rounded-2xl border border-[#263241] bg-[#101720] p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-black">Price history</h2>
-              <p className="text-xs font-bold text-slate-500">Updates only after real predictions</p>
+              <p className="text-xs font-bold text-[#8B98A8]">Updates only after real predictions</p>
             </div>
-            <div className="flex rounded-full border border-white/10 bg-white/[0.04] p-1">
+            <div className="flex rounded-full border border-[#263241] bg-[#151E28] p-1">
               {(["1H", "24H", "7D", "ALL"] as Timeframe[]).map((item) => (
-                <button key={item} onClick={() => setTimeframe(item)} className={`rounded-full px-3 py-1 text-xs font-black ${timeframe === item ? "bg-white text-[#050711]" : "text-slate-400"}`}>
+                <button key={item} onClick={() => setTimeframe(item)} className={`rounded-full px-3 py-1 text-xs font-black ${timeframe === item ? "bg-[#12B886] text-[#06100d]" : "text-[#8B98A8]"}`}>
                   {item}
                 </button>
               ))}
@@ -235,46 +238,46 @@ export default function MarketDetail() {
         </section>
 
         <section className="mt-4 grid gap-3 md:grid-cols-3">
-          <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.055] p-4">
-            <h2 className="text-lg font-black">Ownership</h2>
-            <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full bg-emerald-400" style={{ width: `${yesOwnershipShare}%` }} />
+          <div className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
+            <h2 className="text-lg font-black">Side distribution</h2>
+            <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#E85D5D]/20">
+              <div className="h-full bg-[#12B886]" style={{ width: `${yesSideShare}%` }} />
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <Metric label="YES shares" value={`${Number(market.totalYesShares || 0).toFixed(2)} (${yesOwnershipShare.toFixed(1)}%)`} />
-              <Metric label="NO shares" value={`${Number(market.totalNoShares || 0).toFixed(2)} (${noOwnershipShare.toFixed(1)}%)`} />
+              <Metric label="YES side shares" value={`${Number(market.totalYesShares || 0).toFixed(2)} (${yesSideShare.toFixed(1)}%)`} />
+              <Metric label="NO side shares" value={`${Number(market.totalNoShares || 0).toFixed(2)} (${noSideShare.toFixed(1)}%)`} />
               <Metric label="YES volume" value={formatNaira(Number(market.yesVolume || market.yesPool || 0))} />
               <Metric label="NO volume" value={formatNaira(Number(market.noVolume || market.noPool || 0))} />
             </div>
           </div>
 
-          <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.055] p-4">
+          <div className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
             <h2 className="text-lg font-black">Recent trades</h2>
             <div className="mt-3 space-y-2">
               {recentTrades.length ? recentTrades.map((trade) => (
-                <div key={`${trade.timestamp}-${trade.side}-${trade.amount}`} className="flex items-center justify-between rounded-2xl bg-white/[0.045] px-3 py-2 text-xs">
-                  <span className={`font-black ${trade.side === "YES" ? "text-emerald-300" : "text-red-300"}`}>Bought {trade.side}</span>
-                  <span className="text-slate-400">{formatNaira(Number(trade.amount || 0))}</span>
+                <div key={`${trade.timestamp}-${trade.side}-${trade.amount}`} className="flex items-center justify-between rounded-xl bg-[#151E28] px-3 py-2 text-xs">
+                  <span className={`font-black ${trade.side === "YES" ? "text-[#12B886]" : "text-[#E85D5D]"}`}>Bought {trade.side}</span>
+                  <span className="text-[#8B98A8]">{formatNaira(Number(trade.amount || 0))}</span>
                 </div>
               )) : (
-                <p className="text-sm text-slate-500">Recent trades appear after predictions.</p>
+                <p className="text-sm text-[#8B98A8]">Recent trades appear after predictions.</p>
               )}
             </div>
           </div>
 
-          <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.055] p-4">
+          <div className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
             <h2 className="text-lg font-black">Market sentiment</h2>
             <div className="mt-4 grid gap-2">
               <Metric label="YES price" value={formatNairaPrice(market.yesPrice)} />
               <Metric label="NO price" value={formatNairaPrice(market.noPrice)} />
-              <Metric label="Largest holders" value="Available after holder ranking" />
+              <Metric label="Trades" value={`${market.tradeCount || 0}`} />
             </div>
           </div>
         </section>
 
-        <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.055] p-4">
+        <section className="mt-4 rounded-2xl border border-[#263241] bg-[#101720] p-4">
           <h2 className="text-lg font-black">Rules</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-400">{market.rules || market.description || "This market resolves based on the stated outcome and admin review."}</p>
+          <p className="mt-2 text-sm leading-6 text-[#8B98A8]">{market.rules || market.description || "This market resolves based on the stated outcome and admin review."}</p>
         </section>
 
         {relatedMarkets.length > 0 && (
@@ -282,8 +285,8 @@ export default function MarketDetail() {
             <h2 className="mb-3 text-lg font-black">Related markets</h2>
             <div className="grid gap-3 sm:grid-cols-3">
               {relatedMarkets.map((item) => (
-                <Link key={item.id} to={`/market/${item.id}`} className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 transition hover:bg-white/[0.075]">
-                  <div className="text-xs font-black text-violet-300">{item.category}</div>
+                <Link key={item.id} to={`/market/${item.id}`} className="rounded-xl border border-[#263241] bg-[#101720] p-4 transition hover:border-[#12B886]/45 hover:bg-[#151E28]">
+                  <div className="text-xs font-black text-[#12B886]">{item.category}</div>
                   <div className="mt-1 line-clamp-2 text-sm font-black">{item.question}</div>
                   <div className="mt-3 text-xs font-black text-slate-500">YES {formatNairaPrice(item.yesPrice)} · NO {formatNairaPrice(item.noPrice)}</div>
                 </Link>
@@ -293,12 +296,12 @@ export default function MarketDetail() {
         )}
       </main>
 
-      <div className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-white/10 bg-[#060914]/90 p-3 backdrop-blur-2xl md:bottom-0 xl:left-64">
-        <div className="mx-auto grid max-w-4xl grid-cols-2 gap-3">
-          <button disabled={!marketIsActive} onClick={() => setSheetSide("YES")} className="h-12 rounded-2xl bg-emerald-500 text-sm font-black text-white shadow-[0_0_24px_rgba(16,185,129,0.25)] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">
+      <div className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-[#263241] bg-[#080c10]/92 p-3 backdrop-blur-xl md:bottom-0 xl:left-64">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-3">
+          <button disabled={!marketIsActive} onClick={() => setSheetSide("YES")} className="h-12 rounded-xl bg-[#12B886] text-sm font-black text-[#06100d] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">
             Buy YES {formatNairaPrice(market.yesPrice)}
           </button>
-          <button disabled={!marketIsActive} onClick={() => setSheetSide("NO")} className="h-12 rounded-2xl bg-red-500 text-sm font-black text-white shadow-[0_0_24px_rgba(239,68,68,0.22)] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">
+          <button disabled={!marketIsActive} onClick={() => setSheetSide("NO")} className="h-12 rounded-xl bg-[#E85D5D] text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">
             Buy NO {formatNairaPrice(market.noPrice)}
           </button>
         </div>
@@ -306,40 +309,39 @@ export default function MarketDetail() {
 
       {sheetSide && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => !submitting && setSheetSide(null)}>
-          <div className="absolute bottom-0 left-0 right-0 max-h-[88vh] overflow-y-auto rounded-t-[2rem] border border-white/10 bg-[#080b16] p-5 pb-[calc(90px+env(safe-area-inset-bottom))] text-white shadow-[0_-24px_80px_rgba(0,0,0,0.55)] md:left-auto md:right-6 md:top-24 md:h-fit md:w-[380px] md:rounded-[2rem] md:pb-5" onClick={(event) => event.stopPropagation()}>
+          <div className="absolute bottom-0 left-0 right-0 max-h-[88vh] overflow-y-auto rounded-t-2xl border border-[#263241] bg-[#101720] p-5 pb-[calc(90px+env(safe-area-inset-bottom))] text-white shadow-[0_-24px_80px_rgba(0,0,0,0.55)] md:left-auto md:right-6 md:top-24 md:h-fit md:w-[380px] md:rounded-2xl md:pb-5" onClick={(event) => event.stopPropagation()}>
             <div className="mb-5 flex items-center justify-between">
               <div>
-                <p className={`flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.18em] ${sheetSide === "YES" ? "text-emerald-300" : "text-red-300"}`}>
-                  <Zap className="h-3.5 w-3.5 fill-current" />
-                  Fast call
+                <p className={`text-xs font-black uppercase tracking-[0.16em] ${sheetSide === "YES" ? "text-[#12B886]" : "text-[#E85D5D]"}`}>
+                  Prediction slip
                 </p>
                 <h2 className="mt-1 text-2xl font-black">Predict {sheetSide} {formatNairaPrice(selectedPrice)}</h2>
               </div>
-              <button onClick={() => setSheetSide(null)} disabled={submitting} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/[0.055] disabled:cursor-not-allowed disabled:opacity-50">
+              <button onClick={() => setSheetSide(null)} disabled={submitting} className="grid h-10 w-10 place-items-center rounded-xl border border-[#263241] bg-[#151E28] disabled:cursor-not-allowed disabled:opacity-50">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <label className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-500">Amount</label>
-            <Input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} disabled={submitting} placeholder="0" className="h-13 rounded-2xl border-white/10 bg-white/[0.055] text-lg font-black text-white placeholder:text-slate-600" />
+            <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Amount</label>
+            <Input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} disabled={submitting} placeholder="0" className="h-13 rounded-xl border-[#263241] bg-[#151E28] text-lg font-black text-white placeholder:text-[#8B98A8]" />
             <div className="mt-3 grid grid-cols-4 gap-2">
               {[100, 500, 1000, 5000].map((value) => (
-                <button key={value} onClick={() => setAmount(value.toString())} disabled={submitting} className="h-10 rounded-xl border border-white/10 bg-white/[0.055] text-xs font-black text-slate-300 disabled:cursor-not-allowed disabled:opacity-50">
+                <button key={value} onClick={() => setAmount(value.toString())} disabled={submitting} className="h-10 rounded-xl border border-[#263241] bg-[#151E28] text-xs font-black text-[#8B98A8] disabled:cursor-not-allowed disabled:opacity-50">
                   {formatNaira(value)}
                 </button>
               ))}
             </div>
-            <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.055] p-4">
+            <div className="mt-5 rounded-xl border border-[#263241] bg-[#151E28] p-4">
               <Row label="Wallet balance" value={user ? formatNaira(user.balance || 0) : "Login required"} />
-              <Row label="Current price" value={formatNairaPrice(selectedPrice)} />
+              <Row label="Current sentiment price" value={formatNairaPrice(selectedPrice)} />
               <Row label="Shares received" value={sharesReceived.toFixed(2)} highlight />
-              <Row label="Ownership after purchase" value={`${ownershipAfterPurchase.toFixed(2)}%`} />
-              <Row label="Position value" value={formatNaira(positionValue)} />
+              <Row label="Projected payout if resolved now" value={formatNaira(projectedPayout)} />
+              <Row label="Projected P/L if resolved now" value={`${projectedProfit >= 0 ? "+" : ""}${formatNaira(projectedProfit)}`} />
               <Row label="Market participants" value={`${market.participants || 0}`} />
-              <p className="mt-3 text-xs font-bold leading-relaxed text-slate-400">
-                This position may rise or fall as market sentiment changes.
+              <p className="mt-3 text-xs font-bold leading-relaxed text-[#8B98A8]">
+                Projected values use the current pool and are finalized only when the market resolves.
               </p>
             </div>
-            <Button onClick={confirmPrediction} disabled={submitting || numericAmount <= 0} className={`mt-5 h-12 w-full rounded-2xl text-base font-black text-white ${sheetSide === "YES" ? "bg-emerald-500 hover:bg-emerald-400" : "bg-red-500 hover:bg-red-400"}`}>
+            <Button onClick={confirmPrediction} disabled={submitting || numericAmount <= 0} className={`mt-5 h-12 w-full rounded-xl text-base font-black ${sheetSide === "YES" ? "bg-[#12B886] text-[#06100d] hover:bg-[#2dd4a0]" : "bg-[#E85D5D] text-white hover:bg-[#f07575]"}`}>
               {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <TrendingUp className="mr-2 h-4 w-4" />}
               {user ? "Lock prediction" : "Login to predict"}
             </Button>
@@ -349,13 +351,12 @@ export default function MarketDetail() {
 
       {justPredicted && (
         <div className="pointer-events-none fixed inset-0 z-[60] grid place-items-center bg-black/30 backdrop-blur-[2px]">
-          <div className="animate-fade-up rounded-[2rem] border border-white/10 bg-[#080b16]/95 p-8 text-center shadow-[0_24px_90px_rgba(0,0,0,0.6)]">
-            <div className={`mx-auto mb-4 grid h-20 w-20 place-items-center rounded-full ${justPredicted === "YES" ? "bg-emerald-400/10 text-emerald-300 shadow-[0_0_70px_rgba(52,211,153,0.22)]" : "bg-red-400/10 text-red-300 shadow-[0_0_70px_rgba(248,113,113,0.22)]"}`}>
+          <div className="animate-fade-up rounded-2xl border border-[#263241] bg-[#101720]/96 p-8 text-center shadow-[0_24px_90px_rgba(0,0,0,0.6)]">
+            <div className={`mx-auto mb-4 grid h-20 w-20 place-items-center rounded-full ${justPredicted === "YES" ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
               <CheckCircle className="h-10 w-10" />
             </div>
             <div className="flex justify-center">
-              <span className="inline-flex items-center gap-2 rounded-full bg-violet-500/10 px-3 py-1 text-xs font-black text-violet-100">
-                <Flame className="h-3.5 w-3.5 text-violet-300" />
+            <span className="inline-flex items-center gap-2 rounded-full bg-[#12B886]/10 px-3 py-1 text-xs font-black text-[#7AE4BD]">
                 Market updated
               </span>
             </div>
@@ -451,15 +452,15 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
   );
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#080d19]/90 p-3 sm:p-4">
+    <div className="rounded-2xl border border-[#263241] bg-[#101720] p-3 sm:p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-300"><span className="h-2 w-2 rounded-full bg-emerald-300" />YES {formatNairaPrice(market.yesPrice)}</span>
-          <span className="inline-flex items-center gap-1.5 text-xs font-black text-violet-300"><span className="h-2 w-2 rounded-full bg-violet-300" />NO {formatNairaPrice(market.noPrice)}</span>
+          <span className="inline-flex items-center gap-1.5 text-xs font-black text-[#12B886]"><span className="h-2 w-2 rounded-full bg-[#12B886]" />YES {formatNairaPrice(market.yesPrice)}</span>
+          <span className="inline-flex items-center gap-1.5 text-xs font-black text-[#E85D5D]"><span className="h-2 w-2 rounded-full bg-[#E85D5D]" />NO {formatNairaPrice(market.noPrice)}</span>
         </div>
-        <span className="text-xs font-bold text-slate-500">{market.tradeCount || 0} trades</span>
+        <span className="text-xs font-bold text-[#8B98A8]">{market.tradeCount || 0} trades</span>
       </div>
-      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.12),rgba(8,13,25,0.96)_54%)] px-1 pb-2 pt-3 sm:px-3">
+      <div className="relative overflow-hidden rounded-xl border border-[#263241] bg-[#080C10] px-1 pb-2 pt-3 sm:px-3">
         <div className="h-[230px] w-full sm:h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 10, right: 8, bottom: 6, left: 0 }}>
@@ -496,10 +497,10 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
               <Line
                 type="monotone"
                 dataKey="yesPrice"
-                stroke="#22d3ee"
+                stroke="#12B886"
                 strokeWidth={3}
                 dot={false}
-                activeDot={{ r: 4, strokeWidth: 2, stroke: "#08111f", fill: "#67e8f9" }}
+                activeDot={{ r: 4, strokeWidth: 2, stroke: "#08111f", fill: "#12B886" }}
                 isAnimationActive
                 animationDuration={450}
                 animationEasing="ease-out"
@@ -507,10 +508,10 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
               <Line
                 type="monotone"
                 dataKey="noPrice"
-                stroke="#8b5cf6"
+                stroke="#E85D5D"
                 strokeWidth={2.4}
                 dot={false}
-                activeDot={{ r: 3.5, strokeWidth: 2, stroke: "#08111f", fill: "#a78bfa" }}
+                activeDot={{ r: 3.5, strokeWidth: 2, stroke: "#08111f", fill: "#E85D5D" }}
                 isAnimationActive
                 animationDuration={450}
                 animationEasing="ease-out"
@@ -519,12 +520,12 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
           </ResponsiveContainer>
         </div>
         {!hasSavedHistory && (
-          <div className="pointer-events-none absolute inset-x-4 top-5 rounded-2xl border border-white/10 bg-[#050711]/72 px-3 py-2 text-center text-xs font-bold text-slate-400 backdrop-blur-xl">
+          <div className="pointer-events-none absolute inset-x-4 top-5 rounded-xl border border-[#263241] bg-[#080C10]/82 px-3 py-2 text-center text-xs font-bold text-[#8B98A8] backdrop-blur-xl">
             Price movement starts after predictions.
           </div>
         )}
       </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-500">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-[#8B98A8]">
         <span>{hasStoredMovement ? "Live price history from saved trades" : "Flat starting line until the first prediction."}</span>
         <span>YES {formatNairaPrice(market.yesPrice)} / NO {formatNairaPrice(market.noPrice)}</span>
       </div>
@@ -538,27 +539,27 @@ const PriceTooltip = ({ active, payload }: any) => {
   if (!point) return null;
 
   return (
-    <div className="max-w-[210px] rounded-2xl border border-white/10 bg-[#050711]/95 p-3 text-xs shadow-2xl backdrop-blur-xl">
+    <div className="max-w-[210px] rounded-xl border border-[#263241] bg-[#101720]/96 p-3 text-xs shadow-2xl backdrop-blur-xl">
       <div className="font-black text-white">{formatChartTime(point.timestamp)}</div>
       <div className="mt-2 grid gap-1.5 font-bold">
-        <div className="flex items-center justify-between gap-5 text-cyan-200">
+        <div className="flex items-center justify-between gap-5 text-[#7AE4BD]">
           <span>YES</span>
           <span>{formatNairaPrice(point.yesPrice)}</span>
         </div>
-        <div className="flex items-center justify-between gap-5 text-violet-200">
+        <div className="flex items-center justify-between gap-5 text-[#FF9C9C]">
           <span>NO</span>
           <span>{formatNairaPrice(point.noPrice)}</span>
         </div>
-        <div className="flex items-center justify-between gap-5 text-slate-400">
+        <div className="flex items-center justify-between gap-5 text-[#8B98A8]">
           <span>Volume</span>
           <span>{formatNaira(point.volume || 0)}</span>
         </div>
-        <div className="flex items-center justify-between gap-5 text-slate-500">
+        <div className="flex items-center justify-between gap-5 text-[#8B98A8]">
           <span>Trades</span>
           <span>{point.tradeCount || 0}</span>
         </div>
         {point.side && (
-          <div className="mt-1 rounded-xl bg-white/[0.055] px-2 py-1 text-center text-[11px] font-black text-white">
+          <div className="mt-1 rounded-lg bg-[#151E28] px-2 py-1 text-center text-[11px] font-black text-white">
             Last trade: {point.side} {formatNaira(point.amount || 0)}
           </div>
         )}
@@ -593,21 +594,21 @@ const formatAxisTime = (timestamp: number, spanMs = 0) => {
 };
 
 const Row = ({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) => (
-  <div className="flex items-center justify-between border-b border-white/10 py-2 last:border-0">
-    <span className="text-sm font-bold text-slate-400">{label}</span>
+  <div className="flex items-center justify-between border-b border-[#263241] py-2 last:border-0">
+    <span className="text-sm font-bold text-[#8B98A8]">{label}</span>
     <span className={`text-sm font-black ${highlight ? "text-emerald-300" : "text-white"}`}>{value}</span>
   </div>
 );
 
 const Metric = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-2xl border border-white/10 bg-[#0b1020]/70 p-3">
-    <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</div>
+  <div className="rounded-xl border border-[#263241] bg-[#151E28] p-3">
+    <div className="text-[10px] font-black uppercase tracking-[0.12em] text-[#8B98A8]">{label}</div>
     <div className="mt-1 text-sm font-black text-white">{value}</div>
   </div>
 );
 
 const IconButton = ({ icon: Icon, onClick, active = false, label }: { icon: any; onClick: () => void; active?: boolean; label: string }) => (
-  <button onClick={onClick} aria-label={label} title={label} className={`grid h-10 w-10 place-items-center rounded-2xl border backdrop-blur-xl transition ${active ? "border-violet-300/40 bg-violet-400/20 text-violet-200" : "border-white/15 bg-white/[0.055] text-white hover:bg-white/10"}`}>
+  <button onClick={onClick} aria-label={label} title={label} className={`grid h-10 w-10 place-items-center rounded-xl border transition ${active ? "border-[#12B886]/40 bg-[#12B886]/15 text-[#7AE4BD]" : "border-[#263241] bg-[#101720] text-white hover:bg-[#151E28]"}`}>
     <Icon className={`h-4 w-4 ${active ? "fill-current" : ""}`} />
   </button>
 );
