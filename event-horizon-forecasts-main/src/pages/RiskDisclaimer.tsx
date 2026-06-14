@@ -1,169 +1,79 @@
+import { Link } from "react-router-dom";
+import { AlertTriangle, Clock, Hand, Scale, ShieldAlert } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
-import { Footer } from "@/components/Footer";
-import { AlertTriangle } from "lucide-react";
+
+const cards = [
+  ["Set a personal limit", "Decide the maximum you can afford before you start, and stop when you reach it.", Scale],
+  ["Understand the rules", "Read the market question, close time, and resolution source before locking a prediction.", ShieldAlert],
+  ["Do not chase losses", "A wrong prediction is not a reason to increase risk. Pause and step away.", Hand],
+  ["Take breaks", "If prediction markets feel stressful or urgent, stop using the platform for a while.", Clock],
+];
 
 export default function RiskDisclaimer() {
   return (
-    <div className="min-h-screen flex flex-col bg-background pb-20 md:pb-0">
+    <div className="app-bg min-h-screen pb-24 text-white md:pb-0 xl:pl-64">
       <Header />
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="container py-20 max-w-4xl">
-          <div className="flex items-start gap-4 mb-6">
-            <div className="w-12 h-12 rounded-xl bg-coral/10 grid place-items-center shrink-0">
-              <AlertTriangle className="w-6 h-6 text-coral" />
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
+        <section className="rounded-2xl border border-red-400/25 bg-red-400/10 p-5">
+          <div className="flex items-start gap-4">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-red-400/25 bg-red-400/10 text-red-200">
+              <AlertTriangle className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-charcoal mb-4">
-                Risk Disclaimer
-              </h1>
-              <p className="text-lg text-graphite">
-                Last updated: January 15, 2026
+              <p className="text-sm font-bold uppercase tracking-[0.16em] text-red-200">Responsible Use</p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Forecast carefully. Risk is real.</h1>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-red-100/80">
+                Predictions can resolve against you. Projected values are not guaranteed, and active positions are not withdrawable cash.
               </p>
             </div>
           </div>
         </section>
 
-        {/* Content */}
-        <section className="container max-w-4xl pb-20">
-          <div className="bg-coral/5 border-l-4 border-coral rounded-r-xl p-6 mb-8">
-            <p className="font-semibold text-charcoal mb-2">⚠️ Important Notice</p>
-            <p className="text-graphite leading-relaxed">
-              Forecasting on Flippe involves financial risk. Please read this disclaimer carefully before participating.
-            </p>
-          </div>
+        <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {cards.map(([title, body, Icon]) => (
+            <article key={title as string} className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+              <div className="grid h-11 w-11 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#F2C94C]">
+                <Icon className="h-5 w-5" />
+              </div>
+              <h2 className="mt-5 text-lg font-black">{title}</h2>
+              <p className="mt-2 text-sm leading-6 text-[#8B98A8]">{body}</p>
+            </article>
+          ))}
+        </section>
 
-          <div className="prose prose-lg max-w-none space-y-8">
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">Age Requirement</h2>
-              <p className="text-graphite leading-relaxed">
-                You must be <strong>18 years of age or older</strong> to use Flippe. By creating an account, you confirm that you meet this age requirement.
-              </p>
-            </div>
+        <section className="mt-6 grid gap-5 lg:grid-cols-2">
+          <Panel title="Use only spare money">
+            <p>Do not use money needed for food, rent, bills, school fees, transport, medical needs, emergencies, or debt repayment.</p>
+            <p>FLIPPE is for informed forecasting. It is not a source of guaranteed income.</p>
+          </Panel>
+          <Panel title="Projected does not mean guaranteed">
+            <p>Projected payout and projected value are estimates based on the current market state.</p>
+            <p>Final results are determined only when the market closes and resolves using the stated source.</p>
+          </Panel>
+          <Panel title="Markets can go against you">
+            <p>If your prediction is wrong, your position can settle at zero. Wrong outcomes are part of prediction markets.</p>
+            <p>Take a break if you feel pressure to recover losses quickly.</p>
+          </Panel>
+          <Panel title="Before public launch">
+            <p>Responsible-use tools such as account limits, cooling-off periods, and support escalation should be reviewed and strengthened before wide release.</p>
+          </Panel>
+        </section>
 
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">Financial Risk</h2>
-              <p className="text-graphite leading-relaxed mb-4">
-                Forecasting on prediction markets carries <strong>financial risk</strong>. You may lose some or all of the funds you use to purchase shares.
-              </p>
-              <ul className="list-disc list-inside space-y-2 text-graphite">
-                <li>Market prices can be volatile and change rapidly</li>
-                <li>Incorrect forecasts result in a total loss of your investment</li>
-                <li>Past performance does not guarantee future results</li>
-                <li>No forecast is guaranteed to be profitable</li>
-              </ul>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">Use Only Affordable Funds</h2>
-              <p className="text-graphite leading-relaxed">
-                <strong>Only use funds you can afford to lose.</strong> Do not forecast with money needed for essential expenses like rent, food, bills, or emergency savings.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">Not Financial Advice</h2>
-              <p className="text-graphite leading-relaxed mb-4">
-                Flippe is <strong>not a financial advisor</strong>. Nothing on this platform constitutes financial, investment, legal, or tax advice.
-              </p>
-              <ul className="list-disc list-inside space-y-2 text-graphite">
-                <li>We do not recommend specific forecasts or strategies</li>
-                <li>Market prices reflect crowd sentiment, not expert analysis</li>
-                <li>You are solely responsible for your forecasting decisions</li>
-                <li>Consult a qualified financial advisor before making significant financial decisions</li>
-              </ul>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">Market Resolution</h2>
-              <p className="text-graphite leading-relaxed mb-4">
-                Markets resolve based on <strong>stated resolution sources</strong>. These sources are specified before each market opens.
-              </p>
-              <ul className="list-disc list-inside space-y-2 text-graphite">
-                <li>Resolution is based on objective, verifiable data</li>
-                <li>We use official sources like government agencies, sports leagues, and financial exchanges</li>
-                <li>Resolution decisions are final and binding</li>
-                <li>In rare cases of ambiguity, markets may be resolved as INVALID and refunded</li>
-              </ul>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">Platform Risks</h2>
-              <p className="text-graphite leading-relaxed mb-4">
-                Using Flippe involves additional risks:
-              </p>
-              <ul className="list-disc list-inside space-y-2 text-graphite">
-                <li><strong>Technical risks:</strong> Platform downtime, bugs, or errors may affect your ability to trade</li>
-                <li><strong>Liquidity risks:</strong> While we provide automated market making, extreme market conditions may affect pricing</li>
-                <li><strong>Regulatory risks:</strong> Changes in laws or regulations may affect platform operations</li>
-                <li><strong>Counterparty risks:</strong> Your funds are held by Flippe and subject to our financial stability</li>
-              </ul>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">No Guarantees</h2>
-              <p className="text-graphite leading-relaxed">
-                Flippe makes <strong>no guarantees</strong> about:
-              </p>
-              <ul className="list-disc list-inside space-y-2 text-graphite">
-                <li>Platform availability or uptime</li>
-                <li>Accuracy of market prices or data</li>
-                <li>Profitability of any forecast</li>
-                <li>Withdrawal processing times</li>
-                <li>Future platform features or operations</li>
-              </ul>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">Responsible Forecasting</h2>
-              <p className="text-graphite leading-relaxed mb-4">
-                We encourage responsible forecasting:
-              </p>
-              <ul className="list-disc list-inside space-y-2 text-graphite">
-                <li>Set personal limits on how much you forecast</li>
-                <li>Take breaks if forecasting becomes stressful</li>
-                <li>Seek help if you feel you're losing control</li>
-                <li>Remember that forecasting should be enjoyable, not a source of financial stress</li>
-              </ul>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">Limitation of Liability</h2>
-              <p className="text-graphite leading-relaxed">
-                To the maximum extent permitted by law, Flippe and its affiliates are not liable for any losses, damages, or claims arising from your use of the platform. This includes but is not limited to:
-              </p>
-              <ul className="list-disc list-inside space-y-2 text-graphite">
-                <li>Financial losses from forecasting</li>
-                <li>Technical errors or platform downtime</li>
-                <li>Unauthorized access to your account</li>
-                <li>Market resolution disputes</li>
-              </ul>
-            </div>
-
-            <div className="bg-off-white rounded-2xl p-8 border border-graphite/10">
-              <h2 className="text-2xl font-bold text-charcoal mb-4">Acknowledgment</h2>
-              <p className="text-graphite leading-relaxed">
-                By using Flippe, you acknowledge that you have read, understood, and agree to this Risk Disclaimer. You accept full responsibility for your forecasting decisions and any resulting financial outcomes.
-              </p>
-            </div>
-
-            <div className="text-center pt-8">
-              <p className="text-sm text-graphite mb-4">
-                Questions about this disclaimer?
-              </p>
-              <a
-                href="/contact"
-                className="inline-flex items-center justify-center px-6 py-2.5 rounded-xl bg-purple text-white font-semibold hover:bg-purple/90 transition-fast text-sm"
-              >
-                Contact Us
-              </a>
-            </div>
-          </div>
+        <section className="mt-6 rounded-2xl border border-[#263241] bg-[#101720] p-5 text-center">
+          <h2 className="text-xl font-black">Need help or disagree with a market outcome?</h2>
+          <p className="mt-2 text-sm text-[#8B98A8]">Use Support to create a dispute draft or contact the team before public launch details are finalized.</p>
+          <Link to="/support" className="mt-4 inline-flex rounded-2xl bg-[#12B886] px-5 py-3 text-sm font-black text-white hover:bg-[#0EA371]">Open Support</Link>
         </section>
       </main>
-      <Footer />
       <MobileNav />
     </div>
   );
 }
+
+const Panel = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+    <h2 className="text-xl font-black">{title}</h2>
+    <div className="mt-3 space-y-3 text-sm leading-6 text-[#8B98A8]">{children}</div>
+  </section>
+);

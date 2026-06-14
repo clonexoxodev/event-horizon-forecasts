@@ -39,7 +39,7 @@ export default function Contact() {
             Contact Us
           </h1>
           <p className="text-xl text-[#8B98A8] leading-relaxed">
-            Have a question or feedback? We'd love to hear from you.
+            Official contact details will be finalized before public launch. For now, this page helps you prepare a support email.
           </p>
         </section>
 
@@ -103,7 +103,7 @@ export default function Contact() {
                     disabled={isSubmitting}
                     className="w-full bg-[#12B886] text-white hover:bg-[#0EA371]"
                   >
-                    {isSubmitting ? "Sending..." : "Send Message"}
+                    {isSubmitting ? "Opening email..." : "Open email app"}
                   </Button>
                 </form>
               </div>
@@ -115,10 +115,11 @@ export default function Contact() {
                 <div className="w-10 h-10 rounded-xl bg-[#12B886]/10 grid place-items-center mb-4">
                   <Mail className="w-5 h-5 text-[#12B886]" />
                 </div>
-                <h3 className="font-bold text-[#F5F7FA] mb-2">Email</h3>
+                <h3 className="font-bold text-[#F5F7FA] mb-2">Contact email</h3>
                 <a href="mailto:support@flippe.com" className="text-sm text-[#8B98A8] hover:text-[#12B886] transition-fast">
                   support@flippe.com
                 </a>
+                <p className="mt-2 text-xs text-[#8B98A8]">To be confirmed before public launch.</p>
               </div>
 
               <div className="surface-raised rounded-2xl p-6">
@@ -127,7 +128,7 @@ export default function Contact() {
                 </div>
                 <h3 className="font-bold text-[#F5F7FA] mb-2">Support hours</h3>
                 <p className="text-sm text-[#8B98A8]">
-                  Available Mon-Fri, 9am-5pm WAT
+                  Support hours will be published before public launch.
                 </p>
               </div>
 

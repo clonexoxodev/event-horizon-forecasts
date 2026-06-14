@@ -1,110 +1,72 @@
+import { Link } from "react-router-dom";
+import { BarChart3, CheckCircle2, Shield, Target } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
-import { Footer } from "@/components/Footer";
-import { Target, Users, TrendingUp, Shield } from "lucide-react";
+
+const principles = [
+  ["Simple", "Markets should be understandable in seconds: question, YES/NO price, amount, shares, and status.", Target],
+  ["Transparent", "Rules, resolution source, wallet movement, and market status should be visible before users participate.", Shield],
+  ["Pool-safe", "Flippe's MVP market design should settle from locked market stakes, not from hidden company-funded promises.", BarChart3],
+  ["Responsible", "Projected values are estimates. Users should forecast carefully and never treat predictions as guaranteed income.", CheckCircle2],
+];
 
 export default function About() {
   return (
-    <div className="min-h-screen flex flex-col bg-background pb-20 md:pb-0">
+    <div className="app-bg min-h-screen pb-24 text-white md:pb-0 xl:pl-64">
       <Header />
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="container py-20 max-w-4xl">
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-charcoal mb-6">
-            About Flippe
-          </h1>
-          <p className="text-xl text-graphite leading-relaxed">
-            Flippe is a simple, transparent platform for forecasting real-world outcomes and earning from accuracy.
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
+        <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+          <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#12B886]">About FLIPPE</p>
+          <h1 className="mt-2 max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">Real-world prediction markets for everyday forecasters</h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-[#8B98A8]">
+            FLIPPE helps users forecast public outcomes using simple YES/NO markets. Markets may cover sports, crypto, politics, entertainment, economy, and other real-world topics with clear rules.
           </p>
         </section>
 
-        {/* Mission Section */}
-        <section className="bg-off-white/50 py-16">
-          <div className="container max-w-4xl">
-            <h2 className="text-3xl font-bold text-charcoal mb-6">Our Mission</h2>
-            <p className="text-lg text-graphite leading-relaxed mb-4">
-              We believe that collective intelligence can predict the future better than any single expert. 
-              Flippe harnesses the wisdom of crowds to create accurate forecasts on real-world events.
-            </p>
-            <p className="text-lg text-graphite leading-relaxed">
-              Our platform makes forecasting accessible, transparent, and rewarding for everyone who participates.
-            </p>
-          </div>
+        <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {principles.map(([title, body, Icon]) => (
+            <article key={title as string} className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+              <div className="grid h-11 w-11 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#12B886]">
+                <Icon className="h-5 w-5" />
+              </div>
+              <h2 className="mt-5 text-xl font-black">{title}</h2>
+              <p className="mt-2 text-sm leading-6 text-[#8B98A8]">{body}</p>
+            </article>
+          ))}
         </section>
 
-        {/* Values Section */}
-        <section className="container py-16 max-w-4xl">
-          <h2 className="text-3xl font-bold text-charcoal mb-10">Our Values</h2>
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-off-white rounded-2xl p-8 border border-graphite/10">
-              <div className="w-12 h-12 rounded-xl bg-purple/10 grid place-items-center mb-4">
-                <Target className="w-6 h-6 text-purple" />
-              </div>
-              <h3 className="text-xl font-bold text-charcoal mb-3">Accuracy First</h3>
-              <p className="text-graphite leading-relaxed">
-                We reward accurate forecasts and use proven mechanisms to aggregate predictions effectively.
-              </p>
-            </div>
-
-            <div className="bg-off-white rounded-2xl p-8 border border-graphite/10">
-              <div className="w-12 h-12 rounded-xl bg-emerald/10 grid place-items-center mb-4">
-                <Shield className="w-6 h-6 text-emerald" />
-              </div>
-              <h3 className="text-xl font-bold text-charcoal mb-3">Transparency</h3>
-              <p className="text-graphite leading-relaxed">
-                All markets, rules, and resolution criteria are clear and publicly visible before you forecast.
-              </p>
-            </div>
-
-            <div className="bg-off-white rounded-2xl p-8 border border-graphite/10">
-              <div className="w-12 h-12 rounded-xl bg-coral/10 grid place-items-center mb-4">
-                <Users className="w-6 h-6 text-coral" />
-              </div>
-              <h3 className="text-xl font-bold text-charcoal mb-3">Community</h3>
-              <p className="text-graphite leading-relaxed">
-                We're building a community of thoughtful forecasters who learn from each other.
-              </p>
-            </div>
-
-            <div className="bg-off-white rounded-2xl p-8 border border-graphite/10">
-              <div className="w-12 h-12 rounded-xl bg-indigo-600/10 grid place-items-center mb-4">
-                <TrendingUp className="w-6 h-6 text-indigo-600" />
-              </div>
-              <h3 className="text-xl font-bold text-charcoal mb-3">Fair Markets</h3>
-              <p className="text-graphite leading-relaxed">
-                Our pool-safe YES/NO market keeps pricing tied to real user activity and settles only from locked market stakes.
-              </p>
-            </div>
-          </div>
+        <section className="mt-6 grid gap-5 lg:grid-cols-2">
+          <Panel title="What FLIPPE is">
+            <p>A platform for forecasting outcomes of public events.</p>
+            <p>A wallet-linked market experience where users can track active positions and resolved results.</p>
+            <p>A product designed to make market rules, projected values, and resolution status easier to understand.</p>
+          </Panel>
+          <Panel title="What FLIPPE is not">
+            <p>FLIPPE should not be treated as guaranteed income or financial advice.</p>
+            <p>Projected values are not withdrawable profit before market resolution.</p>
+            <p>Users should never participate with money needed for bills, food, rent, school fees, emergencies, or debt.</p>
+          </Panel>
         </section>
 
-        {/* Team Section */}
-        <section className="bg-off-white/50 py-16">
-          <div className="container max-w-4xl">
-            <h2 className="text-3xl font-bold text-charcoal mb-6">Our Team</h2>
-            <p className="text-lg text-graphite leading-relaxed">
-              Flippe is built by a team of engineers, designers, and forecasting enthusiasts who believe 
-              in the power of prediction markets to surface truth and create value.
-            </p>
-          </div>
-        </section>
-
-        {/* Contact CTA */}
-        <section className="container py-16 max-w-4xl text-center">
-          <h2 className="text-3xl font-bold text-charcoal mb-4">Get in Touch</h2>
-          <p className="text-lg text-graphite mb-8">
-            Have questions or feedback? We'd love to hear from you.
+        <section className="mt-6 rounded-2xl border border-[#263241] bg-[#101720] p-5">
+          <h2 className="text-2xl font-black">Pre-launch note</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#8B98A8]">
+            FLIPPE is being prepared for MVP testing. Legal pages, contact details, dispute handling, and payment automation should be reviewed before public launch.
           </p>
-          <a
-            href="/contact"
-            className="inline-flex items-center justify-center px-8 py-3 rounded-xl bg-purple text-white font-semibold hover:bg-purple/90 transition-fast"
-          >
-            Contact Us
-          </a>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <Link to="/how-it-works" className="rounded-2xl bg-[#12B886] px-5 py-3 text-center text-sm font-black text-white hover:bg-[#0EA371]">Learn how it works</Link>
+            <Link to="/responsible-use" className="rounded-2xl border border-[#263241] bg-[#151E28] px-5 py-3 text-center text-sm font-black text-white hover:border-[#12B886]/40">Responsible use</Link>
+          </div>
         </section>
       </main>
-      <Footer />
       <MobileNav />
     </div>
   );
 }
+
+const Panel = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+    <h2 className="text-xl font-black">{title}</h2>
+    <div className="mt-3 space-y-3 text-sm leading-6 text-[#8B98A8]">{children}</div>
+  </section>
+);

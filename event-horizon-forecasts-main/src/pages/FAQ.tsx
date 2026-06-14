@@ -1,121 +1,104 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { ChevronDown, CircleHelp } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
-import { Footer } from "@/components/Footer";
-import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+
+const faqs = [
+  {
+    section: "Basics",
+    items: [
+      ["What is FLIPPE?", "FLIPPE is a real-world prediction market platform. Users forecast public outcomes by choosing YES or NO on a market."],
+      ["Is FLIPPE betting?", "FLIPPE is designed as a forecasting market. It still involves financial risk, so users should treat every prediction carefully and only use money they can afford to lose."],
+      ["What kinds of markets can appear?", "Markets may cover public events in sports, crypto, politics, entertainment, economy, and other topics with clear resolution sources."],
+    ],
+  },
+  {
+    section: "Prices and shares",
+    items: [
+      ["How do YES and NO prices work?", "YES and NO prices show current market sentiment. If YES is 61, NO is 39. Together they always add up to 100."],
+      ["Why do YES and NO always add up to 100?", "A market resolves to one of the two outcomes. The two prices are shown as opposite sides of the same forecast."],
+      ["What happens when I lock a prediction?", "Your wallet is debited, your position is recorded, and you receive shares based on your amount and the current side price."],
+      ["What are shares?", "Shares represent the size of your position on a side. They help calculate your share of the winning side if the market resolves in your favor."],
+      ["Why does my projected value change?", "Projected values change as other users predict and the market pool changes. They are estimates, not withdrawable profit."],
+    ],
+  },
+  {
+    section: "Payouts and resolution",
+    items: [
+      ["What is projected payout?", "Projected payout is an estimate of what your position could receive if the market resolved now. It can change before final resolution."],
+      ["Is projected value guaranteed?", "No. Projected value is not guaranteed and is not withdrawable. Final payout is determined only when the market resolves."],
+      ["When do I receive winnings?", "Winnings are credited after the market closes and an admin resolves the outcome using the stated source."],
+      ["How are markets resolved?", "Each market has rules and a resolution source. Admins use those rules to resolve YES, NO, or cancel/refund if the market cannot resolve fairly."],
+      ["What happens if a market is cancelled?", "The platform should refund eligible stakes according to the market status and wallet ledger."],
+      ["What if I disagree with a resolution?", "Use Support > Market disputes to create a structured dispute draft. A real dispute queue should be connected before public launch."],
+    ],
+  },
+  {
+    section: "Wallet and safety",
+    items: [
+      ["How do deposits work?", "Deposits create a pending request. Wallet balance should only increase after admin approval or future payment-provider confirmation."],
+      ["How do withdrawals work?", "Withdrawals create a request. Funds move out of available balance while the request is reviewed."],
+      ["Can I withdraw money in active markets?", "No. Money committed to active predictions is not available to withdraw until the market is resolved or refunded."],
+      ["Why should I use FLIPPE responsibly?", "Predictions involve risk. Do not use money needed for bills, school fees, rent, food, emergencies, or debt."],
+    ],
+  },
+];
 
 export default function FAQ() {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
-
-  const faqs = [
-    {
-      question: "What is Flippe?",
-      answer: "Flippe is a prediction market platform where you can forecast real-world events and participate in pool-safe YES/NO markets on politics, sports, crypto, and more.",
-    },
-    {
-      question: "How do I make money on Flippe?",
-      answer: "You earn by making accurate forecasts. Buy YES or NO shares based on your prediction. When the market resolves, the winning side splits the losing side's pool based on each winner's share of that side.",
-    },
-    {
-      question: "How are markets resolved?",
-      answer: "Every market has clear resolution criteria stated upfront. Markets resolve based on objective, verifiable sources (like official election results, sports scores, or price data from exchanges). The resolution source is always specified before the market opens.",
-    },
-    {
-      question: "How does Flippe set prices?",
-      answer: "Flippe prices are live sentiment indicators. They move based on actual YES and NO buying activity, and YES plus NO always adds up to 100.",
-    },
-    {
-      question: "Can I cash out before the market closes?",
-      answer: "Not in this MVP. Projected values are estimates based on the current pool and are only finalized when the market resolves.",
-    },
-    {
-      question: "What happens if I'm wrong?",
-      answer: "If your forecast is incorrect, your shares pay out ₦0. You lose the amount you paid for the shares. This is why it's important to only use funds you can afford to lose.",
-    },
-    {
-      question: "How do prices work?",
-      answer: "YES and NO prices always sum to 100. If YES is at 65, NO is at 35. Prices reflect the crowd's current sentiment and are used to calculate how many shares you receive.",
-    },
-    {
-      question: "Is Flippe legal?",
-      answer: "Flippe operates as a forecasting platform. We comply with all applicable laws and regulations. However, you must be 18+ to participate.",
-    },
-    {
-      question: "How do I add funds to my wallet?",
-      answer: "Go to your Wallet page and click 'Add Funds'. Deposit requests are credited after admin approval or future payment-provider confirmation.",
-    },
-    {
-      question: "How do I withdraw my winnings?",
-      answer: "Go to your Wallet page and click 'Withdraw'. Enter the amount and your bank details. Withdrawals are processed within 24 hours.",
-    },
-    {
-      question: "What fees does Flippe charge?",
-      answer: "Flippe charges a small fee on winning positions to cover platform costs. All fees are disclosed upfront before you make a forecast.",
-    },
-    {
-      question: "Can I cancel a forecast?",
-      answer: "You cannot cancel a forecast, but you can sell your shares at any time before the market closes. The price you receive depends on current market conditions.",
-    },
-  ];
+  const [open, setOpen] = useState<string | null>("Basics-0");
 
   return (
-    <div className="min-h-screen flex flex-col bg-background pb-20 md:pb-0">
+    <div className="app-bg min-h-screen pb-24 text-white md:pb-0 xl:pl-64">
       <Header />
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="container py-20 max-w-3xl text-center">
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-charcoal mb-6">
-            Frequently Asked Questions
-          </h1>
-          <p className="text-xl text-graphite leading-relaxed">
-            Everything you need to know about forecasting on Flippe.
-          </p>
-        </section>
-
-        {/* FAQs */}
-        <section className="container py-10 max-w-3xl">
-          <div className="space-y-4">
-            {faqs.map((faq, index) => (
-              <div
-                key={index}
-                className="bg-off-white rounded-2xl border border-graphite/10 overflow-hidden"
-              >
-                <button
-                  onClick={() => setOpenIndex(openIndex === index ? null : index)}
-                  className="w-full px-6 py-5 flex items-center justify-between text-left hover:bg-graphite/5 transition-fast"
-                >
-                  <span className="font-semibold text-charcoal pr-4">{faq.question}</span>
-                  <ChevronDown
-                    className={`w-5 h-5 text-graphite shrink-0 transition-transform ${
-                      openIndex === index ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-                {openIndex === index && (
-                  <div className="px-6 pb-5 text-graphite leading-relaxed animate-fade-in">
-                    {faq.answer}
-                  </div>
-                )}
-              </div>
-            ))}
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-8">
+        <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+          <div className="flex items-start gap-4">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#12B886]">
+              <CircleHelp className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#12B886]">FAQs</p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Questions before you predict</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#8B98A8]">
+                Simple answers about markets, shares, projected values, wallet movement, and responsible use.
+              </p>
+            </div>
           </div>
         </section>
 
-        {/* CTA */}
-        <section className="container py-16 max-w-3xl text-center">
-          <h2 className="text-2xl font-bold text-charcoal mb-4">Still have questions?</h2>
-          <p className="text-graphite mb-8">
-            Our support team is here to help.
-          </p>
-          <a
-            href="/contact"
-            className="inline-flex items-center justify-center px-8 py-3 rounded-xl bg-purple text-white font-semibold hover:bg-purple/90 transition-fast"
-          >
-            Contact Support
-          </a>
+        <section className="mt-6 space-y-5">
+          {faqs.map((group) => (
+            <div key={group.section} className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
+              <h2 className="mb-3 text-sm font-black uppercase tracking-[0.16em] text-[#12B886]">{group.section}</h2>
+              <div className="overflow-hidden rounded-2xl border border-[#263241] bg-[#0D131A]">
+                {group.items.map(([question, answer], index) => {
+                  const id = `${group.section}-${index}`;
+                  const isOpen = open === id;
+                  return (
+                    <div key={question} className="border-b border-[#263241] last:border-b-0">
+                      <button onClick={() => setOpen(isOpen ? null : id)} className="flex w-full items-center justify-between gap-4 p-4 text-left transition hover:bg-[#151E28]">
+                        <span className="font-black text-white">{question}</span>
+                        <ChevronDown className={`h-5 w-5 shrink-0 text-[#8B98A8] transition ${isOpen ? "rotate-180" : ""}`} />
+                      </button>
+                      {isOpen && <p className="px-4 pb-4 text-sm leading-6 text-[#8B98A8]">{answer}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-[#263241] bg-[#101720] p-5 text-center">
+          <h2 className="text-xl font-black">Still unsure?</h2>
+          <p className="mt-2 text-sm text-[#8B98A8]">Read the beginner guide or open Support before locking a prediction.</p>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <Link to="/how-it-works" className="rounded-2xl bg-[#12B886] px-5 py-3 text-sm font-black text-white hover:bg-[#0EA371]">How It Works</Link>
+            <Link to="/support" className="rounded-2xl border border-[#263241] bg-[#151E28] px-5 py-3 text-sm font-black text-white hover:border-[#12B886]/40">Support</Link>
+          </div>
         </section>
       </main>
-      <Footer />
       <MobileNav />
     </div>
   );

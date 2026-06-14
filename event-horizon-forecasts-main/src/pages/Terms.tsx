@@ -1,165 +1,68 @@
+import { Link } from "react-router-dom";
+import { AlertTriangle, FileText } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
-import { Footer } from "@/components/Footer";
-import { FileText } from "lucide-react";
+
+const terms = [
+  ["Eligibility", "Users should be legally eligible to use prediction market products in their location. Age and identity requirements should be reviewed before launch."],
+  ["Account responsibility", "Users are responsible for keeping login details secure and for activity performed through their account."],
+  ["Wallet and balances", "Wallet balances, pending deposits, withdrawals, prediction stakes, payouts, refunds, and adjustments should be recorded in the transaction ledger."],
+  ["Market participation", "Users should read the market question, rules, close time, and resolution source before locking a prediction."],
+  ["Market resolution", "Markets resolve using the stated source and rules. If the market cannot resolve fairly, cancellation and refund logic may apply."],
+  ["Disputes", "Users can raise a dispute if a market appears incorrectly resolved, unclear, or unsupported by the stated source."],
+  ["Prohibited activity", "Market manipulation, fraud, abuse, multiple-account misuse, automated abuse, and attempts to bypass limits are not allowed."],
+  ["No guaranteed profit", "Projected payout and projected value are estimates. FLIPPE does not guarantee profit or income."],
+  ["Platform changes", "Features, supported markets, deposit/withdrawal methods, and operational rules may change as the product develops."],
+  ["Contact details", "Official legal and support contact details should be added before public launch."],
+];
 
 export default function Terms() {
   return (
-    <div className="min-h-screen flex flex-col bg-background pb-20 md:pb-0">
+    <div className="app-bg min-h-screen pb-24 text-white md:pb-0 xl:pl-64">
       <Header />
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="container py-20 max-w-4xl">
-          <div className="flex items-start gap-4 mb-6">
-            <div className="w-12 h-12 rounded-xl bg-purple/10 grid place-items-center shrink-0">
-              <FileText className="w-6 h-6 text-purple" />
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-8">
+        <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+          <div className="flex items-start gap-4">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#12B886]">
+              <FileText className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-charcoal mb-4">
-                Terms of Service
-              </h1>
-              <p className="text-lg text-graphite">
-                Last updated: January 15, 2026
+              <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#12B886]">Terms</p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Draft terms of use</h1>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-[#8B98A8]">
+                This is a draft terms page and should be reviewed legally before public launch. It gives users a clear view of the rules expected in the MVP.
               </p>
             </div>
           </div>
         </section>
 
-        {/* Content */}
-        <section className="container max-w-4xl pb-20">
-          <div className="prose prose-lg max-w-none space-y-8">
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">1. Acceptance of Terms</h2>
-              <p className="text-graphite leading-relaxed">
-                By accessing or using Flippe, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree with any of these terms, you are prohibited from using this platform.
-              </p>
-            </div>
+        <section className="mt-6 rounded-2xl border border-[#F2C94C]/30 bg-[#F2C94C]/10 p-5 text-[#F2C94C]">
+          <AlertTriangle className="h-6 w-6" />
+          <p className="mt-3 text-sm leading-6">
+            FLIPPE is a pre-launch product. These terms are informational until reviewed and finalized by qualified legal counsel.
+          </p>
+        </section>
 
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">2. Eligibility</h2>
-              <p className="text-graphite leading-relaxed">
-                You must be at least 18 years old to use Flippe. By creating an account, you represent and warrant that you meet this age requirement and have the legal capacity to enter into these Terms.
-              </p>
-            </div>
+        <section className="mt-6 grid gap-4 md:grid-cols-2">
+          {terms.map(([title, body]) => (
+            <article key={title} className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+              <h2 className="text-xl font-black">{title}</h2>
+              <p className="mt-2 text-sm leading-6 text-[#8B98A8]">{body}</p>
+            </article>
+          ))}
+        </section>
 
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">3. Account Registration</h2>
-              <p className="text-graphite leading-relaxed mb-4">
-                To use Flippe, you must create an account. You agree to:
-              </p>
-              <ul className="list-disc list-inside space-y-2 text-graphite">
-                <li>Provide accurate, current, and complete information</li>
-                <li>Maintain and promptly update your account information</li>
-                <li>Keep your password secure and confidential</li>
-                <li>Notify us immediately of any unauthorized use of your account</li>
-                <li>Accept responsibility for all activities under your account</li>
-              </ul>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">4. Forecasting and Markets</h2>
-              <p className="text-graphite leading-relaxed mb-4">
-                Flippe provides a platform for forecasting real-world events. You understand and agree that:
-              </p>
-              <ul className="list-disc list-inside space-y-2 text-graphite">
-                <li>All forecasts involve financial risk</li>
-                <li>You may lose some or all funds used to purchase shares</li>
-                <li>Market prices are determined by an automated market maker</li>
-                <li>Markets resolve based on stated resolution criteria</li>
-                <li>Resolution decisions are final and binding</li>
-              </ul>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">5. Prohibited Conduct</h2>
-              <p className="text-graphite leading-relaxed mb-4">
-                You agree not to:
-              </p>
-              <ul className="list-disc list-inside space-y-2 text-graphite">
-                <li>Use the platform for any illegal purpose</li>
-                <li>Manipulate markets or engage in fraudulent activity</li>
-                <li>Create multiple accounts to circumvent limits</li>
-                <li>Use automated systems or bots without authorization</li>
-                <li>Interfere with platform operations or security</li>
-                <li>Harass, abuse, or harm other users</li>
-                <li>Violate any applicable laws or regulations</li>
-              </ul>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">6. Fees and Payments</h2>
-              <p className="text-graphite leading-relaxed">
-                Flippe may charge fees for certain services. All fees will be disclosed before you complete a transaction. You agree to pay all applicable fees and authorize us to charge your payment method.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">7. Withdrawals</h2>
-              <p className="text-graphite leading-relaxed">
-                You may withdraw funds from your account subject to our withdrawal policies. We reserve the right to delay or refuse withdrawals if we suspect fraud, money laundering, or other illegal activity.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">8. Intellectual Property</h2>
-              <p className="text-graphite leading-relaxed">
-                All content on Flippe, including text, graphics, logos, and software, is the property of Flippe Technologies Ltd. and protected by copyright and other intellectual property laws. You may not copy, modify, or distribute our content without permission.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">9. Disclaimer of Warranties</h2>
-              <p className="text-graphite leading-relaxed">
-                Flippe is provided "as is" without warranties of any kind. We do not guarantee that the platform will be error-free, secure, or continuously available. You use the platform at your own risk.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">10. Limitation of Liability</h2>
-              <p className="text-graphite leading-relaxed">
-                To the maximum extent permitted by law, Flippe and its affiliates shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the platform.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">11. Termination</h2>
-              <p className="text-graphite leading-relaxed">
-                We may suspend or terminate your account at any time for any reason, including violation of these Terms. Upon termination, you must cease all use of the platform.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">12. Changes to Terms</h2>
-              <p className="text-graphite leading-relaxed">
-                We may modify these Terms at any time. We will notify you of material changes by email or through the platform. Your continued use after changes constitutes acceptance of the new Terms.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">13. Governing Law</h2>
-              <p className="text-graphite leading-relaxed">
-                These Terms are governed by the laws of Nigeria. Any disputes shall be resolved in the courts of Lagos, Nigeria.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-charcoal mb-4">14. Contact</h2>
-              <p className="text-graphite leading-relaxed">
-                If you have questions about these Terms, please contact us at legal@flippe.com or through our <a href="/contact" className="text-purple hover:underline">contact page</a>.
-              </p>
-            </div>
-
-            <div className="bg-off-white rounded-2xl p-8 border border-graphite/10">
-              <p className="text-graphite leading-relaxed">
-                <strong>Flippe Technologies Ltd.</strong><br />
-                Lagos, Nigeria<br />
-                support@flippe.com
-              </p>
-            </div>
+        <section className="mt-6 rounded-2xl border border-[#263241] bg-[#101720] p-5">
+          <h2 className="text-xl font-black">Before locking a prediction</h2>
+          <p className="mt-2 text-sm leading-6 text-[#8B98A8]">
+            By participating in a market, a user should understand that predictions involve risk, projected values are not guaranteed, and final payout depends on market resolution.
+          </p>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <Link to="/responsible-use" className="rounded-2xl bg-[#12B886] px-5 py-3 text-center text-sm font-black text-white hover:bg-[#0EA371]">Responsible Use</Link>
+            <Link to="/support" className="rounded-2xl border border-[#263241] bg-[#151E28] px-5 py-3 text-center text-sm font-black text-white hover:border-[#12B886]/40">Support</Link>
           </div>
         </section>
       </main>
-      <Footer />
       <MobileNav />
     </div>
   );

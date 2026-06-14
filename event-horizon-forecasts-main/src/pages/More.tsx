@@ -1,4 +1,17 @@
-import { BookOpen, HelpCircle, Info, Loader2, LogOut, Shield, ShieldCheck, User, FileText, Settings, AlertTriangle } from "lucide-react";
+import {
+  BookOpen,
+  ChevronRight,
+  CircleHelp,
+  FileText,
+  HelpCircle,
+  Info,
+  Loader2,
+  LogOut,
+  Settings,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
@@ -12,77 +25,91 @@ export default function More() {
   return (
     <div className="app-bg min-h-screen pb-24 text-white md:pb-0 xl:pl-64">
       <Header />
-      <main className="mx-auto max-w-3xl px-4 py-5 sm:px-6 lg:py-8">
+      <main className="mx-auto max-w-5xl px-4 py-5 sm:px-6 lg:py-8">
         <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
-          <div className="flex items-center gap-4">
-            <div className="grid h-16 w-16 overflow-hidden rounded-full border border-[#263241] bg-[#151E28] text-2xl font-black">
-              {isLoading ? (
-                <Loader2 className="m-auto h-6 w-6 animate-spin" />
-              ) : user?.avatarUrl ? (
-                <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <div className="grid h-full w-full place-items-center">{user?.username?.charAt(0).toUpperCase() || "F"}</div>
-              )}
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#12B886]">More</p>
+          <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-black tracking-tight">Account and help</h1>
+              <p className="mt-2 max-w-2xl text-sm text-[#8B98A8]">
+                Manage your account, get support, and read the rules behind Flippe before public launch.
+              </p>
             </div>
-            <div className="min-w-0">
-              <h1 className="truncate text-2xl font-black">{user ? user.username : "Welcome to Flippe"}</h1>
-              <p className="mt-1 text-sm text-[#8B98A8]">{user ? `${formatNaira(user.balance)} available` : "Sign in to track your predictions."}</p>
+            <div className="rounded-2xl border border-[#263241] bg-[#151E28] px-4 py-3 text-sm">
+              {isLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin text-[#12B886]" />
+              ) : user ? (
+                <>
+                  <div className="font-black">{user.username}</div>
+                  <div className="mt-1 text-[#8B98A8]">{formatNaira(user.balance)} available</div>
+                </>
+              ) : (
+                <>
+                  <div className="font-black">Browsing as guest</div>
+                  <div className="mt-1 text-[#8B98A8]">Log in to predict or use wallet features.</div>
+                </>
+              )}
             </div>
           </div>
         </section>
 
-        <section className="mt-5 space-y-4">
-          <Group title="Account">
-            <MoreLink to="/profile" icon={User} title="Profile" subtitle="Prediction history, photo, and stats." />
-            <MoreLink to="/settings" icon={Settings} title="Settings" subtitle="Account preferences and app controls." />
-            <MoreLink to="/support" icon={HelpCircle} title="Support" subtitle="Get help without leaving the app." />
+        <section className="mt-5 grid gap-5 lg:grid-cols-[1fr_1fr]">
+          <Group title="Account" description="Simple account controls for V1. Public profiles are intentionally hidden for now.">
+            <MoreLink to="/settings" icon={Settings} title="Settings" subtitle="Notifications, privacy, security, and sign out." />
+            <MoreLink to="/support" icon={HelpCircle} title="Support" subtitle="Help, disputes, contact, and account questions." />
+          </Group>
+
+          <Group title="Platform" description="Learn how Flippe markets work before locking a prediction.">
+            <MoreLink to="/how-it-works" icon={BookOpen} title="How It Works" subtitle="A beginner-friendly guide to YES/NO markets." />
+            <MoreLink to="/faq" icon={CircleHelp} title="FAQs" subtitle="Plain answers about shares, payouts, wallet, and resolution." />
+            <MoreLink to="/about" icon={Info} title="About FLIPPE" subtitle="What Flippe is building and what it is not." />
+          </Group>
+
+          <Group title="Trust & Safety" description="Responsible use and draft legal information for pre-launch review.">
+            <MoreLink to="/responsible-use" icon={ShieldAlert} title="Responsible Use" subtitle="Risk reminders and healthy usage guidance." />
+            <MoreLink to="/privacy" icon={Shield} title="Privacy" subtitle="Draft notice for account, wallet, and market data." />
+            <MoreLink to="/terms" icon={FileText} title="Terms" subtitle="Draft platform rules and market participation terms." />
           </Group>
 
           {(isAdmin() || isSuperAdmin()) && (
-            <Group title="Internal">
-              <MoreLink to={adminPath} icon={ShieldCheck} title="Admin Panel" subtitle="Separated market operations workspace." />
+            <Group title="Internal" description="Separated operational tools for admins only.">
+              <MoreLink to={adminPath} icon={ShieldCheck} title="Admin Panel" subtitle="Market operations, finance queues, and resolution." />
             </Group>
           )}
-
-          <Group title="Trust">
-            <MoreLink to="/risk-disclaimer" icon={AlertTriangle} title="Responsible Use" subtitle="Forecast responsibly and understand risk." />
-            <MoreLink to="/privacy" icon={Shield} title="Privacy" subtitle="How data is handled." />
-            <MoreLink to="/terms" icon={FileText} title="Terms" subtitle="Platform rules and usage terms." />
-            <MoreLink to="/how-it-works" icon={BookOpen} title="How It Works" subtitle="Learn prediction markets in plain language." />
-            <MoreLink to="/about" icon={Info} title="About" subtitle="What Flippe is building." />
-          </Group>
-
-          {user && (
-            <button
-              onClick={logout}
-              className="flex h-14 w-full items-center justify-center rounded-2xl border border-red-400/25 bg-red-400/10 text-sm font-black text-red-200 transition hover:bg-red-400/20"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </button>
-          )}
         </section>
+
+        {user && (
+          <button
+            onClick={logout}
+            className="mt-5 flex h-14 w-full items-center justify-center rounded-2xl border border-red-400/25 bg-red-400/10 text-sm font-black text-red-200 transition hover:bg-red-400/20"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Logout
+          </button>
+        )}
       </main>
       <MobileNav />
     </div>
   );
 }
 
-const Group = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <section>
-    <h2 className="mb-2 px-1 text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">{title}</h2>
-    <div className="overflow-hidden rounded-2xl border border-[#263241] bg-[#101720]">{children}</div>
+const Group = ({ title, description, children }: { title: string; description: string; children: React.ReactNode }) => (
+  <section className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
+    <h2 className="text-sm font-black uppercase tracking-[0.16em] text-[#12B886]">{title}</h2>
+    <p className="mt-1 min-h-10 text-sm text-[#8B98A8]">{description}</p>
+    <div className="mt-4 overflow-hidden rounded-2xl border border-[#263241] bg-[#0D131A]">{children}</div>
   </section>
 );
 
 const MoreLink = ({ to, icon: Icon, title, subtitle }: { to: string; icon: any; title: string; subtitle: string }) => (
-  <Link to={to} className="flex items-center gap-3 border-b border-[#263241] p-4 transition last:border-b-0 hover:bg-[#151E28]">
+  <Link to={to} className="group flex min-h-20 items-center gap-3 border-b border-[#263241] p-4 transition last:border-b-0 hover:bg-[#151E28]">
     <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#12B886]">
       <Icon className="h-5 w-5" />
     </div>
-    <div className="min-w-0">
+    <div className="min-w-0 flex-1">
       <div className="font-black text-white">{title}</div>
-      <div className="mt-1 line-clamp-1 text-sm text-[#8B98A8]">{subtitle}</div>
+      <div className="mt-1 text-sm text-[#8B98A8]">{subtitle}</div>
     </div>
+    <ChevronRight className="h-4 w-4 shrink-0 text-[#8B98A8] transition group-hover:translate-x-0.5 group-hover:text-white" />
   </Link>
 );
