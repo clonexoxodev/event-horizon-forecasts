@@ -664,10 +664,18 @@ class ApiService {
     return this.request<{ success: boolean; preview: any }>(`/api/admin/markets/${encodeURIComponent(marketId)}/resolution-preview?outcome=${outcome}`);
   }
 
-  async resolveAdminMarket(marketId: string, winningOutcome: 'YES' | 'NO') {
+  async resolveAdminMarket(
+    marketId: string,
+    winningOutcome: 'YES' | 'NO',
+    details: { resolutionSource?: string; resolutionNote?: string } = {}
+  ) {
     return this.request<{ success: boolean; market: AdminMarket; summary: any; alreadyResolved?: boolean; message?: string }>(`/api/admin/markets/${encodeURIComponent(marketId)}/resolve`, {
       method: 'POST',
-      body: JSON.stringify({ winningOutcome }),
+      body: JSON.stringify({
+        winningOutcome,
+        resolution_source: details.resolutionSource,
+        resolution_note: details.resolutionNote,
+      }),
     });
   }
 
