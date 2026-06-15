@@ -99,7 +99,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Prediction slip</p>
-                <h2 className="mt-1 text-2xl font-black text-white">Lock prediction</h2>
+                <h2 className="mt-1 text-2xl font-black text-white">Lock Prediction</h2>
               </div>
               <button
                 onClick={handleClear}
@@ -133,7 +133,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
 
             <div className="grid grid-cols-2 gap-3">
               <InfoCard label="Wallet balance" value={user ? formatNaira(userBalance) : "Login required"} />
-              <InfoCard label="Current price" value={formatNairaPrice(probability)} />
+              <InfoCard label="Current confidence" value={formatNairaPrice(probability)} />
             </div>
 
             {!user && (
@@ -196,17 +196,16 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
               {numAmount > 0 && !insufficientBalance ? (
                 <>
                 <Row label="Amount" value={formatNaira(numAmount)} />
-                <Row label="Current sentiment price" value={formatNairaPrice(probability)} />
-                <Row label="Shares received" value={sharesReceived.toFixed(2)} highlight />
-                <Row label="Projected payout if resolved now" value={formatNaira(projectedPayout)} />
-                <Row label="Projected P/L if resolved now" value={`${projectedProfit >= 0 ? "+" : ""}${formatNaira(projectedProfit)}`} />
+                <Row label="Current confidence" value={formatNairaPrice(probability)} />
+                <Row label="Units received" value={sharesReceived.toFixed(2)} />
+                <Row label="Potential payout if correct" value={formatNaira(projectedPayout)} highlight />
                 <Row label="Market participants" value={`${selection.participants ?? 0}`} />
                 <p className="mt-3 text-xs font-bold leading-relaxed text-[#8B98A8]">
-                  Projected values use the current pool and are finalized only when the market resolves.
+                  Payout is projected and the final amount is confirmed when the market resolves.
                 </p>
                 </>
               ) : (
-                <p className="text-sm font-bold text-[#8B98A8]">Choose an amount to see shares and projected value.</p>
+                <p className="text-sm font-bold text-[#8B98A8]">Choose an amount to see your potential payout.</p>
               )}
             </div>
 
@@ -227,7 +226,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
               ) : (
                 <>
                   <TrendingUp className="mr-2 h-5 w-5" />
-                  Lock prediction
+                  Lock Prediction
                 </>
               )}
             </Button>
@@ -259,7 +258,7 @@ const SuccessState = ({ selection, amount }: { selection: ForecastSelection; amo
         <p className="mt-2 text-sm text-[#8B98A8]">
           {formatNaira(amount)} on {selection.side} at {formatNairaPrice(selection.currentPrice)}.
         </p>
-        <p className="mt-1 text-xs font-bold text-[#8B98A8]">Track it in Portfolio.</p>
+        <p className="mt-1 text-xs font-bold text-[#8B98A8]">Track it in My Predictions.</p>
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ export interface Market {
   yes_price: number;
   no_price: number;
   close_date: string;
+  trading_close_at?: string | null;
   resolution_date: string;
   resolution_source: string | null;
   outcome: 'YES' | 'NO' | 'INVALID' | null;
@@ -98,6 +99,7 @@ export class AdminMarketRepository {
         yes_price: prices.yesPrice,
         no_price: prices.noPrice,
         close_date: data.close_date,
+        trading_close_at: (data as any).trading_close_at || data.close_date,
         resolution_date: data.resolution_date,
         resolution_source: data.resolution_source || null,
         resolution_instructions: data.resolution_instructions || null,
@@ -199,6 +201,7 @@ export class AdminMarketRepository {
     if (data.no_price !== undefined) updateData.no_price = data.no_price;
     if (data.close_date !== undefined) updateData.close_date = data.close_date;
     if (data.close_date !== undefined) updateData.closes_at = data.close_date;
+    if ((data as any).trading_close_at !== undefined) updateData.trading_close_at = (data as any).trading_close_at;
     if (data.resolution_date !== undefined) updateData.resolution_date = data.resolution_date;
     if (data.resolution_source !== undefined) updateData.resolution_source = data.resolution_source;
     if (data.resolution_instructions !== undefined) updateData.resolution_instructions = data.resolution_instructions;

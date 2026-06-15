@@ -5,10 +5,15 @@ import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
 import apiService, { type ApiPosition, type ApiProfileStats } from "@/lib/api";
-import { formatNaira } from "@/lib/markets";
+import { formatCountdown, formatNaira, formatNairaPrice } from "@/lib/markets";
 import { getCategoryLabel } from "@/lib/categories";
 
 type PortfolioTab = "positions" | "activity" | "performance";
+const tabLabels: Record<PortfolioTab, string> = {
+  positions: "Open Predictions",
+  activity: "Prediction History",
+  performance: "My Score",
+};
 
 const emptyStats: ApiProfileStats = {
   totalPredictions: 0,
@@ -47,7 +52,7 @@ const Dashboard = () => {
         setStats(statsResponse.stats || emptyStats);
       } catch (error) {
         if (!mounted) return;
-        console.warn("Portfolio request failed", error);
+        console.warn("My Predictions request failed", error);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -79,7 +84,7 @@ const Dashboard = () => {
   const resolvedWinnings = settledPositions.reduce((sum, position) => sum + Number(position.payout || 0), 0);
 
   if (authLoading) {
-    return <SessionLoading label="Restoring your portfolio..." />;
+    return <SessionLoading label="Restoring your predictions..." />;
   }
 
   if (!user) {
@@ -92,7 +97,7 @@ const Dashboard = () => {
               <LineChart className="h-8 w-8" />
             </div>
             <h1 className="text-3xl font-black tracking-tight">Track your predictions</h1>
-            <p className="mt-3 text-sm text-[#8B98A8]">Log in to see active positions, resolved markets, and wallet-linked activity.</p>
+            <p className="mt-3 text-sm text-[#8B98A8]">Log in to see open predictions, resolved results, and wallet-linked history.</p>
             <Link to="/login" className="mt-6 inline-flex h-12 items-center rounded-xl bg-[#12B886] px-6 text-sm font-black text-[#06100d]">
               Log in
             </Link>
@@ -110,16 +115,16 @@ const Dashboard = () => {
         <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5 shadow-[0_18px_52px_rgba(0,0,0,0.28)] sm:p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Portfolio</p>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">My Predictions</p>
               <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-5xl">{formatNaira(projectedValue)}</h1>
               <p className="mt-2 max-w-xl text-sm text-[#8B98A8]">
-                Projected portfolio value. Projected values move with market activity and are finalized only after resolution.
+                Projected value across your open predictions. Final payouts are confirmed only after market resolution.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[520px]">
-              <HeroStat icon={Target} label="Active positions" value={`${activePositions.length}`} />
+              <HeroStat icon={Target} label="Open predictions" value={`${activePositions.length}`} />
               <HeroStat icon={BarChart3} label="Total staked" value={formatNaira(openStake)} />
-              <HeroStat icon={LineChart} label="Projected P/L" value={`${projectedPnl >= 0 ? "+" : ""}${formatNaira(projectedPnl)}`} tone={projectedPnl >= 0 ? "green" : "red"} />
+              <HeroStat icon={LineChart} label="Projected gain" value={`${projectedPnl >= 0 ? "+" : ""}${formatNaira(projectedPnl)}`} tone={projectedPnl >= 0 ? "green" : "red"} />
               <HeroStat icon={Trophy} label="Resolved winnings" value={formatNaira(resolvedWinnings)} />
             </div>
           </div>
@@ -134,7 +139,7 @@ const Dashboard = () => {
                 tab === item ? "bg-[#12B886] text-[#06100d]" : "text-[#8B98A8] hover:bg-[#151E28] hover:text-white"
               }`}
             >
-              {item}
+              {tabLabels[item]}
             </button>
           ))}
         </div>
@@ -169,8 +174,8 @@ const PositionsView = ({ positions }: { positions: ApiPosition[] }) => {
     return (
       <EmptyState
         icon={Target}
-        title="No active positions"
-        body="Make a prediction and your live positions will appear here."
+        title="No open predictions"
+        body="Pick a market, choose YES or NO, and your open predictions will appear here."
         action={<Link to="/" className="rounded-xl bg-[#12B886] px-5 py-3 text-sm font-black text-[#06100d]">Explore markets</Link>}
       />
     );
@@ -184,7 +189,7 @@ const PositionsView = ({ positions }: { positions: ApiPosition[] }) => {
           <Link key={position.id} to={`/market/${position.marketId}`} className="rounded-2xl border border-[#263241] bg-[#101720] p-4 transition hover:border-[#12B886]/45 hover:bg-[#151E28]">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Active position</div>
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Open prediction</div>
                 <h2 className="mt-2 line-clamp-2 text-lg font-black leading-tight">{position.marketQuestion}</h2>
                 <div className="mt-2 text-xs font-bold text-[#8B98A8]">
                   {getCategoryLabel(position.category)} · {new Date(position.createdAt).toLocaleDateString()}
@@ -194,18 +199,16 @@ const PositionsView = ({ positions }: { positions: ApiPosition[] }) => {
                 {position.side}
               </span>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-              <Metric label="Stake" value={formatNaira(position.stake)} />
-              <Metric label="Entry price" value={`NGN ${Math.round(position.entryPrice || 0)}`} />
-              <Metric label="Current price" value={`NGN ${Math.round(position.currentPrice || position.entryPrice || 0)}`} />
-              <Metric label="Shares" value={String(Number(position.sharesOwned ?? position.sharesReceived ?? 0).toFixed(2))} />
-              <Metric label="Projected payout" value={formatNaira(position.projectedPayout ?? position.currentValue ?? position.positionValue ?? position.stake)} />
-              <Metric label="Projected P/L" value={`${projectedProfit >= 0 ? "+" : ""}${formatNaira(projectedProfit)}`} tone={projectedProfit >= 0 ? "green" : "red"} />
+            <div className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+              <Metric label="Amount predicted" value={formatNaira(position.stake)} />
+              <Metric label="Current confidence" value={formatNairaPrice(position.currentPrice || position.entryPrice || 0)} />
+              <Metric label="Potential payout" value={formatNaira(position.projectedPayout ?? position.currentValue ?? position.positionValue ?? position.stake)} />
+              <Metric label="Time left" value={formatCountdown(position.tradingCloseTime || position.marketCloseTime)} />
               <Metric label="Status" value={position.marketStatus.replace(/_/g, " ")} />
-              <Metric label="Updated" value={new Date(position.createdAt).toLocaleDateString()} />
+              <Metric label="Projected gain" value={`${projectedProfit >= 0 ? "+" : ""}${formatNaira(projectedProfit)}`} tone={projectedProfit >= 0 ? "green" : "red"} />
             </div>
             <p className="mt-3 text-xs font-bold text-[#8B98A8]">
-              Projected values are estimates based on the current pool and are only finalized when the market resolves.
+              Tap to see entry confidence, units, market movement, rules, and resolution source.
             </p>
           </Link>
         );
@@ -215,16 +218,18 @@ const PositionsView = ({ positions }: { positions: ApiPosition[] }) => {
 };
 
 const ActivityView = ({ positions, settledCount }: { positions: ApiPosition[]; settledCount: number }) => {
-  const sorted = [...positions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const sorted = positions
+    .filter((position) => position.marketStatus !== "active" || Boolean(position.resolvedAt))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   if (sorted.length === 0) {
-    return <EmptyState icon={Activity} title="No activity yet" body="Your prediction history will show here after your first move." />;
+    return <EmptyState icon={Activity} title="No resolved predictions yet" body="Won, lost, refunded, and cancelled predictions will appear here after markets resolve." />;
   }
 
   return (
     <section className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-black">Recent activity</h2>
+        <h2 className="text-xl font-black">Prediction History</h2>
         <span className="rounded-full border border-[#263241] bg-[#151E28] px-3 py-1 text-xs font-bold text-[#8B98A8]">{settledCount} settled</span>
       </div>
       <div className="space-y-2">
@@ -258,25 +263,60 @@ const PerformanceView = ({ positions, stats }: { positions: ApiPosition[]; stats
   const resolved = positions.filter((position) => position.resolvedAt);
   const won = resolved.filter((position) => position.isWinner);
   const lost = resolved.filter((position) => !position.isWinner);
+  const currentStreak = getCurrentWinStreak(resolved);
+  const bestStreak = getBestWinStreak(resolved);
+  const accuracy = resolved.length ? Math.round((won.length / resolved.length) * 100) : 0;
+  const level = getForecasterLevel(stats.totalPredictions, won.length);
 
   return (
     <div className="grid gap-4">
       <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
-        <h2 className="text-xl font-black">Performance</h2>
-        <p className="mt-1 text-sm text-[#8B98A8]">Only resolved outcomes are counted here. Open projected values stay in Positions.</p>
+        <h2 className="text-xl font-black">My Score</h2>
+        <p className="mt-1 text-sm text-[#8B98A8]">Only real resolved predictions count here. No fake rank or streak values are shown.</p>
         <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Metric label="Markets joined" value={String(stats.totalPredictions)} large />
-          <Metric label="Resolved wins" value={String(won.length)} large />
-          <Metric label="Resolved losses" value={String(lost.length)} large />
-          <Metric label="Win rate" value={resolved.length ? `${Math.round((won.length / resolved.length) * 100)}%` : "-"} large />
-          <Metric label="Total staked" value={formatNaira(stats.totalStaked)} large />
-          <Metric label="Resolved winnings" value={formatNaira(stats.totalEarnings)} large />
-          <Metric label="Open positions" value={String(positions.filter((position) => position.marketStatus === "active").length)} large />
-          <Metric label="Resolved markets" value={String(resolved.length)} large />
+          <Metric label="Accuracy score" value={resolved.length ? `${accuracy}%` : "-"} large />
+          <Metric label="Current streak" value={String(currentStreak)} large />
+          <Metric label="Best streak" value={String(bestStreak)} large />
+          <Metric label="Total predictions" value={String(stats.totalPredictions)} large />
+          <Metric label="Wins" value={String(won.length)} large />
+          <Metric label="Losses" value={String(lost.length)} large />
+          <Metric label="Rank" value="Not ranked yet" large />
+          <Metric label="Level" value={level} large />
         </div>
       </section>
     </div>
   );
+};
+
+const getCurrentWinStreak = (resolved: ApiPosition[]) => {
+  const recent = [...resolved].sort((a, b) => new Date(b.resolvedAt || b.createdAt).getTime() - new Date(a.resolvedAt || a.createdAt).getTime());
+  let streak = 0;
+  for (const position of recent) {
+    if (!position.isWinner) break;
+    streak += 1;
+  }
+  return streak;
+};
+
+const getBestWinStreak = (resolved: ApiPosition[]) => {
+  const ordered = [...resolved].sort((a, b) => new Date(a.resolvedAt || a.createdAt).getTime() - new Date(b.resolvedAt || b.createdAt).getTime());
+  let best = 0;
+  let current = 0;
+  for (const position of ordered) {
+    current = position.isWinner ? current + 1 : 0;
+    best = Math.max(best, current);
+  }
+  return best;
+};
+
+const getForecasterLevel = (totalPredictions: number, wins: number) => {
+  const score = totalPredictions + wins * 2;
+  if (score >= 120) return "Market Master";
+  if (score >= 70) return "Elite Forecaster";
+  if (score >= 40) return "Expert";
+  if (score >= 18) return "Analyst";
+  if (score >= 5) return "Sharp Thinker";
+  return "Rookie";
 };
 
 const Metric = ({ label, value, large = false, tone = "neutral" }: { label: string; value: string; large?: boolean; tone?: "neutral" | "green" | "red" }) => (

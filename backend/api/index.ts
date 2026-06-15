@@ -994,10 +994,16 @@ const normalizeMarketStatus = (market: any): MarketStatus => {
 };
 
 const getCloseTime = (market: any) => market.closes_at || market.close_date || market.close_time || '';
+const getTradingCloseTime = (market: any) => market.trading_close_at || market.trading_close_time || getCloseTime(market);
 
 const isMarketPastClose = (market: any) => {
   const closeTime = getCloseTime(market);
   return closeTime ? new Date(closeTime).getTime() <= Date.now() : false;
+};
+
+const isMarketPastTradingClose = (market: any) => {
+  const tradingCloseTime = getTradingCloseTime(market);
+  return tradingCloseTime ? new Date(tradingCloseTime).getTime() <= Date.now() : false;
 };
 
 const displayStatusForMarket = (market: any): MarketStatus => {
@@ -1247,6 +1253,7 @@ const normalizeMarket = (market: any, positionCount = 0, priceHistory: any[] = [
     startingYesPrice: starting.yesPrice,
     startingNoPrice: starting.noPrice,
     closeTime,
+    tradingCloseTime: getTradingCloseTime(market),
     status,
     marketType: market.market_type || 'binary',
     rules: market.rules || market.resolution_instructions || market.description || '',
@@ -1318,6 +1325,8 @@ const normalizePosition = (position: any, market: any) => {
     marketIcon: normalizedMarket.icon,
     category: normalizeMarketCategory(position.market_category_snapshot || normalizedMarket.category),
     marketStatus: normalizedMarket.status,
+    marketCloseTime: normalizedMarket.closeTime,
+    tradingCloseTime: normalizedMarket.tradingCloseTime || normalizedMarket.closeTime,
     isWinner: position.is_winner,
     payout: toAmount(position.payout_smallest_unit),
     resolvedAt: position.resolved_at || null,
@@ -2174,6 +2183,16 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
       });
     }
 
+    if (isMarketPastTradingClose(currentMarket)) {
+      return res.status(422).json({
+        error: {
+          code: 'TRADING_CLOSED',
+          message: 'Prediction window is closed for this market',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
     const minPosition = Number(currentMarket.min_position_smallest_unit || 0);
     const maxPosition = Number(currentMarket.max_position_smallest_unit || 0);
     if (minPosition > 0 && amountSmallestUnit < minPosition) {
@@ -2897,6 +2916,7 @@ const normalizeAdminMarket = (market: any) => ({
   yes_price: Number(market.yes_price || 50),
   no_price: Number(market.no_price || 50),
   close_date: market.close_date || market.closes_at,
+  trading_close_at: market.trading_close_at || market.trading_close_time || market.close_date || market.closes_at,
   resolution_date: market.resolution_date,
   resolution_source: market.resolution_source,
   resolution_instructions: market.resolution_instructions,
@@ -3387,6 +3407,7 @@ app.post('/api/admin/markets', authenticate, requireRole('admin'), async (req: R
     const rawCategory = String(req.body.category || '').trim();
     const category = normalizeMarketCategory(rawCategory);
     const closeDate = req.body.close_date || req.body.closes_at;
+    const tradingCloseDate = req.body.trading_close_at || req.body.trading_close_time || req.body.trading_close_date || closeDate;
     const status = String(req.body.status || 'active');
     const imageUrl = req.body.image_url || null;
     const videoUrl = req.body.video_url || null;
@@ -3423,6 +3444,14 @@ app.post('/api/admin/markets', authenticate, requireRole('admin'), async (req: R
       return res.status(400).json({ success: false, error: { code: 'INVALID_CLOSE_DATE', message: 'End date must be in the future.' } });
     }
 
+    if (!tradingCloseDate || new Date(tradingCloseDate).getTime() <= Date.now()) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_TRADING_CLOSE_DATE', message: 'Trading close time must be in the future.' } });
+    }
+
+    if (new Date(tradingCloseDate).getTime() > new Date(closeDate).getTime()) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_TRADING_CLOSE_DATE', message: 'Trading close time cannot be after the resolution/end time.' } });
+    }
+
     const { data: market, error } = await supabase
       .from('markets')
       .insert({
@@ -3437,6 +3466,7 @@ app.post('/api/admin/markets', authenticate, requireRole('admin'), async (req: R
         no_price: noPrice,
         close_date: closeDate,
         closes_at: closeDate,
+        trading_close_at: tradingCloseDate,
         resolution_date: req.body.resolution_date || closeDate,
         resolution_source: resolutionSource,
         resolution_instructions: rules,
@@ -3511,6 +3541,10 @@ app.put('/api/admin/markets/:marketId', authenticate, requireRole('admin'), asyn
 
     const updateData: any = { ...req.body };
     if (updateData.close_date) updateData.closes_at = updateData.close_date;
+    if (updateData.trading_close_date) {
+      updateData.trading_close_at = updateData.trading_close_date;
+      delete updateData.trading_close_date;
+    }
     if (updateData.status) updateData.state = legacyStateFor(updateData.status);
 
     const { data: market, error } = await supabase

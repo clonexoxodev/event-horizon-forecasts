@@ -179,10 +179,16 @@ const savePriceHistory = async (
 };
 
 const getCloseTime = (market: any) => market.closes_at || market.close_date || market.close_time || '';
+const getTradingCloseTime = (market: any) => market.trading_close_at || market.trading_close_time || getCloseTime(market);
 
 const isPastClose = (market: any) => {
   const closeTime = getCloseTime(market);
   return closeTime ? new Date(closeTime).getTime() <= Date.now() : false;
+};
+
+const isPastTradingClose = (market: any) => {
+  const tradingCloseTime = getTradingCloseTime(market);
+  return tradingCloseTime ? new Date(tradingCloseTime).getTime() <= Date.now() : false;
 };
 
 const autoCloseExpiredMarket = async (market: any) => {
@@ -372,6 +378,7 @@ const normalizeMarket = (market: any, positionCount = 0, priceHistory: Array<{ t
     startingYesPrice: getStartingPrices(market).yesPrice,
     startingNoPrice: getStartingPrices(market).noPrice,
     closeTime,
+    tradingCloseTime: getTradingCloseTime(market),
     status: status === 'open' ? 'active' : status,
     rules: market.rules || market.resolution_instructions || '',
     minAmount: toAmount(market.min_position_smallest_unit),
@@ -650,7 +657,17 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
 
     const marketStatus = (market as any).status || (market as any).state || 'active';
     const closesAt = (market as any).closes_at || (market as any).close_time;
+    const tradingClosedByTime = isPastTradingClose(market);
     const isClosedByTime = closesAt ? new Date(closesAt).getTime() <= Date.now() : false;
+    if (tradingClosedByTime && ['active', 'open'].includes(marketStatus)) {
+      return res.status(422).json({
+        error: {
+          code: 'TRADING_CLOSED',
+          message: 'Prediction window is closed for this market',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
     if (!['active', 'open'].includes(marketStatus) || isClosedByTime) {
       if (isClosedByTime && ['active', 'open'].includes(marketStatus)) {
         await supabase

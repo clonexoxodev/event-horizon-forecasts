@@ -124,6 +124,10 @@ export const MarketCreateSchema = z.object({
   
   close_date: z.string()
     .datetime({ message: 'Close date must be a valid ISO 8601 datetime' }),
+
+  trading_close_at: z.string()
+    .datetime({ message: 'Trading close time must be a valid ISO 8601 datetime' })
+    .optional(),
   
   resolution_date: z.string()
     .datetime({ message: 'Resolution date must be a valid ISO 8601 datetime' }),
@@ -205,6 +209,20 @@ export const MarketCreateSchema = z.object({
   {
     message: 'Close date must be in the future',
     path: ['close_date'],
+  }
+)
+.refine(
+  (data) => !data.trading_close_at || new Date(data.trading_close_at) > new Date(),
+  {
+    message: 'Trading close time must be in the future',
+    path: ['trading_close_at'],
+  }
+)
+.refine(
+  (data) => !data.trading_close_at || new Date(data.trading_close_at) <= new Date(data.close_date),
+  {
+    message: 'Trading close time must be before or equal to close date',
+    path: ['trading_close_at'],
   }
 )
 .refine(

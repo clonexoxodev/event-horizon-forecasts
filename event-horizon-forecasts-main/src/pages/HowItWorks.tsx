@@ -6,9 +6,9 @@ import { MobileNav } from "@/components/MobileNav";
 const steps = [
   ["Pick a market", "Browse live markets and read the question, category, rules, and closing time.", Search],
   ["Choose YES or NO", "YES and NO prices show current sentiment. They always add up to 100.", BarChart3],
-  ["Enter amount", "The prediction slip shows your current price, shares received, and projected payout if resolved now.", WalletCards],
-  ["Lock prediction", "Your wallet is debited and your position is saved. You cannot treat projected profit as withdrawable cash.", LockKeyhole],
-  ["Track it", "Portfolio shows entry price, current price, shares, stake, projected payout, and status.", Clock],
+  ["Enter amount", "The prediction slip shows current confidence and your potential payout if you are correct.", WalletCards],
+  ["Lock prediction", "Your wallet is debited and your prediction is saved. Projected gains are not withdrawable cash.", LockKeyhole],
+  ["Track it", "My Predictions shows your choice, amount, current confidence, potential payout, and status.", Clock],
   ["Market resolves", "After the deadline, admins resolve using the stated source. Winning positions receive final payout.", CheckCircle2],
 ];
 
@@ -21,7 +21,7 @@ export default function HowItWorks() {
           <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#12B886]">How It Works</p>
           <h1 className="mt-2 max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">Forecast live events in a few clear steps</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-[#8B98A8]">
-            FLIPPE keeps the flow simple: choose a market, pick a side, see your shares and projected payout, then track the result until resolution.
+            FLIPPE keeps the flow simple: choose a market, pick YES or NO, see what you may receive if correct, then track the result until resolution.
           </p>
         </section>
 
@@ -43,7 +43,7 @@ export default function HowItWorks() {
         <section className="mt-6 grid gap-5 lg:grid-cols-2">
           <InfoPanel title="How prices move">
             <p>YES and NO prices are sentiment indicators based on real user activity. If more users buy YES, YES can rise and NO falls. If more users buy NO, NO can rise and YES falls.</p>
-            <p>Prices help calculate shares at the moment you lock a prediction. They are not a guarantee of profit.</p>
+            <p>Confidence shows what the market currently believes. It helps calculate your prediction, but it is not a guarantee of profit.</p>
           </InfoPanel>
           <InfoPanel title="How final payout works">
             <p>When a market resolves, final payout is determined only by the resolved outcome and the market pool rules. Projected values shown before resolution are estimates.</p>
@@ -56,7 +56,7 @@ export default function HowItWorks() {
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <Example label="Market price" value="YES 60 / NO 40" />
             <Example label="You choose" value="YES with ₦600" />
-            <Example label="Shares shown" value="10 YES shares" />
+            <Example label="Potential payout" value="Shown before you lock" />
           </div>
           <p className="mt-4 text-sm leading-6 text-[#8B98A8]">
             The app may show a projected payout if the market resolved now. That number can change until the market closes and is resolved.

@@ -6,7 +6,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 
 const primaryNav = [
   { to: "/", label: "Home", icon: Home },
-  { to: "/portfolio", label: "Portfolio", icon: PieChart },
+  { to: "/portfolio", label: "My Predictions", icon: PieChart },
   { to: "/wallet", label: "Wallet", icon: Wallet },
   { to: "/more", label: "More", icon: Menu },
 ];

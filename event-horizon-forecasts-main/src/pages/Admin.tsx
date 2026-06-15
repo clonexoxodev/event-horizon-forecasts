@@ -124,6 +124,7 @@ const emptyForm = {
   yes_price: 50,
   no_price: 50,
   close_date: "",
+  trading_close_at: "",
   resolution_source: "",
   rules: "",
   image_url: "",
@@ -510,14 +511,15 @@ const Admin = () => {
       yes_price: Number(market.yes_price ?? 50),
       no_price: Number(market.no_price ?? 50),
       close_date: toDateTimeLocal(market.close_date || market.closes_at),
+      trading_close_at: toDateTimeLocal(market.trading_close_at || market.close_date || market.closes_at),
       resolution_source: market.resolution_source || "",
       rules: market.rules || market.description || "",
       image_url: market.image_url || "",
       video_url: market.video_url || "",
       status: market.status || "active",
       is_trending: Boolean(market.is_trending),
-      min_stake: koboToNaira(market.min_stake_smallest_unit || 10000),
-      max_stake: koboToNaira(market.max_stake_smallest_unit || 10000000),
+      min_stake: koboToNaira(market.min_position_smallest_unit || 10000),
+      max_stake: koboToNaira(market.max_position_smallest_unit || 10000000),
     });
     setView("create");
   };
@@ -568,6 +570,8 @@ const Admin = () => {
     yes_price: Number(form.yes_price),
     no_price: Number(form.no_price),
     close_date: form.close_date,
+    trading_close_at: form.trading_close_at || form.close_date,
+    resolution_date: form.close_date ? new Date(new Date(form.close_date).getTime() + 60_000).toISOString() : form.close_date,
     resolution_source: form.resolution_source.trim(),
     rules: form.rules.trim(),
     description: form.rules.trim(),
@@ -575,8 +579,8 @@ const Admin = () => {
     video_url: form.video_url.trim() || undefined,
     status: form.status,
     is_trending: Boolean(form.is_trending),
-    min_stake_smallest_unit: Math.round(Number(form.min_stake) * 100),
-    max_stake_smallest_unit: Math.round(Number(form.max_stake) * 100),
+    min_position_smallest_unit: Math.round(Number(form.min_stake) * 100),
+    max_position_smallest_unit: Math.round(Number(form.max_stake) * 100),
   });
 
   const validateMarket = () => {
@@ -585,6 +589,10 @@ const Admin = () => {
     if (!form.close_date) return "End date and time is required.";
     if (new Date(form.close_date).getTime() <= Date.now())
       return "End date must be in the future.";
+    if (form.trading_close_at && new Date(form.trading_close_at).getTime() <= Date.now())
+      return "Trading close time must be in the future.";
+    if (form.trading_close_at && new Date(form.trading_close_at).getTime() > new Date(form.close_date).getTime())
+      return "Trading close time must be before or equal to the market end time.";
     if (!form.rules.trim()) return "Rules are required.";
     if (!form.resolution_source.trim())
       return "Resolution source is required.";
@@ -1727,7 +1735,7 @@ const CreateMarketView = ({
             </Field>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
             <Field label="End date/time" required>
               <Input
                 type="datetime-local"
@@ -1735,6 +1743,15 @@ const CreateMarketView = ({
                 onChange={(event) => onChange("close_date", event.target.value)}
                 className="border-[#263241] bg-[#0B1118] text-white"
               />
+            </Field>
+            <Field label="Trading close time">
+              <Input
+                type="datetime-local"
+                value={form.trading_close_at}
+                onChange={(event) => onChange("trading_close_at", event.target.value)}
+                className="border-[#263241] bg-[#0B1118] text-white"
+              />
+              <p className="mt-1 text-xs text-[#8B98A8]">Leave blank to close predictions at market end.</p>
             </Field>
             <Field label="Starting YES price">
               <Input

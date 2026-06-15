@@ -168,19 +168,19 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
                   : "bg-coral-soft/30 border-coral/20"
               }`}>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-graphite">Your stake</span>
+                  <span className="text-graphite">Amount predicted</span>
                   <span className="font-bold text-charcoal">{formatNaira(numAmount)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-graphite">Current sentiment price</span>
+                  <span className="text-graphite">Current confidence</span>
                   <span className="font-bold text-charcoal">{probability}%</span>
                 </div>
                 <div className="h-px bg-border/50 my-2" />
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-charcoal">Shares received</span>
+                  <span className="text-sm font-medium text-charcoal">Units received</span>
                   <div className="text-right">
                     <div className="font-extrabold text-lg text-charcoal animate-fade-in">{projectedShares.toFixed(2)}</div>
-                    <div className="text-xs font-semibold text-graphite animate-fade-in">Final payout depends on resolution pools.</div>
+                    <div className="text-xs font-semibold text-graphite animate-fade-in">Final payout is confirmed when the market resolves.</div>
                   </div>
                 </div>
               </div>
@@ -204,7 +204,7 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
               ) : (
                 <>
                   <TrendingUp className="w-4 h-4 mr-2" />
-                  Lock prediction
+                  Lock Prediction
                 </>
               )}
             </Button>

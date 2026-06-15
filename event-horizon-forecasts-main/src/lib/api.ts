@@ -93,6 +93,7 @@ export type ApiMarket = {
   yesPrice: number;
   noPrice: number;
   closeTime: string;
+  tradingCloseTime?: string;
   status: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived';
   rules?: string;
   minAmount?: number;
@@ -125,6 +126,7 @@ export type AdminMarket = {
   yes_price?: number;
   no_price?: number;
   close_date?: string;
+  trading_close_at?: string;
   resolution_date?: string;
   resolution_source?: string | null;
   resolution_instructions?: string | null;
@@ -168,6 +170,7 @@ export type AdminCreateMarketInput = {
   starting_yes_price?: number;
   starting_no_price?: number;
   close_date: string;
+  trading_close_at?: string;
   resolution_date: string;
   resolution_source?: string;
   resolution_instructions?: string;
@@ -206,6 +209,8 @@ export type ApiPosition = {
   marketIcon: string;
   category?: string;
   marketStatus: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived';
+  marketCloseTime?: string;
+  tradingCloseTime?: string;
   isWinner?: boolean | null;
   payout?: number;
   resolvedAt?: string | null;

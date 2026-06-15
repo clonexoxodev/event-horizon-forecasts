@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 
 const principles = [
-  ["Simple", "Markets should be understandable in seconds: question, YES/NO price, amount, shares, and status.", Target],
+  ["Simple", "Markets should be understandable in seconds: question, YES/NO confidence, amount, potential payout, and status.", Target],
   ["Transparent", "Rules, resolution source, wallet movement, and market status should be visible before users participate.", Shield],
   ["Pool-safe", "Flippe's MVP market design should settle from locked market stakes, not from hidden company-funded promises.", BarChart3],
   ["Responsible", "Projected values are estimates. Users should forecast carefully and never treat predictions as guaranteed income.", CheckCircle2],

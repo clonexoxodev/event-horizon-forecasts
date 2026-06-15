@@ -4,7 +4,7 @@ import { NavLink } from "react-router-dom";
 export const MobileNav = () => {
   const navItems = [
     { to: "/", icon: Home, label: "Home" },
-    { to: "/portfolio", icon: PieChart, label: "Portfolio" },
+    { to: "/portfolio", icon: PieChart, label: "My Predictions" },
     { to: "/wallet", icon: Wallet, label: "Wallet" },
     { to: "/more", icon: Menu, label: "More" },
   ];

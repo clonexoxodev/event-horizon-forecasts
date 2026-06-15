@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowLeft, Bookmark, CheckCircle, Clock, Loader2, Share2, TrendingUp, Users, X } from "lucide-react";
+import { ArrowLeft, CheckCircle, Clock, Loader2, Share2, TrendingUp, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
@@ -22,7 +22,6 @@ export default function MarketDetail() {
   const { user, refreshUser, setAuthOpen } = useAuth();
   const [market, setMarket] = useState<Market | null>(null);
   const [loading, setLoading] = useState(true);
-  const [bookmarked, setBookmarked] = useState(false);
   const [sheetSide, setSheetSide] = useState<"YES" | "NO" | null>(null);
   const [amount, setAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -107,12 +106,25 @@ export default function MarketDetail() {
     if (!market) return;
     const media = getMarketMedia(market);
     const url = `${window.location.origin}/market/${market.id}`;
+    const timeLeft = formatCountdown(market.tradingCloseTime || market.closeTime, market.closesIn);
+    const shareText = [
+      "FLIPPE market",
+      market.question,
+      `YES confidence: ${formatNairaPrice(market.yesPrice)}`,
+      `NO confidence: ${formatNairaPrice(market.noPrice)}`,
+      `Time left: ${timeLeft}`,
+      url,
+    ].join("\n");
     try {
       if (navigator.share) {
-        await navigator.share({ title: market.question, text: `${market.question}\n${media.imageUrl}`, url });
+        await navigator.share({
+          title: `FLIPPE: ${market.question}`,
+          text: `${shareText}\n${media.imageUrl ? `Image: ${media.imageUrl}` : ""}`.trim(),
+          url,
+        });
         return;
       }
-      await navigator.clipboard.writeText(`${market.question}\n${url}`);
+      await navigator.clipboard.writeText(shareText);
       toast.success("Market link copied.");
     } catch (error: any) {
       if (error?.name !== "AbortError") toast.error("Could not share market.");
@@ -170,8 +182,9 @@ export default function MarketDetail() {
     ? (sharesReceived / (sideShares + sharesReceived)) * oppositeStake
     : 0;
   const projectedPayout = numericAmount + projectedProfit;
-  const hasMarketEnded = market.closeTime ? new Date(market.closeTime).getTime() <= now : false;
-  const marketIsActive = market.status === "active" && !hasMarketEnded;
+  const tradingCloseTime = market.tradingCloseTime || market.closeTime;
+  const hasTradingClosed = tradingCloseTime ? new Date(tradingCloseTime).getTime() <= now : false;
+  const marketIsActive = market.status === "active" && !hasTradingClosed;
   const totalShares = Number(market.totalYesShares || 0) + Number(market.totalNoShares || 0);
   const yesSideShare = totalShares > 0 ? (Number(market.totalYesShares || 0) / totalShares) * 100 : 50;
   const noSideShare = 100 - yesSideShare;
@@ -190,7 +203,6 @@ export default function MarketDetail() {
             Home
           </Link>
           <div className="flex gap-2">
-            <IconButton active={bookmarked} onClick={() => setBookmarked((value) => !value)} icon={Bookmark} label="Save" />
             <IconButton onClick={handleShare} icon={Share2} label="Share" />
           </div>
         </div>
@@ -208,15 +220,15 @@ export default function MarketDetail() {
                 <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#080c10]">{marketCategoryLabel}</span>
                 <span className="rounded-full border border-[#12B886]/25 bg-[#12B886]/10 px-3 py-1 text-xs font-black text-[#7AE4BD]">{marketIsActive ? "Live" : "Ended"}</span>
                 <span className="rounded-full border border-[#263241] bg-black/45 px-3 py-1 text-xs font-black text-white backdrop-blur-xl">
-                  {formatCountdown(market.closeTime, market.closesIn)}
+                  {formatCountdown(tradingCloseTime, market.closesIn)}
                 </span>
               </div>
               <h1 className="max-w-3xl text-3xl font-black leading-tight tracking-tight sm:text-5xl">{market.question}</h1>
               <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-bold text-[#D5DEE8]">
                 <span className="flex items-center gap-1.5"><Users className="h-4 w-4 text-[#12B886]" />{market.participants} participants</span>
-                <span className="flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-[#12B886]" />{formatNaira(market.totalPool)} volume</span>
-                <span>{market.tradeCount || 0} trades</span>
-                <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-[#12B886]" />Ends {formatCountdown(market.closeTime, market.closesIn)}</span>
+                <span className="flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-[#12B886]" />{market.tradeCount || 0} predictions</span>
+                <span>{formatNaira(market.totalPool)} total predicted</span>
+                <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-[#12B886]" />Closes {formatCountdown(tradingCloseTime, market.closesIn)}</span>
               </div>
             </div>
           </div>
@@ -225,8 +237,8 @@ export default function MarketDetail() {
         <section className="mt-4 rounded-2xl border border-[#263241] bg-[#101720] p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-black">Price history</h2>
-              <p className="text-xs font-bold text-[#8B98A8]">Updates only after real predictions</p>
+              <h2 className="text-lg font-black">Market movement</h2>
+              <p className="text-xs font-bold text-[#8B98A8]">Confidence moves as people make predictions.</p>
             </div>
             <div className="flex rounded-full border border-[#263241] bg-[#151E28] p-1">
               {(["1H", "24H", "7D", "ALL"] as Timeframe[]).map((item) => (
@@ -241,20 +253,21 @@ export default function MarketDetail() {
 
         <section className="mt-4 grid gap-3 md:grid-cols-3">
           <div className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
-            <h2 className="text-lg font-black">Side distribution</h2>
+            <h2 className="text-lg font-black">Market Confidence</h2>
+            <p className="mt-1 text-sm text-[#8B98A8]">Confidence moves as people make predictions.</p>
             <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#E85D5D]/20">
               <div className="h-full bg-[#12B886]" style={{ width: `${yesSideShare}%` }} />
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <Metric label="YES side shares" value={`${Number(market.totalYesShares || 0).toFixed(2)} (${yesSideShare.toFixed(1)}%)`} />
-              <Metric label="NO side shares" value={`${Number(market.totalNoShares || 0).toFixed(2)} (${noSideShare.toFixed(1)}%)`} />
-              <Metric label="YES volume" value={formatNaira(Number(market.yesVolume || market.yesPool || 0))} />
-              <Metric label="NO volume" value={formatNaira(Number(market.noVolume || market.noPool || 0))} />
+              <Metric label="YES confidence" value={formatNairaPrice(market.yesPrice)} />
+              <Metric label="NO confidence" value={formatNairaPrice(market.noPrice)} />
+              <Metric label="Predictions" value={`${market.tradeCount || 0}`} />
+              <Metric label="Participants" value={`${market.participants || 0}`} />
             </div>
           </div>
 
           <div className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
-            <h2 className="text-lg font-black">Recent trades</h2>
+            <h2 className="text-lg font-black">Recent predictions</h2>
             <div className="mt-3 space-y-2">
               {recentTrades.length ? recentTrades.map((trade) => (
                 <div key={`${trade.timestamp}-${trade.side}-${trade.amount}`} className="flex items-center justify-between rounded-xl bg-[#151E28] px-3 py-2 text-xs">
@@ -262,17 +275,17 @@ export default function MarketDetail() {
                   <span className="text-[#8B98A8]">{formatNaira(Number(trade.amount || 0))}</span>
                 </div>
               )) : (
-                <p className="text-sm text-[#8B98A8]">Recent trades appear after predictions.</p>
+                <p className="text-sm text-[#8B98A8]">Recent predictions appear after people join.</p>
               )}
             </div>
           </div>
 
           <div className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
-            <h2 className="text-lg font-black">Market sentiment</h2>
+            <h2 className="text-lg font-black">Prediction summary</h2>
             <div className="mt-4 grid gap-2">
-              <Metric label="YES price" value={formatNairaPrice(market.yesPrice)} />
-              <Metric label="NO price" value={formatNairaPrice(market.noPrice)} />
-              <Metric label="Trades" value={`${market.tradeCount || 0}`} />
+              <Metric label="YES confidence" value={formatNairaPrice(market.yesPrice)} />
+              <Metric label="NO confidence" value={formatNairaPrice(market.noPrice)} />
+              <Metric label="Predictions" value={`${market.tradeCount || 0}`} />
             </div>
           </div>
         </section>
@@ -301,10 +314,10 @@ export default function MarketDetail() {
       <div className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-[#263241] bg-[#080c10]/92 p-3 backdrop-blur-xl md:bottom-0 xl:left-64">
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-3">
           <button disabled={!marketIsActive} onClick={() => setSheetSide("YES")} className="h-12 rounded-xl bg-[#12B886] text-sm font-black text-[#06100d] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">
-            Buy YES {formatNairaPrice(market.yesPrice)}
+            Predict YES {formatNairaPrice(market.yesPrice)}
           </button>
           <button disabled={!marketIsActive} onClick={() => setSheetSide("NO")} className="h-12 rounded-xl bg-[#E85D5D] text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">
-            Buy NO {formatNairaPrice(market.noPrice)}
+            Predict NO {formatNairaPrice(market.noPrice)}
           </button>
         </div>
       </div>
@@ -317,7 +330,7 @@ export default function MarketDetail() {
                 <p className={`text-xs font-black uppercase tracking-[0.16em] ${sheetSide === "YES" ? "text-[#12B886]" : "text-[#E85D5D]"}`}>
                   Prediction slip
                 </p>
-                <h2 className="mt-1 text-2xl font-black">Predict {sheetSide} {formatNairaPrice(selectedPrice)}</h2>
+                <h2 className="mt-1 text-2xl font-black">You picked {sheetSide}</h2>
               </div>
               <button onClick={() => setSheetSide(null)} disabled={submitting} className="grid h-10 w-10 place-items-center rounded-xl border border-[#263241] bg-[#151E28] disabled:cursor-not-allowed disabled:opacity-50">
                 <X className="h-4 w-4" />
@@ -334,18 +347,17 @@ export default function MarketDetail() {
             </div>
             <div className="mt-5 rounded-xl border border-[#263241] bg-[#151E28] p-4">
               <Row label="Wallet balance" value={user ? formatNaira(user.balance || 0) : "Login required"} />
-              <Row label="Current sentiment price" value={formatNairaPrice(selectedPrice)} />
-              <Row label="Shares received" value={sharesReceived.toFixed(2)} highlight />
-              <Row label="Projected payout if resolved now" value={formatNaira(projectedPayout)} />
-              <Row label="Projected P/L if resolved now" value={`${projectedProfit >= 0 ? "+" : ""}${formatNaira(projectedProfit)}`} />
+              <Row label="Current confidence" value={formatNairaPrice(selectedPrice)} />
+              <Row label="Units received" value={sharesReceived.toFixed(2)} />
+              <Row label="Potential payout if correct" value={formatNaira(projectedPayout)} highlight />
               <Row label="Market participants" value={`${market.participants || 0}`} />
               <p className="mt-3 text-xs font-bold leading-relaxed text-[#8B98A8]">
-                Projected values use the current pool and are finalized only when the market resolves.
+                Payout is projected and the final amount is confirmed when the market resolves.
               </p>
             </div>
             <Button onClick={confirmPrediction} disabled={submitting || numericAmount <= 0} className={`mt-5 h-12 w-full rounded-xl text-base font-black ${sheetSide === "YES" ? "bg-[#12B886] text-[#06100d] hover:bg-[#2dd4a0]" : "bg-[#E85D5D] text-white hover:bg-[#f07575]"}`}>
               {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <TrendingUp className="mr-2 h-4 w-4" />}
-              {user ? "Lock prediction" : "Login to predict"}
+              {user ? "Lock Prediction" : "Login to predict"}
             </Button>
           </div>
         </div>
@@ -359,10 +371,11 @@ export default function MarketDetail() {
             </div>
             <div className="flex justify-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-[#12B886]/10 px-3 py-1 text-xs font-black text-[#7AE4BD]">
-                Market updated
+                Prediction locked
               </span>
             </div>
-            <h3 className="mt-3 text-2xl font-black">You predicted {justPredicted}</h3>
+            <h3 className="mt-3 text-2xl font-black">You picked {justPredicted}</h3>
+            <p className="mt-2 text-sm font-bold text-[#8B98A8]">Track it in My Predictions.</p>
           </div>
         </div>
       )}
@@ -460,7 +473,7 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
           <span className="inline-flex items-center gap-1.5 text-xs font-black text-[#12B886]"><span className="h-2 w-2 rounded-full bg-[#12B886]" />YES {formatNairaPrice(market.yesPrice)}</span>
           <span className="inline-flex items-center gap-1.5 text-xs font-black text-[#E85D5D]"><span className="h-2 w-2 rounded-full bg-[#E85D5D]" />NO {formatNairaPrice(market.noPrice)}</span>
         </div>
-        <span className="text-xs font-bold text-[#8B98A8]">{market.tradeCount || 0} trades</span>
+        <span className="text-xs font-bold text-[#8B98A8]">{market.tradeCount || 0} predictions</span>
       </div>
       <div className="relative overflow-hidden rounded-xl border border-[#263241] bg-[#080C10] px-1 pb-2 pt-3 sm:px-3">
         <div className="h-[230px] w-full sm:h-[300px]">
@@ -528,7 +541,7 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
         )}
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-[#8B98A8]">
-        <span>{hasStoredMovement ? "Live price history from saved trades" : "Flat starting line until the first prediction."}</span>
+        <span>{hasStoredMovement ? "Live confidence history from saved predictions" : "Flat starting line until the first prediction."}</span>
         <span>YES {formatNairaPrice(market.yesPrice)} / NO {formatNairaPrice(market.noPrice)}</span>
       </div>
     </div>

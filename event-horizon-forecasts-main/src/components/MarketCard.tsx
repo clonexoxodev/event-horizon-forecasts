@@ -15,7 +15,8 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
   const { openForecastSlip } = useForecastSlip();
   const media = getMarketMedia(m);
   const categoryLabel = getMarketCategoryLabel(m);
-  const hasEnded = m.closeTime ? new Date(m.closeTime).getTime() <= Date.now() : false;
+  const tradingCloseTime = m.tradingCloseTime || m.closeTime;
+  const hasEnded = tradingCloseTime ? new Date(tradingCloseTime).getTime() <= Date.now() : false;
   const isLive = m.status === "active" && !hasEnded;
   const openSide = (event: React.MouseEvent, side: "YES" | "NO") => {
     event.preventDefault();
@@ -68,7 +69,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
             )}
             <div className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-black text-white backdrop-blur-xl">
               <TrendingUp className="h-3 w-3 text-[#12B886]" />
-              {m.tradeCount || 0} trades
+              {m.tradeCount || 0} predictions
             </div>
           </div>
 
@@ -80,6 +81,9 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
             <div className="mt-3 grid grid-cols-2 gap-2">
               <PriceButton label="YES" value={m.yesPrice} tone="green" disabled={!isLive} onClick={(event) => openSide(event, "YES")} />
               <PriceButton label="NO" value={m.noPrice} tone="red" disabled={!isLive} onClick={(event) => openSide(event, "NO")} />
+            </div>
+            <div className="mt-2 text-xs font-black text-[#12B886]">
+              {isLive ? "Predict now" : "Prediction closed"}
             </div>
           </div>
         </div>
@@ -93,7 +97,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
             <span>{formatNaira(m.totalVolume ?? m.totalPool)} vol.</span>
             <span className="flex items-center gap-1">
               <Clock className="h-3.5 w-3.5" />
-              {formatCountdown(m.closeTime, m.closesIn)}
+              {formatCountdown(tradingCloseTime, m.closesIn)}
             </span>
           </div>
         </div>
@@ -112,7 +116,7 @@ const PriceButton = ({ label, value, tone, disabled = false, onClick }: { label:
         : "border-[#E85D5D]/25 bg-[#E85D5D]/10 text-[#FF9C9C] hover:bg-[#E85D5D]/16"
     }`}
   >
-    <span className="block text-[10px] font-black uppercase text-white/45">{label}</span>
+    <span className="block text-[10px] font-black uppercase text-white/45">{label} confidence</span>
     <span className="mt-0.5 block text-base font-black">
       <AnimatedNumber value={value} prefix={formatNairaPrice(0).replace("0", "")} />
     </span>

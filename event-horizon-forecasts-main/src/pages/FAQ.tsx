@@ -14,12 +14,12 @@ const faqs = [
     ],
   },
   {
-    section: "Prices and shares",
+    section: "Confidence and predictions",
     items: [
       ["How do YES and NO prices work?", "YES and NO prices show current market sentiment. If YES is 61, NO is 39. Together they always add up to 100."],
       ["Why do YES and NO always add up to 100?", "A market resolves to one of the two outcomes. The two prices are shown as opposite sides of the same forecast."],
-      ["What happens when I lock a prediction?", "Your wallet is debited, your position is recorded, and you receive shares based on your amount and the current side price."],
-      ["What are shares?", "Shares represent the size of your position on a side. They help calculate your share of the winning side if the market resolves in your favor."],
+      ["What happens when I lock a prediction?", "Your wallet is debited, your prediction is recorded, and FLIPPE stores the units needed to calculate your result when the market resolves."],
+      ["What are shares or units?", "They represent the size of your prediction on a side. FLIPPE keeps them in the background so the main experience can stay simple."],
       ["Why does my projected value change?", "Projected values change as other users predict and the market pool changes. They are estimates, not withdrawable profit."],
     ],
   },
