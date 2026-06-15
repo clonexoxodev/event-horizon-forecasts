@@ -96,13 +96,11 @@ type AdminRecord = AdminUser & {
 };
 
 type Analytics = Awaited<ReturnType<typeof apiService.getAnalytics>>;
-type FinanceOverview = Awaited<ReturnType<typeof apiService.getFinanceOverview>>;
-type FinanceTransaction = Awaited<
-  ReturnType<typeof apiService.getFinanceTransactions>
->[number];
+type FinanceOverview = Record<string, number>;
+type FinanceTransaction = ApiTransaction;
 type ResolutionPreview = Awaited<
   ReturnType<typeof apiService.previewAdminMarketResolution>
->;
+>["preview"];
 
 type ResolutionState = {
   market: AdminMarket;
@@ -279,6 +277,36 @@ const isToday = (value?: string | null) => {
 const classNames = (...classes: Array<string | false | null | undefined>) =>
   classes.filter(Boolean).join(" ");
 
+const requestUserLabel = (item: DepositRequest | WithdrawalRequest) =>
+  item.user?.email ||
+  item.user?.username ||
+  item.userId ||
+  "Unknown user";
+
+const txDate = (tx: ApiTransaction | FinanceTransaction) =>
+  (tx as any).createdAt || (tx as any).created_at || "";
+
+const txUserLabel = (tx: ApiTransaction | FinanceTransaction) =>
+  (tx as any).userEmail ||
+  (tx as any).userUsername ||
+  (tx as any).user_email ||
+  (tx as any).user?.email ||
+  (tx as any).userId ||
+  (tx as any).user_id ||
+  "Unknown";
+
+const txReference = (tx: ApiTransaction | FinanceTransaction) =>
+  (tx as any).reference || (tx as any).referenceId || (tx as any).reference_id || "-";
+
+const txMarketLabel = (tx: ApiTransaction | FinanceTransaction) =>
+  (tx as any).marketQuestion ||
+  (tx as any).market_question ||
+  (tx as any).metadata?.marketQuestion ||
+  (tx as any).metadata?.market_question ||
+  (tx as any).marketId ||
+  (tx as any).market_id ||
+  "-";
+
 const Admin = () => {
   const { user, isAdmin, isSuperAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -314,6 +342,7 @@ const Admin = () => {
   const [deleteText, setDeleteText] = useState("");
   const [financeBusyId, setFinanceBusyId] = useState<string | null>(null);
   const [transactionFilter, setTransactionFilter] = useState("all");
+  const [transactionSearch, setTransactionSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
 
   useEffect(() => {
@@ -350,12 +379,12 @@ const Admin = () => {
         ] = await Promise.allSettled([
           apiService.getAnalytics(),
           apiService.listAdmins(),
-          apiService.listAdminUsers({ limit: 100 }),
-          apiService.listAdminTransactions({ limit: 100 }),
-          apiService.getFinanceOverview(),
-          apiService.getFinanceDeposits({ limit: 100 }),
-          apiService.getFinanceWithdrawals({ limit: 100 }),
-          apiService.getFinanceTransactions({ limit: 100 }),
+          apiService.listAdminUsers(),
+          apiService.listAdminTransactions(),
+          apiService.getAdminFinanceOverview(),
+          apiService.listAdminFinanceDeposits("pending"),
+          apiService.listAdminFinanceWithdrawals("pending"),
+          apiService.listAdminFinanceTransactions({ status: "all" }),
         ]);
 
         if (analyticsResult.status === "fulfilled")
@@ -367,13 +396,13 @@ const Admin = () => {
         if (transactionResult.status === "fulfilled")
           setTransactions(transactionResult.value.transactions);
         if (overviewResult.status === "fulfilled")
-          setFinanceOverview(overviewResult.value);
+          setFinanceOverview(overviewResult.value.overview || {});
         if (depositResult.status === "fulfilled")
-          setDepositQueue(depositResult.value);
+          setDepositQueue(depositResult.value.deposits || []);
         if (withdrawalResult.status === "fulfilled")
-          setWithdrawalQueue(withdrawalResult.value);
+          setWithdrawalQueue(withdrawalResult.value.withdrawals || []);
         if (financeLedgerResult.status === "fulfilled")
-          setFinanceTransactions(financeLedgerResult.value);
+          setFinanceTransactions(financeLedgerResult.value.transactions || []);
       }
     } catch (error) {
       console.error("Admin data load failed", error);
@@ -426,11 +455,11 @@ const Admin = () => {
       metricValue(analytics?.predictionsToday) ||
       transactions.filter((tx) => isToday(tx.created_at)).length;
     const todayVolume =
-      metricValue(analytics?.todayVolume) ||
-      metricValue(financeOverview?.todayPredictionVolume);
+      metricValue(financeOverview?.todayPredictionVolume) ||
+      koboToNaira(metricValue(analytics?.todayVolume));
     const pendingPayouts =
-      metricValue(analytics?.pendingPayouts) ||
-      pendingResolution.reduce((sum, market) => sum + marketVolume(market), 0);
+      metricValue(financeOverview?.pendingPayouts) ||
+      metricValue(analytics?.pendingPayouts);
     const totalWalletBalance = metricValue(financeOverview?.totalUserBalances);
     const activeMarketMoney = liveMarkets.reduce(
       (sum, market) => sum + marketVolume(market),
@@ -445,7 +474,7 @@ const Admin = () => {
       activeUsersToday: metricValue(analytics?.activeUsersToday),
       newUsersToday: users.filter((adminUser) => isToday(adminUser.created_at))
         .length,
-      returningUsers: metricValue(analytics?.returningUsers),
+      usersWithPredictions: metricValue(analytics?.totalForecasts),
       todayPredictions,
       todayVolume,
       pendingPayouts,
@@ -634,11 +663,11 @@ const Admin = () => {
     if (status === "resolved" && outcome) {
       setSaving(true);
       try {
-        const preview = await apiService.previewAdminMarketResolution(
+        const previewResponse = await apiService.previewAdminMarketResolution(
           market.id,
           outcome
         );
-        setResolutionState({ market, outcome, preview });
+        setResolutionState({ market, outcome, preview: previewResponse.preview });
         setResolutionSource(market.resolution_source || "");
         setResolutionNote("");
         setResolutionConfirmed(false);
@@ -676,7 +705,7 @@ const Admin = () => {
   const updateMarketStatus = async (market: AdminMarket, status: string) => {
     setSaving(true);
     try {
-      await apiService.updateAdminMarketStatus(market.id, status);
+      await apiService.updateAdminMarketStatus(market.id, { status });
       toast.success(`Market moved to ${statusText(status)}.`);
       await loadData();
     } catch (error) {
@@ -758,12 +787,12 @@ const Admin = () => {
     setFinanceBusyId(label);
     try {
       if (kind === "deposit") {
-        if (action === "approve") await apiService.approveDeposit(id);
-        else await apiService.rejectDeposit(id);
+        if (action === "approve") await apiService.approveAdminDeposit(id);
+        else await apiService.rejectAdminDeposit(id);
       } else if (action === "approve") {
-        await apiService.approveWithdrawal(id);
+        await apiService.approveAdminWithdrawal(id);
       } else {
-        await apiService.rejectWithdrawal(id);
+        await apiService.rejectAdminWithdrawal(id);
       }
       toast.success(`${kind === "deposit" ? "Deposit" : "Withdrawal"} ${action}d.`);
       await loadData();
@@ -833,45 +862,47 @@ const Admin = () => {
   return (
     <div className="min-h-screen bg-[#080C10] text-[#F5F7FA]">
       <aside className="fixed left-0 top-0 z-30 hidden h-screen w-72 border-r border-[#263241] bg-[#0B1118] px-5 py-6 xl:block">
-        <div className="mb-8 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#12B886] text-[#080C10]">
-            <Shield className="h-6 w-6" />
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="mb-8 flex shrink-0 items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#12B886] text-[#080C10]">
+              <Shield className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-lg font-semibold tracking-tight">Flippe Admin</p>
+              <p className="text-sm text-[#8B98A8]">
+                {isSuperAdmin ? "Super admin console" : "Admin console"}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-lg font-semibold tracking-tight">Flippe Admin</p>
-            <p className="text-sm text-[#8B98A8]">
-              {isSuperAdmin ? "Super admin console" : "Admin console"}
-            </p>
-          </div>
-        </div>
 
-        <nav className="space-y-1">
-          {navItems
-            .filter((item) => isSuperAdmin || item.id !== "add-admin")
-            .map((item) => {
-              const Icon = item.icon;
-              const active = view === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setView(item.id)}
-                  className={classNames(
-                    "group flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition",
-                    active
-                      ? "bg-[#151E28] text-white shadow-[inset_3px_0_0_#12B886]"
-                      : "text-[#8B98A8] hover:bg-[#101720] hover:text-white"
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span className="flex-1">
-                    <span className="block text-sm font-semibold">{item.label}</span>
-                    <span className="block text-xs text-[#64748B]">{item.hint}</span>
-                  </span>
-                  {active && <ChevronRight className="h-4 w-4 text-[#12B886]" />}
-                </button>
-              );
-            })}
-        </nav>
+          <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1 [scrollbar-color:#263241_transparent]">
+            {navItems
+              .filter((item) => isSuperAdmin || item.id !== "add-admin")
+              .map((item) => {
+                const Icon = item.icon;
+                const active = view === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setView(item.id)}
+                    className={classNames(
+                      "group flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition",
+                      active
+                        ? "bg-[#151E28] text-white shadow-[inset_3px_0_0_#12B886]"
+                        : "text-[#8B98A8] hover:bg-[#101720] hover:text-white"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span className="flex-1">
+                      <span className="block text-sm font-semibold">{item.label}</span>
+                      <span className="block text-xs text-[#64748B]">{item.hint}</span>
+                    </span>
+                    {active && <ChevronRight className="h-4 w-4 text-[#12B886]" />}
+                  </button>
+                );
+              })}
+          </nav>
+        </div>
       </aside>
 
       <div className="xl:pl-72">
@@ -986,6 +1017,8 @@ const Admin = () => {
               transactions={financeTransactions.length ? financeTransactions : transactions}
               filter={transactionFilter}
               setFilter={setTransactionFilter}
+              search={transactionSearch}
+              setSearch={setTransactionSearch}
             />
           )}
           {view === "users" && (
@@ -1156,7 +1189,7 @@ const DashboardView = ({
     totalUsers: number;
     activeUsersToday: number;
     newUsersToday: number;
-    returningUsers: number;
+    usersWithPredictions: number;
     todayPredictions: number;
     todayVolume: number;
     pendingPayouts: number;
@@ -1192,10 +1225,10 @@ const DashboardView = ({
         <MetricCard label="Pending resolution" value={metrics.pendingResolution} icon={Clock} tone="amber" />
         <MetricCard label="Resolved markets" value={metrics.resolvedMarkets} icon={CheckCircle} tone="blue" />
         <MetricCard label="Total users" value={metrics.totalUsers} icon={Users} />
-        <MetricCard label="Today active users" value={metrics.activeUsersToday} icon={Activity} hint="Needs login tracking for full accuracy." />
+        <MetricCard label="Today active users" value={metrics.activeUsersToday} icon={Activity} hint="Real prediction activity today. Login tracking needs user_activity_logs." />
         <MetricCard label="Today predictions" value={metrics.todayPredictions} icon={BarChart3} />
         <MetricCard label="Today volume" value={formatNaira(metrics.todayVolume)} icon={ReceiptText} tone="green" />
-        <MetricCard label="Pending payouts" value={formatNaira(metrics.pendingPayouts)} icon={AlertTriangle} tone="amber" />
+        <MetricCard label="Pending payouts" value={metrics.pendingPayouts} icon={AlertTriangle} tone="amber" hint="Count from current backend. Exact payout liability needs payout_records." />
         <MetricCard label="Total wallet balance" value={formatNaira(metrics.totalWalletBalance)} icon={Wallet} />
         <MetricCard label="Money in active markets" value={formatNaira(metrics.activeMarketMoney)} icon={Lock} />
       </div>
@@ -1205,11 +1238,11 @@ const DashboardView = ({
           <SectionHeader
             eyebrow="User activity"
             title="User analytics"
-            description="Real values where available. Last-login tracking needs backend auth activity storage."
+            description="Real values only. Last-login and returning-user reports need backend activity logs."
           />
           <div className="grid gap-3 p-5 sm:grid-cols-3">
-            <MetricCard label="Daily active users" value={metrics.activeUsersToday} icon={Activity} />
-            <MetricCard label="Returning users" value={metrics.returningUsers} icon={Users} />
+            <MetricCard label="Users active today" value={metrics.activeUsersToday} icon={Activity} hint="Users with predictions today." />
+            <MetricCard label="Users with predictions" value={metrics.usersWithPredictions} icon={Users} />
             <MetricCard label="New users today" value={metrics.newUsersToday} icon={ShieldCheck} />
           </div>
           <div className="border-t border-[#263241] p-5">
@@ -1281,11 +1314,11 @@ const DashboardView = ({
               <div className="mt-3 grid gap-2 text-sm text-[#8B98A8]">
                 <div className="flex justify-between">
                   <span>Pending deposits</span>
-                  <span>{formatNaira(metricValue(financeOverview?.pendingDeposits))}</span>
+                  <span>{metricValue(financeOverview?.pendingDeposits)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Pending withdrawals</span>
-                  <span>{formatNaira(metricValue(financeOverview?.pendingWithdrawals))}</span>
+                  <span>{metricValue(financeOverview?.pendingWithdrawals)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Today deposits</span>
@@ -1551,10 +1584,10 @@ const MarketsView = ({
                     {(market.status === "resolved" ||
                       market.status === "archived") && (
                       <ActionButton
-                        label="Delete market"
+                        label="Delete market - needs backend safety checks"
                         icon={Trash2}
                         tone="red"
-                        onClick={() => toast.error("Delete is disabled until backend payout and dispute checks exist.")}
+                        disabled
                       />
                     )}
                   </div>
@@ -2037,10 +2070,10 @@ const FinanceView = ({
       <MetricCard label="Total deposits" value={formatNaira(metricValue(overview?.totalDeposits))} icon={Wallet} tone="green" />
       <MetricCard label="Total withdrawals" value={formatNaira(metricValue(overview?.totalWithdrawals))} icon={ReceiptText} />
       <MetricCard label="Prediction volume" value={formatNaira(metricValue(overview?.totalPredictionVolume))} icon={BarChart3} />
-      <MetricCard label="Pending payouts" value={formatNaira(metricValue(overview?.pendingPayouts))} icon={Clock} tone="amber" />
+      <MetricCard label="Pending payouts" value={metricValue(overview?.pendingPayouts)} icon={Clock} tone="amber" hint="Count from backend until payout_records exists." />
       <MetricCard label="Wallet balances" value={formatNaira(metricValue(overview?.totalUserBalances))} icon={Users} />
-      <MetricCard label="Pending deposits" value={formatNaira(metricValue(overview?.pendingDeposits))} icon={AlertTriangle} tone="amber" />
-      <MetricCard label="Pending withdrawals" value={formatNaira(metricValue(overview?.pendingWithdrawals))} icon={AlertTriangle} tone="amber" />
+      <MetricCard label="Pending deposits" value={metricValue(overview?.pendingDeposits)} icon={AlertTriangle} tone="amber" />
+      <MetricCard label="Pending withdrawals" value={metricValue(overview?.pendingWithdrawals)} icon={AlertTriangle} tone="amber" />
       <MetricCard label="Today withdrawals" value={formatNaira(metricValue(overview?.todayWithdrawals))} icon={Activity} />
     </div>
 
@@ -2061,7 +2094,14 @@ const FinanceView = ({
       />
     </div>
 
-    <TransactionsView transactions={transactions} filter="all" setFilter={() => undefined} compact />
+    <TransactionsView
+      transactions={transactions}
+      filter="all"
+      setFilter={() => undefined}
+      search=""
+      setSearch={() => undefined}
+      compact
+    />
   </div>
 );
 
@@ -2094,14 +2134,14 @@ const FinanceQueue = ({
               <div>
                 <p className="font-semibold">{formatNaira(Number(item.amount || 0))}</p>
                 <p className="text-sm text-[#8B98A8]">
-                  {item.user_email || item.user_id || "Unknown user"}
+                  {requestUserLabel(item)}
                 </p>
                 <p className="mt-1 text-xs text-[#64748B]">
                   Reference: {item.reference || "Not set"}
                 </p>
-                {"bank_name" in item && (
+                {"bankName" in item && (
                   <p className="mt-1 text-xs text-[#64748B]">
-                    {item.bank_name} - {item.account_number} - {item.account_name}
+                    {item.bankName} - {item.accountNumber} - {item.accountName}
                   </p>
                 )}
               </div>
@@ -2144,17 +2184,36 @@ const TransactionsView = ({
   transactions,
   filter,
   setFilter,
+  search,
+  setSearch,
   compact,
 }: {
   transactions: Array<ApiTransaction | FinanceTransaction>;
   filter: string;
   setFilter: (value: string) => void;
+  search: string;
+  setSearch: (value: string) => void;
   compact?: boolean;
 }) => {
-  const filtered =
-    filter === "all"
-      ? transactions
-      : transactions.filter((tx) => tx.type === filter || tx.status === filter);
+  const term = search.trim().toLowerCase();
+  const filtered = transactions.filter((tx) => {
+    const matchesFilter =
+      filter === "all" || tx.type === filter || tx.status === filter;
+    if (!matchesFilter) return false;
+    if (!term) return true;
+    return [
+      tx.type,
+      tx.status,
+      tx.description,
+      txUserLabel(tx),
+      txReference(tx),
+      txMarketLabel(tx),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(term);
+  });
 
   const filters = ["all", "deposit", "withdrawal", "prediction", "payout", "refund", "completed", "pending"];
 
@@ -2166,17 +2225,28 @@ const TransactionsView = ({
         description="Searchable money movement and operational transaction history."
         action={
           !compact && (
-            <select
-              value={filter}
-              onChange={(event) => setFilter(event.target.value)}
-              className="h-10 rounded-md border border-[#263241] bg-[#0B1118] px-3 text-sm text-white"
-            >
-              {filters.map((item) => (
-                <option key={item} value={item}>
-                  {statusText(item)}
-                </option>
-              ))}
-            </select>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <div className="relative sm:w-72">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
+                <Input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search ledger..."
+                  className="border-[#263241] bg-[#0B1118] pl-9 text-white"
+                />
+              </div>
+              <select
+                value={filter}
+                onChange={(event) => setFilter(event.target.value)}
+                className="h-10 rounded-md border border-[#263241] bg-[#0B1118] px-3 text-sm text-white"
+              >
+                {filters.map((item) => (
+                  <option key={item} value={item}>
+                    {statusText(item)}
+                  </option>
+                ))}
+              </select>
+            </div>
           )
         }
       />
@@ -2197,18 +2267,18 @@ const TransactionsView = ({
             {filtered.slice(0, compact ? 10 : 100).map((tx) => (
               <tr key={tx.id}>
                 <td className="px-5 py-4 font-medium">{statusText(tx.type)}</td>
-                <td className="text-[#8B98A8]">{tx.user_email || tx.user_id || "Unknown"}</td>
+                <td className="text-[#8B98A8]">{txUserLabel(tx)}</td>
                 <td>{formatNaira(Number(tx.amount || 0))}</td>
                 <td>
                   <Badge tone={tx.status === "completed" ? "green" : tx.status === "pending" ? "amber" : "neutral"}>
                     {tx.status}
                   </Badge>
                 </td>
-                <td className="text-[#8B98A8]">{tx.reference || "-"}</td>
+                <td className="text-[#8B98A8]">{txReference(tx)}</td>
                 <td className="max-w-[240px] truncate text-[#8B98A8]">
-                  {tx.market_question || tx.market_id || "-"}
+                  {txMarketLabel(tx)}
                 </td>
-                <td className="text-[#8B98A8]">{formatDate(tx.created_at)}</td>
+                <td className="text-[#8B98A8]">{formatDate(txDate(tx))}</td>
               </tr>
             ))}
           </tbody>
@@ -2291,9 +2361,9 @@ const UsersView = ({
                 </td>
                 <td className="pr-5">
                   <div className="flex justify-end gap-2">
-                    <ActionButton label="View wallet history" icon={Wallet} onClick={() => toast.info("Wallet detail view needs backend user ledger route.")} />
-                    <ActionButton label="View prediction history" icon={BarChart3} onClick={() => toast.info("Prediction history drill-down needs backend user position route.")} />
-                    <ActionButton label="Suspend user" icon={Ban} tone="red" onClick={() => toast.info("Suspend user is coming soon after account-status fields are added.")} />
+                    <ActionButton label="View wallet history - needs backend user ledger route" icon={Wallet} disabled />
+                    <ActionButton label="View prediction history - needs backend user position route" icon={BarChart3} disabled />
+                    <ActionButton label="Suspend user - needs account status endpoint" icon={Ban} tone="red" disabled />
                   </div>
                 </td>
               </tr>
@@ -2520,7 +2590,7 @@ const ResolutionConfirmModal = ({
   onClose: () => void;
   onConfirm: () => void;
 }) => {
-  const summary = state.preview?.summary;
+  const summary = state.preview;
   const positions = state.preview?.positions || [];
 
   return (
@@ -2545,10 +2615,10 @@ const ResolutionConfirmModal = ({
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Stat label="YES stake" value={formatNaira(Number(summary?.totalYesStake || 0))} />
             <Stat label="NO stake" value={formatNaira(Number(summary?.totalNoStake || 0))} />
-            <Stat label="YES shares" value={Number(summary?.totalYesShares || 0).toFixed(2)} />
-            <Stat label="NO shares" value={Number(summary?.totalNoShares || 0).toFixed(2)} />
-            <Stat label="Winners" value={Number(summary?.winners || 0)} />
-            <Stat label="Losers" value={Number(summary?.losers || 0)} />
+            <Stat label="Winning stake" value={formatNaira(Number(summary?.totalWinningStake || 0))} />
+            <Stat label="Winning shares" value={Number(summary?.totalWinningShares || 0).toFixed(2)} />
+            <Stat label="Winners" value={Number(summary?.totalWinners || 0)} />
+            <Stat label="Losers" value={Number(summary?.totalLosers || 0)} />
             <Stat label="Estimated payout" value={formatNaira(Number(summary?.totalPayout || 0))} />
             <Stat label="Platform fee" value={formatNaira(Number(summary?.platformFee || 0))} />
           </div>

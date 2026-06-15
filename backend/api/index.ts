@@ -3670,7 +3670,65 @@ app.get('/api/admin/users', authenticate, requireRole('super_admin'), async (_re
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    res.json({ users: data || [] });
+
+    const userIds = (data || []).map((user) => user.id).filter(Boolean);
+    const [walletsResult, positionsResult] = await Promise.all([
+      userIds.length
+        ? supabase
+            .from('wallets')
+            .select('user_id, balance_ngn_kobo, available_ngn_kobo, locked_ngn_kobo')
+            .in('user_id', userIds)
+        : Promise.resolve({ data: [], error: null } as any),
+      userIds.length
+        ? supabase
+            .from('positions')
+            .select('user_id, amount_smallest_unit, status')
+            .in('user_id', userIds)
+        : Promise.resolve({ data: [], error: null } as any),
+    ]);
+
+    if (walletsResult.error) throw walletsResult.error;
+    if (positionsResult.error) throw positionsResult.error;
+
+    const walletByUser = new Map<string, any>();
+    for (const wallet of walletsResult.data || []) {
+      walletByUser.set(wallet.user_id, wallet);
+    }
+
+    const statsByUser = new Map<string, { total_predictions: number; active_positions: number; total_volume: number }>();
+    for (const position of positionsResult.data || []) {
+      const current = statsByUser.get(position.user_id) || {
+        total_predictions: 0,
+        active_positions: 0,
+        total_volume: 0,
+      };
+      current.total_predictions += 1;
+      current.total_volume += Number(position.amount_smallest_unit || 0);
+      if (position.status === 'active') current.active_positions += 1;
+      statsByUser.set(position.user_id, current);
+    }
+
+    res.json({
+      users: (data || []).map((user) => {
+        const wallet = walletByUser.get(user.id);
+        const stats = statsByUser.get(user.id) || {
+          total_predictions: 0,
+          active_positions: 0,
+          total_volume: 0,
+        };
+        return {
+          ...user,
+          status: 'active',
+          last_login_at: null,
+          last_active_at: null,
+          wallet_balance: toAmount(Number(wallet?.balance_ngn_kobo || wallet?.available_ngn_kobo || 0)),
+          locked_balance: toAmount(Number(wallet?.locked_ngn_kobo || 0)),
+          total_predictions: stats.total_predictions,
+          active_positions: stats.active_positions,
+          total_volume: toAmount(stats.total_volume),
+        };
+      }),
+    });
   } catch (error: any) {
     console.error('Admin users error:', error);
     res.status(500).json({ error: { code: 'ADMIN_USERS_FAILED', message: 'Could not load users.' } });
@@ -3686,10 +3744,34 @@ app.get('/api/admin/transactions', authenticate, requireRole('super_admin'), asy
       .limit(100);
 
     if (error) throw error;
+
+    const userIds = Array.from(new Set((data || []).map((tx) => tx.user_id).filter(Boolean)));
+    const marketIds = Array.from(new Set((data || []).map((tx) => tx.market_id).filter(Boolean)));
+    const [usersResult, marketsResult] = await Promise.all([
+      userIds.length
+        ? supabase.from('users').select('id, email, username').in('id', userIds)
+        : Promise.resolve({ data: [], error: null } as any),
+      marketIds.length
+        ? supabase.from('markets').select('id, question, category').in('id', marketIds)
+        : Promise.resolve({ data: [], error: null } as any),
+    ]);
+
+    if (usersResult.error) throw usersResult.error;
+    if (marketsResult.error) throw marketsResult.error;
+
+    const userById = new Map<string, any>(
+      (usersResult.data || []).map((user: any): [string, any] => [user.id, user])
+    );
+    const marketById = new Map<string, any>(
+      (marketsResult.data || []).map((market: any): [string, any] => [market.id, market])
+    );
+
     res.json({
       transactions: (data || []).map((tx) => ({
         id: tx.id,
         userId: tx.user_id,
+        userEmail: userById.get(tx.user_id)?.email || null,
+        userUsername: userById.get(tx.user_id)?.username || null,
         walletId: tx.wallet_id,
         type: tx.type,
         amount: toAmount(tx.amount_smallest_unit),
@@ -3699,6 +3781,9 @@ app.get('/api/admin/transactions', authenticate, requireRole('super_admin'), asy
         referenceId: tx.reference_id,
         referenceType: tx.reference_type,
         status: tx.status,
+        marketId: tx.market_id || null,
+        marketQuestion: marketById.get(tx.market_id)?.question || null,
+        marketCategory: marketById.get(tx.market_id)?.category || null,
         metadata: tx.metadata,
         createdAt: tx.created_at
       }))
