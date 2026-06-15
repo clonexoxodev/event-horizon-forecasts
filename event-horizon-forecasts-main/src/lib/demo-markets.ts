@@ -6,7 +6,7 @@ export const demoMarkets: Market[] = [
   {
     id: "demo-1",
     question: "Will Bitcoin reach $100,000 by end of 2026?",
-    category: "Finance",
+    category: "Economy",
     description: "This market resolves YES if Bitcoin (BTC) reaches or exceeds $100,000 USD on any major exchange before December 31, 2026, 11:59 PM UTC.",
     source: "CoinMarketCap",
     icon: "₿",

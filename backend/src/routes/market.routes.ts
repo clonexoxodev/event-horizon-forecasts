@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { MarketService } from '../services/market.service.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { supabase } from '../db/supabase-client.js';
+import { normalizeMarketCategory } from '../validation/market.validation.js';
 
 const router = Router();
 const marketService = new MarketService();
@@ -347,7 +348,7 @@ const normalizeMarket = (market: any, positionCount = 0, priceHistory: Array<{ t
   return {
     id: market.id,
     question: market.question,
-    category: market.category || 'General',
+    category: normalizeMarketCategory(market.category),
     yesPercent: state.yesPrice,
     pool: toAmount(totalPoolSmallestUnit),
     closesIn: market.closes_in || '',
@@ -435,7 +436,7 @@ const normalizePosition = (position: any, market: any) => {
     status: position.status || (position.resolved_at ? (position.is_winner ? 'won' : 'lost') : 'active'),
     marketQuestion: position.market_question_snapshot || normalizedMarket.question || 'Market unavailable',
     marketIcon: normalizedMarket.icon,
-    category: position.market_category_snapshot || normalizedMarket.category || 'General',
+    category: normalizeMarketCategory(position.market_category_snapshot || normalizedMarket.category),
     marketStatus: normalizedMarket.status,
     createdAt: position.created_at,
     isListed: false
@@ -741,7 +742,7 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
         current_value_smallest_unit: trade.positionValueSmallestUnit,
         ownership_percent: trade.ownershipPercent,
         market_question_snapshot: (market as any).question || null,
-        market_category_snapshot: (market as any).category || null,
+        market_category_snapshot: normalizeMarketCategory((market as any).category),
         status: 'active',
         entry_price: entryPrice
       })
@@ -873,7 +874,7 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
         metadata: {
           marketId: id,
           marketQuestion: (updatedMarket as any).question || (market as any).question || null,
-          category: (updatedMarket as any).category || (market as any).category || null,
+          category: normalizeMarketCategory((updatedMarket as any).category || (market as any).category),
           side,
           entryPrice,
           sharesOwned: trade.sharesOwned,

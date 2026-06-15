@@ -1,24 +1,31 @@
 import { useState } from "react";
-import { DollarSign, Landmark, Music2, BarChart2, Cpu, LayoutGrid, TrendingUp } from "lucide-react";
+import type { ComponentType } from "react";
+import { Bitcoin, BriefcaseBusiness, Clapperboard, Globe2, Landmark, LayoutGrid, Mic2, Trophy, TrendingUp, Cpu, LineChart } from "lucide-react";
+import { HOME_MARKET_FILTERS, type HomeMarketFilter } from "@/lib/categories";
 
-const categories = [
-  { label: "Trending",      icon: TrendingUp },
-  { label: "Finance",       icon: DollarSign },
-  { label: "Politics",      icon: Landmark },
-  { label: "Entertainment", icon: Music2 },
-  { label: "Economy",       icon: BarChart2 },
-  { label: "Technology",    icon: Cpu },
-  { label: "Others",        icon: LayoutGrid },
-];
+const categoryIcons: Record<HomeMarketFilter, ComponentType<{ className?: string }>> = {
+  Trending: TrendingUp,
+  Sports: Trophy,
+  Crypto: Bitcoin,
+  Politics: Landmark,
+  Economy: LineChart,
+  Entertainment: Clapperboard,
+  Music: Mic2,
+  Technology: Cpu,
+  Business: BriefcaseBusiness,
+  Global: Globe2,
+  Other: LayoutGrid,
+};
 
 export const CategoryTabs = ({ onChange }: { onChange?: (c: string) => void }) => {
-  const [active, setActive] = useState("Trending");
+  const [active, setActive] = useState<HomeMarketFilter>("Trending");
 
   return (
     <div className="border-b border-border/40 bg-card/60 backdrop-premium sticky top-[57px] z-30 shadow-xs">
       <div className="container">
         <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin py-1 px-1">
-          {categories.map(({ label, icon: Icon }) => {
+          {HOME_MARKET_FILTERS.map((label) => {
+            const Icon = categoryIcons[label] || LayoutGrid;
             const isActive = active === label;
             return (
               <button

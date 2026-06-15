@@ -1,5 +1,5 @@
 import { supabase } from '../db/supabase-client.js';
-import { MarketCreateInput, MarketUpdateInput, MarketStatus, Outcome } from '../validation/market.validation.js';
+import { MarketCreateInput, MarketUpdateInput, MarketStatus, Outcome, normalizeMarketCategory } from '../validation/market.validation.js';
 
 export interface Market {
   id: string;
@@ -90,7 +90,7 @@ export class AdminMarketRepository {
       .insert({
         question: data.question,
         description: data.description || null,
-        category: data.category,
+        category: normalizeMarketCategory(data.category),
         country_filter: data.country_filter || null,
         market_type: data.market_type,
         yes_label: data.yes_label,
@@ -190,7 +190,7 @@ export class AdminMarketRepository {
     // Only include provided fields
     if (data.question !== undefined) updateData.question = data.question;
     if (data.description !== undefined) updateData.description = data.description;
-    if (data.category !== undefined) updateData.category = data.category;
+    if (data.category !== undefined) updateData.category = normalizeMarketCategory(data.category);
     if (data.country_filter !== undefined) updateData.country_filter = data.country_filter;
     if (data.market_type !== undefined) updateData.market_type = data.market_type;
     if (data.yes_label !== undefined) updateData.yes_label = data.yes_label;
@@ -293,7 +293,10 @@ export class AdminMarketRepository {
     }
 
     if (filters.category) {
-      query = query.eq('category', filters.category);
+      const normalizedCategory = normalizeMarketCategory(filters.category);
+      query = normalizedCategory === 'Economy'
+        ? query.in('category', ['Economy', 'Finance', 'finance'])
+        : query.eq('category', normalizedCategory);
     }
 
     if (filters.search) {
@@ -360,7 +363,10 @@ export class AdminMarketRepository {
     }
 
     if (filters.category) {
-      query = query.eq('category', filters.category);
+      const normalizedCategory = normalizeMarketCategory(filters.category);
+      query = normalizedCategory === 'Economy'
+        ? query.in('category', ['Economy', 'Finance', 'finance'])
+        : query.eq('category', normalizedCategory);
     }
 
     if (filters.search) {

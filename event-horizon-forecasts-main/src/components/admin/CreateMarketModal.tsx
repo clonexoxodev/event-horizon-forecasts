@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ADMIN_MARKET_CATEGORIES, normalizeCategory } from "@/lib/categories";
 
 type CreateMarketModalProps = {
   open: boolean;
@@ -11,15 +12,7 @@ type CreateMarketModalProps = {
   onSubmit: (data: any) => void;
 };
 
-const CATEGORIES = [
-  "Finance",
-  "Politics",
-  "Entertainment",
-  "Economy",
-  "Technology",
-  "Sports",
-  "Others"
-];
+const CATEGORIES = ADMIN_MARKET_CATEGORIES.map((category) => category.value);
 
 const COUNTRIES = [
   "Nigeria",
@@ -32,7 +25,7 @@ const COUNTRIES = [
 export const CreateMarketModal = ({ open, onClose, onSubmit }: CreateMarketModalProps) => {
   const [formData, setFormData] = useState({
     question: "",
-    category: "Finance",
+    category: "Sports",
     country: "Nigeria",
     marketType: "YES/NO",
     yesLabel: "YES",
@@ -101,13 +94,14 @@ export const CreateMarketModal = ({ open, onClose, onSubmit }: CreateMarketModal
     
     onSubmit({
       ...formData,
+      category: normalizeCategory(formData.category),
       closeDateTime,
     });
     
     // Reset form
     setFormData({
       question: "",
-      category: "Finance",
+      category: "Sports",
       country: "Nigeria",
       marketType: "YES/NO",
       yesLabel: "YES",

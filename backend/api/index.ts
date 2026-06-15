@@ -94,6 +94,47 @@ const upload = multer({
   }
 });
 
+const MARKET_CATEGORIES = [
+  'Sports',
+  'Crypto',
+  'Politics',
+  'Economy',
+  'Entertainment',
+  'Music',
+  'Technology',
+  'Business',
+  'Global',
+  'Other',
+] as const;
+
+const CATEGORY_ALIASES: Record<string, typeof MARKET_CATEGORIES[number]> = {
+  finance: 'Economy',
+  financial: 'Economy',
+  economics: 'Economy',
+  economy: 'Economy',
+  cryptocurrency: 'Crypto',
+  crypto: 'Crypto',
+  tech: 'Technology',
+  technology: 'Technology',
+  companies: 'Business',
+  company: 'Business',
+  business: 'Business',
+  global_events: 'Global',
+  international: 'Global',
+  world: 'Global',
+  general: 'Other',
+  others: 'Other',
+  other: 'Other',
+};
+
+const normalizeMarketCategory = (category: unknown): typeof MARKET_CATEGORIES[number] => {
+  const raw = String(category || '').trim();
+  if (!raw) return 'Other';
+  const direct = MARKET_CATEGORIES.find((item) => item.toLowerCase() === raw.toLowerCase());
+  if (direct) return direct;
+  return CATEGORY_ALIASES[raw.toLowerCase()] || 'Other';
+};
+
 // Request logging
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
@@ -1182,7 +1223,7 @@ const normalizeMarket = (market: any, positionCount = 0, priceHistory: any[] = [
   return {
     id: market.id,
     question: market.question,
-    category: market.category || 'General',
+    category: normalizeMarketCategory(market.category),
     yesPercent: state.yesPrice,
     pool: toAmount(totalPoolSmallestUnit),
     closesIn: market.closes_in || '',
@@ -1275,7 +1316,7 @@ const normalizePosition = (position: any, market: any) => {
     status: position.status || (position.resolved_at ? (position.is_winner ? 'won' : 'lost') : 'active'),
     marketQuestion: position.market_question_snapshot || normalizedMarket.question || 'Market unavailable',
     marketIcon: normalizedMarket.icon,
-    category: position.market_category_snapshot || normalizedMarket.category || 'General',
+    category: normalizeMarketCategory(position.market_category_snapshot || normalizedMarket.category),
     marketStatus: normalizedMarket.status,
     isWinner: position.is_winner,
     payout: toAmount(position.payout_smallest_unit),
@@ -2213,7 +2254,7 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
         current_value_smallest_unit: trade.positionValueSmallestUnit,
         ownership_percent: trade.ownershipPercent,
         market_question_snapshot: currentMarket.question,
-        market_category_snapshot: currentMarket.category || 'General'
+        market_category_snapshot: normalizeMarketCategory(currentMarket.category)
       })
       .select()
       .single();
@@ -2336,7 +2377,7 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
         metadata: {
           marketId,
           marketQuestion: updatedMarket.question || currentMarket.question || null,
-          category: updatedMarket.category || currentMarket.category || null,
+          category: normalizeMarketCategory(updatedMarket.category || currentMarket.category),
           side,
           entryPrice,
           sharesOwned: trade.sharesOwned,
@@ -2848,7 +2889,7 @@ const normalizeAdminMarket = (market: any) => ({
   id: market.id,
   question: market.question,
   description: market.description,
-  category: market.category || 'General',
+  category: normalizeMarketCategory(market.category),
   status: displayStatusForMarket(market),
   market_type: market.market_type || 'binary',
   yes_label: market.yes_label || 'YES',
@@ -3036,7 +3077,7 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
         settled_at: now,
         winning_outcome: outcome,
         market_question_snapshot: market.question,
-        market_category_snapshot: market.category || 'General'
+        market_category_snapshot: normalizeMarketCategory(market.category)
       })
       .eq('id', position.id);
 
@@ -3343,7 +3384,8 @@ app.post('/api/admin/markets', authenticate, requireRole('admin'), async (req: R
   try {
     const user = (req as any).user;
     const question = String(req.body.question || '').trim();
-    const category = String(req.body.category || 'General').trim();
+    const rawCategory = String(req.body.category || '').trim();
+    const category = normalizeMarketCategory(rawCategory);
     const closeDate = req.body.close_date || req.body.closes_at;
     const status = String(req.body.status || 'active');
     const imageUrl = req.body.image_url || null;
@@ -3361,7 +3403,7 @@ app.post('/api/admin/markets', authenticate, requireRole('admin'), async (req: R
       return res.status(400).json({ success: false, error: { code: 'MEDIA_REQUIRED', message: 'Add an image or short video before creating the market.' } });
     }
 
-    if (!category) {
+    if (!rawCategory) {
       return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Category is required.' } });
     }
 

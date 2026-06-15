@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ADMIN_MARKET_CATEGORIES, normalizeCategory } from "@/lib/categories";
 
 type Market = {
   id: string;
@@ -27,20 +28,12 @@ type EditMarketModalProps = {
   onSubmit: (data: any) => void;
 };
 
-const CATEGORIES = [
-  "Finance",
-  "Politics",
-  "Entertainment",
-  "Economy",
-  "Technology",
-  "Sports",
-  "Others"
-];
+const CATEGORIES = ADMIN_MARKET_CATEGORIES.map((category) => category.value);
 
 export const EditMarketModal = ({ open, onClose, market, onSubmit }: EditMarketModalProps) => {
   const [formData, setFormData] = useState({
     question: market.question,
-    category: market.category,
+    category: normalizeCategory(market.category),
     status: market.status,
     yesPrice: market.yesPrice,
     noPrice: market.noPrice,
@@ -49,7 +42,7 @@ export const EditMarketModal = ({ open, onClose, market, onSubmit }: EditMarketM
   useEffect(() => {
     setFormData({
       question: market.question,
-      category: market.category,
+      category: normalizeCategory(market.category),
       status: market.status,
       yesPrice: market.yesPrice,
       noPrice: market.noPrice,
@@ -82,6 +75,7 @@ export const EditMarketModal = ({ open, onClose, market, onSubmit }: EditMarketM
     onSubmit({
       id: market.id,
       ...formData,
+      category: normalizeCategory(formData.category),
     });
   };
 

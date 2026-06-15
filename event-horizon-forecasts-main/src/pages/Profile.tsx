@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
 import apiService, { type ApiPosition, type ApiProfileStats } from "@/lib/api";
 import { toast } from "sonner";
+import { getCategoryLabel } from "@/lib/categories";
 
 const emptyStats: ApiProfileStats = {
   totalPredictions: 0,
@@ -148,7 +149,7 @@ export default function Profile() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="line-clamp-2 text-sm font-black">{position.marketQuestion}</div>
-                      <div className="mt-2 text-xs text-slate-500">{position.category || "General"} · {new Date(position.createdAt).toLocaleDateString()}</div>
+                      <div className="mt-2 text-xs text-slate-500">{getCategoryLabel(position.category)} · {new Date(position.createdAt).toLocaleDateString()}</div>
                     </div>
                     <span className={`rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-emerald-400/10 text-emerald-300" : "bg-red-400/10 text-red-300"}`}>
                       {position.side}

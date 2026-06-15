@@ -12,6 +12,7 @@ import {
   BulkActionSchema,
   MarketFiltersSchema,
   isValidTransition,
+  normalizeMarketCategory,
   validateEditableFields,
 } from '../validation/market.validation.js';
 
@@ -43,11 +44,13 @@ const insertNotificationSafely = async (payload: Record<string, any> | Record<st
 
 const notifyUsersForNewMarket = async (market: any, adminUserId: string) => {
   if (market.status !== 'active' || !market.category) return;
+  const category = normalizeMarketCategory(market.category);
+  const matchingCategories = category === 'Economy' ? ['Economy', 'Finance', 'finance'] : [category];
 
   const { data: priorPositions, error } = await supabase
     .from('positions')
     .select('user_id, markets!inner(category)')
-    .eq('markets.category', market.category);
+    .in('markets.category', matchingCategories);
 
   if (error) {
     console.warn('New-market notifications skipped:', error.message);
@@ -63,14 +66,14 @@ const notifyUsersForNewMarket = async (market: any, adminUserId: string) => {
   await insertNotificationSafely(userIds.map((userId) => ({
       user_id: userId,
       type: 'new_market_available',
-      title: `New ${market.category} market`,
+      title: `New ${category} market`,
       message: market.question,
       reference_id: market.id,
       reference_type: 'market',
       metadata: {
         marketId: market.id,
         marketQuestion: market.question,
-        category: market.category
+        category
       }
     })), 'New-market notifications');
 };
@@ -333,7 +336,7 @@ const resolveMarketPoolPayouts = async (market: any, outcome: 'YES' | 'NO', admi
         settled_at: now,
         winning_outcome: outcome,
         market_question_snapshot: market.question,
-        market_category_snapshot: market.category || 'General'
+        market_category_snapshot: normalizeMarketCategory(market.category)
       })
       .eq('id', position.id);
 
@@ -603,7 +606,7 @@ router.get('/export', async (req: Request, res: Response) => {
       return [
         escapeCSV(market.id),
         escapeCSV(market.question),
-        escapeCSV(market.category),
+        escapeCSV(normalizeMarketCategory(market.category)),
         escapeCSV(market.status),
         escapeCSV(market.close_date),
         escapeCSV(market.resolution_date),

@@ -1,4 +1,5 @@
 import apiService, { type ApiMarket } from "./api";
+import { getCategoryLabel, normalizeCategory } from "./categories";
 import { calculateMarketPrices } from "./market-pricing";
 
 export type Market = ApiMarket;
@@ -78,10 +79,12 @@ const categoryImages: Record<string, string> = {
   Music: "https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=1300&q=80",
   Entertainment: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1300&q=80",
   Crypto: "https://images.unsplash.com/photo-1621504450181-5d356f61d307?auto=format&fit=crop&w=1300&q=80",
-  Cryptocurrency: "https://images.unsplash.com/photo-1621504450181-5d356f61d307?auto=format&fit=crop&w=1300&q=80",
   Politics: "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=1300&q=80",
-  Finance: "https://images.unsplash.com/photo-1640340434855-6084b1f4901c?auto=format&fit=crop&w=1300&q=80",
+  Economy: "https://images.unsplash.com/photo-1640340434855-6084b1f4901c?auto=format&fit=crop&w=1300&q=80",
+  Business: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1300&q=80",
   Technology: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1300&q=80",
+  Global: "https://images.unsplash.com/photo-1521295121783-8a321d551ad2?auto=format&fit=crop&w=1300&q=80",
+  Other: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1300&q=80",
 };
 
 export const getMarketCommentCount = (market: Market) =>
@@ -105,7 +108,7 @@ export const getMarketMedia = (market: Market) => {
   const uploadedImage = market.imageUrl || market.image_url || "";
   const aiImage = (market as any).aiImageUrl || (market as any).ai_image_url || "";
   const fallback =
-    categoryImages[market.category] ||
+    categoryImages[normalizeCategory(market.category)] ||
     "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1300&q=80";
   const imageUrl = uploadedImage || aiImage || fallback;
 
@@ -113,6 +116,8 @@ export const getMarketMedia = (market: Market) => {
     ? { type: "video" as const, src: videoUrl, poster: imageUrl, imageUrl }
     : { type: "image" as const, src: imageUrl, poster: imageUrl, imageUrl };
 };
+
+export const getMarketCategoryLabel = (market: Pick<Market, "category">) => getCategoryLabel(market.category);
 
 export const formatCountdown = (closeTime?: string, closesIn?: string) => {
   if (closeTime) {

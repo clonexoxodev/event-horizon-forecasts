@@ -5,6 +5,7 @@ import {
   formatCountdown,
   formatNaira,
   formatNairaPrice,
+  getMarketCategoryLabel,
   getMarketMedia,
 } from "@/lib/markets";
 import { useForecastSlip } from "@/lib/forecast-slip";
@@ -13,6 +14,7 @@ import { AnimatedNumber } from "@/components/AnimatedNumber";
 export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolean }) => {
   const { openForecastSlip } = useForecastSlip();
   const media = getMarketMedia(m);
+  const categoryLabel = getMarketCategoryLabel(m);
   const hasEnded = m.closeTime ? new Date(m.closeTime).getTime() <= Date.now() : false;
   const isLive = m.status === "active" && !hasEnded;
   const openSide = (event: React.MouseEvent, side: "YES" | "NO") => {
@@ -43,7 +45,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
       <div className="p-3">
         <div className="mb-3 flex items-center justify-between gap-3">
           <span className="rounded-full border border-[#263241] bg-[#151E28] px-2.5 py-1 text-[11px] font-bold text-[#8B98A8]">
-            {m.category || "Market"}
+            {categoryLabel}
           </span>
           <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black ${isLive ? "border-[#12B886]/25 bg-[#12B886]/10 text-[#7AE4BD]" : "border-[#263241] bg-[#151E28] text-[#8B98A8]"}`}>
             {isLive && <span className="h-1.5 w-1.5 rounded-full bg-[#12B886]" />}

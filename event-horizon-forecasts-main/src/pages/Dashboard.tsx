@@ -6,6 +6,7 @@ import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
 import apiService, { type ApiPosition, type ApiProfileStats } from "@/lib/api";
 import { formatNaira } from "@/lib/markets";
+import { getCategoryLabel } from "@/lib/categories";
 
 type PortfolioTab = "positions" | "activity" | "performance";
 
@@ -186,7 +187,7 @@ const PositionsView = ({ positions }: { positions: ApiPosition[] }) => {
                 <div className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Active position</div>
                 <h2 className="mt-2 line-clamp-2 text-lg font-black leading-tight">{position.marketQuestion}</h2>
                 <div className="mt-2 text-xs font-bold text-[#8B98A8]">
-                  {position.category || "General"} · {new Date(position.createdAt).toLocaleDateString()}
+                  {getCategoryLabel(position.category)} · {new Date(position.createdAt).toLocaleDateString()}
                 </div>
               </div>
               <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
@@ -235,7 +236,7 @@ const ActivityView = ({ positions, settledCount }: { positions: ApiPosition[]; s
               </div>
               <div className="min-w-0">
                 <div className="truncate text-sm font-black">{position.marketQuestion}</div>
-                <div className="mt-1 text-xs text-[#8B98A8]">{position.category || "General"} · {position.side} prediction · {new Date(position.createdAt).toLocaleDateString()}</div>
+                <div className="mt-1 text-xs text-[#8B98A8]">{getCategoryLabel(position.category)} · {position.side} prediction · {new Date(position.createdAt).toLocaleDateString()}</div>
               </div>
             </div>
             <div className="shrink-0 text-right">

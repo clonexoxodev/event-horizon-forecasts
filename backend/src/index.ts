@@ -12,6 +12,7 @@ import adminMarketRoutes from './routes/admin-market.routes.js';
 import notificationsRoutes from './routes/notifications.routes.js';
 import usersRoutes from './routes/users.routes.js';
 import profileRoutes from './routes/profile.routes.js';
+import { normalizeMarketCategory } from './validation/market.validation.js';
 
 dotenv.config();
 
@@ -94,7 +95,7 @@ const normalizePosition = (position: any) => {
     isWinner: position.is_winner,
     marketQuestion: market.question || position.market_question_snapshot || 'Market unavailable',
     marketIcon: market.icon || '',
-    category: market.category || position.market_category_snapshot || 'General',
+    category: normalizeMarketCategory(market.category || position.market_category_snapshot),
     marketStatus: market.state || market.status || 'active',
     resolvedAt: position.resolved_at || position.settled_at || null,
     createdAt: position.created_at,

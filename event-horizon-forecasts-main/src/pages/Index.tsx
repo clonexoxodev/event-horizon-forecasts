@@ -9,8 +9,7 @@ import { useMarketState } from "@/lib/market-state";
 import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
 import { NotificationBell } from "@/components/NotificationBell";
-
-const categories = ["Trending", "Sports", "Crypto", "Politics", "Finance", "Entertainment", "Music", "Global"];
+import { categoryMatches, HOME_MARKET_FILTERS, type HomeMarketFilter, normalizeCategory } from "@/lib/categories";
 
 const isLiveMarket = (market: { status?: string; closeTime?: string }) => {
   const hasEnded = market.closeTime ? new Date(market.closeTime).getTime() <= Date.now() : false;
@@ -19,7 +18,7 @@ const isLiveMarket = (market: { status?: string; closeTime?: string }) => {
 
 const Index = () => {
   const { user } = useAuth();
-  const [category, setCategory] = useState("Trending");
+  const [category, setCategory] = useState<HomeMarketFilter>("Trending");
   const [searchQuery, setSearchQuery] = useState("");
   const { markets, loadMarkets, isLoadingMarkets, marketError } = useMarketState();
   const [now, setNow] = useState(Date.now());
@@ -46,8 +45,8 @@ const Index = () => {
 
   const filtered = useMemo(() => {
     let next = markets.filter(isLiveMarket);
-    if (category !== "Trending" && category !== "Global") {
-      next = next.filter((market) => market.category?.toLowerCase() === category.toLowerCase());
+    if (category !== "Trending") {
+      next = next.filter((market) => categoryMatches(market.category, category));
     }
     next.sort((a, b) => getTrendingScore(b) - getTrendingScore(a));
 
@@ -55,13 +54,22 @@ const Index = () => {
       const query = searchQuery.toLowerCase();
       next = next.filter((market) =>
         market.question.toLowerCase().includes(query) ||
-        market.category.toLowerCase().includes(query)
+        normalizeCategory(market.category).toLowerCase().includes(query)
       );
     }
     return next;
   }, [markets, category, searchQuery]);
 
   const liveCount = markets.filter(isLiveMarket).length;
+  const liveMarkets = useMemo(() => markets.filter(isLiveMarket), [markets]);
+  const categoryCounts = useMemo(() => {
+    const counts: Partial<Record<HomeMarketFilter, number>> = { Trending: liveMarkets.length };
+    liveMarkets.forEach((market) => {
+      const normalized = normalizeCategory(market.category);
+      counts[normalized] = (counts[normalized] || 0) + 1;
+    });
+    return counts;
+  }, [liveMarkets]);
 
   return (
     <div className="app-bg min-h-screen pb-24 text-white md:pb-0 xl:pl-64">
@@ -98,7 +106,7 @@ const Index = () => {
             />
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {categories.map((chip) => (
+            {HOME_MARKET_FILTERS.map((chip) => (
               <button
                 key={chip}
                 onClick={() => setCategory(chip)}
@@ -109,6 +117,13 @@ const Index = () => {
                 }`}
               >
                 {chip}
+                {chip !== "Trending" && Number(categoryCounts[chip] || 0) > 0 && (
+                  <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] ${
+                    category === chip ? "bg-[#06100d]/15 text-[#06100d]" : "bg-[#151E28] text-[#8B98A8]"
+                  }`}>
+                    {categoryCounts[chip]}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -148,8 +163,10 @@ const Index = () => {
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-[#263241] bg-[#101720]/60 p-10 text-center">
-            <h3 className="text-lg font-black">No live markets found</h3>
-            <p className="mt-1 text-sm text-[#8B98A8]">Try another category or search term.</p>
+            <h3 className="text-lg font-black">{category === "Trending" ? "No trending markets yet" : `No ${category} markets yet`}</h3>
+            <p className="mt-1 text-sm text-[#8B98A8]">
+              {category === "Trending" ? "Check back soon or try a category." : "Try Trending or check back soon."}
+            </p>
           </div>
         )}
       </main>

@@ -6,12 +6,14 @@ import { fetchMarkets, getTrendingScore } from "@/lib/markets";
 import { useMarketState } from "@/lib/market-state";
 import { TrendingUp } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
+import { normalizeCategory } from "@/lib/categories";
 
 export default function Markets() {
   const { markets, setMarkets } = useMarketState();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const category = searchParams.get("category");
+  const normalizedCategory = category ? normalizeCategory(category) : null;
 
   useEffect(() => {
     fetchMarkets()
@@ -21,10 +23,10 @@ export default function Markets() {
 
   const trending = useMemo(() => {
     const filtered = category
-      ? markets.filter((market) => market.category.toLowerCase() === category.toLowerCase())
+      ? markets.filter((market) => normalizeCategory(market.category) === normalizedCategory)
       : markets;
     return [...filtered].sort((a, b) => getTrendingScore(b) - getTrendingScore(a));
-  }, [category, markets]);
+  }, [category, normalizedCategory, markets]);
 
   return (
     <div className="app-bg min-h-screen pb-20 text-white md:pb-0 xl:pl-64">
@@ -35,7 +37,7 @@ export default function Markets() {
             Active markets
           </p>
           <h1 className="text-3xl font-black tracking-tight sm:text-5xl">
-            {category ? `${category} markets` : "Most active markets"}
+            {normalizedCategory ? `${normalizedCategory} markets` : "Most active markets"}
           </h1>
           <p className="mt-2 max-w-xl text-sm text-[#8B98A8]">
             Markets with the most volume, trades, and participation.

@@ -23,6 +23,56 @@ export type Currency = z.infer<typeof Currency>;
 export const Outcome = z.enum(['YES', 'NO', 'INVALID']);
 export type Outcome = z.infer<typeof Outcome>;
 
+// Shared market categories. Keep this aligned with the frontend category config.
+export const MARKET_CATEGORIES = [
+  'Sports',
+  'Crypto',
+  'Politics',
+  'Economy',
+  'Entertainment',
+  'Music',
+  'Technology',
+  'Business',
+  'Global',
+  'Other',
+] as const;
+
+const CATEGORY_ALIASES: Record<string, typeof MARKET_CATEGORIES[number]> = {
+  finance: 'Economy',
+  financial: 'Economy',
+  economics: 'Economy',
+  economy: 'Economy',
+  cryptocurrency: 'Crypto',
+  crypto: 'Crypto',
+  tech: 'Technology',
+  technology: 'Technology',
+  companies: 'Business',
+  company: 'Business',
+  business: 'Business',
+  global_events: 'Global',
+  international: 'Global',
+  world: 'Global',
+  general: 'Other',
+  others: 'Other',
+  other: 'Other',
+};
+
+export const normalizeMarketCategory = (category: unknown): typeof MARKET_CATEGORIES[number] => {
+  const raw = String(category || '').trim();
+  if (!raw) return 'Other';
+
+  const direct = MARKET_CATEGORIES.find((item) => item.toLowerCase() === raw.toLowerCase());
+  if (direct) return direct;
+
+  return CATEGORY_ALIASES[raw.toLowerCase()] || 'Other';
+};
+
+export const MarketCategory = z.preprocess(
+  (value) => normalizeMarketCategory(value),
+  z.enum(MARKET_CATEGORIES)
+);
+export type MarketCategory = z.infer<typeof MarketCategory>;
+
 /**
  * Market Creation Schema
  * Validates all fields required to create a new market
@@ -36,8 +86,7 @@ export const MarketCreateSchema = z.object({
     .max(5000, 'Description must be less than 5000 characters')
     .optional(),
   
-  category: z.string()
-    .min(1, 'Category is required'),
+  category: MarketCategory,
   
   country_filter: z.string()
     .length(2, 'Country code must be 2 characters (ISO 3166-1 alpha-2)')
@@ -183,9 +232,7 @@ export const MarketUpdateSchema = z.object({
     .max(5000)
     .optional(),
   
-  category: z.string()
-    .min(1)
-    .optional(),
+  category: MarketCategory.optional(),
   
   country_filter: z.string()
     .length(2)
@@ -329,7 +376,7 @@ export type BulkActionInput = z.infer<typeof BulkActionSchema>;
  */
 export const MarketFiltersSchema = z.object({
   status: MarketStatus.optional(),
-  category: z.string().optional(),
+  category: MarketCategory.optional(),
   search: z.string().optional(),
   sort: z.enum(['close_date', 'pool_amount', 'created_at']).optional(),
   order: z.enum(['asc', 'desc']).default('desc'),

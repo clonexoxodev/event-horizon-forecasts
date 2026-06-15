@@ -27,6 +27,7 @@ import { useAuth } from "@/lib/auth";
 import apiService, { type AdminCreateMarketInput, type AdminMarket, type ApiTransaction, type UserRole } from "@/lib/api";
 import type { DepositRequest, WithdrawalRequest } from "@/lib/api";
 import { formatNaira } from "@/lib/markets";
+import { ADMIN_MARKET_CATEGORIES, getCategoryLabel, normalizeCategory } from "@/lib/categories";
 
 type AdminView = "dashboard" | "markets" | "create" | "resolution" | "finance" | "transactions" | "users" | "add-admin" | "reports" | "settings";
 type MarketKind = "YES/NO" | "UP/DOWN" | "Bigger/Smaller";
@@ -61,7 +62,7 @@ const emptyForm = {
   existingVideoUrl: "",
 };
 
-const categories = ["Sports", "Music", "Crypto", "Politics", "Entertainment", "Finance", "Technology", "Other"];
+const categories = ADMIN_MARKET_CATEGORIES.map((category) => category.value);
 const adminInputClass = "h-12 rounded-2xl border-white/10 bg-white/[0.055] text-white placeholder:text-slate-500 focus:border-emerald-300";
 
 const Admin = () => {
@@ -162,7 +163,7 @@ const Admin = () => {
     setForm({
       ...emptyForm,
       question: market.question,
-      category: market.category,
+      category: normalizeCategory(market.category),
       marketKind: labelsToKind(market.yes_label, market.no_label),
       startingYesPrice: String(Number(market.starting_yes_price || market.yes_price || 50)),
       startingNoPrice: String(Number(market.starting_no_price || market.no_price || 50)),
@@ -216,7 +217,7 @@ const Admin = () => {
     return {
       question: form.question.trim(),
       description,
-      category: form.category,
+      category: normalizeCategory(form.category),
       market_type: "binary",
       yes_label: labels.yes,
       no_label: labels.no,
@@ -656,7 +657,7 @@ const MarketsView = ({ markets, loading, search, statusFilter, setSearch, setSta
                 <tr key={market.id} className="text-sm">
                   <td className="max-w-md px-4 py-4">
                     <div className="font-black text-white">{market.question}</div>
-                    <div className="mt-1 text-xs text-slate-500">{market.category}</div>
+                    <div className="mt-1 text-xs text-slate-500">{getCategoryLabel(market.category)}</div>
                   </td>
                   <td className="px-4 py-4"><StatusBadge status={market.status} /></td>
                   <td className="px-4 py-4">
@@ -760,7 +761,7 @@ const CreateMarketView = ({ form, setForm, saving, editing, onSubmit, onCancel }
         <h2 className="mb-4 text-xl font-black">User preview</h2>
         <div className="rounded-3xl border border-white/10 bg-[#080d19] p-4">
           <div className="mb-3 flex items-center justify-between">
-            <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-black text-slate-300">{form.category}</span>
+            <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-black text-slate-300">{getCategoryLabel(form.category)}</span>
             <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-200">Live</span>
           </div>
           <div className="line-clamp-3 text-lg font-black">{form.question || "Market question appears here"}</div>

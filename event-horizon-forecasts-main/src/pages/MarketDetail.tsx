@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import apiService, { ApiRequestError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useMarketState } from "@/lib/market-state";
-import { formatCountdown, formatNaira, formatNairaPrice, getMarketMedia, type Market } from "@/lib/markets";
+import { formatCountdown, formatNaira, formatNairaPrice, getMarketCategoryLabel, getMarketMedia, type Market } from "@/lib/markets";
+import { categoryMatches } from "@/lib/categories";
 
 type Timeframe = "1H" | "24H" | "7D" | "ALL";
 
@@ -96,9 +97,10 @@ export default function MarketDetail() {
     return () => window.clearInterval(timer);
   }, []);
 
+  const marketCategoryLabel = market ? getMarketCategoryLabel(market) : "Other";
   const relatedMarkets = useMemo(
-    () => markets.filter((item) => item.id !== market?.id && item.category === market?.category).slice(0, 3),
-    [market?.category, market?.id, markets]
+    () => markets.filter((item) => item.id !== market?.id && categoryMatches(item.category, marketCategoryLabel)).slice(0, 3),
+    [marketCategoryLabel, market?.id, markets]
   );
 
   const handleShare = async () => {
@@ -203,7 +205,7 @@ export default function MarketDetail() {
             <div className="absolute inset-0 bg-gradient-to-t from-[#080c10] via-[#080c10]/42 to-black/10" />
             <div className="absolute bottom-0 left-0 right-0 p-5">
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#080c10]">{market.category}</span>
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#080c10]">{marketCategoryLabel}</span>
                 <span className="rounded-full border border-[#12B886]/25 bg-[#12B886]/10 px-3 py-1 text-xs font-black text-[#7AE4BD]">{marketIsActive ? "Live" : "Ended"}</span>
                 <span className="rounded-full border border-[#263241] bg-black/45 px-3 py-1 text-xs font-black text-white backdrop-blur-xl">
                   {formatCountdown(market.closeTime, market.closesIn)}
@@ -286,7 +288,7 @@ export default function MarketDetail() {
             <div className="grid gap-3 sm:grid-cols-3">
               {relatedMarkets.map((item) => (
                 <Link key={item.id} to={`/market/${item.id}`} className="rounded-xl border border-[#263241] bg-[#101720] p-4 transition hover:border-[#12B886]/45 hover:bg-[#151E28]">
-                  <div className="text-xs font-black text-[#12B886]">{item.category}</div>
+                  <div className="text-xs font-black text-[#12B886]">{getMarketCategoryLabel(item)}</div>
                   <div className="mt-1 line-clamp-2 text-sm font-black">{item.question}</div>
                   <div className="mt-3 text-xs font-black text-slate-500">YES {formatNairaPrice(item.yesPrice)} · NO {formatNairaPrice(item.noPrice)}</div>
                 </Link>
