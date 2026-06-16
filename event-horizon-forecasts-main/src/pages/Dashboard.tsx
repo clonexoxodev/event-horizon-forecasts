@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { Activity, Award, BarChart3, CheckCircle, Clock, Flame, LineChart, Loader2, Medal, Target, Trophy } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Activity, ArrowRight, Award, BarChart3, CheckCircle, Clock, Flame, LineChart, Loader2, Medal, Target, Trophy, X } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
@@ -30,23 +30,28 @@ const emptyStats: ApiProfileStats = {
 };
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
+  const userId = user?.id;
   const [positions, setPositions] = useState<ApiPosition[]>([]);
   const [stats, setStats] = useState<ApiProfileStats>(emptyStats);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<PortfolioTab>("positions");
+  const [selectedPosition, setSelectedPosition] = useState<ApiPosition | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
 
-    if (!user) {
+    if (!userId) {
       setLoading(false);
       return;
     }
 
     let mounted = true;
-    const loadPortfolio = async () => {
-      setLoading(true);
+    const loadPortfolio = async ({ silent = false } = {}) => {
+      if (!silent) {
+        setLoading(true);
+      }
       try {
         const [positionResponse, statsResponse] = await Promise.all([
           apiService.getPositions(),
@@ -59,19 +64,23 @@ const Dashboard = () => {
         if (!mounted) return;
         console.warn("My Predictions request failed", error);
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          if (!silent) {
+            setLoading(false);
+          }
+        }
       }
     };
 
     loadPortfolio();
     const refresh = window.setInterval(() => {
-      if (document.visibilityState === "visible") loadPortfolio();
-    }, 20000);
+      if (document.visibilityState === "visible") loadPortfolio({ silent: true });
+    }, 60000);
     return () => {
       mounted = false;
       window.clearInterval(refresh);
     };
-  }, [authLoading, user]);
+  }, [authLoading, userId]);
 
   const activePositions = useMemo(
     () => positions.filter((position) => position.marketStatus === "active"),
@@ -155,12 +164,23 @@ const Dashboard = () => {
           </div>
         ) : (
           <div className="mt-5">
-            {tab === "positions" && <PositionsView positions={activePositions} />}
+            {tab === "positions" && <PositionsView positions={activePositions} onSelect={setSelectedPosition} />}
             {tab === "activity" && <ActivityView positions={positions} settledCount={settledPositions.length} />}
             {tab === "performance" && <PerformanceView positions={positions} stats={stats} />}
           </div>
         )}
       </main>
+      {selectedPosition && (
+        <PredictionDetailModal
+          position={selectedPosition}
+          onClose={() => setSelectedPosition(null)}
+          onViewMarket={() => {
+            const marketId = selectedPosition.marketId;
+            setSelectedPosition(null);
+            navigate(`/market/${marketId}`);
+          }}
+        />
+      )}
       <MobileNav />
     </div>
   );
@@ -174,7 +194,7 @@ const HeroStat = ({ icon: Icon, label, value, tone = "neutral" }: { icon: any; l
   </div>
 );
 
-const PositionsView = ({ positions }: { positions: ApiPosition[] }) => {
+const PositionsView = ({ positions, onSelect }: { positions: ApiPosition[]; onSelect: (position: ApiPosition) => void }) => {
   if (positions.length === 0) {
     return (
       <EmptyState
@@ -188,39 +208,121 @@ const PositionsView = ({ positions }: { positions: ApiPosition[] }) => {
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      {positions.map((position) => {
-        const projectedProfit = Number(position.projectedProfit ?? position.unrealizedPnl ?? 0);
-        return (
-          <Link key={position.id} to={`/market/${position.marketId}`} className="rounded-2xl border border-[#263241] bg-[#101720] p-4 transition hover:border-[#12B886]/45 hover:bg-[#151E28]">
+      {positions.map((position) => (
+          <button
+            key={position.id}
+            onClick={() => onSelect(position)}
+            className="rounded-2xl border border-[#263241] bg-[#101720] p-4 text-left transition hover:border-[#12B886]/45 hover:bg-[#151E28] active:scale-[0.99]"
+          >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Open prediction</div>
                 <h2 className="mt-2 line-clamp-2 text-lg font-black leading-tight">{position.marketQuestion}</h2>
-                <div className="mt-2 text-xs font-bold text-[#8B98A8]">
-                  {getCategoryLabel(position.category)} · {new Date(position.createdAt).toLocaleDateString()}
-                </div>
               </div>
               <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
                 {position.side}
               </span>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
-              <Metric label="Amount predicted" value={formatNaira(position.stake)} />
-              <Metric label="Current confidence" value={formatNairaPrice(position.currentPrice || position.entryPrice || 0)} />
-              <Metric label="Potential payout" value={formatNaira(position.projectedPayout ?? position.currentValue ?? position.positionValue ?? position.stake)} />
-              <Metric label="Time left" value={formatCountdown(position.tradingCloseTime || position.marketCloseTime)} />
-              <Metric label="Status" value={position.marketStatus.replace(/_/g, " ")} />
-              <Metric label="Projected gain" value={`${projectedProfit >= 0 ? "+" : ""}${formatNaira(projectedProfit)}`} tone={projectedProfit >= 0 ? "green" : "red"} />
+            <div className="mt-4 space-y-2 text-sm">
+              <SimplePredictionRow label="Predicted" value={formatNaira(position.stake)} />
+              <SimplePredictionRow label="If correct" value={formatNaira(position.projectedPayout ?? position.currentValue ?? position.positionValue ?? position.stake)} />
+              <SimplePredictionRow label="Time left" value={formatCountdown(position.tradingCloseTime || position.marketCloseTime)} />
             </div>
-            <p className="mt-3 text-xs font-bold text-[#8B98A8]">
-              Tap to see entry confidence, units, market movement, rules, and resolution source.
+            <p className="mt-4 inline-flex items-center gap-1 text-xs font-black text-[#8B98A8]">
+              Tap to view details <ArrowRight className="h-3.5 w-3.5" />
             </p>
-          </Link>
-        );
-      })}
+          </button>
+      ))}
     </div>
   );
 };
+
+const PredictionDetailModal = ({
+  position,
+  onClose,
+  onViewMarket,
+}: {
+  position: ApiPosition;
+  onClose: () => void;
+  onViewMarket: () => void;
+}) => {
+  const projectedProfit = Number(position.projectedProfit ?? position.unrealizedPnl ?? 0);
+  const payout = Number(position.projectedPayout ?? position.currentValue ?? position.positionValue ?? position.stake);
+  const shares = Number(position.sharesOwned ?? position.sharesReceived ?? 0);
+  const rules = (position as ApiPosition & { rules?: string }).rules;
+  const resolutionSource = (position as ApiPosition & { resolutionSource?: string }).resolutionSource;
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 px-3 pb-[calc(84px+env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-6">
+      <section className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#263241] bg-[#101720] shadow-[0_24px_90px_rgba(0,0,0,0.65)]">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#263241] bg-[#101720]/95 p-4 backdrop-blur">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Prediction detail</p>
+            <h2 className="mt-1 text-lg font-black text-white">Your {position.side} prediction</h2>
+          </div>
+          <button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#8B98A8] transition hover:text-white">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4 p-4 sm:p-5">
+          <div className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <h3 className="text-xl font-black leading-tight">{position.marketQuestion}</h3>
+              <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
+                {position.side}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <Metric label="Amount predicted" value={formatNaira(position.stake)} />
+              <Metric label="If correct" value={formatNaira(payout)} />
+              <Metric label="Time left" value={formatCountdown(position.tradingCloseTime || position.marketCloseTime)} />
+              <Metric label="Status" value={(position.status || position.marketStatus).replace(/_/g, " ")} />
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Metric label="Entry price/view" value={formatNairaPrice(position.entryPrice || 0)} large />
+            <Metric label="Current market view" value={formatNairaPrice(position.currentPrice || position.entryPrice || 0)} large />
+            <Metric label="Shares/units" value={shares ? shares.toFixed(2) : "-"} large />
+            <Metric label="Projected P/L if resolved now" value={`${projectedProfit >= 0 ? "+" : ""}${formatNaira(projectedProfit)}`} tone={projectedProfit >= 0 ? "green" : "red"} large />
+          </div>
+
+          <section className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
+            <h4 className="text-sm font-black">Prediction history</h4>
+            <div className="mt-3 rounded-xl bg-[#101720] p-3 text-sm font-bold text-[#8B98A8]">
+              You predicted {position.side} with {formatNaira(position.stake)} on {new Date(position.createdAt).toLocaleString()}.
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
+            <h4 className="text-sm font-black">Rules and resolution</h4>
+            <p className="mt-2 text-sm leading-relaxed text-[#8B98A8]">
+              {rules || "Open the market to review the full rules and resolution criteria."}
+            </p>
+            <p className="mt-3 text-xs font-bold text-[#8B98A8]">
+              Resolution source: {resolutionSource || "Shown on the market page when available."}
+            </p>
+          </section>
+
+          <button
+            onClick={onViewMarket}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#12B886] text-sm font-black text-[#06100d] transition hover:bg-[#2dd4a0]"
+          >
+            View Market <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+};
+
+const SimplePredictionRow = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex items-center justify-between gap-4 rounded-xl bg-[#151E28] px-3 py-2">
+    <span className="text-xs font-bold text-[#8B98A8]">{label}</span>
+    <span className="text-sm font-black text-white">{value}</span>
+  </div>
+);
 
 const ActivityView = ({ positions, settledCount }: { positions: ApiPosition[]; settledCount: number }) => {
   const sorted = positions
