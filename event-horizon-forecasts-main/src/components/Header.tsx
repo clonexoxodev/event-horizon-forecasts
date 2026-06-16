@@ -20,7 +20,7 @@ export const Header = () => {
     <>
       <aside className="fixed left-0 top-0 z-50 hidden h-screen w-64 border-r border-[#263241] bg-[#080c10]/96 p-5 backdrop-blur-xl xl:block">
         <Link to="/" className="mb-8 flex items-center gap-3">
-          <FlippeWordmark size="lg" tagline="Real-world prediction markets" />
+          <FlippeWordmark size="md" tagline="Real-world prediction markets" />
         </Link>
 
         <nav className="space-y-1">
@@ -71,7 +71,7 @@ export const Header = () => {
       <header className="sticky top-0 z-40 hidden border-b border-[#263241] bg-[#080c10]/90 backdrop-blur-xl md:block">
         <div className="mx-auto flex max-w-[1320px] items-center gap-3 px-4 py-3 sm:px-6">
           <Link to="/" className="flex shrink-0 items-center gap-2">
-            <FlippeSymbol size="md" />
+            <FlippeSymbol size="sm" />
             <span className="text-xl font-black tracking-[0.04em] text-white">FLIPPE</span>
           </Link>
 

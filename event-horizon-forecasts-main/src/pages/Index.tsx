@@ -168,7 +168,7 @@ const Index = () => {
       <main className="mx-auto max-w-[1320px] px-4 py-4 sm:px-6 lg:py-6">
         <section className="mb-4 flex items-center justify-between gap-3 md:hidden">
           <div className="flex items-center gap-3">
-            <FlippeSymbol size="md" />
+            <FlippeSymbol size="sm" />
             <div>
               <div className="text-2xl font-black tracking-[0.04em]">FLIPPE</div>
               <div className="flex items-center gap-1.5 text-xs font-bold text-[#8B98A8]">

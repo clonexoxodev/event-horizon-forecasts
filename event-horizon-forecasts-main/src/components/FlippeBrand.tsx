@@ -9,11 +9,11 @@ type FlippeSymbolProps = {
 
 const sizeClasses = {
   xs: "h-7 w-7 rounded-lg",
-  sm: "h-9 w-9 rounded-xl",
-  md: "h-12 w-12 rounded-xl",
-  lg: "h-14 w-14 rounded-2xl",
-  xl: "h-20 w-20 rounded-2xl",
-  hero: "h-28 w-28 rounded-[1.65rem]",
+  sm: "h-8 w-8 rounded-lg",
+  md: "h-9 w-9 rounded-xl",
+  lg: "h-12 w-12 rounded-xl",
+  xl: "h-16 w-16 rounded-2xl",
+  hero: "h-24 w-24 rounded-[1.5rem]",
 };
 
 export const FlippeSymbol = ({ size = "md", className = "" }: FlippeSymbolProps) => (
@@ -37,14 +37,14 @@ export const FlippeWordmark = ({
 );
 
 export const FlippeLoader = ({
-  label = "Loading FLIPPE",
+  label = "Many possibilities. One reality.",
   compact = false,
 }: {
   label?: string;
   compact?: boolean;
 }) => (
   <div className={`flex flex-col items-center justify-center text-center ${compact ? "gap-2" : "gap-5"}`}>
-    <div className={`flippe-loader-stage relative ${compact ? "h-14 w-14" : "h-28 w-28"}`}>
+    <div className={`flippe-loader-stage relative ${compact ? "h-12 w-12" : "h-24 w-24"}`}>
       <span className="flippe-loader-glow" />
       <span className="flippe-loader-spark" />
       <FlippeSymbol size={compact ? "lg" : "hero"} className="flippe-loader-symbol relative z-10" />
@@ -52,7 +52,6 @@ export const FlippeLoader = ({
     <div className={compact ? "hidden" : "block"}>
       <p className="text-lg font-black tracking-[0.16em] text-white">FLIPPE</p>
       <p className="mt-2 text-sm font-semibold text-[#8B98A8]">{label}</p>
-      <p className="mt-1 text-xs text-[#6f7d8d]">Many possibilities. One reality.</p>
     </div>
   </div>
 );
