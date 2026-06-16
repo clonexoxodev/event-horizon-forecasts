@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Camera, Loader2, Save } from "lucide-react";
+import { Camera, Save } from "lucide-react";
 import { Header } from "@/components/Header";
+import { FlippeLoader } from "@/components/FlippeBrand";
 import { MobileNav } from "@/components/MobileNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,10 +32,7 @@ export default function EditProfile() {
       <div className="app-bg min-h-screen text-white xl:pl-64">
         <Header />
         <main className="grid min-h-[70vh] place-items-center px-4">
-          <div className="text-center">
-            <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-[#12B886]" />
-            <p className="text-sm font-bold text-[#8B98A8]">Restoring your profile...</p>
-          </div>
+          <FlippeLoader label="Restoring your profile" />
         </main>
         <MobileNav />
       </div>

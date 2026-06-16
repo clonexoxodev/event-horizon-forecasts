@@ -3,6 +3,7 @@ import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
 import { NotificationBell } from "@/components/NotificationBell";
+import { FlippeSymbol, FlippeWordmark } from "@/components/FlippeBrand";
 
 const primaryNav = [
   { to: "/", label: "Home", icon: Home },
@@ -19,13 +20,7 @@ export const Header = () => {
     <>
       <aside className="fixed left-0 top-0 z-50 hidden h-screen w-64 border-r border-[#263241] bg-[#080c10]/96 p-5 backdrop-blur-xl xl:block">
         <Link to="/" className="mb-8 flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#12B886] text-lg font-black text-[#06100d]">
-            F
-          </div>
-          <div>
-            <div className="text-xl font-black tracking-tight text-white">Flippe</div>
-            <div className="text-xs font-bold text-[#8B98A8]">Real-world prediction markets</div>
-          </div>
+          <FlippeWordmark tagline="Real-world prediction markets" />
         </Link>
 
         <nav className="space-y-1">
@@ -76,10 +71,8 @@ export const Header = () => {
       <header className="sticky top-0 z-40 hidden border-b border-[#263241] bg-[#080c10]/90 backdrop-blur-xl md:block">
         <div className="mx-auto flex max-w-[1320px] items-center gap-3 px-4 py-3 sm:px-6">
           <Link to="/" className="flex shrink-0 items-center gap-2">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#12B886] text-sm font-black text-[#06100d]">
-              F
-            </div>
-            <span className="text-xl font-black tracking-tight text-white">Flippe</span>
+            <FlippeSymbol size="sm" />
+            <span className="text-xl font-black tracking-[0.04em] text-white">FLIPPE</span>
           </Link>
 
           <div className="ml-auto hidden h-10 max-w-md flex-1 items-center gap-2 rounded-xl border border-[#263241] bg-[#101720] px-3 text-sm font-bold text-[#8B98A8] md:flex">

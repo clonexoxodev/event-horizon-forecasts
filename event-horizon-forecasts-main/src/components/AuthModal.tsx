@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { useState } from "react";
 import { Eye, EyeOff, Mail, Lock, User, AlertCircle, Loader2 } from "lucide-react";
+import { FlippeSymbol } from "@/components/FlippeBrand";
 
 export const AuthModal = () => {
   const { authOpen, setAuthOpen, login, signup, loginWithGoogle } = useAuth();
@@ -65,9 +66,7 @@ export const AuthModal = () => {
 
         <div className="p-6">
           <DialogHeader className="mb-5">
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 grid place-items-center mb-4">
-              <span className="text-2xl font-bold text-primary">F</span>
-            </div>
+            <FlippeSymbol size="lg" className="mb-4" />
             <DialogTitle className="text-xl font-bold">
               {mode === "login" ? "Welcome back" : "Join Flippe"}
             </DialogTitle>

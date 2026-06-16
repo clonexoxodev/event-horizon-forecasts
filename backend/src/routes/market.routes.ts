@@ -501,6 +501,87 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/markets/:id/related
+ * Get live related markets in the same normalized category.
+ */
+router.get('/:id/related', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Market ID is required',
+          timestamp: new Date().toISOString()
+        }
+      });
+      return;
+    }
+
+    const currentMarket = await marketService.getMarketById(id);
+
+    if (!currentMarket) {
+      res.status(404).json({
+        error: {
+          code: 'MARKET_NOT_FOUND',
+          message: 'Market not found',
+          timestamp: new Date().toISOString()
+        }
+      });
+      return;
+    }
+
+    const currentCategory = normalizeMarketCategory((currentMarket as any).category);
+    const { data: rawMarkets, error } = await supabase
+      .from('markets')
+      .select('*')
+      .neq('id', id)
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    if (error) {
+      throw new Error('Failed to fetch related markets: ' + error.message);
+    }
+
+    const normalizedRawMarkets = await Promise.all((rawMarkets || []).map(autoCloseExpiredMarket));
+    const relatedMarkets = normalizedRawMarkets
+      .filter((market) => normalizeMarketCategory(market.category) === currentCategory)
+      .filter((market) => {
+        const status = market.status || market.state || 'active';
+        return (status === 'active' || status === 'open') && !isPastClose(market) && !isPastTradingClose(market);
+      })
+      .slice(0, 3);
+
+    const marketsWithCounts = await Promise.all(
+      relatedMarkets.map(async (market) => {
+        const [positionCount, priceHistory] = await Promise.all([
+          marketService.getPositionCount(market.id),
+          ensureInitialPriceHistory(market)
+        ]);
+        return normalizeMarket(market, positionCount, priceHistory);
+      })
+    );
+
+    res.json({
+      markets: marketsWithCounts,
+      count: marketsWithCounts.length
+    });
+    return;
+  } catch (error) {
+    console.error('Get related markets error:', error);
+
+    res.status(500).json({
+      error: {
+        code: 'GET_RELATED_MARKETS_FAILED',
+        message: 'Failed to fetch related markets. Please try again.',
+        timestamp: new Date().toISOString()
+      }
+    });
+    return;
+  }
+});
+
+/**
  * GET /api/markets/popular
  * Get popular markets (markets with more than 100 positions)
  * Requirements: 19.1

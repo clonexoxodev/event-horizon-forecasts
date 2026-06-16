@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Component, type ErrorInfo, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Activity,
@@ -51,6 +51,7 @@ import {
   normalizeCategory,
 } from "@/lib/categories";
 import { formatNaira } from "@/lib/markets";
+import { FlippeLoader, FlippeSymbol } from "@/components/FlippeBrand";
 
 type AdminView =
   | "dashboard"
@@ -94,6 +95,8 @@ type AdminRecord = AdminUser & {
   added_by?: string;
   added_at?: string;
 };
+
+type AdminListResponse = AdminRecord[] | { admins?: AdminRecord[] };
 
 type Analytics = Awaited<ReturnType<typeof apiService.getAnalytics>>;
 type FinanceOverview = Record<string, number>;
@@ -227,6 +230,24 @@ const statusClasses = (status?: string | null) => {
   }
 };
 
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object" && "message" in error) {
+    return String((error as { message?: unknown }).message || "Unknown error");
+  }
+  return "Unknown error";
+};
+
+const normalizeAdminList = (payload: AdminListResponse | unknown): AdminRecord[] => {
+  if (Array.isArray(payload)) return payload;
+  if (payload && typeof payload === "object" && "admins" in payload) {
+    const admins = (payload as { admins?: unknown }).admins;
+    return Array.isArray(admins) ? admins : [];
+  }
+  return [];
+};
+
 const categoryLabel = (category?: string | null) =>
   getCategoryLabel(normalizeCategory(category || "Other"));
 
@@ -345,6 +366,8 @@ const Admin = () => {
   const [transactionFilter, setTransactionFilter] = useState("all");
   const [transactionSearch, setTransactionSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
+  const [adminRolesLoading, setAdminRolesLoading] = useState(false);
+  const [adminRolesError, setAdminRolesError] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -357,6 +380,18 @@ const Admin = () => {
     }
   }, [authLoading, user, isAdmin, navigate]);
 
+  useEffect(() => {
+    if (view !== "add-admin") return;
+    console.info("[Admin Roles] route entered", {
+      userId: user?.id,
+      role: user?.role,
+    });
+    console.info("[Admin Roles] permission validation", {
+      isAdmin,
+      isSuperAdmin,
+    });
+  }, [view, user?.id, user?.role, isAdmin, isSuperAdmin]);
+
   const loadData = async () => {
     if (!isAdmin) return;
     setLoading(true);
@@ -368,6 +403,9 @@ const Admin = () => {
       setMarkets(marketResult.markets || []);
 
       if (isSuperAdmin) {
+        setAdminRolesLoading(true);
+        setAdminRolesError(null);
+        console.info("[Admin Roles] data loading start");
         const [
           analyticsResult,
           adminResult,
@@ -390,8 +428,19 @@ const Admin = () => {
 
         if (analyticsResult.status === "fulfilled")
           setAnalytics(analyticsResult.value);
-        if (adminResult.status === "fulfilled")
-          setAdmins(adminResult.value as AdminRecord[]);
+        if (adminResult.status === "fulfilled") {
+          const adminList = normalizeAdminList(adminResult.value);
+          setAdmins(adminList);
+          setAdminRolesError(null);
+          console.info("[Admin Roles] data loading success", {
+            count: adminList.length,
+          });
+        } else {
+          const message = getErrorMessage(adminResult.reason);
+          setAdmins([]);
+          setAdminRolesError(message);
+          console.error("[Admin Roles] data loading failure", adminResult.reason);
+        }
         if (userResult.status === "fulfilled")
           setUsers(userResult.value.users as AdminUser[]);
         if (transactionResult.status === "fulfilled")
@@ -404,10 +453,14 @@ const Admin = () => {
           setWithdrawalQueue(withdrawalResult.value.withdrawals || []);
         if (financeLedgerResult.status === "fulfilled")
           setFinanceTransactions(financeLedgerResult.value.transactions || []);
+        setAdminRolesLoading(false);
+      } else {
+        setAdminRolesLoading(false);
       }
     } catch (error) {
       console.error("Admin data load failed", error);
       toast.error("Could not load admin data.");
+      setAdminRolesLoading(false);
     } finally {
       setLoading(false);
     }
@@ -835,11 +888,15 @@ const Admin = () => {
     }
   };
 
-  const removeAdmin = async (email: string) => {
-    if (!window.confirm(`Remove admin access for ${email}?`)) return;
+  const removeAdmin = async (admin: AdminRecord) => {
+    if (!admin.id) {
+      toast.error("Cannot remove admin because the user ID is missing.");
+      return;
+    }
+    if (!window.confirm(`Remove admin access for ${admin.email}?`)) return;
     setSaving(true);
     try {
-      await apiService.removeAdmin(email);
+      await apiService.removeAdmin(admin.id);
       toast.success("Admin role removed.");
       await loadData();
     } catch (error) {
@@ -856,9 +913,8 @@ const Admin = () => {
     return (
       <div className="min-h-screen bg-[#080C10] text-[#F5F7FA]">
         <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center">
-          <div className="flex items-center gap-3 rounded-xl border border-[#263241] bg-[#101720] px-5 py-4 text-sm text-[#8B98A8]">
-            <Loader2 className="h-5 w-5 animate-spin text-[#12B886]" />
-            Loading operations console
+          <div className="rounded-2xl border border-[#263241] bg-[#101720] px-8 py-7">
+            <FlippeLoader label="Loading operations console" />
           </div>
         </div>
       </div>
@@ -872,11 +928,9 @@ const Admin = () => {
       <aside className="fixed left-0 top-0 z-30 hidden h-screen w-72 border-r border-[#263241] bg-[#0B1118] px-5 py-6 xl:block">
         <div className="flex h-full min-h-0 flex-col">
           <div className="mb-8 flex shrink-0 items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#12B886] text-[#080C10]">
-              <Shield className="h-6 w-6" />
-            </div>
+            <FlippeSymbol size="lg" />
             <div>
-              <p className="text-lg font-semibold tracking-tight">Flippe Admin</p>
+              <p className="text-lg font-semibold tracking-[0.04em]">FLIPPE Admin</p>
               <p className="text-sm text-[#8B98A8]">
                 {isSuperAdmin ? "Super admin console" : "Admin console"}
               </p>
@@ -1037,14 +1091,19 @@ const Admin = () => {
             />
           )}
           {view === "add-admin" && (
-            <AddAdminView
-              admins={admins}
-              email={newAdminEmail}
-              setEmail={setNewAdminEmail}
-              onAdd={addAdmin}
-              onRemove={removeAdmin}
-              saving={saving}
-            />
+            <AdminRolesErrorBoundary>
+              <AddAdminView
+                admins={admins}
+                email={newAdminEmail}
+                setEmail={setNewAdminEmail}
+                onAdd={addAdmin}
+                onRemove={removeAdmin}
+                saving={saving}
+                loading={adminRolesLoading}
+                error={adminRolesError}
+                canManage={Boolean(isSuperAdmin)}
+              />
+            </AdminRolesErrorBoundary>
           )}
           {view === "reports" && (
             <ReportsView
@@ -2393,6 +2452,49 @@ const UsersView = ({
   );
 };
 
+class AdminRolesErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("[Admin Roles] render failure", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.error) {
+      return <AdminRolesErrorState error={this.state.error} />;
+    }
+    return this.props.children;
+  }
+}
+
+const AdminRolesErrorState = ({ error }: { error?: Error | string | null }) => (
+  <ShellCard>
+    <div className="p-6">
+      <div className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-100">
+        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+        <div>
+          <p className="font-semibold">Unable to load admin roles</p>
+          <p className="mt-1 text-sm text-red-100/80">
+            The access-control panel could not render. Please refresh or try again.
+          </p>
+          {import.meta.env.DEV && error && (
+            <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-3 text-xs text-red-50">
+              {getErrorMessage(error)}
+            </pre>
+          )}
+        </div>
+      </div>
+    </div>
+  </ShellCard>
+);
+
 const AddAdminView = ({
   admins,
   email,
@@ -2400,74 +2502,102 @@ const AddAdminView = ({
   onAdd,
   onRemove,
   saving,
+  loading,
+  error,
+  canManage,
 }: {
   admins: AdminRecord[];
   email: string;
   setEmail: (value: string) => void;
   onAdd: () => void;
-  onRemove: (email: string) => void;
+  onRemove: (admin: AdminRecord) => void;
   saving: boolean;
-}) => (
-  <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-    <ShellCard>
-      <SectionHeader
-        eyebrow="Access control"
-        title="Add admin"
-        description="Grant admin access by verified email."
-      />
-      <div className="space-y-4 p-5">
-        <Input
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="admin@example.com"
-          className="border-[#263241] bg-[#0B1118] text-white"
-        />
-        <Button
-          className="w-full bg-[#12B886] text-[#08100D] hover:bg-[#00A878]"
-          onClick={onAdd}
-          disabled={saving}
-        >
-          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Add admin role
-        </Button>
-        <p className="text-xs text-[#64748B]">
-          TODO: store added_by and added_at in an admin role audit table for full traceability.
-        </p>
-      </div>
-    </ShellCard>
+  loading: boolean;
+  error: string | null;
+  canManage: boolean;
+}) => {
+  const adminList = Array.isArray(admins) ? admins : [];
 
-    <ShellCard>
-      <SectionHeader title="Current admins" description="Remove access carefully." />
-      <div className="divide-y divide-[#263241]">
-        {admins.map((admin) => (
-          <div key={admin.id || admin.email} className="flex items-center justify-between gap-4 p-5">
-            <div>
-              <p className="font-medium">{admin.username || admin.email}</p>
-              <p className="text-sm text-[#8B98A8]">{admin.email}</p>
-              <p className="mt-1 text-xs text-[#64748B]">
-                Added: {formatShortDate(admin.added_at || admin.created_at)}
-              </p>
+  if (!canManage) {
+    console.warn("[Admin Roles] permission validation failed");
+    return <AdminRolesErrorState error="Super admin permission is required." />;
+  }
+
+  if (error) {
+    return <AdminRolesErrorState error={error} />;
+  }
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
+      <ShellCard>
+        <SectionHeader
+          eyebrow="Access control"
+          title="Add admin"
+          description="Grant admin access by verified email."
+        />
+        <div className="space-y-4 p-5">
+          <Input
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="admin@example.com"
+            className="border-[#263241] bg-[#0B1118] text-white"
+          />
+          <Button
+            className="w-full bg-[#12B886] text-[#08100D] hover:bg-[#00A878]"
+            onClick={onAdd}
+            disabled={saving || loading}
+          >
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Add admin role
+          </Button>
+          <p className="text-xs text-[#64748B]">
+            TODO: store added_by and added_at in an admin role audit table for full traceability.
+          </p>
+        </div>
+      </ShellCard>
+
+      <ShellCard>
+        <SectionHeader title="Current admins" description="Remove access carefully." />
+        <div className="divide-y divide-[#263241]">
+          {loading && (
+            <div className="flex items-center gap-3 p-5 text-sm text-[#8B98A8]">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading admin roles...
             </div>
-            <div className="flex items-center gap-2">
-              <Badge tone={admin.role === "super_admin" ? "blue" : "neutral"}>
-                {statusText(admin.role)}
-              </Badge>
-              <Button
-                variant="outline"
-                className="border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20"
-                onClick={() => onRemove(admin.email)}
-                disabled={saving || admin.role === "super_admin"}
-              >
-                Remove
-              </Button>
-            </div>
-          </div>
-        ))}
-        {!admins.length && <EmptyState title="No admins listed" body="Admin role records were not returned by the backend." />}
-      </div>
-    </ShellCard>
-  </div>
-);
+          )}
+          {!loading &&
+            adminList.map((admin) => (
+              <div key={admin.id || admin.email} className="flex items-center justify-between gap-4 p-5">
+                <div>
+                  <p className="font-medium">{admin.username || admin.email}</p>
+                  <p className="text-sm text-[#8B98A8]">{admin.email}</p>
+                  <p className="mt-1 text-xs text-[#64748B]">
+                    Added: {formatShortDate(admin.added_at || admin.created_at)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge tone={admin.role === "super_admin" ? "blue" : "neutral"}>
+                    {statusText(admin.role)}
+                  </Badge>
+                  <Button
+                    variant="outline"
+                    className="border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20"
+                    onClick={() => onRemove(admin)}
+                    disabled={saving || loading || admin.role === "super_admin" || !admin.id}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ))}
+          {!loading && !adminList.length && (
+            <EmptyState title="No admins listed" body="Admin role records were not returned by the backend." />
+          )}
+        </div>
+      </ShellCard>
+    </div>
+  );
+};
 
 const ReportsView = ({
   markets,

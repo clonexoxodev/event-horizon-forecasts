@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import apiService, { type ApiPosition, type ApiProfileStats } from "@/lib/api";
 import { formatCountdown, formatNaira, formatNairaPrice } from "@/lib/markets";
 import { getCategoryLabel } from "@/lib/categories";
+import { FlippeLoader } from "@/components/FlippeBrand";
 
 type PortfolioTab = "positions" | "activity" | "performance";
 const tabLabels: Record<PortfolioTab, string> = {
@@ -472,10 +473,7 @@ const SessionLoading = ({ label }: { label: string }) => (
   <div className="app-bg min-h-screen text-white xl:pl-64">
     <Header />
     <main className="grid min-h-[70vh] place-items-center px-4">
-      <div className="text-center">
-        <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-[#12B886]" />
-        <p className="text-sm font-bold text-[#8B98A8]">{label}</p>
-      </div>
+      <FlippeLoader label={label} />
     </main>
     <MobileNav />
   </div>

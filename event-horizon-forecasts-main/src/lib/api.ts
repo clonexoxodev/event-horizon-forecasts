@@ -539,6 +539,10 @@ class ApiService {
     return this.request(`/api/markets/${encodeURIComponent(marketId)}`);
   }
 
+  async getRelatedMarkets(marketId: string): Promise<{ markets: ApiMarket[]; count: number }> {
+    return this.request(`/api/markets/${encodeURIComponent(marketId)}/related`);
+  }
+
   async getMarketPriceHistory(marketId: string): Promise<{ priceHistory: ApiPriceHistoryPoint[]; count: number }> {
     return this.request(`/api/markets/${encodeURIComponent(marketId)}/price-history`);
   }

@@ -2042,6 +2042,66 @@ app.get('/api/markets', async (_req: Request, res: Response) => {
   }
 });
 
+app.get('/api/markets/:id/related', async (req: Request, res: Response) => {
+  try {
+    const { data: currentMarket, error: currentError } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (currentError || !currentMarket) {
+      res.status(404).json({
+        error: {
+          code: 'MARKET_NOT_FOUND',
+          message: 'Market not found',
+          timestamp: new Date().toISOString()
+        }
+      });
+      return;
+    }
+
+    const currentCategory = normalizeMarketCategory(currentMarket.category);
+    const { data: markets, error } = await supabase
+      .from('markets')
+      .select('*')
+      .neq('id', req.params.id)
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    if (error) throw error;
+
+    const autoClosedMarkets = await Promise.all((markets || []).map(autoCloseExpiredMarket));
+    const relatedCandidates = autoClosedMarkets
+      .filter((market) => normalizeMarketCategory(market.category) === currentCategory)
+      .filter((market) => displayStatusForMarket(market) === 'active')
+      .filter((market) => !isMarketPastTradingClose(market))
+      .slice(0, 3);
+
+    const normalizedMarkets = await Promise.all(relatedCandidates.map(async (market) => {
+      const { count } = await supabase
+        .from('positions')
+        .select('*', { count: 'exact', head: true })
+        .eq('market_id', market.id);
+      const priceHistory = await ensureInitialPriceHistory(market);
+      return normalizeMarket(market, count || 0, priceHistory);
+    }));
+
+    res.json({ markets: normalizedMarkets, count: normalizedMarkets.length });
+    return;
+  } catch (error) {
+    console.error('Get related markets error:', error);
+    res.status(500).json({
+      error: {
+        code: 'GET_RELATED_MARKETS_FAILED',
+        message: 'Failed to fetch related markets',
+        timestamp: new Date().toISOString()
+      }
+    });
+    return;
+  }
+});
+
 app.get('/api/markets/:id', async (req: Request, res: Response) => {
   try {
     const { data: market, error } = await supabase

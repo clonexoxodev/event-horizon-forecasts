@@ -4,6 +4,58 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes flippe-symbol-breathe {
+  0%, 100% {
+    transform: scale(0.96);
+    filter: drop-shadow(0 0 0 rgba(18, 184, 134, 0));
+    opacity: 0.88;
+  }
+  50% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 16px rgba(18, 184, 134, 0.22));
+    opacity: 1;
+  }
+}
+
+@keyframes flippe-loader-orbit {
+  0%, 100% {
+    transform: translateX(-10px);
+    opacity: 0.16;
+  }
+  50% {
+    transform: translateX(0);
+    opacity: 0.48;
+  }
+}
+
+.flippe-loader::before,
+.flippe-loader::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  height: 2px;
+  width: 22px;
+  border-radius: 999px;
+  background: #42D6AA;
+  transform: translateY(-50%);
+  animation: flippe-loader-orbit 1.8s ease-in-out infinite;
+}
+
+.flippe-loader::before {
+  right: 100%;
+}
+
+.flippe-loader::after {
+  left: 100%;
+  animation-delay: 0.18s;
+  animation-direction: reverse;
+  background: #F5F7FA;
+}
+
+.flippe-loader-symbol {
+  animation: flippe-symbol-breathe 1.8s ease-in-out infinite;
+}
+
 @layer base {
   :root {
     /* Flippe V1 Product Palette */

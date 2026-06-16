@@ -119,6 +119,32 @@ export const getMarketMedia = (market: Market) => {
 
 export const getMarketCategoryLabel = (market: Pick<Market, "category">) => getCategoryLabel(market.category);
 
+const parseMarketTime = (value?: string | null) => {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? null : time;
+};
+
+export const isMarketPredictable = (
+  market: Pick<Market, "status" | "closeTime" | "tradingCloseTime"> & {
+    close_date?: string | null;
+    trading_close_at?: string | null;
+    closes_at?: string | null;
+  },
+  now = Date.now()
+) => {
+  const status = String(market.status || "").toLowerCase();
+  if (!["active", "live", "open"].includes(status)) return false;
+
+  const tradingCloseTime = parseMarketTime(market.tradingCloseTime || market.trading_close_at);
+  if (tradingCloseTime !== null && tradingCloseTime <= now) return false;
+
+  const closeTime = parseMarketTime(market.closeTime || market.close_date || market.closes_at);
+  if (closeTime !== null && closeTime <= now) return false;
+
+  return true;
+};
+
 export const formatCountdown = (closeTime?: string, closesIn?: string) => {
   if (closeTime) {
     const closeDate = new Date(closeTime);

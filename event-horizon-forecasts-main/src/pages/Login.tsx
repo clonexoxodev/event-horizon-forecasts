@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
+import { FlippeWordmark } from "@/components/FlippeBrand";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -52,10 +53,7 @@ export default function Login() {
 
           <div className="p-6 sm:p-8">
             <Link to="/" className="mb-7 inline-flex items-center gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#12B886] text-2xl font-black text-[#06100d]">
-                F
-              </div>
-              <span className="text-xl font-black text-white">Flippe</span>
+              <FlippeWordmark size="lg" />
             </Link>
 
             <div className="mb-8">

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
+import { FlippeWordmark } from "@/components/FlippeBrand";
 
 const links = [
   { name: "About", path: "/about" },
@@ -16,8 +17,7 @@ export const Footer = () => {
       <div className="mx-auto flex max-w-[1280px] flex-col gap-8 px-6 py-10 lg:flex-row lg:items-center lg:justify-between">
         <div className="max-w-md">
           <Link to="/" className="flex items-center gap-2 text-xl font-black">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#12B886] text-[#06100d]">F</span>
-            Flippe
+            <FlippeWordmark tagline="Many possibilities. One reality." />
           </Link>
           <p className="mt-3 text-sm leading-6 text-[#8B98A8]">
             Predict real-world outcomes with simple markets, clear wallet history, and safer controls.

@@ -1,0 +1,9 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FLIPPE symbol">
+  <rect width="128" height="128" rx="28" fill="#080C10"/>
+  <path d="M16 64L58 27V57L42 73L16 64Z" fill="#42D6AA"/>
+  <path d="M16 64L58 101V71L42 55L16 64Z" fill="#167C69"/>
+  <path d="M70 27L112 64L86 73L70 57V27Z" fill="#F5F7FA"/>
+  <path d="M70 101L112 64L86 55L70 71V101Z" fill="#D8DEE6"/>
+  <path d="M46 64L64 51L82 64L64 77L46 64Z" fill="#F5F7FA" fill-opacity="0.92"/>
+  <path d="M64 51V77" stroke="#263241" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/>
+</svg>

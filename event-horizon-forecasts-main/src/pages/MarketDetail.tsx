@@ -4,13 +4,14 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { ArrowLeft, CheckCircle, Clock, Loader2, Share2, TrendingUp, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
+import { FlippeLoader } from "@/components/FlippeBrand";
 import { MobileNav } from "@/components/MobileNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import apiService, { ApiRequestError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useMarketState } from "@/lib/market-state";
-import { formatCountdown, formatNaira, formatNairaPrice, getMarketCategoryLabel, getMarketMedia, type Market } from "@/lib/markets";
+import { formatCountdown, formatNaira, formatNairaPrice, getMarketCategoryLabel, getMarketMedia, isMarketPredictable, type Market } from "@/lib/markets";
 import { categoryMatches } from "@/lib/categories";
 
 type Timeframe = "1H" | "24H" | "7D" | "ALL";
@@ -27,6 +28,7 @@ export default function MarketDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [justPredicted, setJustPredicted] = useState<"YES" | "NO" | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>("24H");
+  const [apiRelatedMarkets, setApiRelatedMarkets] = useState<Market[]>([]);
   const [now, setNow] = useState(Date.now());
   const marketsRef = useRef(markets);
   const marketRef = useRef<Market | null>(null);
@@ -46,6 +48,7 @@ export default function MarketDetail() {
     const loadId = latestLoadRef.current + 1;
     latestLoadRef.current = loadId;
     const readCachedMarket = () => marketsRef.current.find((item) => item.id === id);
+    setApiRelatedMarkets([]);
 
     const loadMarket = async () => {
       if (!marketRef.current || marketRef.current.id !== id) {
@@ -56,9 +59,10 @@ export default function MarketDetail() {
         if (cached && (!marketRef.current || marketRef.current.id !== id)) {
           setMarket(cached);
         }
-        const [response, historyResponse] = await Promise.all([
+        const [response, historyResponse, relatedResponse] = await Promise.all([
           apiService.getMarket(id),
           apiService.getMarketPriceHistory(id).catch(() => null),
+          apiService.getRelatedMarkets(id).catch(() => null),
         ]);
         if (latestLoadRef.current !== loadId) return;
         const enrichedMarket = {
@@ -68,6 +72,7 @@ export default function MarketDetail() {
             : response.market.priceHistory,
         };
         setMarket(enrichedMarket);
+        setApiRelatedMarkets(relatedResponse?.markets || []);
         upsertMarket(enrichedMarket);
       } catch (error: any) {
         if (latestLoadRef.current !== loadId) return;
@@ -98,8 +103,16 @@ export default function MarketDetail() {
 
   const marketCategoryLabel = market ? getMarketCategoryLabel(market) : "Other";
   const relatedMarkets = useMemo(
-    () => markets.filter((item) => item.id !== market?.id && categoryMatches(item.category, marketCategoryLabel)).slice(0, 3),
-    [marketCategoryLabel, market?.id, markets]
+    () =>
+      (apiRelatedMarkets.length ? apiRelatedMarkets : markets)
+        .filter(
+          (item) =>
+            item.id !== market?.id &&
+            categoryMatches(item.category, marketCategoryLabel) &&
+            isMarketPredictable(item, now)
+        )
+        .slice(0, 3),
+    [apiRelatedMarkets, marketCategoryLabel, market?.id, markets, now]
   );
 
   const handleShare = async () => {
@@ -164,7 +177,7 @@ export default function MarketDetail() {
       <div className="app-bg min-h-screen text-white xl:pl-64">
         <Header />
         <main className="grid min-h-[70vh] place-items-center px-4">
-          <Loader2 className="h-8 w-8 animate-spin text-[#12B886]" />
+          <FlippeLoader label="Loading market" />
         </main>
       </div>
     );

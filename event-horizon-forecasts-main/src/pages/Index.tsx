@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Award, Clock, Search, Trophy, UserCircle, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
+import { FlippeSymbol } from "@/components/FlippeBrand";
 import { MobileNav } from "@/components/MobileNav";
 import { MarketCard } from "@/components/MarketCard";
 import { formatCountdown, getTrendingScore } from "@/lib/markets";
@@ -166,11 +167,14 @@ const Index = () => {
       <Header />
       <main className="mx-auto max-w-[1320px] px-4 py-4 sm:px-6 lg:py-6">
         <section className="mb-4 flex items-center justify-between gap-3 md:hidden">
-          <div>
-            <div className="text-2xl font-black tracking-tight">Flippe</div>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-[#8B98A8]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#12B886]" />
-              {liveCount} live markets
+          <div className="flex items-center gap-3">
+            <FlippeSymbol size="sm" />
+            <div>
+              <div className="text-2xl font-black tracking-[0.04em]">FLIPPE</div>
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#8B98A8]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#12B886]" />
+                {liveCount} live markets
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">

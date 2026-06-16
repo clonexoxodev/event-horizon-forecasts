@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity as ActivityIcon, Clock, Loader2, Target, Trophy, Wallet, XCircle } from "lucide-react";
+import { Activity as ActivityIcon, Clock, Target, Trophy, Wallet, XCircle } from "lucide-react";
 import { Header } from "@/components/Header";
+import { FlippeLoader } from "@/components/FlippeBrand";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
@@ -50,10 +51,7 @@ export default function Notifications() {
       <div className="app-bg min-h-screen text-white xl:pl-64">
         <Header />
         <main className="grid min-h-[70vh] place-items-center px-4">
-          <div className="text-center">
-            <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-[#12B886]" />
-            <p className="text-sm font-bold text-[#8B98A8]">Restoring your activity...</p>
-          </div>
+          <FlippeLoader label="Restoring your activity" />
         </main>
         <MobileNav />
       </div>
