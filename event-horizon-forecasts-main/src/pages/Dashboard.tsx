@@ -335,7 +335,7 @@ const PerformanceView = ({ positions, stats }: { positions: ApiPosition[]; stats
           <Medal className="h-5 w-5 text-[#12B886]" />
           <h2 className="text-xl font-black">Achievements</h2>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
           {achievements.map((achievement) => (
             <AchievementCard key={achievement.title} {...achievement} />
           ))}
@@ -434,15 +434,15 @@ const getAchievements = ({
 ];
 
 const AchievementCard = ({ icon: Icon, title, description, unlocked }: Achievement) => (
-  <div className={`rounded-2xl border p-4 transition ${unlocked ? "border-[#12B886]/30 bg-[#12B886]/10" : "border-[#263241] bg-[#151E28]"}`}>
-    <div className={`mb-3 grid h-10 w-10 place-items-center rounded-xl ${unlocked ? "bg-[#12B886] text-[#06100d]" : "bg-[#101720] text-[#8B98A8]"}`}>
-      <Icon className="h-5 w-5" />
+  <div className={`rounded-xl border p-3 transition ${unlocked ? "border-[#12B886]/30 bg-[#12B886]/10" : "border-[#263241] bg-[#151E28]"}`}>
+    <div className={`mb-2 grid h-8 w-8 place-items-center rounded-lg ${unlocked ? "bg-[#12B886] text-[#06100d]" : "bg-[#101720] text-[#8B98A8]"}`}>
+      <Icon className="h-4 w-4" />
     </div>
-    <div className="text-sm font-black">{title}</div>
-    <p className="mt-1 text-xs font-bold leading-relaxed text-[#8B98A8]">{description}</p>
-    <div className={`mt-3 text-xs font-black ${unlocked ? "text-[#7AE4BD]" : "text-[#8B98A8]"}`}>
+    <div className="text-xs font-black leading-tight">{title}</div>
+    <div className={`mt-1 text-[11px] font-black ${unlocked ? "text-[#7AE4BD]" : "text-[#8B98A8]"}`}>
       {unlocked ? "Unlocked" : "Locked"}
     </div>
+    <p className="mt-1 hidden text-[11px] font-bold leading-relaxed text-[#8B98A8] sm:block">{description}</p>
   </div>
 );
 
