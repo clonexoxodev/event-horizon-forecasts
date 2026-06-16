@@ -251,18 +251,24 @@ export default function MarketDetail() {
           <Chart market={market} timeframe={timeframe} />
         </section>
 
-        <section className="mt-4 grid gap-3 md:grid-cols-3">
+        <section className="mt-4 grid gap-3 md:grid-cols-2">
           <div className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
-            <h2 className="text-lg font-black">Market Confidence</h2>
-            <p className="mt-1 text-sm text-[#8B98A8]">Confidence moves as people make predictions.</p>
+            <h2 className="text-lg font-black">Market view</h2>
+            <p className="mt-1 text-sm text-[#8B98A8]">
+              {market.yesPrice >= market.noPrice ? "Market currently favors YES." : "Market currently favors NO."} Prices move as people make predictions.
+            </p>
             <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#E85D5D]/20">
               <div className="h-full bg-[#12B886]" style={{ width: `${yesSideShare}%` }} />
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <Metric label="YES confidence" value={formatNairaPrice(market.yesPrice)} />
-              <Metric label="NO confidence" value={formatNairaPrice(market.noPrice)} />
-              <Metric label="Predictions" value={`${market.tradeCount || 0}`} />
-              <Metric label="Participants" value={`${market.participants || 0}`} />
+            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+              <div className="rounded-xl bg-[#151E28] p-3">
+                <div className="text-xs font-black uppercase tracking-[0.12em] text-[#8B98A8]">YES</div>
+                <div className="mt-1 text-xl font-black text-[#7AE4BD]">{formatNairaPrice(market.yesPrice)}</div>
+              </div>
+              <div className="rounded-xl bg-[#151E28] p-3">
+                <div className="text-xs font-black uppercase tracking-[0.12em] text-[#8B98A8]">NO</div>
+                <div className="mt-1 text-xl font-black text-[#FF9C9C]">{formatNairaPrice(market.noPrice)}</div>
+              </div>
             </div>
           </div>
 
@@ -277,15 +283,6 @@ export default function MarketDetail() {
               )) : (
                 <p className="text-sm text-[#8B98A8]">Recent predictions appear after people join.</p>
               )}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
-            <h2 className="text-lg font-black">Prediction summary</h2>
-            <div className="mt-4 grid gap-2">
-              <Metric label="YES confidence" value={formatNairaPrice(market.yesPrice)} />
-              <Metric label="NO confidence" value={formatNairaPrice(market.noPrice)} />
-              <Metric label="Predictions" value={`${market.tradeCount || 0}`} />
             </div>
           </div>
         </section>

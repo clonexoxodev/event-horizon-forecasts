@@ -324,6 +324,27 @@ export type ApiProfileStats = {
   winRate: number;
   totalStaked: number;
   totalEarnings: number;
+  rank?: number | null;
+  score?: number;
+  level?: string;
+  totalRankedUsers?: number;
+};
+
+export type ApiLeaderboardEntry = {
+  userId: string;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string | null;
+  rank: number;
+  level: string;
+  score: number;
+  totalPredictions: number;
+  resolvedPredictions: number;
+  wins: number;
+  losses: number;
+  accuracy: number;
+  totalStaked: number;
+  lastPredictionAt?: string | null;
 };
 
 export type ApiSearchUser = {
@@ -604,6 +625,10 @@ class ApiService {
 
   async getProfileStats(): Promise<{ stats: ApiProfileStats }> {
     return this.request('/api/profile/stats');
+  }
+
+  async getLeaderboard(limit = 10): Promise<{ leaderboard: ApiLeaderboardEntry[]; totalRankedUsers: number }> {
+    return this.request(`/api/leaderboard?limit=${encodeURIComponent(String(limit))}`);
   }
 
   async searchUsers(query: string): Promise<{ users: ApiSearchUser[] }> {

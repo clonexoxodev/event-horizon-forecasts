@@ -1335,6 +1335,113 @@ const normalizePosition = (position: any, market: any) => {
   };
 };
 
+const LEADERBOARD_LEVELS = [
+  { name: 'Rookie', score: 0 },
+  { name: 'Sharp Thinker', score: 5 },
+  { name: 'Analyst', score: 18 },
+  { name: 'Expert', score: 40 },
+  { name: 'Elite Forecaster', score: 70 },
+  { name: 'Market Master', score: 120 }
+];
+
+const getLeaderboardScore = (totalPredictions: number, wins: number) => totalPredictions + wins * 2;
+
+const getLeaderboardLevel = (totalPredictions: number, wins: number) => {
+  const score = getLeaderboardScore(totalPredictions, wins);
+  return [...LEADERBOARD_LEVELS].reverse().find((level) => score >= level.score)?.name || 'Rookie';
+};
+
+const buildRealLeaderboard = async (limit = 10) => {
+  const { data: positions, error: positionsError } = await supabase
+    .from('positions')
+    .select('user_id, amount_smallest_unit, is_winner, resolved_at, status, created_at');
+
+  if (positionsError) throw positionsError;
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('*');
+
+  const profileByUserId = new Map<string, any>();
+  for (const profile of profiles || []) {
+    profileByUserId.set(profile.user_id || profile.id, profile);
+  }
+
+  const byUser = new Map<string, {
+    userId: string;
+    totalPredictions: number;
+    resolvedPredictions: number;
+    wins: number;
+    losses: number;
+    totalStakedSmallestUnit: number;
+    lastPredictionAt: string | null;
+  }>();
+
+  for (const position of positions || []) {
+    if (!position.user_id) continue;
+    const current = byUser.get(position.user_id) || {
+      userId: position.user_id,
+      totalPredictions: 0,
+      resolvedPredictions: 0,
+      wins: 0,
+      losses: 0,
+      totalStakedSmallestUnit: 0,
+      lastPredictionAt: null
+    };
+
+    current.totalPredictions += 1;
+    current.totalStakedSmallestUnit += Number(position.amount_smallest_unit || 0);
+    if (!current.lastPredictionAt || new Date(position.created_at).getTime() > new Date(current.lastPredictionAt).getTime()) {
+      current.lastPredictionAt = position.created_at;
+    }
+
+    const isResolved = Boolean(position.resolved_at) || ['won', 'lost', 'settled'].includes(String(position.status || '').toLowerCase());
+    if (isResolved) {
+      current.resolvedPredictions += 1;
+      if (position.is_winner) current.wins += 1;
+      else current.losses += 1;
+    }
+
+    byUser.set(position.user_id, current);
+  }
+
+  const ranked = [...byUser.values()]
+    .map((row) => {
+      const profile = profileByUserId.get(row.userId);
+      const accuracy = row.resolvedPredictions > 0 ? Math.round((row.wins / row.resolvedPredictions) * 100) : 0;
+      const score = getLeaderboardScore(row.totalPredictions, row.wins);
+      return {
+        userId: row.userId,
+        username: profile?.username || profile?.display_name || profile?.email?.split('@')[0] || 'Forecaster',
+        displayName: profile?.display_name || profile?.username || profile?.email?.split('@')[0] || 'Forecaster',
+        avatarUrl: profile?.avatar_url || profile?.profile_image_url || null,
+        rank: 0,
+        level: getLeaderboardLevel(row.totalPredictions, row.wins),
+        score,
+        totalPredictions: row.totalPredictions,
+        resolvedPredictions: row.resolvedPredictions,
+        wins: row.wins,
+        losses: row.losses,
+        accuracy,
+        totalStaked: toAmount(row.totalStakedSmallestUnit),
+        lastPredictionAt: row.lastPredictionAt
+      };
+    })
+    .sort((a, b) => (
+      b.score - a.score ||
+      b.accuracy - a.accuracy ||
+      b.totalPredictions - a.totalPredictions ||
+      b.totalStaked - a.totalStaked
+    ))
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
+
+  return {
+    entries: ranked.slice(0, Math.max(1, Math.min(100, limit))),
+    allEntries: ranked,
+    totalRankedUsers: ranked.length
+  };
+};
+
 // ============================================================================
 // WALLET ROUTES
 // ============================================================================
@@ -2541,6 +2648,26 @@ app.get('/api/activity', authenticate, async (req: Request, res: Response) => {
   }
 });
 
+app.get('/api/leaderboard', async (req: Request, res: Response) => {
+  try {
+    const limit = Number(req.query.limit || 10);
+    const leaderboard = await buildRealLeaderboard(limit);
+    return res.json({
+      leaderboard: leaderboard.entries,
+      totalRankedUsers: leaderboard.totalRankedUsers
+    });
+  } catch (error) {
+    console.error('Get leaderboard error:', error);
+    return res.status(500).json({
+      error: {
+        code: 'GET_LEADERBOARD_FAILED',
+        message: 'Failed to fetch leaderboard',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
 app.get('/api/profile/stats', authenticate, async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
@@ -2561,20 +2688,26 @@ app.get('/api/profile/stats', authenticate, async (req: Request, res: Response) 
     const totalEarnings = toAmount((positions || []).reduce((total, position) => (
       total + Number(position.payout_smallest_unit || 0)
     ), 0));
+    const leaderboard = await buildRealLeaderboard(100);
+    const currentRank = leaderboard.allEntries.find((entry) => entry.userId === user.id) || null;
 
-    res.json({
+    return res.json({
       stats: {
         totalPredictions,
         activePredictions,
         wonPredictions,
         winRate: resolvedPositions.length > 0 ? Math.round((wonPredictions / resolvedPositions.length) * 100) : 0,
         totalStaked,
-        totalEarnings
+        totalEarnings,
+        rank: currentRank?.rank || null,
+        score: currentRank?.score || getLeaderboardScore(totalPredictions, wonPredictions),
+        level: currentRank?.level || getLeaderboardLevel(totalPredictions, wonPredictions),
+        totalRankedUsers: leaderboard.totalRankedUsers
       }
     });
   } catch (error) {
     console.error('Get profile stats error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: {
         code: 'GET_PROFILE_STATS_FAILED',
         message: 'Failed to fetch profile stats',

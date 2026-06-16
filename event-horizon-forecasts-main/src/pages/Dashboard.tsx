@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Activity, BarChart3, Clock, LineChart, Loader2, Target, Trophy } from "lucide-react";
+import { Activity, Award, BarChart3, CheckCircle, Clock, Flame, LineChart, Loader2, Medal, Target, Trophy } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
@@ -22,6 +22,10 @@ const emptyStats: ApiProfileStats = {
   winRate: 0,
   totalStaked: 0,
   totalEarnings: 0,
+  rank: null,
+  score: 0,
+  level: "Rookie",
+  totalRankedUsers: 0,
 };
 
 const Dashboard = () => {
@@ -266,13 +270,55 @@ const PerformanceView = ({ positions, stats }: { positions: ApiPosition[]; stats
   const currentStreak = getCurrentWinStreak(resolved);
   const bestStreak = getBestWinStreak(resolved);
   const accuracy = resolved.length ? Math.round((won.length / resolved.length) * 100) : 0;
-  const level = getForecasterLevel(stats.totalPredictions, won.length);
+  const level = stats.level || getForecasterLevel(stats.totalPredictions, won.length);
+  const progress = getLevelProgress(stats.totalPredictions, won.length);
+  const nextLevel = getNextLevel(level);
+  const rankLabel = stats.rank ? `#${stats.rank}` : "Unranked";
+  const achievements = getAchievements({
+    totalPredictions: stats.totalPredictions,
+    wins: won.length,
+    currentStreak,
+    bestStreak,
+    accuracy,
+    level,
+    rank: stats.rank || null,
+  });
 
   return (
     <div className="grid gap-4">
       <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
-        <h2 className="text-xl font-black">My Score</h2>
-        <p className="mt-1 text-sm text-[#8B98A8]">Only real resolved predictions count here. No fake rank or streak values are shown.</p>
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">My Score</p>
+                <h2 className="mt-2 text-3xl font-black">{level}</h2>
+                <p className="mt-2 max-w-xl text-sm text-[#8B98A8]">
+                  Build your forecasting record through resolved predictions. Streaks and accuracy use real results only.
+                </p>
+              </div>
+              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#12B886]/10 text-[#7AE4BD]">
+                <Award className="h-7 w-7" />
+              </div>
+            </div>
+            <div className="mt-6 h-4 overflow-hidden rounded-full bg-[#263241]">
+              <div className="h-full rounded-full bg-[#12B886] transition-all duration-700" style={{ width: `${progress}%` }} />
+            </div>
+            <div className="mt-2 flex items-center justify-between text-xs font-bold text-[#8B98A8]">
+              <span>{progress}% progress</span>
+              <span>{nextLevel === level ? "Top level reached" : `Next: ${nextLevel}`}</span>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
+            <div className="text-xs font-black uppercase tracking-[0.14em] text-[#8B98A8]">Rank</div>
+            <div className="mt-2 text-2xl font-black">{rankLabel}</div>
+            <p className="mt-2 text-xs font-bold text-[#8B98A8]">
+              {stats.rank
+                ? `${stats.totalRankedUsers || 0} forecasters are ranked from real prediction results.`
+                : "Make a prediction to enter the leaderboard."}
+            </p>
+          </div>
+        </div>
         <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Metric label="Accuracy score" value={resolved.length ? `${accuracy}%` : "-"} large />
           <Metric label="Current streak" value={String(currentStreak)} large />
@@ -280,8 +326,19 @@ const PerformanceView = ({ positions, stats }: { positions: ApiPosition[]; stats
           <Metric label="Total predictions" value={String(stats.totalPredictions)} large />
           <Metric label="Wins" value={String(won.length)} large />
           <Metric label="Losses" value={String(lost.length)} large />
-          <Metric label="Rank" value="Not ranked yet" large />
+          <Metric label="Rank" value={rankLabel} large />
           <Metric label="Level" value={level} large />
+        </div>
+      </section>
+      <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <Medal className="h-5 w-5 text-[#12B886]" />
+          <h2 className="text-xl font-black">Achievements</h2>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {achievements.map((achievement) => (
+            <AchievementCard key={achievement.title} {...achievement} />
+          ))}
         </div>
       </section>
     </div>
@@ -309,15 +366,85 @@ const getBestWinStreak = (resolved: ApiPosition[]) => {
   return best;
 };
 
+const LEVELS = [
+  { name: "Rookie", score: 0 },
+  { name: "Sharp Thinker", score: 5 },
+  { name: "Analyst", score: 18 },
+  { name: "Expert", score: 40 },
+  { name: "Elite Forecaster", score: 70 },
+  { name: "Market Master", score: 120 },
+];
+
+const getScore = (totalPredictions: number, wins: number) => totalPredictions + wins * 2;
+
 const getForecasterLevel = (totalPredictions: number, wins: number) => {
-  const score = totalPredictions + wins * 2;
-  if (score >= 120) return "Market Master";
-  if (score >= 70) return "Elite Forecaster";
-  if (score >= 40) return "Expert";
-  if (score >= 18) return "Analyst";
-  if (score >= 5) return "Sharp Thinker";
-  return "Rookie";
+  const score = getScore(totalPredictions, wins);
+  return [...LEVELS].reverse().find((level) => score >= level.score)?.name || "Rookie";
 };
+
+const getNextLevel = (levelName: string) => {
+  const index = LEVELS.findIndex((level) => level.name === levelName);
+  return LEVELS[Math.min(index + 1, LEVELS.length - 1)]?.name || levelName;
+};
+
+const getLevelProgress = (totalPredictions: number, wins: number) => {
+  const score = totalPredictions + wins * 2;
+  const currentIndex = Math.max(0, LEVELS.findIndex((level) => level.name === getForecasterLevel(totalPredictions, wins)));
+  const current = LEVELS[currentIndex] || LEVELS[0];
+  const next = LEVELS[Math.min(currentIndex + 1, LEVELS.length - 1)] || current;
+  if (current.name === next.name) return 100;
+  return Math.max(0, Math.min(100, Math.round(((score - current.score) / (next.score - current.score)) * 100)));
+};
+
+type Achievement = {
+  icon: any;
+  title: string;
+  description: string;
+  unlocked: boolean;
+};
+
+const getAchievements = ({
+  totalPredictions,
+  wins,
+  currentStreak,
+  bestStreak,
+  accuracy,
+  level,
+  rank,
+}: {
+  totalPredictions: number;
+  wins: number;
+  currentStreak: number;
+  bestStreak: number;
+  accuracy: number;
+  level: string;
+  rank: number | null;
+}): Achievement[] => [
+  { icon: Target, title: "First Prediction", description: "Lock your first prediction.", unlocked: totalPredictions >= 1 },
+  { icon: Trophy, title: "First Win", description: "Resolve a market correctly.", unlocked: wins >= 1 },
+  { icon: Flame, title: "3 Win Streak", description: "Win three resolved markets in a row.", unlocked: currentStreak >= 3 || bestStreak >= 3 },
+  { icon: Flame, title: "5 Win Streak", description: "Build a five-win streak.", unlocked: currentStreak >= 5 || bestStreak >= 5 },
+  { icon: CheckCircle, title: "10 Predictions", description: "Join ten markets.", unlocked: totalPredictions >= 10 },
+  { icon: CheckCircle, title: "50 Predictions", description: "Join fifty markets.", unlocked: totalPredictions >= 50 },
+  { icon: Award, title: "60% Accuracy", description: "Reach 60% accuracy from resolved predictions.", unlocked: accuracy >= 60 },
+  { icon: Award, title: "70% Accuracy", description: "Reach 70% accuracy from resolved predictions.", unlocked: accuracy >= 70 },
+  { icon: Medal, title: "Top 100 Forecaster", description: "Reach the top 100 on the real leaderboard.", unlocked: Boolean(rank && rank <= 100) },
+  { icon: Trophy, title: "Top 10 Forecaster", description: "Reach the top 10 on the real leaderboard.", unlocked: Boolean(rank && rank <= 10) },
+  { icon: Medal, title: "Elite Forecaster", description: "Reach the Elite Forecaster level.", unlocked: ["Elite Forecaster", "Market Master"].includes(level) },
+];
+
+const AchievementCard = ({ icon: Icon, title, description, unlocked }: Achievement) => (
+  <div className={`rounded-2xl border p-4 transition ${unlocked ? "border-[#12B886]/30 bg-[#12B886]/10" : "border-[#263241] bg-[#151E28]"}`}>
+    <div className={`mb-3 grid h-10 w-10 place-items-center rounded-xl ${unlocked ? "bg-[#12B886] text-[#06100d]" : "bg-[#101720] text-[#8B98A8]"}`}>
+      <Icon className="h-5 w-5" />
+    </div>
+    <div className="text-sm font-black">{title}</div>
+    <p className="mt-1 text-xs font-bold leading-relaxed text-[#8B98A8]">{description}</p>
+    <div className={`mt-3 text-xs font-black ${unlocked ? "text-[#7AE4BD]" : "text-[#8B98A8]"}`}>
+      {unlocked ? "Unlocked" : "Locked"}
+    </div>
+  </div>
+);
 
 const Metric = ({ label, value, large = false, tone = "neutral" }: { label: string; value: string; large?: boolean; tone?: "neutral" | "green" | "red" }) => (
   <div className="rounded-xl border border-[#263241] bg-[#151E28] p-3">

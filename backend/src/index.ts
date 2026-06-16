@@ -59,6 +59,113 @@ app.use('/api/admin/markets', adminMarketRoutes);
 
 const toAmount = (smallestUnit: number | null | undefined) => Number(smallestUnit || 0) / 100;
 
+const LEADERBOARD_LEVELS = [
+  { name: 'Rookie', score: 0 },
+  { name: 'Sharp Thinker', score: 5 },
+  { name: 'Analyst', score: 18 },
+  { name: 'Expert', score: 40 },
+  { name: 'Elite Forecaster', score: 70 },
+  { name: 'Market Master', score: 120 }
+];
+
+const getLeaderboardScore = (totalPredictions: number, wins: number) => totalPredictions + wins * 2;
+
+const getLeaderboardLevel = (totalPredictions: number, wins: number) => {
+  const score = getLeaderboardScore(totalPredictions, wins);
+  return [...LEADERBOARD_LEVELS].reverse().find((level) => score >= level.score)?.name || 'Rookie';
+};
+
+const buildRealLeaderboard = async (limit = 10) => {
+  const { data: positions, error: positionsError } = await supabase
+    .from('positions')
+    .select('user_id, amount_smallest_unit, is_winner, resolved_at, status, created_at');
+
+  if (positionsError) throw positionsError;
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('*');
+
+  const profileByUserId = new Map<string, any>();
+  for (const profile of profiles || []) {
+    profileByUserId.set(profile.user_id || profile.id, profile);
+  }
+
+  const byUser = new Map<string, {
+    userId: string;
+    totalPredictions: number;
+    resolvedPredictions: number;
+    wins: number;
+    losses: number;
+    totalStakedSmallestUnit: number;
+    lastPredictionAt: string | null;
+  }>();
+
+  for (const position of positions || []) {
+    if (!position.user_id) continue;
+    const current = byUser.get(position.user_id) || {
+      userId: position.user_id,
+      totalPredictions: 0,
+      resolvedPredictions: 0,
+      wins: 0,
+      losses: 0,
+      totalStakedSmallestUnit: 0,
+      lastPredictionAt: null
+    };
+
+    current.totalPredictions += 1;
+    current.totalStakedSmallestUnit += Number(position.amount_smallest_unit || 0);
+    if (!current.lastPredictionAt || new Date(position.created_at).getTime() > new Date(current.lastPredictionAt).getTime()) {
+      current.lastPredictionAt = position.created_at;
+    }
+
+    const isResolved = Boolean(position.resolved_at) || ['won', 'lost', 'settled'].includes(String(position.status || '').toLowerCase());
+    if (isResolved) {
+      current.resolvedPredictions += 1;
+      if (position.is_winner) current.wins += 1;
+      else current.losses += 1;
+    }
+
+    byUser.set(position.user_id, current);
+  }
+
+  const ranked = [...byUser.values()]
+    .map((row) => {
+      const profile = profileByUserId.get(row.userId);
+      const accuracy = row.resolvedPredictions > 0 ? Math.round((row.wins / row.resolvedPredictions) * 100) : 0;
+      const score = getLeaderboardScore(row.totalPredictions, row.wins);
+      return {
+        userId: row.userId,
+        username: profile?.username || profile?.display_name || profile?.email?.split('@')[0] || 'Forecaster',
+        displayName: profile?.display_name || profile?.username || profile?.email?.split('@')[0] || 'Forecaster',
+        avatarUrl: profile?.avatar_url || profile?.profile_image_url || null,
+        rank: 0,
+        level: getLeaderboardLevel(row.totalPredictions, row.wins),
+        score,
+        totalPredictions: row.totalPredictions,
+        resolvedPredictions: row.resolvedPredictions,
+        wins: row.wins,
+        losses: row.losses,
+        accuracy,
+        totalStaked: toAmount(row.totalStakedSmallestUnit),
+        lastPredictionAt: row.lastPredictionAt
+      };
+    })
+    .sort((a, b) => (
+      b.score - a.score ||
+      b.accuracy - a.accuracy ||
+      b.totalPredictions - a.totalPredictions ||
+      b.totalStaked - a.totalStaked
+    ))
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
+
+  return {
+    entries: ranked.slice(0, Math.max(1, Math.min(100, limit))),
+    allEntries: ranked,
+    totalRankedUsers: ranked.length
+  };
+};
+
 const normalizePosition = (position: any) => {
   const market = position.markets || {};
   const yesPrice = Number(market.yes_price ?? market.starting_yes_price ?? 50);
@@ -118,10 +225,10 @@ app.get('/api/positions', authMiddleware.authenticate, async (req, res) => {
     if (error) throw error;
 
     const positions = (data || []).map(normalizePosition);
-    res.json({ positions, count: positions.length });
+    return res.json({ positions, count: positions.length });
   } catch (error) {
     console.error('Get positions error:', error);
-    res.status(500).json({ error: { code: 'GET_POSITIONS_FAILED', message: 'Failed to fetch positions' } });
+    return res.status(500).json({ error: { code: 'GET_POSITIONS_FAILED', message: 'Failed to fetch positions' } });
   }
 });
 
@@ -151,10 +258,24 @@ app.get('/api/activity', authMiddleware.authenticate, async (req, res) => {
       createdAt: tx.created_at
     }));
 
-    res.json({ activity });
+    return res.json({ activity });
   } catch (error) {
     console.error('Get activity error:', error);
-    res.status(500).json({ error: { code: 'GET_ACTIVITY_FAILED', message: 'Failed to fetch activity' } });
+    return res.status(500).json({ error: { code: 'GET_ACTIVITY_FAILED', message: 'Failed to fetch activity' } });
+  }
+});
+
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    const limit = Number(req.query.limit || 10);
+    const leaderboard = await buildRealLeaderboard(limit);
+    return res.json({
+      leaderboard: leaderboard.entries,
+      totalRankedUsers: leaderboard.totalRankedUsers
+    });
+  } catch (error) {
+    console.error('Get leaderboard error:', error);
+    return res.status(500).json({ error: { code: 'GET_LEADERBOARD_FAILED', message: 'Failed to fetch leaderboard' } });
   }
 });
 
@@ -180,26 +301,32 @@ app.get('/api/profile/stats', authMiddleware.authenticate, async (req, res) => {
     const totalEarnings = toAmount((positions || []).reduce((total, position) => (
       total + Number(position.payout_smallest_unit || 0)
     ), 0));
+    const leaderboard = await buildRealLeaderboard(100);
+    const currentRank = leaderboard.allEntries.find((entry) => entry.userId === req.user?.userId) || null;
 
-    res.json({
+    return res.json({
       stats: {
         totalPredictions,
         activePredictions,
         wonPredictions,
         winRate: totalPredictions > 0 ? Math.round((wonPredictions / totalPredictions) * 100) : 0,
         totalStaked,
-        totalEarnings
+        totalEarnings,
+        rank: currentRank?.rank || null,
+        score: currentRank?.score || getLeaderboardScore(totalPredictions, wonPredictions),
+        level: currentRank?.level || getLeaderboardLevel(totalPredictions, wonPredictions),
+        totalRankedUsers: leaderboard.totalRankedUsers
       }
     });
   } catch (error) {
     console.error('Get profile stats error:', error);
-    res.status(500).json({ error: { code: 'GET_PROFILE_STATS_FAILED', message: 'Failed to fetch profile stats' } });
+    return res.status(500).json({ error: { code: 'GET_PROFILE_STATS_FAILED', message: 'Failed to fetch profile stats' } });
   }
 });
 
 // Root endpoint
-app.get('/', (req, res) => {
-  res.json({ 
+app.get('/', (_req, res) => {
+  return res.json({
     message: 'Prediction Platform API', 
     status: 'running',
     version: '1.0.0',
@@ -214,8 +341,8 @@ app.get('/', (req, res) => {
 });
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Prediction Platform API is running' });
+app.get('/api/health', (_req, res) => {
+  return res.json({ status: 'ok', message: 'Prediction Platform API is running' });
 });
 
 const PORT = process.env.PORT || 5000;

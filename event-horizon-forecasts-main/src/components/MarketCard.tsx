@@ -1,9 +1,8 @@
-import { Clock, Play, TrendingUp, Users } from "lucide-react";
+import { Clock, Play } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Market,
   formatCountdown,
-  formatNaira,
   formatNairaPrice,
   getMarketCategoryLabel,
   getMarketMedia,
@@ -67,10 +66,6 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
                 <Play className="h-3 w-3 fill-current" />
               </div>
             )}
-            <div className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-black text-white backdrop-blur-xl">
-              <TrendingUp className="h-3 w-3 text-[#12B886]" />
-              {m.tradeCount || 0} predictions
-            </div>
           </div>
 
           <div className="min-w-0">
@@ -82,22 +77,17 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
               <PriceButton label="YES" value={m.yesPrice} tone="green" disabled={!isLive} onClick={(event) => openSide(event, "YES")} />
               <PriceButton label="NO" value={m.noPrice} tone="red" disabled={!isLive} onClick={(event) => openSide(event, "NO")} />
             </div>
-            <div className="mt-2 text-xs font-black text-[#12B886]">
-              {isLive ? "Predict now" : "Prediction closed"}
-            </div>
           </div>
         </div>
 
         <div className="mt-3 border-t border-[#263241] pt-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-2 text-[11px] font-bold text-[#8B98A8]">
-            <span className="flex items-center gap-1">
-              <Users className="h-3.5 w-3.5 text-[#12B886]" />
-              {m.participants}
-            </span>
-            <span>{formatNaira(m.totalVolume ?? m.totalPool)} vol.</span>
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-[11px] font-bold text-[#8B98A8]">
             <span className="flex items-center gap-1">
               <Clock className="h-3.5 w-3.5" />
               {formatCountdown(tradingCloseTime, m.closesIn)}
+            </span>
+            <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${isLive ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#151E28] text-[#8B98A8]"}`}>
+              {isLive ? "Predict now" : "Closed"}
             </span>
           </div>
         </div>
@@ -116,7 +106,7 @@ const PriceButton = ({ label, value, tone, disabled = false, onClick }: { label:
         : "border-[#E85D5D]/25 bg-[#E85D5D]/10 text-[#FF9C9C] hover:bg-[#E85D5D]/16"
     }`}
   >
-    <span className="block text-[10px] font-black uppercase text-white/45">{label} confidence</span>
+    <span className="block text-[10px] font-black uppercase text-white/45">{label}</span>
     <span className="mt-0.5 block text-base font-black">
       <AnimatedNumber value={value} prefix={formatNairaPrice(0).replace("0", "")} />
     </span>
