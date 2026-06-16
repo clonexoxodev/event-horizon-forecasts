@@ -6,54 +6,107 @@
 
 @keyframes flippe-symbol-breathe {
   0%, 100% {
-    transform: scale(0.96);
-    filter: drop-shadow(0 0 0 rgba(18, 184, 134, 0));
-    opacity: 0.88;
+    transform: scale(0.98);
+    filter: drop-shadow(0 0 8px rgba(18, 184, 134, 0.08));
+    opacity: 0.96;
   }
   50% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 16px rgba(18, 184, 134, 0.22));
+    transform: scale(1.015);
+    filter: drop-shadow(0 0 24px rgba(18, 184, 134, 0.34));
     opacity: 1;
   }
 }
 
-@keyframes flippe-loader-orbit {
+@keyframes flippe-loader-glow {
   0%, 100% {
-    transform: translateX(-10px);
-    opacity: 0.16;
+    transform: scale(0.82);
+    opacity: 0.42;
   }
   50% {
-    transform: translateX(0);
-    opacity: 0.48;
+    transform: scale(1.12);
+    opacity: 0.72;
   }
 }
 
-.flippe-loader::before,
-.flippe-loader::after {
+@keyframes flippe-center-spark {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(0.72);
+    opacity: 0.34;
+  }
+  45%, 55% {
+    transform: translate(-50%, -50%) scale(1.08);
+    opacity: 0.95;
+  }
+}
+
+@keyframes flippe-route-fade {
+  0% { opacity: 0; }
+  16% { opacity: 1; }
+  72% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.flippe-loader-stage::before,
+.flippe-loader-stage::after {
   content: "";
   position: absolute;
   top: 50%;
-  height: 2px;
-  width: 22px;
+  height: 1px;
+  width: 34%;
   border-radius: 999px;
-  background: #42D6AA;
+  background: linear-gradient(90deg, transparent, rgba(122, 228, 189, 0.66));
   transform: translateY(-50%);
-  animation: flippe-loader-orbit 1.8s ease-in-out infinite;
+  opacity: 0.35;
 }
 
-.flippe-loader::before {
-  right: 100%;
+.flippe-loader-stage::before {
+  right: 78%;
 }
 
-.flippe-loader::after {
-  left: 100%;
-  animation-delay: 0.18s;
-  animation-direction: reverse;
-  background: #F5F7FA;
+.flippe-loader-stage::after {
+  left: 78%;
+  background: linear-gradient(90deg, rgba(245, 247, 250, 0.58), transparent);
 }
 
 .flippe-loader-symbol {
-  animation: flippe-symbol-breathe 1.8s ease-in-out infinite;
+  animation: flippe-symbol-breathe 2.15s ease-in-out infinite;
+}
+
+.flippe-loader-glow {
+  position: absolute;
+  inset: -34%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(245, 247, 250, 0.34) 0%, rgba(18, 184, 134, 0.34) 20%, rgba(18, 184, 134, 0.12) 42%, transparent 68%);
+  filter: blur(10px);
+  animation: flippe-loader-glow 2.2s ease-in-out infinite;
+}
+
+.flippe-loader-spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 20;
+  height: 9px;
+  width: 9px;
+  border-radius: 999px;
+  background: rgba(245, 247, 250, 0.94);
+  box-shadow: 0 0 16px rgba(245, 247, 250, 0.65), 0 0 32px rgba(18, 184, 134, 0.48);
+  animation: flippe-center-spark 2.2s ease-in-out infinite;
+}
+
+.flippe-route-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 44%, rgba(18, 184, 134, 0.22), transparent 24rem),
+    rgba(8, 12, 16, 0.82);
+  backdrop-filter: blur(10px);
+  animation: flippe-route-fade 720ms ease-in-out both;
 }
 
 @layer base {

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, Eye, EyeOff, Loader2, Lock, Mail, TrendingUp } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { FlippeWordmark } from "@/components/FlippeBrand";
+import { AuthLayout } from "@/components/AuthLayout";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -46,20 +47,20 @@ export default function Login() {
   };
 
   return (
-    <AuthShell>
-      <div className="w-full max-w-md">
-        <div className="overflow-hidden rounded-2xl border border-[#263241] bg-[#101720]/95 shadow-[0_24px_90px_rgba(0,0,0,0.55)]">
+    <AuthLayout>
+      <div className="w-full">
+        <div className="overflow-hidden rounded-2xl border border-[#263241] bg-[#101720]/96 shadow-[0_24px_90px_rgba(0,0,0,0.55)] backdrop-blur">
           <div className="h-1 w-full bg-[#12B886]" />
 
           <div className="p-6 sm:p-8">
             <Link to="/" className="mb-7 inline-flex items-center gap-3">
-              <FlippeWordmark size="lg" />
+              <FlippeWordmark size="xl" />
             </Link>
 
             <div className="mb-8">
               <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Welcome back</p>
               <h1 className="text-3xl font-black tracking-tight text-white">Log in</h1>
-              <p className="mt-2 text-sm text-slate-400">Get back to your markets, wallet, and predictions.</p>
+              <p className="mt-2 text-sm text-slate-400">Get back to your markets, wallet, and forecasting record.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -139,37 +140,9 @@ export default function Login() {
           </div>
         </div>
       </div>
-    </AuthShell>
+    </AuthLayout>
   );
 }
-
-const AuthShell = ({ children }: { children: React.ReactNode }) => (
-  <div className="app-bg relative flex min-h-screen items-center justify-center overflow-hidden p-4 text-white">
-    <div className="absolute left-6 top-6 hidden rounded-2xl border border-[#263241] bg-[#101720] p-4 lg:block">
-      <div className="flex items-center gap-3">
-        <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#12B886]/10 text-[#12B886]">
-          <TrendingUp className="h-5 w-5" />
-        </div>
-        <div>
-          <div className="text-sm font-black">Live predictions</div>
-          <div className="text-xs text-slate-500">Back your next call</div>
-        </div>
-      </div>
-    </div>
-    <div className="absolute bottom-6 right-6 hidden rounded-2xl border border-[#263241] bg-[#101720] p-4 lg:block">
-      <div className="flex items-center gap-3">
-        <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#12B886]/10 text-[#12B886]">
-          <TrendingUp className="h-5 w-5" />
-        </div>
-        <div>
-          <div className="text-sm font-black">Win with accuracy</div>
-          <div className="text-xs text-slate-500">Simple. Fast. Social.</div>
-        </div>
-      </div>
-    </div>
-    <div className="relative z-10 w-full">{children}</div>
-  </div>
-);
 
 const GoogleIcon = () => (
   <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
