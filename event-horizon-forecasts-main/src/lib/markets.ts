@@ -172,7 +172,13 @@ export const formatCountdown = (closeTime?: string, closesIn?: string) => {
   return "No deadline";
 };
 
-export const formatNairaPrice = (n: number) => `₦${Math.round(Number(n) || 0)}`;
+export const formatNairaPrice = (n: number) => `\u20A6${Math.round(Number(n) || 0)}`;
 
-export const formatNaira = (n: number) =>
-  "₦" + (n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "K" : Math.round(n).toString());
+export const formatNaira = (n: number) => {
+  const amount = Number(n) || 0;
+  const sign = amount < 0 ? "-" : "";
+  const absolute = Math.abs(amount);
+  const formatted = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.round(absolute));
+
+  return `${sign}\u20A6${formatted}`;
+};

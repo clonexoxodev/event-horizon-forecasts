@@ -67,6 +67,8 @@ const Index = () => {
   const [positions, setPositions] = useState<ApiPosition[]>([]);
   const [stats, setStats] = useState<ApiProfileStats>(emptyStats);
   const [lastVisit] = useState<VisitSnapshot | null>(() => readVisitSnapshot());
+  const [showSummary, setShowSummary] = useState(true);
+  const [summaryInteracting, setSummaryInteracting] = useState(false);
 
   useEffect(() => {
     loadMarkets().catch(() => {
@@ -114,22 +116,39 @@ const Index = () => {
     };
   }, [user]);
 
+  const trimmedSearch = searchQuery.trim();
+  const isSearching = trimmedSearch.length > 0;
+
   const filtered = useMemo(() => {
     let next = markets.filter(isLiveMarket);
-    if (category !== "Trending") {
+
+    if (!isSearching && category !== "Trending") {
       next = next.filter((market) => categoryMatches(market.category, category));
     }
     next.sort((a, b) => getTrendingScore(b) - getTrendingScore(a));
 
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      next = next.filter((market) =>
-        market.question.toLowerCase().includes(query) ||
-        normalizeCategory(market.category).toLowerCase().includes(query)
-      );
+    if (isSearching) {
+      const query = trimmedSearch.toLowerCase();
+      next = next.filter((market) => {
+        const searchable = [
+          market.question,
+          market.category,
+          normalizeCategory(market.category),
+          market.rules,
+          market.source,
+          market.description,
+          (market as any).resolutionSource,
+          (market as any).resolution_source,
+          Array.isArray((market as any).tags) ? (market as any).tags.join(" ") : (market as any).tags,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return searchable.includes(query);
+      });
     }
     return next;
-  }, [markets, category, searchQuery]);
+  }, [markets, category, isSearching, trimmedSearch]);
 
   const liveCount = markets.filter(isLiveMarket).length;
   const liveMarkets = useMemo(() => markets.filter(isLiveMarket), [markets]);
@@ -153,6 +172,32 @@ const Index = () => {
     }, 2500);
     return () => window.clearTimeout(timer);
   }, [liveMarkets.length, totalTradeCount]);
+
+  useEffect(() => {
+    if (!showSummary || summaryInteracting) return;
+    const timer = window.setTimeout(() => setShowSummary(false), 25000);
+    return () => window.clearTimeout(timer);
+  }, [showSummary, summaryInteracting]);
+
+  const sectionTitle = isSearching ? `Search results for '${trimmedSearch}'` : category === "Trending" ? "Trending Now" : `${category} Markets`;
+  const sectionSubtext = isSearching
+    ? "Searching all live markets."
+    : category === "Trending"
+      ? "Pick a question, choose YES or NO, and track it in My Predictions."
+      : `Live ${category.toLowerCase()}-related questions will appear here.`;
+
+  const emptyTitle = isSearching
+    ? `No markets found for '${trimmedSearch}'`
+    : category === "Trending"
+      ? "No trending markets yet"
+      : `No ${category} markets yet`;
+  const emptyBody = isSearching ? "Try another keyword or browse Trending." : category === "Trending" ? "Check back soon or try a category." : "Try Trending or check back soon.";
+
+  const holdSummaryOpen = () => {
+    setSummaryInteracting(true);
+    window.setTimeout(() => setSummaryInteracting(false), 10000);
+  };
+
   const categoryCounts = useMemo(() => {
     const counts: Partial<Record<HomeMarketFilter, number>> = { Trending: liveMarkets.length };
     liveMarkets.forEach((market) => {
@@ -223,20 +268,36 @@ const Index = () => {
           </div>
         </section>
 
-        <section className="mb-5 grid gap-3 md:grid-cols-2">
-          <HomeSummaryCard icon={Clock} title="Since Your Last Visit" items={[
-            newPredictionsSince > 0 ? `${newPredictionsSince} market updates` : "No market updates",
-            newMarketsSince > 0 ? `${newMarketsSince} new markets` : "No new markets",
-            activePositions.length > 0 ? `${activePositions.length} predictions still open` : "No open predictions",
-          ]} />
-          <ProgressSummaryCard level={user ? level : "Log in to track score"} streak={user ? currentStreak : 0} accuracy={user ? accuracy : 0} />
-        </section>
+        {showSummary ? (
+          <section
+            className="mb-5 grid animate-fade-up gap-3 md:grid-cols-2"
+            onMouseEnter={() => setSummaryInteracting(true)}
+            onMouseLeave={() => setSummaryInteracting(false)}
+            onPointerDown={holdSummaryOpen}
+            onFocus={() => setSummaryInteracting(true)}
+            onBlur={() => setSummaryInteracting(false)}
+          >
+            <HomeSummaryCard icon={Clock} title="Since Your Last Visit" items={[
+              newPredictionsSince > 0 ? `${newPredictionsSince} market updates` : "No market updates",
+              newMarketsSince > 0 ? `${newMarketsSince} new markets` : "No new markets",
+              activePositions.length > 0 ? `${activePositions.length} predictions still open` : "No open predictions",
+            ]} />
+            <ProgressSummaryCard level={user ? level : "Log in to track score"} streak={user ? currentStreak : 0} accuracy={user ? accuracy : 0} />
+          </section>
+        ) : (
+          <button
+            onClick={() => setShowSummary(true)}
+            className="mb-5 rounded-full border border-[#263241] bg-[#101720] px-4 py-2 text-xs font-black text-[#8B98A8] transition hover:border-[#12B886]/45 hover:text-white"
+          >
+            Today's summary
+          </button>
+        )}
 
         <section>
             <div className="mb-4">
-              <h1 className="text-2xl font-black tracking-tight">Trending Now</h1>
+              <h1 className="text-2xl font-black tracking-tight">{sectionTitle}</h1>
               <p className="mt-1 text-xs font-bold text-[#8B98A8]">
-                Pick a question, choose YES or NO, and track it in My Predictions.
+                {sectionSubtext}
               </p>
             </div>
 
@@ -267,9 +328,9 @@ const Index = () => {
               </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-[#263241] bg-[#101720]/60 p-10 text-center">
-                <h3 className="text-lg font-black">{category === "Trending" ? "No trending markets yet" : `No ${category} markets yet`}</h3>
+                <h3 className="text-lg font-black">{emptyTitle}</h3>
                 <p className="mt-1 text-sm text-[#8B98A8]">
-                  {category === "Trending" ? "Check back soon or try a category." : "Try Trending or check back soon."}
+                  {emptyBody}
                 </p>
               </div>
             )}
@@ -303,17 +364,17 @@ const ProgressSummaryCard = ({ level, streak, accuracy }: { level: string; strea
       <h2 className="text-sm font-black">Your Progress</h2>
     </div>
     <div className="grid grid-cols-3 gap-2">
-      <div className="rounded-xl border border-[#263241] bg-[#151E28] p-3">
+      <div className="min-w-0 rounded-xl border border-[#263241] bg-[#151E28] p-2.5 sm:p-3">
         <div className="text-[11px] font-bold text-[#8B98A8]">Level</div>
-        <div className="mt-1 truncate text-sm font-black">{level}</div>
+        <div className="mt-1 break-words text-[12px] font-black leading-tight sm:text-sm">{level}</div>
       </div>
-      <div className="rounded-xl border border-[#263241] bg-[#151E28] p-3">
+      <div className="min-w-0 rounded-xl border border-[#263241] bg-[#151E28] p-2.5 sm:p-3">
         <div className="text-[11px] font-bold text-[#8B98A8]">Streak</div>
-        <div className="mt-1 text-sm font-black">{streak}</div>
+        <div className="mt-1 break-words text-[12px] font-black leading-tight sm:text-sm">{streak}</div>
       </div>
-      <div className="rounded-xl border border-[#263241] bg-[#151E28] p-3">
+      <div className="min-w-0 rounded-xl border border-[#263241] bg-[#151E28] p-2.5 sm:p-3">
         <div className="text-[11px] font-bold text-[#8B98A8]">Accuracy</div>
-        <div className="mt-1 text-sm font-black">{accuracy ? `${accuracy}%` : "-"}</div>
+        <div className="mt-1 break-words text-[12px] font-black leading-tight sm:text-sm">{accuracy ? `${accuracy}%` : "-"}</div>
       </div>
     </div>
   </div>
