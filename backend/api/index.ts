@@ -3620,7 +3620,7 @@ app.post('/api/admin/markets', authenticate, requireRole('admin'), async (req: R
     const question = String(req.body.question || '').trim();
     const rawCategory = String(req.body.category || '').trim();
     const category = normalizeMarketCategory(rawCategory);
-    const closeDate = req.body.close_date || req.body.closes_at;
+    const closeDate = req.body.close_date || req.body.end_date || req.body.closes_at;
     const tradingCloseDate = req.body.trading_close_at || req.body.trading_close_time || req.body.trading_close_date || closeDate;
     const status = String(req.body.status || 'active');
     const imageUrl = req.body.image_url || null;

@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode, useEffect, useMemo, useState } from "react";
+import { Component, type ErrorInfo, type FocusEvent, type MouseEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Activity,
@@ -291,6 +291,9 @@ const dateTimeLocalToIso = (value?: string | null) => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "" : date.toISOString();
 };
+
+const isValidDateTimeLocal = (value?: string | null) =>
+  Boolean(value && dateTimeLocalToIso(value));
 
 const getDateTimeLocalMin = () => {
   const now = new Date(Date.now() + 60_000);
@@ -649,7 +652,9 @@ const Admin = () => {
       starting_yes_price: Number(form.yes_price),
       starting_no_price: Number(form.no_price),
       close_date: closeDateIso,
+      end_date: closeDateIso,
       trading_close_at: tradingCloseIso,
+      trading_close_time: tradingCloseIso,
       resolution_date: resolutionDateIso,
       resolution_source: form.resolution_source.trim(),
       resolution_instructions: form.rules.trim(),
@@ -667,9 +672,11 @@ const Admin = () => {
   const validateMarket = () => {
     if (!form.question.trim()) return "Market question is required.";
     if (!form.category.trim()) return "Category is required.";
-    if (!form.close_date) return "End date and time is required.";
+    if (!isValidDateTimeLocal(form.close_date)) return "End date and time is required.";
     if (new Date(form.close_date).getTime() <= Date.now())
       return "End date must be in the future.";
+    if (form.trading_close_at && !isValidDateTimeLocal(form.trading_close_at))
+      return "Trading close time is not a valid date and time.";
     if (form.trading_close_at && new Date(form.trading_close_at).getTime() <= Date.now())
       return "Trading close time must be in the future.";
     if (form.trading_close_at && new Date(form.trading_close_at).getTime() > new Date(form.close_date).getTime())
@@ -1781,10 +1788,17 @@ const CreateMarketView = ({
   const priceSum = Number(form.yes_price) + Number(form.no_price);
   const hasMedia = Boolean(form.image_url || form.video_url);
   const minDateTime = getDateTimeLocalMin();
+  const openDateTimePicker = (event: MouseEvent<HTMLInputElement> | FocusEvent<HTMLInputElement>) => {
+    try {
+      event.currentTarget.showPicker?.();
+    } catch {
+      // Some browsers only allow showPicker during direct user activation.
+    }
+  };
   const ready =
     form.question.trim() &&
     form.category &&
-    form.close_date &&
+    isValidDateTimeLocal(form.close_date) &&
     form.rules.trim() &&
     form.resolution_source.trim() &&
     hasMedia &&
@@ -1837,27 +1851,35 @@ const CreateMarketView = ({
             </Field>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 lg:grid-cols-2">
             <Field label="End date/time" required>
-              <Input
+              <input
                 type="datetime-local"
                 value={form.close_date}
                 min={minDateTime}
+                required
+                onClick={openDateTimePicker}
+                onFocus={openDateTimePicker}
                 onChange={(event) => onChange("close_date", event.target.value)}
-                className="border-[#263241] bg-[#0B1118] text-white"
+                className="h-11 w-full rounded-md border border-[#263241] bg-[#0B1118] px-3 text-sm text-white outline-none transition focus:border-[#12B886] focus:ring-2 focus:ring-[#12B886]/20"
               />
             </Field>
             <Field label="Trading close time">
-              <Input
+              <input
                 type="datetime-local"
                 value={form.trading_close_at}
                 min={minDateTime}
                 max={form.close_date || undefined}
+                onClick={openDateTimePicker}
+                onFocus={openDateTimePicker}
                 onChange={(event) => onChange("trading_close_at", event.target.value)}
-                className="border-[#263241] bg-[#0B1118] text-white"
+                className="h-11 w-full rounded-md border border-[#263241] bg-[#0B1118] px-3 text-sm text-white outline-none transition focus:border-[#12B886] focus:ring-2 focus:ring-[#12B886]/20"
               />
               <p className="mt-1 text-xs text-[#8B98A8]">Leave blank to close predictions at market end.</p>
             </Field>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
             <Field label="Starting YES price">
               <Input
                 type="number"

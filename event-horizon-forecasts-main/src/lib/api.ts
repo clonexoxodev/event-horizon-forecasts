@@ -170,7 +170,9 @@ export type AdminCreateMarketInput = {
   starting_yes_price?: number;
   starting_no_price?: number;
   close_date: string;
+  end_date?: string;
   trading_close_at?: string;
+  trading_close_time?: string;
   resolution_date: string;
   resolution_source?: string;
   resolution_instructions?: string;
