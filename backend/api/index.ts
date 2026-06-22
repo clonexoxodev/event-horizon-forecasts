@@ -94,6 +94,20 @@ const upload = multer({
   }
 });
 
+const ensurePublicStorageBucket = async (bucket: string, mediaType: 'image' | 'video') => {
+  const { error } = await supabase.storage.createBucket(bucket, {
+    public: true,
+    fileSizeLimit: 30 * 1024 * 1024,
+    allowedMimeTypes: mediaType === 'video'
+      ? ['video/mp4', 'video/webm', 'video/quicktime']
+      : ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+  });
+
+  if (error && !/already exists|exist/i.test(error.message || '')) {
+    throw new Error(`Could not verify ${bucket} storage bucket: ${error.message}`);
+  }
+};
+
 const MARKET_CATEGORIES = [
   'Sports',
   'Crypto',
@@ -3518,7 +3532,7 @@ app.post('/api/admin/markets/upload-media', authenticate, requireRole('admin'), 
   upload.single('media')(req, res, (uploadError: any) => {
     if (uploadError) {
       const isFileSizeError = uploadError.code === 'LIMIT_FILE_SIZE';
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: {
           code: isFileSizeError ? 'FILE_TOO_LARGE' : 'INVALID_FILE',
@@ -3526,13 +3540,14 @@ app.post('/api/admin/markets/upload-media', authenticate, requireRole('admin'), 
           timestamp: new Date().toISOString()
         }
       });
+      return;
     }
     next();
   });
 }, async (req: Request, res: Response) => {
   try {
     if (!req.file) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: {
           code: 'NO_FILE_UPLOADED',
@@ -3540,12 +3555,15 @@ app.post('/api/admin/markets/upload-media', authenticate, requireRole('admin'), 
           timestamp: new Date().toISOString()
         }
       });
+      return;
     }
 
     const mediaType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
     const bucket = mediaType === 'video' ? 'market-videos' : 'market-images';
     const extension = req.file.originalname.split('.').pop() || (mediaType === 'video' ? 'mp4' : 'jpg');
     const safeName = `${mediaType}-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+
+    await ensurePublicStorageBucket(bucket, mediaType);
 
     const { error } = await supabase.storage
       .from(bucket)
@@ -3557,7 +3575,7 @@ app.post('/api/admin/markets/upload-media', authenticate, requireRole('admin'), 
 
     if (error) {
       console.error('Admin media upload error:', error);
-      return res.status(500).json({
+      res.status(500).json({
         success: false,
         error: {
           code: 'UPLOAD_FAILED',
@@ -3566,6 +3584,7 @@ app.post('/api/admin/markets/upload-media', authenticate, requireRole('admin'), 
           timestamp: new Date().toISOString()
         }
       });
+      return;
     }
 
     const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(safeName);
@@ -3576,6 +3595,7 @@ app.post('/api/admin/markets/upload-media', authenticate, requireRole('admin'), 
       url: publicUrlData.publicUrl,
       [`${mediaType}_url`]: publicUrlData.publicUrl
     });
+    return;
   } catch (error: any) {
     console.error('Admin media upload route error:', error);
     res.status(500).json({
@@ -3586,6 +3606,7 @@ app.post('/api/admin/markets/upload-media', authenticate, requireRole('admin'), 
         timestamp: new Date().toISOString()
       }
     });
+    return;
   }
 });
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { X, TrendingUp, Loader2, CheckCircle } from "lucide-react";
+import { X, Loader2, CheckCircle } from "lucide-react";
 import { formatNaira } from "@/lib/markets";
 import { useToast } from "@/hooks/use-toast";
 
@@ -27,8 +27,6 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
   const quickAmounts = [1000, 5000, 10000, 25000];
   const numAmount = parseFloat(amount) || 0;
   const probability = side === "YES" ? market.yesPercent : 100 - market.yesPercent;
-  const projectedShares = numAmount > 0 && probability > 0 ? numAmount / probability : 0;
-
   const handleQuickAmount = (value: number) => {
     setAmount(value.toString());
   };
@@ -69,13 +67,13 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
             </div>
             <h3 className="text-xl font-bold mb-2 text-charcoal">Prediction locked</h3>
             <p className="text-sm text-graphite">
-              You staked {formatNaira(numAmount)} on {side}
+              You backed {formatNaira(numAmount)} on {side}
             </p>
             <div className={`mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${
               side === "YES" ? "bg-emerald-soft text-emerald" : "bg-coral-soft text-coral"
             }`}>
               <span className={`w-2 h-2 rounded-full animate-pulse ${side === "YES" ? "bg-emerald" : "bg-coral"}`} />
-              Position active
+              Prediction active
             </div>
           </div>
         ) : (
@@ -112,7 +110,7 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
                 }`}
               >
                 <span className={`w-2 h-2 rounded-full ${side === "YES" ? "bg-emerald" : "bg-coral"}`} />
-                Forecasting {side}
+                Backing {side}
               </div>
             </div>
 
@@ -172,17 +170,13 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
                   <span className="font-bold text-charcoal">{formatNaira(numAmount)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-graphite">Current confidence</span>
+                  <span className="text-graphite">Crowd View</span>
                   <span className="font-bold text-charcoal">{probability}%</span>
                 </div>
                 <div className="h-px bg-border/50 my-2" />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-charcoal">Units received</span>
-                  <div className="text-right">
-                    <div className="font-extrabold text-lg text-charcoal animate-fade-in">{projectedShares.toFixed(2)}</div>
-                    <div className="text-xs font-semibold text-graphite animate-fade-in">Final payout is confirmed when the market resolves.</div>
-                  </div>
-                </div>
+                <p className="text-xs font-semibold text-graphite animate-fade-in">
+                  Final payout depends on the result and the final pool when the market closes.
+                </p>
               </div>
             )}
 
@@ -203,8 +197,7 @@ export const PredictionModal = ({ open, onClose, market, side }: PredictionModal
                 </>
               ) : (
                 <>
-                  <TrendingUp className="w-4 h-4 mr-2" />
-                  Lock Prediction
+                  Back {side}
                 </>
               )}
             </Button>

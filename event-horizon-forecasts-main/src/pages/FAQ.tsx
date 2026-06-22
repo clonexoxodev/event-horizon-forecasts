@@ -8,26 +8,26 @@ const faqs = [
   {
     section: "Basics",
     items: [
-      ["What is FLIPPE?", "FLIPPE is a real-world prediction market platform. Users forecast public outcomes by choosing YES or NO on a market."],
+      ["What is FLIPPE?", "FLIPPE is a pooled opinion market. People stop arguing and back YES or NO on public outcomes."],
       ["Is FLIPPE betting?", "FLIPPE is designed as a forecasting market. It still involves financial risk, so users should treat every prediction carefully and only use money they can afford to lose."],
       ["What kinds of markets can appear?", "Markets may cover public events in sports, crypto, politics, entertainment, economy, and other topics with clear resolution sources."],
     ],
   },
   {
-    section: "Confidence and predictions",
+    section: "Crowd View and predictions",
     items: [
-      ["How do YES and NO prices work?", "YES and NO prices show current market sentiment. If YES is 61, NO is 39. Together they always add up to 100."],
+      ["How do YES and NO work?", "YES and NO show the Crowd View. If YES is 61, NO is 39. Together they always add up to 100."],
       ["Why do YES and NO always add up to 100?", "A market resolves to one of the two outcomes. The two prices are shown as opposite sides of the same forecast."],
-      ["What happens when I lock a prediction?", "Your wallet is debited, your prediction is recorded, and FLIPPE stores the units needed to calculate your result when the market resolves."],
-      ["What are shares or units?", "They represent the size of your prediction on a side. FLIPPE keeps them in the background so the main experience can stay simple."],
-      ["Why does my projected value change?", "Projected values change as other users predict and the market pool changes. They are estimates, not withdrawable profit."],
+      ["What happens when I back a side?", "Your wallet is debited, your prediction is recorded, and your stake joins the market pool for that side."],
+      ["What are units?", "Units are a background calculation FLIPPE may use to settle markets fairly. The main idea is simple: you backed a side in a pool."],
+      ["Why does the Crowd View change?", "Crowd View changes as other users back YES or NO. It is not withdrawable money and it is not guaranteed profit."],
     ],
   },
   {
     section: "Payouts and resolution",
     items: [
-      ["What is projected payout?", "Projected payout is an estimate of what your position could receive if the market resolved now. It can change before final resolution."],
-      ["Is projected value guaranteed?", "No. Projected value is not guaranteed and is not withdrawable. Final payout is determined only when the market resolves."],
+      ["How is final payout calculated?", "If your side is correct, you receive your stake plus a share of the losing side's pool. The exact amount is finalized only after resolution."],
+      ["Is any payout guaranteed before resolution?", "No. Anything shown before resolution is only informational. Final payout depends on the result and the final pool."],
       ["When do I receive winnings?", "Winnings are credited after the market closes and an admin resolves the outcome using the stated source."],
       ["How are markets resolved?", "Each market has rules and a resolution source. Admins use those rules to resolve YES, NO, or cancel/refund if the market cannot resolve fairly."],
       ["What happens if a market is cancelled?", "The platform should refund eligible stakes according to the market status and wallet ledger."],
@@ -61,7 +61,7 @@ export default function FAQ() {
               <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#12B886]">FAQs</p>
               <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Questions before you predict</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#8B98A8]">
-                Simple answers about markets, shares, projected values, wallet movement, and responsible use.
+                Simple answers about Crowd View, market pools, wallet movement, and responsible use.
               </p>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Award, Clock, Search, Trophy, UserCircle, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
@@ -14,6 +14,8 @@ import { categoryMatches, HOME_MARKET_FILTERS, type HomeMarketFilter, normalizeC
 import apiService, { type ApiPosition, type ApiProfileStats } from "@/lib/api";
 
 const VISIT_KEY = "flippe_home_last_visit_v1";
+const HOME_SUMMARY_VISIBLE_MS = 7000;
+const HOME_SUMMARY_FADE_MS = 400;
 const emptyStats: ApiProfileStats = {
   totalPredictions: 0,
   activePredictions: 0,
@@ -69,6 +71,11 @@ const Index = () => {
   const [lastVisit] = useState<VisitSnapshot | null>(() => readVisitSnapshot());
   const [showSummary, setShowSummary] = useState(true);
   const [summaryInteracting, setSummaryInteracting] = useState(false);
+  const [summaryCollapsing, setSummaryCollapsing] = useState(false);
+  const summaryRemainingMs = useRef(HOME_SUMMARY_VISIBLE_MS);
+  const summaryTimerStartedAt = useRef<number | null>(null);
+  const summaryTimerRef = useRef<number | null>(null);
+  const summaryFadeRef = useRef<number | null>(null);
 
   useEffect(() => {
     loadMarkets().catch(() => {
@@ -174,9 +181,45 @@ const Index = () => {
   }, [liveMarkets.length, totalTradeCount]);
 
   useEffect(() => {
-    if (!showSummary || summaryInteracting) return;
-    const timer = window.setTimeout(() => setShowSummary(false), 25000);
-    return () => window.clearTimeout(timer);
+    if (!showSummary) return;
+
+    if (summaryTimerRef.current) {
+      window.clearTimeout(summaryTimerRef.current);
+      summaryTimerRef.current = null;
+    }
+    if (summaryFadeRef.current) {
+      window.clearTimeout(summaryFadeRef.current);
+      summaryFadeRef.current = null;
+    }
+
+    if (summaryInteracting) {
+      if (summaryTimerStartedAt.current !== null) {
+        summaryRemainingMs.current = Math.max(
+          0,
+          summaryRemainingMs.current - (Date.now() - summaryTimerStartedAt.current)
+        );
+        summaryTimerStartedAt.current = null;
+      }
+      return;
+    }
+
+    summaryTimerStartedAt.current = Date.now();
+    summaryTimerRef.current = window.setTimeout(() => {
+      setSummaryCollapsing(true);
+      summaryFadeRef.current = window.setTimeout(() => {
+        setShowSummary(false);
+        setSummaryCollapsing(false);
+        summaryRemainingMs.current = HOME_SUMMARY_VISIBLE_MS;
+        summaryTimerStartedAt.current = null;
+      }, HOME_SUMMARY_FADE_MS);
+    }, summaryRemainingMs.current);
+
+    return () => {
+      if (summaryTimerRef.current) {
+        window.clearTimeout(summaryTimerRef.current);
+        summaryTimerRef.current = null;
+      }
+    };
   }, [showSummary, summaryInteracting]);
 
   const sectionTitle = isSearching ? `Search results for '${trimmedSearch}'` : category === "Trending" ? "Trending Now" : `${category} Markets`;
@@ -193,9 +236,12 @@ const Index = () => {
       : `No ${category} markets yet`;
   const emptyBody = isSearching ? "Try another keyword or browse Trending." : category === "Trending" ? "Check back soon or try a category." : "Try Trending or check back soon.";
 
-  const holdSummaryOpen = () => {
-    setSummaryInteracting(true);
-    window.setTimeout(() => setSummaryInteracting(false), 10000);
+  const reopenSummary = () => {
+    summaryRemainingMs.current = HOME_SUMMARY_VISIBLE_MS;
+    summaryTimerStartedAt.current = null;
+    setSummaryCollapsing(false);
+    setSummaryInteracting(false);
+    setShowSummary(true);
   };
 
   const categoryCounts = useMemo(() => {
@@ -270,10 +316,14 @@ const Index = () => {
 
         {showSummary ? (
           <section
-            className="mb-5 grid animate-fade-up gap-3 md:grid-cols-2"
+            className={`grid overflow-hidden transition-all duration-500 ease-out md:grid-cols-2 ${
+              summaryCollapsing ? "mb-0 max-h-0 gap-0 -translate-y-2 opacity-0" : "mb-5 max-h-[340px] gap-3 translate-y-0 opacity-100"
+            }`}
             onMouseEnter={() => setSummaryInteracting(true)}
             onMouseLeave={() => setSummaryInteracting(false)}
-            onPointerDown={holdSummaryOpen}
+            onPointerDown={() => setSummaryInteracting(true)}
+            onPointerUp={() => setSummaryInteracting(false)}
+            onPointerCancel={() => setSummaryInteracting(false)}
             onFocus={() => setSummaryInteracting(true)}
             onBlur={() => setSummaryInteracting(false)}
           >
@@ -286,7 +336,7 @@ const Index = () => {
           </section>
         ) : (
           <button
-            onClick={() => setShowSummary(true)}
+            onClick={reopenSummary}
             className="mb-5 rounded-full border border-[#263241] bg-[#101720] px-4 py-2 text-xs font-black text-[#8B98A8] transition hover:border-[#12B886]/45 hover:text-white"
           >
             Today's summary

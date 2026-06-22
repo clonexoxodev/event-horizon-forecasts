@@ -121,7 +121,7 @@ type DangerState = {
 const emptyForm = {
   question: "",
   category: "Sports",
-  market_type: "binary",
+  market_type: "YES/NO",
   yes_label: "YES",
   no_label: "NO",
   yes_price: 50,
@@ -137,6 +137,11 @@ const emptyForm = {
   min_stake: 100,
   max_stake: 100000,
 };
+
+const ADMIN_MEDIA_MAX_BYTES = 30 * 1024 * 1024;
+const ADMIN_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+const ADMIN_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
+const ADMIN_MEDIA_TYPES = [...ADMIN_IMAGE_TYPES, ...ADMIN_VIDEO_TYPES];
 
 const navItems: Array<{
   id: AdminView;
@@ -279,6 +284,18 @@ const toDateTimeLocal = (value?: string | null) => {
   const offset = date.getTimezoneOffset();
   const local = new Date(date.getTime() - offset * 60_000);
   return local.toISOString().slice(0, 16);
+};
+
+const dateTimeLocalToIso = (value?: string | null) => {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+};
+
+const getDateTimeLocalMin = () => {
+  const now = new Date(Date.now() + 60_000);
+  const offset = now.getTimezoneOffset();
+  return new Date(now.getTime() - offset * 60_000).toISOString().slice(0, 16);
 };
 
 const metricValue = (value: number | undefined | null) =>
@@ -614,27 +631,38 @@ const Admin = () => {
     });
   };
 
-  const buildMarketPayload = (): AdminCreateMarketInput => ({
-    question: form.question.trim(),
-    category: normalizeCategory(form.category),
-    market_type: form.market_type,
-    yes_label: form.yes_label,
-    no_label: form.no_label,
-    yes_price: Number(form.yes_price),
-    no_price: Number(form.no_price),
-    close_date: form.close_date,
-    trading_close_at: form.trading_close_at || form.close_date,
-    resolution_date: form.close_date ? new Date(new Date(form.close_date).getTime() + 60_000).toISOString() : form.close_date,
-    resolution_source: form.resolution_source.trim(),
-    rules: form.rules.trim(),
-    description: form.rules.trim(),
-    image_url: form.image_url.trim() || undefined,
-    video_url: form.video_url.trim() || undefined,
-    status: form.status,
-    is_trending: Boolean(form.is_trending),
-    min_position_smallest_unit: Math.round(Number(form.min_stake) * 100),
-    max_position_smallest_unit: Math.round(Number(form.max_stake) * 100),
-  });
+  const buildMarketPayload = (): AdminCreateMarketInput => {
+    const closeDateIso = dateTimeLocalToIso(form.close_date);
+    const tradingCloseIso = dateTimeLocalToIso(form.trading_close_at || form.close_date);
+    const resolutionDateIso = closeDateIso
+      ? new Date(new Date(closeDateIso).getTime() + 60_000).toISOString()
+      : closeDateIso;
+
+    return {
+      question: form.question.trim(),
+      category: normalizeCategory(form.category),
+      market_type: "binary",
+      yes_label: form.yes_label,
+      no_label: form.no_label,
+      yes_price: Number(form.yes_price),
+      no_price: Number(form.no_price),
+      starting_yes_price: Number(form.yes_price),
+      starting_no_price: Number(form.no_price),
+      close_date: closeDateIso,
+      trading_close_at: tradingCloseIso,
+      resolution_date: resolutionDateIso,
+      resolution_source: form.resolution_source.trim(),
+      resolution_instructions: form.rules.trim(),
+      description: form.rules.trim(),
+      image_url: form.image_url.trim() || undefined,
+      video_url: form.video_url.trim() || undefined,
+      status: form.status === "draft" ? "draft" : "active",
+      is_trending: Boolean(form.is_trending),
+      min_position_smallest_unit: Math.round(Number(form.min_stake) * 100),
+      max_position_smallest_unit: Math.round(Number(form.max_stake) * 100),
+      currency: "NGN",
+    };
+  };
 
   const validateMarket = () => {
     if (!form.question.trim()) return "Market question is required.";
@@ -651,10 +679,14 @@ const Admin = () => {
       return "Resolution source is required.";
     if (!form.image_url.trim() && !form.video_url.trim())
       return "Add an image or video before publishing.";
-    if (Number(form.yes_price) + Number(form.no_price) !== 100)
+    if (!Number.isFinite(Number(form.yes_price)) || !Number.isFinite(Number(form.no_price)))
+      return "YES and NO prices must be valid numbers.";
+    if (Number(form.yes_price) < 1 || Number(form.no_price) < 1 || Number(form.yes_price) > 99 || Number(form.no_price) > 99)
+      return "YES and NO prices must be between 1 and 99.";
+    if (Math.round(Number(form.yes_price) + Number(form.no_price)) !== 100)
       return "YES and NO prices must add up to 100.";
     if (Number(form.min_stake) <= 0) return "Minimum stake must be above zero.";
-    if (Number(form.max_stake) < Number(form.min_stake))
+    if (Number(form.max_stake) <= Number(form.min_stake))
       return "Maximum stake must be greater than minimum stake.";
     return null;
   };
@@ -699,6 +731,16 @@ const Admin = () => {
   };
 
   const uploadMedia = async (file: File) => {
+    if (!ADMIN_MEDIA_TYPES.includes(file.type)) {
+      toast.error("Upload a JPEG, PNG, GIF, WebP, MP4, WebM, or MOV file.");
+      return;
+    }
+
+    if (file.size > ADMIN_MEDIA_MAX_BYTES) {
+      toast.error("Media file must be under 30MB.");
+      return;
+    }
+
     setSaving(true);
     try {
       const result = await apiService.uploadMarketMedia(file);
@@ -710,7 +752,7 @@ const Admin = () => {
       toast.success("Media uploaded.");
     } catch (error) {
       console.error("Upload failed", error);
-      toast.error("Could not upload media.");
+      toast.error(error instanceof Error ? error.message : "Could not upload media.");
     } finally {
       setSaving(false);
     }
@@ -1738,6 +1780,7 @@ const CreateMarketView = ({
 }) => {
   const priceSum = Number(form.yes_price) + Number(form.no_price);
   const hasMedia = Boolean(form.image_url || form.video_url);
+  const minDateTime = getDateTimeLocalMin();
   const ready =
     form.question.trim() &&
     form.category &&
@@ -1799,6 +1842,7 @@ const CreateMarketView = ({
               <Input
                 type="datetime-local"
                 value={form.close_date}
+                min={minDateTime}
                 onChange={(event) => onChange("close_date", event.target.value)}
                 className="border-[#263241] bg-[#0B1118] text-white"
               />
@@ -1807,6 +1851,8 @@ const CreateMarketView = ({
               <Input
                 type="datetime-local"
                 value={form.trading_close_at}
+                min={minDateTime}
+                max={form.close_date || undefined}
                 onChange={(event) => onChange("trading_close_at", event.target.value)}
                 className="border-[#263241] bg-[#0B1118] text-white"
               />
@@ -1899,6 +1945,7 @@ const CreateMarketView = ({
                   onChange={(event) => {
                     const file = event.target.files?.[0];
                     if (file) void onMediaUpload(file);
+                    event.currentTarget.value = "";
                   }}
                 />
               </label>
@@ -1923,7 +1970,6 @@ const CreateMarketView = ({
                 >
                   <option value="draft">Draft</option>
                   <option value="active">Active</option>
-                  <option value="paused">Paused</option>
                 </select>
               </Field>
               <Field label="Trending">

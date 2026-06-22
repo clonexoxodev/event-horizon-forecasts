@@ -66,7 +66,7 @@ export default function Settings() {
             <InfoRow label="Username" value={user?.username || "Guest"} />
             <InfoRow label="Email" value={user?.email || "Not signed in"} />
             <p className="rounded-2xl border border-[#263241] bg-[#151E28] p-4 text-sm text-[#8B98A8]">
-              Public profile editing is paused for V1. Your username is still used for wallet, portfolio, and admin records.
+              Public profile editing is paused for V1. Your username is still used for wallet, My Predictions, and admin records.
             </p>
           </Panel>
 
@@ -78,7 +78,7 @@ export default function Settings() {
 
           <Panel icon={Eye} title="Privacy">
             <Toggle label="Show activity publicly" body="Default is off while public profiles are paused." checked={preferences.publicActivity} onChange={(value) => updatePreference("publicActivity", value)} />
-            <Toggle label="Show earnings publicly" body="Default is off. Projected values should not be shown as guaranteed earnings." checked={preferences.publicEarnings} onChange={(value) => updatePreference("publicEarnings", value)} />
+            <Toggle label="Show winnings publicly" body="Default is off. Only resolved results should ever be shown publicly." checked={preferences.publicEarnings} onChange={(value) => updatePreference("publicEarnings", value)} />
           </Panel>
 
           <Panel icon={Lock} title="Security">

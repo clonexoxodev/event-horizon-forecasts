@@ -87,7 +87,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
               {formatCountdown(tradingCloseTime, m.closesIn)}
             </span>
             <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${isLive ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#151E28] text-[#8B98A8]"}`}>
-              {isLive ? "Predict now" : "Closed"}
+              {isLive ? "Back opinion" : "Closed"}
             </span>
           </div>
         </div>

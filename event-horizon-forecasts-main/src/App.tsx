@@ -25,7 +25,6 @@ import EditProfile from "./pages/EditProfile.tsx";
 import More from "./pages/More.tsx";
 import Admin from "./pages/Admin.tsx";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard.tsx";
-import ListingDetail from "./pages/ListingDetail.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import About from "./pages/About.tsx";
 import HowItWorks from "./pages/HowItWorks.tsx";
@@ -106,7 +105,7 @@ const App = () => (
                   <Route path="/portfolio" element={<Dashboard />} />
                   <Route path="/dashboard" element={<Navigate to="/portfolio" replace />} />
                   <Route path="/wallet" element={<Wallet />} />
-                  <Route path="/listing/:code" element={<ListingDetail />} />
+                  <Route path="/listing/:code" element={<Navigate to="/portfolio" replace />} />
                   <Route path="/activity" element={<Navigate to="/portfolio" replace />} />
                   <Route path="/discussion" element={<Navigate to="/" replace />} />
                   <Route path="/notifications" element={<Notifications />} />

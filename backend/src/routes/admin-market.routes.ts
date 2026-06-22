@@ -525,6 +525,20 @@ const upload = multer({
   },
 });
 
+const ensurePublicStorageBucket = async (bucket: string, mediaType: 'image' | 'video') => {
+  const { error } = await supabase.storage.createBucket(bucket, {
+    public: true,
+    fileSizeLimit: 30 * 1024 * 1024,
+    allowedMimeTypes: mediaType === 'video'
+      ? ['video/mp4', 'video/webm', 'video/quicktime']
+      : ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+  });
+
+  if (error && !/already exists|exist/i.test(error.message || '')) {
+    throw new Error(`Could not verify ${bucket} storage bucket: ${error.message}`);
+  }
+};
+
 // All routes require admin or super_admin role
 router.use(authMiddleware.authenticate);
 router.use(requireRole('admin'));
@@ -905,13 +919,14 @@ router.post('/upload-image', upload.single('image'), async (req: Request, res: R
 router.post('/upload-media', upload.single('media'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: {
           code: 'NO_FILE_UPLOADED',
           message: 'No media file was uploaded',
         },
       });
+      return;
     }
 
     const file = req.file;
@@ -920,6 +935,8 @@ router.post('/upload-media', upload.single('media'), async (req: Request, res: R
     const timestamp = Date.now();
     const fileExtension = file.originalname.split('.').pop();
     const fileName = `${mediaType}-${timestamp}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+
+    await ensurePublicStorageBucket(bucket, mediaType);
 
     const { error } = await supabase.storage
       .from(bucket)
@@ -931,7 +948,7 @@ router.post('/upload-media', upload.single('media'), async (req: Request, res: R
 
     if (error) {
       console.error('Supabase media upload error:', error);
-      return res.status(500).json({
+      res.status(500).json({
         success: false,
         error: {
           code: 'UPLOAD_FAILED',
@@ -939,6 +956,7 @@ router.post('/upload-media', upload.single('media'), async (req: Request, res: R
           details: error.message,
         },
       });
+      return;
     }
 
     const { data: publicUrlData } = supabase.storage
@@ -951,27 +969,30 @@ router.post('/upload-media', upload.single('media'), async (req: Request, res: R
       url: publicUrlData.publicUrl,
       [`${mediaType}_url`]: publicUrlData.publicUrl,
     });
+    return;
   } catch (error: any) {
     console.error('Media upload error:', error);
 
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: {
           code: 'FILE_TOO_LARGE',
           message: 'Media file size must be under 30MB',
         },
       });
+      return;
     }
 
     if (error.message && error.message.includes('Invalid file type')) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: {
           code: 'INVALID_FILE_TYPE',
           message: error.message,
         },
       });
+      return;
     }
 
     res.status(500).json({
@@ -981,6 +1002,7 @@ router.post('/upload-media', upload.single('media'), async (req: Request, res: R
         message: 'Failed to upload media',
       },
     });
+    return;
   }
 });
 

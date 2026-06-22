@@ -11,7 +11,7 @@ const terms = [
   ["Market resolution", "Markets resolve using the stated source and rules. If the market cannot resolve fairly, cancellation and refund logic may apply."],
   ["Disputes", "Users can raise a dispute if a market appears incorrectly resolved, unclear, or unsupported by the stated source."],
   ["Prohibited activity", "Market manipulation, fraud, abuse, multiple-account misuse, automated abuse, and attempts to bypass limits are not allowed."],
-  ["No guaranteed profit", "Projected payout and projected value are estimates. FLIPPE does not guarantee profit or income."],
+  ["No guaranteed profit", "Any payout estimate before resolution is informational only. FLIPPE does not guarantee profit or income."],
   ["Platform changes", "Features, supported markets, deposit/withdrawal methods, and operational rules may change as the product develops."],
   ["Contact details", "Official legal and support contact details should be added before public launch."],
 ];
@@ -55,7 +55,7 @@ export default function Terms() {
         <section className="mt-6 rounded-2xl border border-[#263241] bg-[#101720] p-5">
           <h2 className="text-xl font-black">Before locking a prediction</h2>
           <p className="mt-2 text-sm leading-6 text-[#8B98A8]">
-            By participating in a market, a user should understand that predictions involve risk, projected values are not guaranteed, and final payout depends on market resolution.
+            By participating in a market, a user should understand that predictions involve risk, early estimates are not guaranteed, and final payout depends on market resolution and the final pool.
           </p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <Link to="/responsible-use" className="rounded-2xl bg-[#12B886] px-5 py-3 text-center text-sm font-black text-white hover:bg-[#0EA371]">Responsible Use</Link>

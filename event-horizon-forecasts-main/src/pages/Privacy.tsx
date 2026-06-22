@@ -6,7 +6,7 @@ import { MobileNav } from "@/components/MobileNav";
 const sections = [
   ["Account information", "Username, email address, authentication status, role, and account timestamps may be stored so the platform can identify your account."],
   ["Wallet and activity data", "Wallet balances, deposit requests, withdrawal requests, transactions, stakes, payouts, refunds, and market activity may be stored in the ledger."],
-  ["Market participation", "The platform may record market ID, selected side, stake, shares, price at entry, projected values, final status, and resolution outcome."],
+  ["Market participation", "The platform may record market ID, selected side, stake, background units, Crowd View at entry, final status, and resolution outcome."],
   ["Device and usage data", "The app may collect technical data such as browser, device type, timestamps, session behavior, and error logs to improve reliability."],
 ];
 

@@ -723,6 +723,11 @@ class ApiService {
     });
   }
 
+  async uploadMarketMedia(file: File) {
+    const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+    return this.uploadAdminMarketMedia(file, mediaType);
+  }
+
   async uploadProfilePicture(file: File) {
     const formData = new FormData();
     formData.append('media', file);

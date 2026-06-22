@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowLeft, CheckCircle, Clock, Loader2, Share2, TrendingUp, Users, X } from "lucide-react";
+import { ArrowLeft, CheckCircle, Clock, Loader2, Share2, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
 import { FlippeLoader } from "@/components/FlippeBrand";
@@ -123,9 +123,10 @@ export default function MarketDetail() {
     const shareText = [
       "FLIPPE market",
       market.question,
-      `YES confidence: ${formatNairaPrice(market.yesPrice)}`,
-      `NO confidence: ${formatNairaPrice(market.noPrice)}`,
+      `YES Crowd View: ${formatNairaPrice(market.yesPrice)}`,
+      `NO Crowd View: ${formatNairaPrice(market.noPrice)}`,
       `Time left: ${timeLeft}`,
+      "Back your opinion on FLIPPE.",
       url,
     ].join("\n");
     try {
@@ -188,13 +189,7 @@ export default function MarketDetail() {
   const media = getMarketMedia(market);
   const selectedPrice = sheetSide === "YES" ? market.yesPrice : market.noPrice;
   const numericAmount = Number.parseFloat(amount) || 0;
-  const sideShares = sheetSide === "YES" ? market.totalYesShares || 0 : market.totalNoShares || 0;
   const oppositeStake = sheetSide === "YES" ? market.noVolume || market.noPool || 0 : market.yesVolume || market.yesPool || 0;
-  const sharesReceived = numericAmount > 0 && selectedPrice > 0 ? numericAmount / selectedPrice : 0;
-  const projectedProfit = sideShares + sharesReceived > 0 && oppositeStake > 0
-    ? (sharesReceived / (sideShares + sharesReceived)) * oppositeStake
-    : 0;
-  const projectedPayout = numericAmount + projectedProfit;
   const tradingCloseTime = market.tradingCloseTime || market.closeTime;
   const hasTradingClosed = tradingCloseTime ? new Date(tradingCloseTime).getTime() <= now : false;
   const marketIsActive = market.status === "active" && !hasTradingClosed;
@@ -239,7 +234,7 @@ export default function MarketDetail() {
               <h1 className="max-w-3xl text-3xl font-black leading-tight tracking-tight sm:text-5xl">{market.question}</h1>
               <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-bold text-[#D5DEE8]">
                 <span className="flex items-center gap-1.5"><Users className="h-4 w-4 text-[#12B886]" />{market.participants} participants</span>
-                <span className="flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-[#12B886]" />{market.tradeCount || 0} predictions</span>
+                <span>{market.tradeCount || 0} predictions</span>
                 <span>{formatNaira(market.totalPool)} total predicted</span>
                 <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-[#12B886]" />Closes {formatCountdown(tradingCloseTime, market.closesIn)}</span>
               </div>
@@ -250,8 +245,8 @@ export default function MarketDetail() {
         <section className="mt-4 rounded-2xl border border-[#263241] bg-[#101720] p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-black">Market movement</h2>
-              <p className="text-xs font-bold text-[#8B98A8]">Confidence moves as people make predictions.</p>
+              <h2 className="text-lg font-black">Crowd View movement</h2>
+              <p className="text-xs font-bold text-[#8B98A8]">Crowd View moves as people back YES or NO.</p>
             </div>
             <div className="flex rounded-full border border-[#263241] bg-[#151E28] p-1">
               {(["1H", "24H", "7D", "ALL"] as Timeframe[]).map((item) => (
@@ -266,9 +261,9 @@ export default function MarketDetail() {
 
         <section className="mt-4 grid gap-3 md:grid-cols-2">
           <div className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
-            <h2 className="text-lg font-black">Market view</h2>
+            <h2 className="text-lg font-black">Crowd View</h2>
             <p className="mt-1 text-sm text-[#8B98A8]">
-              {market.yesPrice >= market.noPrice ? "Market currently favors YES." : "Market currently favors NO."} Prices move as people make predictions.
+              {market.yesPrice >= market.noPrice ? "The crowd currently favors YES." : "The crowd currently favors NO."} This changes as people back each side.
             </p>
             <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#E85D5D]/20">
               <div className="h-full bg-[#12B886]" style={{ width: `${yesSideShare}%` }} />
@@ -283,6 +278,9 @@ export default function MarketDetail() {
                 <div className="mt-1 text-xl font-black text-[#FF9C9C]">{formatNairaPrice(market.noPrice)}</div>
               </div>
             </div>
+            <p className="mt-3 text-xs font-bold leading-relaxed text-[#8B98A8]">
+              If your side is correct, you receive your stake plus a share of the losing side's pool.
+            </p>
           </div>
 
           <div className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
@@ -290,7 +288,7 @@ export default function MarketDetail() {
             <div className="mt-3 space-y-2">
               {recentTrades.length ? recentTrades.map((trade) => (
                 <div key={`${trade.timestamp}-${trade.side}-${trade.amount}`} className="flex items-center justify-between rounded-xl bg-[#151E28] px-3 py-2 text-xs">
-                  <span className={`font-black ${trade.side === "YES" ? "text-[#12B886]" : "text-[#E85D5D]"}`}>Bought {trade.side}</span>
+                  <span className={`font-black ${trade.side === "YES" ? "text-[#12B886]" : "text-[#E85D5D]"}`}>Backed {trade.side}</span>
                   <span className="text-[#8B98A8]">{formatNaira(Number(trade.amount || 0))}</span>
                 </div>
               )) : (
@@ -324,10 +322,10 @@ export default function MarketDetail() {
       <div className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-[#263241] bg-[#080c10]/92 p-3 backdrop-blur-xl md:bottom-0 xl:left-64">
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-3">
           <button disabled={!marketIsActive} onClick={() => setSheetSide("YES")} className="h-12 rounded-xl bg-[#12B886] text-sm font-black text-[#06100d] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">
-            Predict YES {formatNairaPrice(market.yesPrice)}
+            Back YES {formatNairaPrice(market.yesPrice)}
           </button>
           <button disabled={!marketIsActive} onClick={() => setSheetSide("NO")} className="h-12 rounded-xl bg-[#E85D5D] text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">
-            Predict NO {formatNairaPrice(market.noPrice)}
+            Back NO {formatNairaPrice(market.noPrice)}
           </button>
         </div>
       </div>
@@ -357,17 +355,17 @@ export default function MarketDetail() {
             </div>
             <div className="mt-5 rounded-xl border border-[#263241] bg-[#151E28] p-4">
               <Row label="Wallet balance" value={user ? formatNaira(user.balance || 0) : "Login required"} />
-              <Row label="Current confidence" value={formatNairaPrice(selectedPrice)} />
-              <Row label="Units received" value={sharesReceived.toFixed(2)} />
-              <Row label="Potential payout if correct" value={formatNaira(projectedPayout)} highlight />
+              <Row label="Crowd View" value={formatNairaPrice(selectedPrice)} />
+              <Row label="Total Pool" value={formatNaira(market.totalPool || market.totalVolume || 0)} />
+              <Row label="Opposing Pool" value={formatNaira(oppositeStake)} highlight />
               <Row label="Market participants" value={`${market.participants || 0}`} />
               <p className="mt-3 text-xs font-bold leading-relaxed text-[#8B98A8]">
-                Payout is projected and the final amount is confirmed when the market resolves.
+                Final payout depends on the result and the final pool when the market closes.
               </p>
             </div>
             <Button onClick={confirmPrediction} disabled={submitting || numericAmount <= 0} className={`mt-5 h-12 w-full rounded-xl text-base font-black ${sheetSide === "YES" ? "bg-[#12B886] text-[#06100d] hover:bg-[#2dd4a0]" : "bg-[#E85D5D] text-white hover:bg-[#f07575]"}`}>
               {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <TrendingUp className="mr-2 h-4 w-4" />}
-              {user ? "Lock Prediction" : "Login to predict"}
+              {user ? `Back ${sheetSide}` : "Login to predict"}
             </Button>
           </div>
         </div>
@@ -551,7 +549,7 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
         )}
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-[#8B98A8]">
-        <span>{hasStoredMovement ? "Live confidence history from saved predictions" : "Flat starting line until the first prediction."}</span>
+        <span>{hasStoredMovement ? "Crowd View history from saved predictions" : "Flat starting line until the first prediction."}</span>
         <span>YES {formatNairaPrice(market.yesPrice)} / NO {formatNairaPrice(market.noPrice)}</span>
       </div>
     </div>

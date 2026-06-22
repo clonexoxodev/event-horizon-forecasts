@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckCircle, Loader2, TrendingUp, X } from "lucide-react";
+import { CheckCircle, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
@@ -37,13 +37,8 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
   const numAmount = Number.parseFloat(amount) || 0;
   const probability = selection?.currentPrice || 50;
   const isPositiveSide = selection?.side === "YES" || selection?.side === "UP";
-  const sideShares = isPositiveSide ? selection?.totalYesShares ?? 0 : selection?.totalNoShares ?? 0;
   const oppositeStake = isPositiveSide ? selection?.noPool ?? 0 : selection?.yesPool ?? 0;
-  const sharesReceived = probability > 0 && numAmount > 0 ? numAmount / probability : 0;
-  const projectedProfit = sideShares + sharesReceived > 0 && oppositeStake > 0
-    ? (sharesReceived / (sideShares + sharesReceived)) * oppositeStake
-    : 0;
-  const projectedPayout = numAmount + projectedProfit;
+  const totalPool = (selection?.yesPool ?? 0) + (selection?.noPool ?? 0);
   const userBalance = user?.balance || 0;
   const insufficientBalance = numAmount > userBalance;
 
@@ -99,7 +94,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Prediction slip</p>
-                <h2 className="mt-1 text-2xl font-black text-white">Lock Prediction</h2>
+                <h2 className="mt-1 text-2xl font-black text-white">Back your opinion</h2>
               </div>
               <button
                 onClick={handleClear}
@@ -124,7 +119,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                       {selection.side}
                     </span>
                     <span className="rounded-full border border-[#263241] bg-[#151E28] px-3 py-1 text-xs font-bold text-[#8B98A8]">
-                      {formatNairaPrice(probability)}
+                      Crowd View {formatNairaPrice(probability)}
                     </span>
                   </div>
                 </div>
@@ -133,7 +128,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
 
             <div className="grid grid-cols-2 gap-3">
               <InfoCard label="Wallet balance" value={user ? formatNaira(userBalance) : "Login required"} />
-              <InfoCard label="Current confidence" value={formatNairaPrice(probability)} />
+              <InfoCard label="Crowd View" value={formatNairaPrice(probability)} />
             </div>
 
             {!user && (
@@ -195,17 +190,17 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
               </div>
               {numAmount > 0 && !insufficientBalance ? (
                 <>
-                <Row label="Amount" value={formatNaira(numAmount)} />
-                <Row label="Current confidence" value={formatNairaPrice(probability)} />
-                <Row label="Units received" value={sharesReceived.toFixed(2)} />
-                <Row label="Potential payout if correct" value={formatNaira(projectedPayout)} highlight />
+                <Row label="Your stake" value={formatNaira(numAmount)} />
+                <Row label="Crowd View" value={formatNairaPrice(probability)} />
+                <Row label="Total Pool" value={formatNaira(totalPool)} />
+                <Row label="Opposing Pool" value={formatNaira(oppositeStake)} highlight />
                 <Row label="Market participants" value={`${selection.participants ?? 0}`} />
                 <p className="mt-3 text-xs font-bold leading-relaxed text-[#8B98A8]">
-                  Payout is projected and the final amount is confirmed when the market resolves.
+                  Final payout depends on the result and the final pool when the market closes.
                 </p>
                 </>
               ) : (
-                <p className="text-sm font-bold text-[#8B98A8]">Choose an amount to see your potential payout.</p>
+                <p className="text-sm font-bold text-[#8B98A8]">Choose an amount to back this side.</p>
               )}
             </div>
 
@@ -225,8 +220,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                 </>
               ) : (
                 <>
-                  <TrendingUp className="mr-2 h-5 w-5" />
-                  Lock Prediction
+                  Back {selection.side}
                 </>
               )}
             </Button>

@@ -34,7 +34,7 @@ export default function Support() {
 
         <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <ActionCard icon={MessageCircle} title="Chat with support" body="Live support is not available yet." onClick={() => setShowChat(true)} />
-          <ActionLink to="/faq" icon={CircleHelp} title="FAQs" body="Read answers about prices, shares, payouts, and wallet flows." />
+          <ActionLink to="/faq" icon={CircleHelp} title="FAQs" body="Read answers about Crowd View, pools, payouts, and wallet flows." />
           <a href="#market-disputes" className="block">
             <ActionShell icon={FileWarning} title="Market disputes" body="Create a structured dispute draft for unclear outcomes." />
           </a>

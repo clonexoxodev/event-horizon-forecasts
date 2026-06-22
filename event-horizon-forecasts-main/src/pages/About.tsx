@@ -4,10 +4,10 @@ import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 
 const principles = [
-  ["Simple", "Markets should be understandable in seconds: question, YES/NO confidence, amount, potential payout, and status.", Target],
+  ["Simple", "Markets should be understandable in seconds: question, YES/NO Crowd View, amount backed, pool, and status.", Target],
   ["Transparent", "Rules, resolution source, wallet movement, and market status should be visible before users participate.", Shield],
   ["Pool-safe", "Flippe's MVP market design should settle from locked market stakes, not from hidden company-funded promises.", BarChart3],
-  ["Responsible", "Projected values are estimates. Users should forecast carefully and never treat predictions as guaranteed income.", CheckCircle2],
+  ["Responsible", "Final payout is only known after resolution. Users should forecast carefully and never treat predictions as guaranteed income.", CheckCircle2],
 ];
 
 export default function About() {
@@ -17,9 +17,9 @@ export default function About() {
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
         <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
           <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#12B886]">About FLIPPE</p>
-          <h1 className="mt-2 max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">Real-world prediction markets for everyday forecasters</h1>
+          <h1 className="mt-2 max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">Stop arguing. Back your opinion.</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-[#8B98A8]">
-            FLIPPE helps users forecast public outcomes using simple YES/NO markets. Markets may cover sports, crypto, politics, entertainment, economy, and other real-world topics with clear rules.
+            FLIPPE is a pooled opinion market. Users forecast public outcomes by backing YES or NO, then the correct side receives a share of the losing side's pool after resolution.
           </p>
         </section>
 
@@ -38,12 +38,12 @@ export default function About() {
         <section className="mt-6 grid gap-5 lg:grid-cols-2">
           <Panel title="What FLIPPE is">
             <p>A platform for forecasting outcomes of public events.</p>
-            <p>A wallet-linked market experience where users can track active positions and resolved results.</p>
-            <p>A product designed to make market rules, projected values, and resolution status easier to understand.</p>
+            <p>A wallet-linked experience where users back a side, track open predictions, and wait for resolution.</p>
+            <p>A product designed to make market rules, pools, Crowd View, and resolution status easier to understand.</p>
           </Panel>
           <Panel title="What FLIPPE is not">
             <p>FLIPPE should not be treated as guaranteed income or financial advice.</p>
-            <p>Projected values are not withdrawable profit before market resolution.</p>
+            <p>There is no withdrawable profit before market resolution unless a real cashout feature is explicitly available.</p>
             <p>Users should never participate with money needed for bills, food, rent, school fees, emergencies, or debt.</p>
           </Panel>
         </section>

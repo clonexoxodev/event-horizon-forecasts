@@ -92,9 +92,7 @@ const Dashboard = () => {
     [positions]
   );
 
-  const projectedValue = activePositions.reduce((sum, position) => sum + Number(position.projectedPayout ?? position.currentValue ?? position.stake ?? 0), 0);
   const openStake = activePositions.reduce((sum, position) => sum + Number(position.stake || 0), 0);
-  const projectedPnl = activePositions.reduce((sum, position) => sum + Number(position.projectedProfit ?? position.unrealizedPnl ?? 0), 0);
   const resolvedWinnings = settledPositions.reduce((sum, position) => sum + Number(position.payout || 0), 0);
 
   if (authLoading) {
@@ -130,15 +128,15 @@ const Dashboard = () => {
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">My Predictions</p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-5xl">{formatNaira(projectedValue)}</h1>
+              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-5xl">{formatNaira(openStake)}</h1>
               <p className="mt-2 max-w-xl text-sm text-[#8B98A8]">
-                Projected value across your open predictions. Final payouts are confirmed only after market resolution.
+                Money you have backed in open predictions. Final payouts are calculated only after market resolution.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[520px]">
               <HeroStat icon={Target} label="Open predictions" value={`${activePositions.length}`} />
-              <HeroStat icon={BarChart3} label="Total staked" value={formatNaira(openStake)} />
-              <HeroStat icon={LineChart} label="Projected gain" value={`${projectedPnl >= 0 ? "+" : ""}${formatNaira(projectedPnl)}`} tone={projectedPnl >= 0 ? "green" : "red"} />
+              <HeroStat icon={BarChart3} label="Amount backed" value={formatNaira(openStake)} />
+              <HeroStat icon={LineChart} label="Resolved results" value={`${settledPositions.length}`} />
               <HeroStat icon={Trophy} label="Resolved winnings" value={formatNaira(resolvedWinnings)} />
             </div>
           </div>
@@ -224,8 +222,8 @@ const PositionsView = ({ positions, onSelect }: { positions: ApiPosition[]; onSe
               </span>
             </div>
             <div className="mt-4 space-y-2 text-sm">
-              <SimplePredictionRow label="Predicted" value={formatNaira(position.stake)} />
-              <SimplePredictionRow label="If correct" value={formatNaira(position.projectedPayout ?? position.currentValue ?? position.positionValue ?? position.stake)} />
+              <SimplePredictionRow label="Amount backed" value={formatNaira(position.stake)} />
+              <SimplePredictionRow label="Crowd View" value={formatNairaPrice(position.currentPrice || position.entryPrice || 0)} />
               <SimplePredictionRow label="Time left" value={formatCountdown(position.tradingCloseTime || position.marketCloseTime)} />
             </div>
             <p className="mt-4 inline-flex items-center gap-1 text-xs font-black text-[#8B98A8]">
@@ -246,11 +244,12 @@ const PredictionDetailModal = ({
   onClose: () => void;
   onViewMarket: () => void;
 }) => {
-  const projectedProfit = Number(position.projectedProfit ?? position.unrealizedPnl ?? 0);
-  const payout = Number(position.projectedPayout ?? position.currentValue ?? position.positionValue ?? position.stake);
   const shares = Number(position.sharesOwned ?? position.sharesReceived ?? 0);
   const rules = (position as ApiPosition & { rules?: string }).rules;
   const resolutionSource = (position as ApiPosition & { resolutionSource?: string }).resolutionSource;
+  const totalPool = Number((position as ApiPosition & { totalPool?: number }).totalPool || 0);
+  const opposingPool = Number((position as ApiPosition & { opposingPool?: number }).opposingPool || 0);
+  const sidePool = Number((position as ApiPosition & { sidePool?: number }).sidePool || 0);
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 px-3 pb-[calc(84px+env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-6">
@@ -274,19 +273,25 @@ const PredictionDetailModal = ({
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <Metric label="Amount predicted" value={formatNaira(position.stake)} />
-              <Metric label="If correct" value={formatNaira(payout)} />
+              <Metric label="Amount backed" value={formatNaira(position.stake)} />
+              <Metric label="Your pick" value={position.side} />
               <Metric label="Time left" value={formatCountdown(position.tradingCloseTime || position.marketCloseTime)} />
               <Metric label="Status" value={(position.status || position.marketStatus).replace(/_/g, " ")} />
             </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <Metric label="Entry price/view" value={formatNairaPrice(position.entryPrice || 0)} large />
-            <Metric label="Current market view" value={formatNairaPrice(position.currentPrice || position.entryPrice || 0)} large />
-            <Metric label="Shares/units" value={shares ? shares.toFixed(2) : "-"} large />
-            <Metric label="Projected P/L if resolved now" value={`${projectedProfit >= 0 ? "+" : ""}${formatNaira(projectedProfit)}`} tone={projectedProfit >= 0 ? "green" : "red"} large />
+            <Metric label="Entry Crowd View" value={formatNairaPrice(position.entryPrice || 0)} large />
+            <Metric label="Current Crowd View" value={formatNairaPrice(position.currentPrice || position.entryPrice || 0)} large />
+            <Metric label="Total Pool" value={totalPool ? formatNaira(totalPool) : "View market"} large />
+            <Metric label="Opposing Pool" value={opposingPool ? formatNaira(opposingPool) : "Changes until close"} large />
+            <Metric label="Your side's pool" value={sidePool ? formatNaira(sidePool) : "View market"} large />
+            <Metric label="Units" value={shares ? shares.toFixed(2) : "-"} large />
           </div>
+
+          <p className="rounded-2xl border border-[#263241] bg-[#151E28] p-4 text-sm font-bold leading-relaxed text-[#8B98A8]">
+            Your final payout is calculated only after the market closes. If your side is correct, you receive your stake plus a share of the losing side's pool.
+          </p>
 
           <section className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
             <h4 className="text-sm font-black">Prediction history</h4>

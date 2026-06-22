@@ -24,7 +24,7 @@ export default function RiskDisclaimer() {
               <p className="text-sm font-bold uppercase tracking-[0.16em] text-red-200">Responsible Use</p>
               <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Forecast carefully. Risk is real.</h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-red-100/80">
-                Predictions can resolve against you. Projected values are not guaranteed, and active positions are not withdrawable cash.
+                Predictions can resolve against you. Final payout is not known until resolution, and active predictions are not withdrawable cash.
               </p>
             </div>
           </div>
@@ -47,12 +47,12 @@ export default function RiskDisclaimer() {
             <p>Do not use money needed for food, rent, bills, school fees, transport, medical needs, emergencies, or debt repayment.</p>
             <p>FLIPPE is for informed forecasting. It is not a source of guaranteed income.</p>
           </Panel>
-          <Panel title="Projected does not mean guaranteed">
-            <p>Projected payout and projected value are estimates based on the current market state.</p>
-            <p>Final results are determined only when the market closes and resolves using the stated source.</p>
+          <Panel title="No payout is guaranteed early">
+            <p>Any estimate before resolution is informational only and can change as the market pool changes.</p>
+            <p>Final results and final payout are determined only when the market closes and resolves using the stated source.</p>
           </Panel>
           <Panel title="Markets can go against you">
-            <p>If your prediction is wrong, your position can settle at zero. Wrong outcomes are part of prediction markets.</p>
+            <p>If your prediction is wrong, it can settle at zero. Wrong outcomes are part of prediction markets.</p>
             <p>Take a break if you feel pressure to recover losses quickly.</p>
           </Panel>
           <Panel title="Before public launch">

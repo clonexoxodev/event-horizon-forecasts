@@ -61,7 +61,7 @@ export default function More() {
 
           <Group title="Platform" description="Learn how Flippe markets work before locking a prediction.">
             <MoreLink to="/how-it-works" icon={BookOpen} title="How It Works" subtitle="A beginner-friendly guide to YES/NO markets." />
-            <MoreLink to="/faq" icon={CircleHelp} title="FAQs" subtitle="Plain answers about confidence, payouts, wallet, and resolution." />
+            <MoreLink to="/faq" icon={CircleHelp} title="FAQs" subtitle="Plain answers about Crowd View, pools, wallet, and resolution." />
             <MoreLink to="/about" icon={Info} title="About FLIPPE" subtitle="What Flippe is building and what it is not." />
           </Group>
 
