@@ -49,18 +49,18 @@ export default function FAQ() {
   const [open, setOpen] = useState<string | null>("Basics-0");
 
   return (
-    <div className="app-bg min-h-screen pb-24 text-white md:pb-0 xl:pl-64">
+    <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-8">
-        <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+        <section className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
           <div className="flex items-start gap-4">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#4F46E5]">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] text-[#4F46E5]">
               <CircleHelp className="h-6 w-6" />
             </div>
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#4F46E5]">FAQs</p>
               <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Questions before you predict</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#8B98A8]">
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#667085]">
                 Simple answers about Crowd View, market pools, wallet movement, and responsible use.
               </p>
             </div>
@@ -69,19 +69,19 @@ export default function FAQ() {
 
         <section className="mt-6 space-y-5">
           {faqs.map((group) => (
-            <div key={group.section} className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
+            <div key={group.section} className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
               <h2 className="mb-3 text-sm font-black uppercase tracking-[0.16em] text-[#4F46E5]">{group.section}</h2>
-              <div className="overflow-hidden rounded-2xl border border-[#263241] bg-[#0D131A]">
+              <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
                 {group.items.map(([question, answer], index) => {
                   const id = `${group.section}-${index}`;
                   const isOpen = open === id;
                   return (
-                    <div key={question} className="border-b border-[#263241] last:border-b-0">
-                      <button onClick={() => setOpen(isOpen ? null : id)} className="flex w-full items-center justify-between gap-4 p-4 text-left transition hover:bg-[#151E28]">
-                        <span className="font-black text-white">{question}</span>
-                        <ChevronDown className={`h-5 w-5 shrink-0 text-[#8B98A8] transition ${isOpen ? "rotate-180" : ""}`} />
+                    <div key={question} className="border-b border-[#E5E7EB] last:border-b-0">
+                      <button onClick={() => setOpen(isOpen ? null : id)} className="flex w-full items-center justify-between gap-4 p-4 text-left transition hover:bg-[#F3F4F6]">
+                        <span className="font-black text-[#101828]">{question}</span>
+                        <ChevronDown className={`h-5 w-5 shrink-0 text-[#667085] transition ${isOpen ? "rotate-180" : ""}`} />
                       </button>
-                      {isOpen && <p className="px-4 pb-4 text-sm leading-6 text-[#8B98A8]">{answer}</p>}
+                      {isOpen && <p className="px-4 pb-4 text-sm leading-6 text-[#667085]">{answer}</p>}
                     </div>
                   );
                 })}
@@ -90,12 +90,12 @@ export default function FAQ() {
           ))}
         </section>
 
-        <section className="mt-6 rounded-2xl border border-[#263241] bg-[#101720] p-5 text-center">
+        <section className="mt-6 rounded-2xl border border-[#E5E7EB] bg-white p-5 text-center">
           <h2 className="text-xl font-black">Still unsure?</h2>
-          <p className="mt-2 text-sm text-[#8B98A8]">Read the beginner guide or open Support before locking a prediction.</p>
+          <p className="mt-2 text-sm text-[#667085]">Read the beginner guide or open Support before locking a prediction.</p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link to="/how-it-works" className="rounded-2xl bg-[#4F46E5] px-5 py-3 text-sm font-black text-white hover:bg-[#4338CA]">How It Works</Link>
-            <Link to="/support" className="rounded-2xl border border-[#263241] bg-[#151E28] px-5 py-3 text-sm font-black text-white hover:border-[#4F46E5]/40">Support</Link>
+            <Link to="/support" className="rounded-2xl border border-[#E5E7EB] bg-[#F3F4F6] px-5 py-3 text-sm font-black text-[#101828] hover:border-[#4F46E5]/40">Support</Link>
           </div>
         </section>
       </main>

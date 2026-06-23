@@ -30,7 +30,7 @@ export const FlippeWordmark = ({
     <FlippeSymbol size={size} />
     <span className="leading-tight">
       <span className="block text-xl font-black tracking-[0.16em] text-white drop-shadow-[0_0_18px_rgba(245,247,250,0.18)]">FLIPPE</span>
-      {tagline && <span className="block text-xs font-semibold text-[#8B98A8]">{tagline}</span>}
+      {tagline && <span className="block text-xs font-semibold text-[#667085]">{tagline}</span>}
     </span>
   </span>
 );
@@ -50,13 +50,13 @@ export const FlippeLoader = ({
     </div>
     <div className={compact ? "hidden" : "block"}>
       <p className="text-lg font-black tracking-[0.16em] text-white">FLIPPE</p>
-      <p className="mt-2 text-sm font-semibold text-[#8B98A8]">{label}</p>
+      <p className="mt-2 text-sm font-semibold text-[#667085]">{label}</p>
     </div>
   </div>
 );
 
 export const MiniBrandLoader = ({ label = "Loading" }: { label?: string }) => (
-  <div className="inline-flex items-center gap-3 text-sm font-bold text-[#8B98A8]">
+  <div className="inline-flex items-center gap-3 text-sm font-bold text-[#667085]">
     <FlippeLoader compact label={label} />
     <span>{label}</span>
   </div>

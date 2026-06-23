@@ -29,17 +29,17 @@ export default function Markets() {
   }, [category, normalizedCategory, markets]);
 
   return (
-    <div className="app-bg min-h-screen pb-20 text-white md:pb-0 xl:pl-64">
+    <div className="app-bg min-h-screen pb-20 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
-        <div className="mb-6 rounded-2xl border border-[#263241] bg-[#101720] p-5">
-          <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#263241] bg-[#151E28] px-3 py-1 text-xs font-bold text-[#8B98A8]">
+        <div className="mb-6 rounded-2xl border border-[#E5E7EB] bg-white p-5">
+          <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-[#F3F4F6] px-3 py-1 text-xs font-bold text-[#667085]">
             Active markets
           </p>
           <h1 className="text-3xl font-black tracking-tight sm:text-5xl">
             {normalizedCategory ? `${normalizedCategory} markets` : "Most active markets"}
           </h1>
-          <p className="mt-2 max-w-xl text-sm text-[#8B98A8]">
+          <p className="mt-2 max-w-xl text-sm text-[#667085]">
             Markets with the most volume, trades, and participation.
           </p>
         </div>
@@ -47,7 +47,7 @@ export default function Markets() {
         {loading ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {[1, 2, 3, 4].map((item) => (
-              <div key={item} className="h-[360px] rounded-2xl border border-[#263241] soft-shimmer" />
+              <div key={item} className="h-[360px] rounded-2xl border border-[#E5E7EB] soft-shimmer" />
             ))}
           </div>
         ) : trending.length > 0 ? (
@@ -59,10 +59,10 @@ export default function Markets() {
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-[#263241] bg-[#101720] p-10 text-center">
+          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-10 text-center">
             <TrendingUp className="mx-auto mb-3 h-10 w-10 text-[#12B886]" />
             <h2 className="text-xl font-black">No active markets</h2>
-            <p className="mt-1 text-sm text-[#8B98A8]">Add markets in the backend to fill this page.</p>
+            <p className="mt-1 text-sm text-[#667085]">Add markets in the backend to fill this page.</p>
           </div>
         )}
       </main>

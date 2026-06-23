@@ -12,18 +12,18 @@ const sections = [
 
 export default function Privacy() {
   return (
-    <div className="app-bg min-h-screen pb-24 text-white md:pb-0 xl:pl-64">
+    <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-8">
-        <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+        <section className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
           <div className="flex items-start gap-4">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#4F46E5]">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] text-[#4F46E5]">
               <Shield className="h-6 w-6" />
             </div>
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#4F46E5]">Privacy</p>
               <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Draft privacy notice</h1>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-[#8B98A8]">
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-[#667085]">
                 This is a pre-launch privacy notice and should be reviewed before public launch. It explains the kinds of data FLIPPE may need to run markets and wallet flows.
               </p>
             </div>
@@ -32,10 +32,10 @@ export default function Privacy() {
 
         <section className="mt-6 grid gap-4 md:grid-cols-2">
           {sections.map(([title, body]) => (
-            <article key={title} className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+            <article key={title} className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
               <Database className="h-6 w-6 text-[#4F46E5]" />
               <h2 className="mt-4 text-xl font-black">{title}</h2>
-              <p className="mt-2 text-sm leading-6 text-[#8B98A8]">{body}</p>
+              <p className="mt-2 text-sm leading-6 text-[#667085]">{body}</p>
             </article>
           ))}
         </section>
@@ -55,7 +55,7 @@ export default function Privacy() {
           </Panel>
           <Panel icon={Database} title="Contact details">
             <p>Official privacy contact details will be added before public launch. For now, users can use the Contact or Support pages.</p>
-            <Link to="/contact" className="mt-3 inline-flex rounded-xl border border-[#263241] bg-[#151E28] px-4 py-2 text-sm font-black text-white hover:border-[#4F46E5]/40">Contact</Link>
+            <Link to="/contact" className="mt-3 inline-flex rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] px-4 py-2 text-sm font-black text-[#101828] hover:border-[#4F46E5]/40">Contact</Link>
           </Panel>
         </section>
       </main>
@@ -65,11 +65,11 @@ export default function Privacy() {
 }
 
 const Panel = ({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) => (
-  <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
-    <div className="grid h-10 w-10 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#4F46E5]">
+  <section className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
+    <div className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] text-[#4F46E5]">
       <Icon className="h-5 w-5" />
     </div>
     <h2 className="mt-4 text-xl font-black">{title}</h2>
-    <div className="mt-3 space-y-3 text-sm leading-6 text-[#8B98A8]">{children}</div>
+    <div className="mt-3 space-y-3 text-sm leading-6 text-[#667085]">{children}</div>
   </section>
 );

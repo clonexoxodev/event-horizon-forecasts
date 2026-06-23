@@ -48,7 +48,7 @@ export default function Notifications() {
 
   if (authLoading) {
     return (
-      <div className="app-bg min-h-screen text-white xl:pl-64">
+      <div className="app-bg min-h-screen text-[#111827] xl:pl-64">
         <Header />
         <main className="grid min-h-[70vh] place-items-center px-4">
           <DelayedFlippeLoader active label="Restoring your activity" />
@@ -60,11 +60,11 @@ export default function Notifications() {
 
   if (!user) {
     return (
-      <div className="app-bg min-h-screen text-white xl:pl-64">
+      <div className="app-bg min-h-screen text-[#111827] xl:pl-64">
         <Header />
         <main className="mx-auto max-w-3xl px-4 py-20 text-center">
           <h2 className="text-2xl font-black">Log in to see activity</h2>
-          <p className="mt-2 text-sm text-[#8B98A8]">Your predictions and wallet moves will show here.</p>
+          <p className="mt-2 text-sm text-[#667085]">Your predictions and wallet moves will show here.</p>
         </main>
         <MobileNav />
       </div>
@@ -72,13 +72,13 @@ export default function Notifications() {
   }
 
   return (
-    <div className="app-bg min-h-screen pb-24 text-white md:pb-0 xl:pl-64">
+    <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
         <div className="mb-6">
-          <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#8B98A8]">Activity</p>
+          <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#667085]">Activity</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Your moves</h1>
-          <p className="mt-2 text-sm text-[#8B98A8]">{loading ? "Loading..." : "Active predictions, results, and money history."}</p>
+          <p className="mt-2 text-sm text-[#667085]">{loading ? "Loading..." : "Active predictions, results, and money history."}</p>
         </div>
 
         <section className="grid gap-3 sm:grid-cols-3">
@@ -88,11 +88,11 @@ export default function Notifications() {
         </section>
 
         <section className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.95fr]">
-          <div className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-black">Predictions</h2>
-                <p className="text-sm text-[#8B98A8]">Your active, won, and lost picks.</p>
+                <p className="text-sm text-[#667085]">Your active, won, and lost picks.</p>
               </div>
               <ActivityIcon className="h-5 w-5 text-[#12B886]" />
             </div>
@@ -102,11 +102,11 @@ export default function Notifications() {
             ) : (
               <ul className="space-y-3">
                 {positions.map((position) => (
-                  <li key={position.id} className="rounded-xl border border-[#263241] bg-[#151E28] p-4">
+                  <li key={position.id} className="rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="line-clamp-2 text-sm font-black">{position.marketQuestion}</div>
-                        <div className="mt-2 text-xs text-[#8B98A8]">{new Date(position.createdAt).toLocaleDateString()}</div>
+                        <div className="mt-2 text-xs text-[#667085]">{new Date(position.createdAt).toLocaleDateString()}</div>
                       </div>
                       <span className={`rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-emerald-400/10 text-[#047857]" : "bg-red-400/10 text-[#B42318]"}`}>
                         {position.side}
@@ -123,11 +123,11 @@ export default function Notifications() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-black">Money history</h2>
-                <p className="text-sm text-[#8B98A8]">Deposits, withdrawals, predictions, winnings, and refunds.</p>
+                <p className="text-sm text-[#667085]">Deposits, withdrawals, predictions, winnings, and refunds.</p>
               </div>
               <Wallet className="h-5 w-5 text-[#12B886]" />
             </div>
@@ -137,10 +137,10 @@ export default function Notifications() {
             ) : (
               <ul className="space-y-3">
                 {activity.map((item) => (
-                  <li key={item.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#263241] bg-[#151E28] p-4">
+                  <li key={item.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] p-4">
                     <div className="min-w-0">
                       <div className="truncate text-sm font-black">{item.label}</div>
-                      <div className="mt-1 flex items-center gap-1 text-xs text-[#8B98A8]">
+                      <div className="mt-1 flex items-center gap-1 text-xs text-[#667085]">
                         <Clock className="h-3 w-3" />
                         {new Date(item.createdAt).toLocaleDateString()}
                       </div>
@@ -150,7 +150,7 @@ export default function Notifications() {
                         {item.direction === "IN" ? "+" : "-"}
                         {formatNaira(item.amount)}
                       </div>
-                      <div className="mt-1 text-xs capitalize text-[#8B98A8]">{item.status}</div>
+                      <div className="mt-1 text-xs capitalize text-[#667085]">{item.status}</div>
                     </div>
                   </li>
                 ))}
@@ -166,33 +166,33 @@ export default function Notifications() {
 
 const SummaryCard = ({ icon: Icon, label, value, tone }: { icon: any; label: string; value: string; tone: "neutral" | "green" | "red" }) => {
   const tones = {
-    neutral: "border-[#263241] bg-[#151E28] text-[#8B98A8]",
+    neutral: "border-[#E5E7EB] bg-[#F3F4F6] text-[#667085]",
     green: "border-[#12B886]/25 bg-[#12B886]/10 text-[#047857]",
     red: "border-[#E85D5D]/25 bg-[#E85D5D]/10 text-[#B42318]",
   };
 
   return (
-    <div className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
+    <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
       <div className={`mb-4 grid h-10 w-10 place-items-center rounded-xl border ${tones[tone]}`}>
         <Icon className="h-5 w-5" />
       </div>
       <div className="text-3xl font-black">{value}</div>
-      <div className="mt-1 text-sm font-bold text-[#8B98A8]">{label}</div>
+      <div className="mt-1 text-sm font-bold text-[#667085]">{label}</div>
     </div>
   );
 };
 
 const Info = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-xl border border-[#263241] bg-[#101720] p-3">
-    <div className="text-[#8B98A8]">{label}</div>
-    <div className="mt-1 truncate font-black text-white">{value}</div>
+  <div className="rounded-xl border border-[#E5E7EB] bg-white p-3">
+    <div className="text-[#667085]">{label}</div>
+    <div className="mt-1 truncate font-black text-[#101828]">{value}</div>
   </div>
 );
 
 const EmptyState = ({ title, body }: { title: string; body: string }) => (
-  <div className="rounded-2xl border border-dashed border-[#263241] py-14 text-center">
+  <div className="rounded-2xl border border-dashed border-[#E5E7EB] py-14 text-center">
     <ActivityIcon className="mx-auto mb-4 h-8 w-8 text-[#12B886]" />
     <div className="font-black">{title}</div>
-    <p className="mt-1 text-sm text-[#8B98A8]">{body}</p>
+    <p className="mt-1 text-sm text-[#667085]">{body}</p>
   </div>
 );

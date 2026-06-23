@@ -221,12 +221,12 @@ const statusText = (status?: string | null) => {
 const statusClasses = (status?: string | null) => {
   switch (status) {
     case "active":
-      return "border-emerald-500/30 bg-emerald-500/10 text-[#4F46E5]";
+      return "border-[#C7D2FE] bg-[#EEF2FF] text-[#4F46E5]";
     case "pending_resolution":
     case "closed":
-      return "border-amber-500/30 bg-amber-500/10 text-amber-300";
+      return "border-amber-500/30 bg-amber-500/10 text-[#B7791F]";
     case "resolved":
-      return "border-sky-500/30 bg-sky-500/10 text-sky-300";
+      return "border-sky-500/30 bg-sky-500/10 text-[#2563EB]";
     case "cancelled":
     case "archived":
       return "border-zinc-500/30 bg-zinc-500/10 text-zinc-300";
@@ -980,7 +980,7 @@ const Admin = () => {
             <FlippeSymbol size="lg" />
             <div>
               <p className="text-lg font-semibold tracking-[0.04em]">FLIPPE Admin</p>
-              <p className="text-sm text-[#8B98A8]">
+              <p className="text-sm text-[#667085]">
                 {isSuperAdmin ? "Super admin console" : "Admin console"}
               </p>
             </div>
@@ -1006,7 +1006,7 @@ const Admin = () => {
                     <Icon className="h-4 w-4" />
                     <span className="flex-1">
                       <span className="block text-sm font-semibold">{item.label}</span>
-                      <span className="block text-xs text-[#64748B]">{item.hint}</span>
+                      <span className="block text-xs text-[#667085]">{item.hint}</span>
                     </span>
                     {active && <ChevronRight className="h-4 w-4 text-[#4F46E5]" />}
                   </button>
@@ -1026,7 +1026,7 @@ const Admin = () => {
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
                 {navItems.find((item) => item.id === view)?.label || "Dashboard"}
               </h1>
-              <p className="mt-1 text-sm text-[#8B98A8]">
+              <p className="mt-1 text-sm text-[#667085]">
                 Real platform controls for markets, users, finance, and risk.
               </p>
             </div>
@@ -1063,7 +1063,7 @@ const Admin = () => {
                     "whitespace-nowrap rounded-full border px-4 py-2 text-sm",
                     view === item.id
                       ? "border-[#4F46E5] bg-[#4F46E5] text-[#FFFFFF]"
-                      : "border-[#263241] bg-[#101720] text-[#8B98A8]"
+                      : "border-[#E5E7EB] bg-white text-[#667085]"
                   )}
                 >
                   {item.label}
@@ -1206,7 +1206,7 @@ const ShellCard = ({
 }) => (
   <section
     className={classNames(
-      "rounded-xl border border-[#263241] bg-[#101720] shadow-sm",
+      "rounded-xl border border-[#E5E7EB] bg-white shadow-sm",
       className
     )}
   >
@@ -1225,7 +1225,7 @@ const SectionHeader = ({
   description?: string;
   action?: React.ReactNode;
 }) => (
-  <div className="flex flex-col gap-3 border-b border-[#263241] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+  <div className="flex flex-col gap-3 border-b border-[#E5E7EB] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
     <div>
       {eyebrow && (
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#4F46E5]">
@@ -1233,7 +1233,7 @@ const SectionHeader = ({
         </p>
       )}
       <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-      {description && <p className="mt-1 text-sm text-[#8B98A8]">{description}</p>}
+      {description && <p className="mt-1 text-sm text-[#667085]">{description}</p>}
     </div>
     {action}
   </div>
@@ -1253,25 +1253,25 @@ const MetricCard = ({
   icon: typeof Activity;
 }) => {
   const tones = {
-    neutral: "bg-[#151E28] text-[#8B98A8]",
-    green: "bg-emerald-500/10 text-[#4F46E5]",
-    amber: "bg-amber-500/10 text-amber-300",
+    neutral: "bg-[#F3F4F6] text-[#667085]",
+    green: "bg-[#EEF2FF] text-[#4F46E5]",
+    amber: "bg-amber-500/10 text-[#B7791F]",
     red: "bg-red-500/10 text-[#B42318]",
-    blue: "bg-sky-500/10 text-sky-300",
+    blue: "bg-sky-500/10 text-[#2563EB]",
   };
 
   return (
-    <div className="rounded-xl border border-[#263241] bg-[#101720] p-4">
+    <div className="rounded-xl border border-[#E5E7EB] bg-white p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm text-[#8B98A8]">{label}</p>
+          <p className="text-sm text-[#667085]">{label}</p>
           <p className="mt-2 text-2xl font-semibold tracking-tight">{value}</p>
         </div>
         <div className={classNames("rounded-lg p-2", tones[tone])}>
           <Icon className="h-4 w-4" />
         </div>
       </div>
-      {hint && <p className="mt-3 text-xs text-[#64748B]">{hint}</p>}
+      {hint && <p className="mt-3 text-xs text-[#667085]">{hint}</p>}
     </div>
   );
 };
@@ -1280,11 +1280,11 @@ const Badge = ({ children, tone = "neutral" }: { children: React.ReactNode; tone
   <span
     className={classNames(
       "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold",
-      tone === "green" && "border-emerald-500/30 bg-emerald-500/10 text-[#4F46E5]",
-      tone === "amber" && "border-amber-500/30 bg-amber-500/10 text-amber-300",
+      tone === "green" && "border-[#C7D2FE] bg-[#EEF2FF] text-[#4F46E5]",
+      tone === "amber" && "border-amber-500/30 bg-amber-500/10 text-[#B7791F]",
       tone === "red" && "border-red-500/30 bg-red-500/10 text-[#B42318]",
-      tone === "blue" && "border-sky-500/30 bg-sky-500/10 text-sky-300",
-      tone === "neutral" && "border-[#263241] bg-[#151E28] text-[#8B98A8]"
+      tone === "blue" && "border-sky-500/30 bg-sky-500/10 text-[#2563EB]",
+      tone === "neutral" && "border-[#E5E7EB] bg-[#F3F4F6] text-[#667085]"
     )}
   >
     {children}
@@ -1361,14 +1361,14 @@ const DashboardView = ({
             <MetricCard label="Users with predictions" value={metrics.usersWithPredictions} icon={Users} />
             <MetricCard label="New users today" value={metrics.newUsersToday} icon={ShieldCheck} />
           </div>
-          <div className="border-t border-[#263241] p-5">
-            <h3 className="mb-3 text-sm font-semibold text-[#F5F7FA]">
+          <div className="border-t border-[#E5E7EB] p-5">
+            <h3 className="mb-3 text-sm font-semibold text-[#101828]">
               Most active users
             </h3>
             {mostActiveUsers.length ? (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[680px] text-left text-sm">
-                  <thead className="text-xs uppercase tracking-wide text-[#64748B]">
+                  <thead className="text-xs uppercase tracking-wide text-[#667085]">
                     <tr>
                       <th className="py-3">User</th>
                       <th>Predictions</th>
@@ -1382,11 +1382,11 @@ const DashboardView = ({
                       <tr key={adminUser.id}>
                         <td className="py-3">
                           <p className="font-medium">{adminUser.username || "User"}</p>
-                          <p className="text-xs text-[#8B98A8]">{adminUser.email}</p>
+                          <p className="text-xs text-[#667085]">{adminUser.email}</p>
                         </td>
                         <td>{metricValue(adminUser.total_predictions)}</td>
                         <td>{formatNaira(metricValue(adminUser.total_volume))}</td>
-                        <td className="text-[#8B98A8]">
+                        <td className="text-[#667085]">
                           {formatShortDate(adminUser.last_login_at)}
                         </td>
                         <td>
@@ -1425,9 +1425,9 @@ const DashboardView = ({
               empty="No markets waiting for resolution."
               markets={pending}
             />
-            <div className="rounded-lg border border-[#263241] bg-[#0B1118] p-4">
+            <div className="rounded-lg border border-[#E5E7EB] bg-white p-4">
               <p className="text-sm font-semibold">Finance snapshot</p>
-              <div className="mt-3 grid gap-2 text-sm text-[#8B98A8]">
+              <div className="mt-3 grid gap-2 text-sm text-[#667085]">
                 <div className="flex justify-between">
                   <span>Pending deposits</span>
                   <span>{metricValue(financeOverview?.pendingDeposits)}</span>
@@ -1442,7 +1442,7 @@ const DashboardView = ({
                 </div>
               </div>
             </div>
-            {loading && <p className="text-sm text-[#8B98A8]">Refreshing data...</p>}
+            {loading && <p className="text-sm text-[#667085]">Refreshing data...</p>}
           </div>
         </ShellCard>
       </div>
@@ -1462,7 +1462,7 @@ const QueueList = ({
   <div>
     <div className="mb-2 flex items-center justify-between">
       <h3 className="text-sm font-semibold">{title}</h3>
-      <span className="text-xs text-[#64748B]">{markets.length}</span>
+      <span className="text-xs text-[#667085]">{markets.length}</span>
     </div>
     {markets.length ? (
       <div className="space-y-2">
@@ -1470,10 +1470,10 @@ const QueueList = ({
           <Link
             key={market.id}
             to={`/market/${market.id}`}
-            className="block rounded-lg border border-[#263241] bg-[#0B1118] p-3 transition hover:border-[#4F46E5]/50"
+            className="block rounded-lg border border-[#E5E7EB] bg-white p-3 transition hover:border-[#4F46E5]/50"
           >
             <p className="line-clamp-2 text-sm font-medium">{market.question}</p>
-            <div className="mt-2 flex items-center justify-between text-xs text-[#8B98A8]">
+            <div className="mt-2 flex items-center justify-between text-xs text-[#667085]">
               <span>{categoryLabel(market.category)}</span>
               <span>{formatDate(market.close_date || market.closes_at)}</span>
             </div>
@@ -1481,7 +1481,7 @@ const QueueList = ({
         ))}
       </div>
     ) : (
-      <p className="rounded-lg border border-dashed border-[#263241] px-3 py-4 text-sm text-[#8B98A8]">
+      <p className="rounded-lg border border-dashed border-[#E5E7EB] px-3 py-4 text-sm text-[#667085]">
         {empty}
       </p>
     )}
@@ -1560,17 +1560,17 @@ const MarketsView = ({
         description="Review live, ending, pending, resolved, and archived markets with safe actions."
         action={
           <div className="relative w-full lg:w-80">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#667085]" />
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search markets..."
-              className="border-[#263241] bg-[#0B1118] pl-9 text-white"
+              className="border-[#E5E7EB] bg-white pl-9 text-[#101828]"
             />
           </div>
         }
       />
-      <div className="flex gap-2 overflow-x-auto border-b border-[#263241] px-5 py-3">
+      <div className="flex gap-2 overflow-x-auto border-b border-[#E5E7EB] px-5 py-3">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -1579,7 +1579,7 @@ const MarketsView = ({
               "whitespace-nowrap rounded-full border px-3 py-2 text-sm transition",
               statusFilter === tab.id
                 ? "border-[#4F46E5] bg-[#4F46E5] text-[#FFFFFF]"
-                : "border-[#263241] bg-[#0B1118] text-[#8B98A8] hover:text-white"
+                : "border-[#E5E7EB] bg-white text-[#667085] hover:text-[#101828]"
             )}
           >
             {tab.label} <span className="ml-1 opacity-70">{tab.count}</span>
@@ -1588,7 +1588,7 @@ const MarketsView = ({
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1120px] text-left text-sm">
-          <thead className="border-b border-[#263241] text-xs uppercase tracking-wide text-[#64748B]">
+          <thead className="border-b border-[#E5E7EB] text-xs uppercase tracking-wide text-[#667085]">
             <tr>
               <th className="px-5 py-4">Market</th>
               <th>Status</th>
@@ -1634,10 +1634,10 @@ const MarketsView = ({
                 <td className="py-4">{formatNaira(marketVolume(market))}</td>
                 <td className="py-4">{Number(market.trade_count || 0)}</td>
                 <td className="py-4">{Number(market.participant_count || 0)}</td>
-                <td className="py-4 text-[#8B98A8]">
+                <td className="py-4 text-[#667085]">
                   {formatDate(market.close_date || market.closes_at)}
                 </td>
-                <td className="py-4 text-[#8B98A8]">
+                <td className="py-4 text-[#667085]">
                   {market.winning_outcome || market.resolved_outcome || "Not resolved"}
                 </td>
                 <td className="py-4 pr-5">
@@ -1745,11 +1745,11 @@ const ActionButton = ({
   const classes = classNames(
     "inline-flex h-9 w-9 items-center justify-center rounded-lg border transition",
     tone === "green" &&
-      "border-emerald-500/30 bg-emerald-500/10 text-[#4F46E5] hover:bg-[#4338CA]/20",
+      "border-[#C7D2FE] bg-[#EEF2FF] text-[#4F46E5] hover:bg-[#4338CA]/20",
     tone === "red" &&
       "border-red-500/30 bg-red-500/10 text-[#B42318] hover:bg-red-500/20",
     tone === "neutral" &&
-      "border-[#263241] bg-[#151E28] text-[#8B98A8] hover:bg-[#1B2633] hover:text-white",
+      "border-[#E5E7EB] bg-[#F3F4F6] text-[#667085] hover:bg-[#1B2633] hover:text-[#101828]",
     disabled && "cursor-not-allowed opacity-40"
   );
 
@@ -1818,7 +1818,7 @@ const CreateMarketView = ({
               value={form.question}
               onChange={(event) => onChange("question", event.target.value)}
               placeholder="Will Nigeria qualify for the 2026 World Cup?"
-              className="border-[#263241] bg-[#0B1118] text-white"
+              className="border-[#E5E7EB] bg-white text-[#101828]"
             />
           </Field>
 
@@ -1827,7 +1827,7 @@ const CreateMarketView = ({
               <select
                 value={normalizeCategory(form.category)}
                 onChange={(event) => onChange("category", event.target.value)}
-                className="h-10 w-full rounded-md border border-[#263241] bg-[#0B1118] px-3 text-sm text-white"
+                className="h-10 w-full rounded-md border border-[#E5E7EB] bg-white px-3 text-sm text-[#101828]"
               >
                 {ADMIN_MARKET_CATEGORIES.map((category) => (
                   <option key={category.value} value={category.value}>
@@ -1842,7 +1842,7 @@ const CreateMarketView = ({
                 onChange={(event) =>
                   onChange("market_type", event.target.value as MarketKind)
                 }
-                className="h-10 w-full rounded-md border border-[#263241] bg-[#0B1118] px-3 text-sm text-white"
+                className="h-10 w-full rounded-md border border-[#E5E7EB] bg-white px-3 text-sm text-[#101828]"
               >
                 <option>YES/NO</option>
                 <option>UP/DOWN</option>
@@ -1861,7 +1861,7 @@ const CreateMarketView = ({
                 onClick={openDateTimePicker}
                 onFocus={openDateTimePicker}
                 onChange={(event) => onChange("close_date", event.target.value)}
-                className="h-11 w-full rounded-md border border-[#263241] bg-[#0B1118] px-3 text-sm text-white outline-none transition focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20"
+                className="h-11 w-full rounded-md border border-[#E5E7EB] bg-white px-3 text-sm text-[#101828] outline-none transition focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20"
               />
             </Field>
             <Field label="Trading close time">
@@ -1873,9 +1873,9 @@ const CreateMarketView = ({
                 onClick={openDateTimePicker}
                 onFocus={openDateTimePicker}
                 onChange={(event) => onChange("trading_close_at", event.target.value)}
-                className="h-11 w-full rounded-md border border-[#263241] bg-[#0B1118] px-3 text-sm text-white outline-none transition focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20"
+                className="h-11 w-full rounded-md border border-[#E5E7EB] bg-white px-3 text-sm text-[#101828] outline-none transition focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20"
               />
-              <p className="mt-1 text-xs text-[#8B98A8]">Leave blank to close predictions at market end.</p>
+              <p className="mt-1 text-xs text-[#667085]">Leave blank to close predictions at market end.</p>
             </Field>
           </div>
 
@@ -1887,7 +1887,7 @@ const CreateMarketView = ({
                 max={99}
                 value={form.yes_price}
                 onChange={(event) => onChange("yes_price", Number(event.target.value))}
-                className="border-[#263241] bg-[#0B1118] text-white"
+                className="border-[#E5E7EB] bg-white text-[#101828]"
               />
             </Field>
             <Field label="Starting NO price">
@@ -1897,7 +1897,7 @@ const CreateMarketView = ({
                 max={99}
                 value={form.no_price}
                 onChange={(event) => onChange("no_price", Number(event.target.value))}
-                className="border-[#263241] bg-[#0B1118] text-white"
+                className="border-[#E5E7EB] bg-white text-[#101828]"
               />
             </Field>
           </div>
@@ -1906,7 +1906,7 @@ const CreateMarketView = ({
             className={classNames(
               "rounded-lg border px-4 py-3 text-sm",
               priceSum === 100
-                ? "border-emerald-500/30 bg-emerald-500/10 text-[#4F46E5]"
+                ? "border-[#C7D2FE] bg-[#EEF2FF] text-[#4F46E5]"
                 : "border-red-500/30 bg-red-500/10 text-[#B42318]"
             )}
           >
@@ -1918,7 +1918,7 @@ const CreateMarketView = ({
               value={form.rules}
               onChange={(event) => onChange("rules", event.target.value)}
               placeholder="Explain exactly what must happen for YES to win and what source will be used."
-              className="min-h-32 border-[#263241] bg-[#0B1118] text-white"
+              className="min-h-32 border-[#E5E7EB] bg-white text-[#101828]"
             />
           </Field>
 
@@ -1927,7 +1927,7 @@ const CreateMarketView = ({
               value={form.resolution_source}
               onChange={(event) => onChange("resolution_source", event.target.value)}
               placeholder="Official FIFA report, exchange rate source, public announcement..."
-              className="border-[#263241] bg-[#0B1118] text-white"
+              className="border-[#E5E7EB] bg-white text-[#101828]"
             />
           </Field>
         </div>
@@ -1943,7 +1943,7 @@ const CreateMarketView = ({
                   type="number"
                   value={form.min_stake}
                   onChange={(event) => onChange("min_stake", Number(event.target.value))}
-                  className="border-[#263241] bg-[#0B1118] text-white"
+                  className="border-[#E5E7EB] bg-white text-[#101828]"
                 />
               </Field>
               <Field label="Maximum stake">
@@ -1951,13 +1951,13 @@ const CreateMarketView = ({
                   type="number"
                   value={form.max_stake}
                   onChange={(event) => onChange("max_stake", Number(event.target.value))}
-                  className="border-[#263241] bg-[#0B1118] text-white"
+                  className="border-[#E5E7EB] bg-white text-[#101828]"
                 />
               </Field>
             </div>
 
             <Field label="Media upload" required>
-              <label className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-[#263241] bg-[#0B1118] px-4 py-6 text-sm text-[#8B98A8] transition hover:border-[#4F46E5]/60 hover:text-white">
+              <label className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-[#E5E7EB] bg-white px-4 py-6 text-sm text-[#667085] transition hover:border-[#4F46E5]/60 hover:text-[#101828]">
                 <Upload className="mr-2 h-4 w-4" />
                 Upload image or video
                 <input
@@ -1974,7 +1974,7 @@ const CreateMarketView = ({
             </Field>
 
             {(form.image_url || form.video_url) && (
-              <div className="overflow-hidden rounded-lg border border-[#263241] bg-[#0B1118]">
+              <div className="overflow-hidden rounded-lg border border-[#E5E7EB] bg-white">
                 {form.video_url ? (
                   <video src={form.video_url} controls className="h-48 w-full object-cover" />
                 ) : (
@@ -1988,14 +1988,14 @@ const CreateMarketView = ({
                 <select
                   value={form.status}
                   onChange={(event) => onChange("status", event.target.value)}
-                  className="h-10 w-full rounded-md border border-[#263241] bg-[#0B1118] px-3 text-sm text-white"
+                  className="h-10 w-full rounded-md border border-[#E5E7EB] bg-white px-3 text-sm text-[#101828]"
                 >
                   <option value="draft">Draft</option>
                   <option value="active">Active</option>
                 </select>
               </Field>
               <Field label="Trending">
-                <label className="flex h-10 items-center gap-2 rounded-md border border-[#263241] bg-[#0B1118] px-3 text-sm">
+                <label className="flex h-10 items-center gap-2 rounded-md border border-[#E5E7EB] bg-white px-3 text-sm">
                   <input
                     type="checkbox"
                     checked={form.is_trending}
@@ -2011,12 +2011,12 @@ const CreateMarketView = ({
         <ShellCard>
           <SectionHeader title="User preview" description="Approximate market card before publishing." />
           <div className="p-5">
-            <div className="overflow-hidden rounded-xl border border-[#263241] bg-[#0B1118]">
-              <div className="flex h-44 items-center justify-center bg-[#151E28]">
+            <div className="overflow-hidden rounded-xl border border-[#E5E7EB] bg-white">
+              <div className="flex h-44 items-center justify-center bg-[#F3F4F6]">
                 {form.image_url ? (
                   <img src={form.image_url} alt="" className="h-full w-full object-cover" />
                 ) : (
-                  <div className="flex flex-col items-center gap-2 text-[#64748B]">
+                  <div className="flex flex-col items-center gap-2 text-[#667085]">
                     <ImageIcon className="h-8 w-8" />
                     <span className="text-sm">Media preview</span>
                   </div>
@@ -2033,7 +2033,7 @@ const CreateMarketView = ({
                   {form.question || "Market question appears here"}
                 </p>
                 <div className="mt-4 grid grid-cols-2 gap-3">
-                  <div className="rounded-lg bg-emerald-500/10 px-3 py-2 text-center text-sm font-semibold text-[#4F46E5]">
+                  <div className="rounded-lg bg-[#EEF2FF] px-3 py-2 text-center text-sm font-semibold text-[#4F46E5]">
                     {form.yes_label} {form.yes_price}
                   </div>
                   <div className="rounded-lg bg-red-500/10 px-3 py-2 text-center text-sm font-semibold text-[#B42318]">
@@ -2055,7 +2055,7 @@ const CreateMarketView = ({
             <ChecklistItem ok={Boolean(form.resolution_source.trim())}>Resolution source is set</ChecklistItem>
             <ChecklistItem ok={hasMedia}>Media is attached</ChecklistItem>
           </div>
-          <div className="border-t border-[#263241] p-5">
+          <div className="border-t border-[#E5E7EB] p-5">
             <Button
               className="w-full bg-[#4F46E5] text-[#FFFFFF] hover:bg-[#4338CA]"
               onClick={onSave}
@@ -2067,7 +2067,7 @@ const CreateMarketView = ({
             {editingMarket && (
               <Button
                 variant="ghost"
-                className="mt-2 w-full text-[#8B98A8] hover:bg-[#151E28] hover:text-white"
+                className="mt-2 w-full text-[#667085] hover:bg-[#F3F4F6] hover:text-[#101828]"
                 onClick={onReset}
               >
                 Cancel edit
@@ -2103,9 +2103,9 @@ const ChecklistItem = ({ ok, children }: { ok: boolean; children: React.ReactNod
     {ok ? (
       <CheckCircle className="h-4 w-4 text-[#4F46E5]" />
     ) : (
-      <XCircle className="h-4 w-4 text-[#64748B]" />
+      <XCircle className="h-4 w-4 text-[#667085]" />
     )}
-    <span className={ok ? "text-[#D7DEE8]" : "text-[#64748B]"}>{children}</span>
+    <span className={ok ? "text-[#D7DEE8]" : "text-[#667085]"}>{children}</span>
   </div>
 );
 
@@ -2146,14 +2146,14 @@ const ResolutionCenterView = ({
                 <Badge tone="amber">{statusText(market.status)}</Badge>
               </div>
               <h3 className="text-lg font-semibold">{market.question}</h3>
-              <p className="mt-2 text-sm text-[#8B98A8]">
+              <p className="mt-2 text-sm text-[#667085]">
                 Rules: {market.rules || market.description || "No rules provided."}
               </p>
-              <p className="mt-1 text-sm text-[#8B98A8]">
+              <p className="mt-1 text-sm text-[#667085]">
                 Source: {market.resolution_source || "Not set"}
               </p>
             </div>
-            <div className="rounded-lg border border-[#263241] bg-[#0B1118] p-4">
+            <div className="rounded-lg border border-[#E5E7EB] bg-white p-4">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <Stat label="YES stake" value={formatNaira(koboToNaira(market.yes_pool_smallest_unit || 0))} />
                 <Stat label="NO stake" value={formatNaira(koboToNaira(market.no_pool_smallest_unit || 0))} />
@@ -2169,7 +2169,7 @@ const ResolutionCenterView = ({
                   YES won
                 </Button>
                 <Button
-                  className="bg-red-600 text-white hover:bg-red-500"
+                  className="bg-red-600 text-[#101828] hover:bg-red-500"
                   disabled={saving}
                   onClick={() => onResolve(market, "resolved", "NO")}
                 >
@@ -2277,14 +2277,14 @@ const FinanceQueue = ({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="font-semibold">{formatNaira(Number(item.amount || 0))}</p>
-                <p className="text-sm text-[#8B98A8]">
+                <p className="text-sm text-[#667085]">
                   {requestUserLabel(item)}
                 </p>
-                <p className="mt-1 text-xs text-[#64748B]">
+                <p className="mt-1 text-xs text-[#667085]">
                   Reference: {item.reference || "Not set"}
                 </p>
                 {"bankName" in item && (
-                  <p className="mt-1 text-xs text-[#64748B]">
+                  <p className="mt-1 text-xs text-[#667085]">
                     {item.bankName} - {item.accountNumber} - {item.accountName}
                   </p>
                 )}
@@ -2371,18 +2371,18 @@ const TransactionsView = ({
           !compact && (
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
               <div className="relative sm:w-72">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#667085]" />
                 <Input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search ledger..."
-                  className="border-[#263241] bg-[#0B1118] pl-9 text-white"
+                  className="border-[#E5E7EB] bg-white pl-9 text-[#101828]"
                 />
               </div>
               <select
                 value={filter}
                 onChange={(event) => setFilter(event.target.value)}
-                className="h-10 rounded-md border border-[#263241] bg-[#0B1118] px-3 text-sm text-white"
+                className="h-10 rounded-md border border-[#E5E7EB] bg-white px-3 text-sm text-[#101828]"
               >
                 {filters.map((item) => (
                   <option key={item} value={item}>
@@ -2396,7 +2396,7 @@ const TransactionsView = ({
       />
       <div className="overflow-x-auto">
         <table className="w-full min-w-[880px] text-left text-sm">
-          <thead className="border-b border-[#263241] text-xs uppercase tracking-wide text-[#64748B]">
+          <thead className="border-b border-[#E5E7EB] text-xs uppercase tracking-wide text-[#667085]">
             <tr>
               <th className="px-5 py-4">Type</th>
               <th>User</th>
@@ -2411,18 +2411,18 @@ const TransactionsView = ({
             {filtered.slice(0, compact ? 10 : 100).map((tx) => (
               <tr key={tx.id}>
                 <td className="px-5 py-4 font-medium">{statusText(tx.type)}</td>
-                <td className="text-[#8B98A8]">{txUserLabel(tx)}</td>
+                <td className="text-[#667085]">{txUserLabel(tx)}</td>
                 <td>{formatNaira(Number(tx.amount || 0))}</td>
                 <td>
                   <Badge tone={tx.status === "completed" ? "green" : tx.status === "pending" ? "amber" : "neutral"}>
                     {tx.status}
                   </Badge>
                 </td>
-                <td className="text-[#8B98A8]">{txReference(tx)}</td>
-                <td className="max-w-[240px] truncate text-[#8B98A8]">
+                <td className="text-[#667085]">{txReference(tx)}</td>
+                <td className="max-w-[240px] truncate text-[#667085]">
                   {txMarketLabel(tx)}
                 </td>
-                <td className="text-[#8B98A8]">{formatDate(txDate(tx))}</td>
+                <td className="text-[#667085]">{formatDate(txDate(tx))}</td>
               </tr>
             ))}
           </tbody>
@@ -2460,19 +2460,19 @@ const UsersView = ({
         description="Operational user visibility. Suspension and last-login tracking need backend support."
         action={
           <div className="relative w-full lg:w-80">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#667085]" />
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search users..."
-              className="border-[#263241] bg-[#0B1118] pl-9 text-white"
+              className="border-[#E5E7EB] bg-white pl-9 text-[#101828]"
             />
           </div>
         }
       />
       <div className="overflow-x-auto">
         <table className="w-full min-w-[980px] text-left text-sm">
-          <thead className="border-b border-[#263241] text-xs uppercase tracking-wide text-[#64748B]">
+          <thead className="border-b border-[#E5E7EB] text-xs uppercase tracking-wide text-[#667085]">
             <tr>
               <th className="px-5 py-4">User</th>
               <th>Wallet balance</th>
@@ -2489,15 +2489,15 @@ const UsersView = ({
               <tr key={adminUser.id}>
                 <td className="px-5 py-4">
                   <p className="font-medium">{adminUser.username || "User"}</p>
-                  <p className="text-xs text-[#8B98A8]">{adminUser.email}</p>
+                  <p className="text-xs text-[#667085]">{adminUser.email}</p>
                 </td>
                 <td>{formatNaira(metricValue(adminUser.wallet_balance))}</td>
                 <td>{metricValue(adminUser.active_positions)}</td>
                 <td>{metricValue(adminUser.total_predictions)}</td>
-                <td className="text-[#8B98A8]">
+                <td className="text-[#667085]">
                   {formatShortDate(adminUser.last_active_at || adminUser.last_login_at)}
                 </td>
-                <td className="text-[#8B98A8]">{formatShortDate(adminUser.created_at)}</td>
+                <td className="text-[#667085]">{formatShortDate(adminUser.created_at)}</td>
                 <td>
                   <Badge tone={adminUser.status === "suspended" ? "red" : "green"}>
                     {adminUser.status || "Active"}
@@ -2553,7 +2553,7 @@ const AdminRolesErrorState = ({ error }: { error?: Error | string | null }) => (
             The access-control panel could not render. Please refresh or try again.
           </p>
           {import.meta.env.DEV && error && (
-            <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-3 text-xs text-red-50">
+            <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-[#F3F4F6] p-3 text-xs text-red-50">
               {getErrorMessage(error)}
             </pre>
           )}
@@ -2608,7 +2608,7 @@ const AddAdminView = ({
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder="admin@example.com"
-            className="border-[#263241] bg-[#0B1118] text-white"
+            className="border-[#E5E7EB] bg-white text-[#101828]"
           />
           <Button
             className="w-full bg-[#4F46E5] text-[#FFFFFF] hover:bg-[#4338CA]"
@@ -2618,7 +2618,7 @@ const AddAdminView = ({
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Add admin role
           </Button>
-          <p className="text-xs text-[#64748B]">
+          <p className="text-xs text-[#667085]">
             TODO: store added_by and added_at in an admin role audit table for full traceability.
           </p>
         </div>
@@ -2628,7 +2628,7 @@ const AddAdminView = ({
         <SectionHeader title="Current admins" description="Remove access carefully." />
         <div className="divide-y divide-[#263241]">
           {loading && (
-            <div className="flex items-center gap-3 p-5 text-sm text-[#8B98A8]">
+            <div className="flex items-center gap-3 p-5 text-sm text-[#667085]">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading admin roles...
             </div>
@@ -2638,8 +2638,8 @@ const AddAdminView = ({
               <div key={admin.id || admin.email} className="flex items-center justify-between gap-4 p-5">
                 <div>
                   <p className="font-medium">{admin.username || admin.email}</p>
-                  <p className="text-sm text-[#8B98A8]">{admin.email}</p>
-                  <p className="mt-1 text-xs text-[#64748B]">
+                  <p className="text-sm text-[#667085]">{admin.email}</p>
+                  <p className="mt-1 text-xs text-[#667085]">
                     Added: {formatShortDate(admin.added_at || admin.created_at)}
                   </p>
                 </div>
@@ -2708,7 +2708,7 @@ const ReportsView = ({
               <div key={category.label} className="flex items-center justify-between p-5">
                 <div>
                   <p className="font-medium">{category.label}</p>
-                  <p className="text-sm text-[#8B98A8]">{category.markets} markets</p>
+                  <p className="text-sm text-[#667085]">{category.markets} markets</p>
                 </div>
                 <p className="font-semibold">{formatNaira(category.volume)}</p>
               </div>
@@ -2726,7 +2726,7 @@ const ReportsView = ({
                 <div key={tx.id} className="flex items-center justify-between p-5">
                   <div>
                     <p className="font-medium">{tx.market_question || "Market payout"}</p>
-                    <p className="text-sm text-[#8B98A8]">{formatDate(tx.created_at)}</p>
+                    <p className="text-sm text-[#667085]">{formatDate(tx.created_at)}</p>
                   </div>
                   <p className="font-semibold">{formatNaira(Number(tx.amount || 0))}</p>
                 </div>
@@ -2773,10 +2773,10 @@ const AdminSettingsView = () => (
 );
 
 const DisabledSetting = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex items-center justify-between gap-4 rounded-lg border border-[#263241] bg-[#0B1118] p-4">
+  <div className="flex items-center justify-between gap-4 rounded-lg border border-[#E5E7EB] bg-white p-4">
     <div>
       <p className="font-medium">{label}</p>
-      <p className="text-sm text-[#8B98A8]">{value}</p>
+      <p className="text-sm text-[#667085]">{value}</p>
     </div>
     <Badge>Disabled</Badge>
   </div>
@@ -2809,21 +2809,21 @@ const ResolutionConfirmModal = ({
   const positions = state.preview?.positions || [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-[#263241] bg-[#101720] shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+      <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-[#E5E7EB] bg-white shadow-2xl">
         <SectionHeader
           eyebrow="Final confirmation"
           title={`Resolve as ${state.outcome}`}
           description="This action settles positions and can trigger wallet payouts."
           action={
-            <Button variant="ghost" onClick={onClose} className="text-[#8B98A8]">
+            <Button variant="ghost" onClick={onClose} className="text-[#667085]">
               Close
             </Button>
           }
         />
         <div className="space-y-5 p-5">
-          <div className="rounded-lg border border-[#263241] bg-[#0B1118] p-4">
-            <p className="text-sm text-[#8B98A8]">Market</p>
+          <div className="rounded-lg border border-[#E5E7EB] bg-white p-4">
+            <p className="text-sm text-[#667085]">Market</p>
             <p className="mt-1 font-semibold">{state.market.question}</p>
           </div>
 
@@ -2843,7 +2843,7 @@ const ResolutionConfirmModal = ({
               <Input
                 value={source}
                 onChange={(event) => setSource(event.target.value)}
-                className="border-[#263241] bg-[#0B1118] text-white"
+                className="border-[#E5E7EB] bg-white text-[#101828]"
                 placeholder="Official source URL or name"
               />
             </Field>
@@ -2851,15 +2851,15 @@ const ResolutionConfirmModal = ({
               <Input
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
-                className="border-[#263241] bg-[#0B1118] text-white"
+                className="border-[#E5E7EB] bg-white text-[#101828]"
                 placeholder="Internal note"
               />
             </Field>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-[#263241]">
+          <div className="overflow-x-auto rounded-lg border border-[#E5E7EB]">
             <table className="w-full min-w-[760px] text-left text-sm">
-              <thead className="bg-[#0B1118] text-xs uppercase tracking-wide text-[#64748B]">
+              <thead className="bg-white text-xs uppercase tracking-wide text-[#667085]">
                 <tr>
                   <th className="px-4 py-3">User</th>
                   <th>Side</th>
@@ -2904,7 +2904,7 @@ const ResolutionConfirmModal = ({
           </label>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-            <Button variant="outline" className="border-[#263241] bg-[#0B1118] text-white" onClick={onClose}>
+            <Button variant="outline" className="border-[#E5E7EB] bg-white text-[#101828]" onClick={onClose}>
               Cancel
             </Button>
             <Button
@@ -2942,16 +2942,16 @@ const DangerConfirmModal = ({
   const canConfirm = !isDelete || deleteText === "DELETE";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-lg rounded-xl border border-[#263241] bg-[#101720] shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+      <div className="w-full max-w-lg rounded-xl border border-[#E5E7EB] bg-white shadow-2xl">
         <SectionHeader
           eyebrow="Safety confirmation"
           title={`${actionText} market`}
           description="Dangerous admin actions require explicit confirmation."
         />
         <div className="space-y-5 p-5">
-          <div className="rounded-lg border border-[#263241] bg-[#0B1118] p-4">
-            <p className="text-sm text-[#8B98A8]">Market</p>
+          <div className="rounded-lg border border-[#E5E7EB] bg-white p-4">
+            <p className="text-sm text-[#667085]">Market</p>
             <p className="mt-1 font-semibold">{state.market.question}</p>
           </div>
           <p className="text-sm text-[#D7DEE8]">
@@ -2969,16 +2969,16 @@ const DangerConfirmModal = ({
               <Input
                 value={deleteText}
                 onChange={(event) => setDeleteText(event.target.value)}
-                className="border-[#263241] bg-[#0B1118] text-white"
+                className="border-[#E5E7EB] bg-white text-[#101828]"
               />
             </Field>
           )}
           <div className="flex justify-end gap-3">
-            <Button variant="outline" className="border-[#263241] bg-[#0B1118] text-white" onClick={onClose}>
+            <Button variant="outline" className="border-[#E5E7EB] bg-white text-[#101828]" onClick={onClose}>
               Cancel
             </Button>
             <Button
-              className="bg-red-600 text-white hover:bg-red-500"
+              className="bg-red-600 text-[#101828] hover:bg-red-500"
               disabled={!canConfirm || saving}
               onClick={onConfirm}
             >
@@ -2993,19 +2993,19 @@ const DangerConfirmModal = ({
 };
 
 const Stat = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div className="rounded-lg border border-[#263241] bg-[#0B1118] p-3">
-    <p className="text-xs text-[#64748B]">{label}</p>
+  <div className="rounded-lg border border-[#E5E7EB] bg-white p-3">
+    <p className="text-xs text-[#667085]">{label}</p>
     <p className="mt-1 font-semibold">{value}</p>
   </div>
 );
 
 const EmptyState = ({ title, body }: { title: string; body: string }) => (
   <div className="p-8 text-center">
-    <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full border border-[#263241] bg-[#0B1118] text-[#64748B]">
+    <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#667085]">
       <FileText className="h-5 w-5" />
     </div>
     <p className="font-semibold">{title}</p>
-    <p className="mt-1 text-sm text-[#8B98A8]">{body}</p>
+    <p className="mt-1 text-sm text-[#667085]">{body}</p>
   </div>
 );
 

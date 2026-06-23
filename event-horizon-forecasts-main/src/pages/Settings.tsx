@@ -52,12 +52,12 @@ export default function Settings() {
   };
 
   return (
-    <div className="app-bg min-h-screen pb-24 text-white md:pb-0 xl:pl-64">
+    <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-8">
         <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#4F46E5]">Settings</p>
         <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Account controls</h1>
-        <p className="mt-2 max-w-2xl text-sm text-[#8B98A8]">
+        <p className="mt-2 max-w-2xl text-sm text-[#667085]">
           Keep preferences clear and safe. Settings that need backend support are marked honestly.
         </p>
 
@@ -65,7 +65,7 @@ export default function Settings() {
           <Panel icon={User} title="Account">
             <InfoRow label="Username" value={user?.username || "Guest"} />
             <InfoRow label="Email" value={user?.email || "Not signed in"} />
-            <p className="rounded-2xl border border-[#263241] bg-[#151E28] p-4 text-sm text-[#8B98A8]">
+            <p className="rounded-2xl border border-[#E5E7EB] bg-[#F3F4F6] p-4 text-sm text-[#667085]">
               Public profile editing is paused for V1. Your username is still used for wallet, My Predictions, and admin records.
             </p>
           </Panel>
@@ -82,10 +82,10 @@ export default function Settings() {
           </Panel>
 
           <Panel icon={Lock} title="Security">
-            <button onClick={sendPasswordReset} className="flex w-full items-center justify-between rounded-2xl border border-[#263241] bg-[#151E28] p-4 text-left transition hover:border-[#4F46E5]/40">
+            <button onClick={sendPasswordReset} className="flex w-full items-center justify-between rounded-2xl border border-[#E5E7EB] bg-[#F3F4F6] p-4 text-left transition hover:border-[#4F46E5]/40">
               <span>
                 <span className="block font-black">Send password reset email</span>
-                <span className="mt-1 block text-sm text-[#8B98A8]">Coming soon: secure email reset through the auth provider.</span>
+                <span className="mt-1 block text-sm text-[#667085]">Coming soon: secure email reset through the auth provider.</span>
               </span>
               <Mail className="h-5 w-5 text-[#4F46E5]" />
             </button>
@@ -105,9 +105,9 @@ export default function Settings() {
 }
 
 const Panel = ({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) => (
-  <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+  <section className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
     <div className="mb-4 flex items-center gap-3">
-      <div className="grid h-10 w-10 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#4F46E5]">
+      <div className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] text-[#4F46E5]">
         <Icon className="h-5 w-5" />
       </div>
       <h2 className="text-xl font-black">{title}</h2>
@@ -117,17 +117,17 @@ const Panel = ({ icon: Icon, title, children }: { icon: any; title: string; chil
 );
 
 const InfoRow = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
-    <div className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">{label}</div>
-    <div className="mt-1 break-words font-black text-white">{value}</div>
+  <div className="rounded-2xl border border-[#E5E7EB] bg-[#F3F4F6] p-4">
+    <div className="text-xs font-black uppercase tracking-[0.16em] text-[#667085]">{label}</div>
+    <div className="mt-1 break-words font-black text-[#101828]">{value}</div>
   </div>
 );
 
 const Toggle = ({ label, body, checked, onChange }: { label: string; body: string; checked: boolean; onChange: (value: boolean) => void }) => (
-  <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[#263241] bg-[#151E28] p-4">
+  <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[#E5E7EB] bg-[#F3F4F6] p-4">
     <span>
-      <span className="block font-black text-white">{label}</span>
-      <span className="mt-1 block text-sm text-[#8B98A8]">{body}</span>
+      <span className="block font-black text-[#101828]">{label}</span>
+      <span className="mt-1 block text-sm text-[#667085]">{body}</span>
     </span>
     <span className={`relative h-7 w-12 shrink-0 rounded-full transition ${checked ? "bg-[#4F46E5]" : "bg-[#334155]"}`}>
       <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="sr-only" />

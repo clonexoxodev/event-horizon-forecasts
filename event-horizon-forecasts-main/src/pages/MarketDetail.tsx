@@ -13,7 +13,7 @@ import {
   type ChartOptions,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
-import { ArrowLeft, CheckCircle, Clock, Loader2, Share2, TrendingUp, Users, X } from "lucide-react";
+import { ArrowLeft, BarChart3, CheckCircle, Clock, Loader2, Share2, TrendingUp, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
 import { DelayedFlippeLoader } from "@/components/FlippeBrand";
@@ -234,8 +234,8 @@ export default function MarketDetail() {
           </div>
         </div>
 
-        <article className="overflow-hidden rounded-[1.35rem] bg-white shadow-[0_18px_60px_rgba(16,24,40,0.08)]">
-          <div className="relative h-[320px] overflow-hidden rounded-t-[1.35rem] sm:h-[360px] lg:h-[400px]">
+        <article className="overflow-hidden rounded-[1.1rem] bg-white shadow-[0_12px_34px_rgba(16,24,40,0.08)]">
+          <div className="relative h-[210px] overflow-hidden rounded-t-[1.1rem] sm:h-[250px] lg:h-[280px]">
             {media.type === "video" ? (
               <video src={media.src} poster={media.poster} className="absolute inset-0 h-full w-full object-cover" muted playsInline loop autoPlay />
             ) : (
@@ -252,24 +252,25 @@ export default function MarketDetail() {
               <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#101828] shadow-sm">{marketCategoryLabel}</span>
               <span className={`rounded-full border px-3 py-1 text-xs font-black shadow-sm ${marketIsActive ? "border-[#12B886]/70 bg-[#047857] text-white" : "border-white/30 bg-black/50 text-white"}`}>{marketIsActive ? "Live" : "Ended"}</span>
             </div>
-            <div className="absolute inset-x-0 bottom-0 p-4 sm:p-6">
-              <h1 className="max-w-4xl text-2xl font-black leading-tight tracking-tight text-white drop-shadow-[0_3px_18px_rgba(0,0,0,0.75)] sm:text-4xl lg:text-5xl">{market.question}</h1>
+            <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
+              <h1 className="max-w-4xl text-2xl font-black leading-tight tracking-tight text-white drop-shadow-[0_3px_18px_rgba(0,0,0,0.75)] sm:text-3xl lg:text-4xl">{market.question}</h1>
             </div>
           </div>
-          <div className="rounded-b-[1.35rem] bg-[#050505] p-4 text-white sm:p-5">
-            <div className="grid gap-2 text-sm font-black text-white sm:grid-cols-2 lg:grid-cols-4">
-              <div className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-3 backdrop-blur">
-                <Users className="h-4 w-4 shrink-0 text-white" />
+          <div className="rounded-b-[1.1rem] bg-[#050505] px-4 py-3 text-white sm:px-5 sm:py-4">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-black text-white sm:text-sm">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 shrink-0 text-white/80" />
                 <span>{market.participants} participants</span>
               </div>
-              <div className="rounded-xl bg-white/10 px-3 py-3 backdrop-blur">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 shrink-0 text-white/80" />
                 {market.tradeCount || 0} predictions
               </div>
-              <div className="rounded-xl bg-white/10 px-3 py-3 backdrop-blur">
+              <div>
                 {formatNaira(market.totalPool)} total predicted
               </div>
-              <div className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-3 backdrop-blur">
-                <Clock className="h-4 w-4 shrink-0 text-white" />
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 shrink-0 text-white/80" />
                 <span>{formatCountdown(tradingCloseTime, market.closesIn)} left</span>
               </div>
             </div>
@@ -277,7 +278,7 @@ export default function MarketDetail() {
         </article>
 
         <section className="mt-7">
-          <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-black">Crowd View movement</h2>
               <p className="text-xs font-bold text-[#6B7280]">Crowd View moves as people back YES or NO.</p>
@@ -353,12 +354,12 @@ export default function MarketDetail() {
         )}
       </main>
 
-      <div className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-[#E5E7EB] bg-[#F8F7F4]/92 p-3 backdrop-blur-xl md:bottom-0 xl:left-64">
+      <div className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-[#E5E7EB] bg-[#F8F7F4]/92 p-2.5 backdrop-blur-xl md:bottom-0 xl:left-64">
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-3">
-          <button disabled={!marketIsActive} onClick={() => setSheetSide("YES")} className="h-12 rounded-xl bg-[#12B886] text-sm font-black text-[#06100d] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">
+          <button disabled={!marketIsActive} onClick={() => setSheetSide("YES")} className="h-11 rounded-xl bg-[#12B886] text-sm font-black text-[#06100d] shadow-sm transition active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500">
             Back YES {formatNairaPrice(market.yesPrice)}
           </button>
-          <button disabled={!marketIsActive} onClick={() => setSheetSide("NO")} className="h-12 rounded-xl bg-[#E85D5D] text-sm font-black text-[#111827] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">
+          <button disabled={!marketIsActive} onClick={() => setSheetSide("NO")} className="h-11 rounded-xl bg-[#E85D5D] text-sm font-black text-white shadow-sm transition active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500">
             Back NO {formatNairaPrice(market.noPrice)}
           </button>
         </div>
@@ -610,7 +611,7 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
 
   if (emptyHistory) {
     return (
-      <div className="rounded-2xl bg-white p-4 shadow-[0_18px_52px_rgba(16,24,40,0.08)] sm:p-5">
+      <div className="bg-transparent">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-black text-[#12B886]"><span className="h-2 w-2 rounded-full bg-[#12B886]" />YES {formatNairaPrice(currentYes)}</span>
@@ -618,7 +619,7 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
           </div>
           <span className="text-xs font-bold text-[#6B7280]">{market.tradeCount || 0} predictions</span>
         </div>
-        <div className="grid h-[280px] place-items-center border-t border-dashed border-[#E5E7EB] p-6 text-center sm:h-[360px]">
+        <div className="grid h-[260px] place-items-center rounded-2xl border border-dashed border-[#D1D5DB] bg-white/70 p-6 text-center sm:h-[320px]">
           <div>
             <p className="text-sm font-black text-[#111827]">No movement yet.</p>
             <p className="mt-2 max-w-sm text-sm font-bold leading-relaxed text-[#6B7280]">
@@ -631,7 +632,7 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
     }
 
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-[0_18px_52px_rgba(16,24,40,0.08)] sm:p-5">
+    <div className="bg-transparent">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <span className="inline-flex items-center gap-1.5 text-xs font-black text-[#12B886]"><span className="h-2 w-2 rounded-full bg-[#12B886]" />YES {formatNairaPrice(market.yesPrice)}</span>
@@ -639,8 +640,8 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
         </div>
         <span className="text-xs font-bold text-[#6B7280]">{market.tradeCount || 0} predictions</span>
       </div>
-      <div className="relative overflow-hidden border-t border-[#E5E7EB] pt-4">
-        <div className="h-[280px] w-full sm:h-[360px]">
+      <div className="relative overflow-hidden rounded-2xl bg-white p-3 shadow-[0_12px_34px_rgba(16,24,40,0.06)] sm:p-4">
+        <div className="h-[290px] w-full sm:h-[380px]">
           <Line data={chartData} options={chartOptions} />
         </div>
       </div>
