@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Activity, ArrowRight, Award, BarChart3, CheckCircle, Clock, Flame, LineChart, Loader2, Medal, Target, Trophy, X } from "lucide-react";
+import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Award, BarChart3, CheckCircle, Clock, Flame, LineChart, Loader2, Medal, Minus, Target, Trophy, X } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
@@ -76,7 +76,7 @@ const Dashboard = () => {
     loadPortfolio();
     const refresh = window.setInterval(() => {
       if (document.visibilityState === "visible") loadPortfolio({ silent: true });
-    }, 60000);
+    }, 30000);
     return () => {
       mounted = false;
       window.clearInterval(refresh);
@@ -220,6 +220,83 @@ const formatPositionCountdown = (position: ApiPosition) => formatCountdown(getPr
 
 const formatMaybeMoney = (value: number) => (Number(value) > 0 ? formatNaira(value) : "Not available yet");
 
+type PredictionInsight = {
+  entryCrowdView: number;
+  currentCrowdView: number;
+  movement: number;
+  direction: "toward" | "against" | "unchanged";
+  directionLabel: string;
+  strength: "Excellent" | "Strong" | "Balanced" | "Weak" | "At Risk";
+  strengthDetail: string;
+  strengthTone: "green" | "neutral" | "red" | "yellow";
+  multiplier: number | null;
+  multiplierLabel: string;
+  multiplierDetail: string;
+  totalPool: number;
+  sidePool: number;
+  opposingPool: number;
+};
+
+const getPredictionInsight = (position: ApiPosition): PredictionInsight => {
+  const entryCrowdView = Number(position.entryPrice || 0);
+  const currentCrowdView = Number(position.currentPrice || position.entryPrice || 0);
+  const movement = currentCrowdView - entryCrowdView;
+  const direction = movement > 0.4 ? "toward" : movement < -0.4 ? "against" : "unchanged";
+  const totalPool = Number(position.totalPool || 0);
+  const sidePool = Number(position.sidePool || 0);
+  const opposingPool = Number(position.opposingPool || 0);
+  const stake = Number(position.stake || 0);
+  const projectedPayout = Number(position.projectedPayout || position.estimatedPayout || 0);
+  const fallbackPayout = opposingPool > 0 && sidePool > 0 && stake > 0 ? stake + (stake / sidePool) * opposingPool : 0;
+  const currentPayoutEstimate = projectedPayout > 0 ? projectedPayout : fallbackPayout;
+  const multiplier = opposingPool > 0 && stake > 0 && currentPayoutEstimate > 0 ? currentPayoutEstimate / stake : null;
+
+  let strength: PredictionInsight["strength"] = "Balanced";
+  let strengthTone: PredictionInsight["strengthTone"] = "neutral";
+  let strengthDetail = "The crowd view is close to where you entered.";
+  if (movement >= 15) {
+    strength = "Excellent";
+    strengthTone = "green";
+    strengthDetail = "The crowd has moved sharply toward your side.";
+  } else if (movement >= 5) {
+    strength = "Strong";
+    strengthTone = "green";
+    strengthDetail = "The crowd is moving toward your opinion.";
+  } else if (movement <= -15) {
+    strength = "At Risk";
+    strengthTone = "red";
+    strengthDetail = "The crowd has moved sharply away from your side.";
+  } else if (movement <= -5) {
+    strength = "Weak";
+    strengthTone = "yellow";
+    strengthDetail = "The crowd is moving against your opinion.";
+  }
+
+  return {
+    entryCrowdView,
+    currentCrowdView,
+    movement,
+    direction,
+    directionLabel:
+      direction === "toward"
+        ? "Crowd moved toward you"
+        : direction === "against"
+          ? "Crowd moved against you"
+          : "Crowd unchanged",
+    strength,
+    strengthDetail,
+    strengthTone,
+    multiplier,
+    multiplierLabel: multiplier ? `${multiplier.toFixed(2)}x stake` : "Waiting for opposing side",
+    multiplierDetail: multiplier
+      ? "This changes as people join either side. Final payout is calculated after resolution."
+      : "Multiplier will appear when the opposite side has activity.",
+    totalPool,
+    sidePool,
+    opposingPool,
+  };
+};
+
 const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[]; onSelect: (position: ApiPosition) => void; now: number }) => {
   if (positions.length === 0) {
     return (
@@ -234,7 +311,9 @@ const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[];
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      {positions.map((position) => (
+      {positions.map((position) => {
+        const insight = getPredictionInsight(position);
+        return (
           <button
             key={position.id}
             onClick={() => onSelect(position)}
@@ -250,16 +329,34 @@ const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[];
                 {position.side}
               </span>
             </div>
-            <div className="mt-4 grid gap-2 text-sm">
-              <SimplePredictionRow label="Amount backed" value={formatNaira(position.stake)} />
-              <SimplePredictionRow label="Current Crowd View" value={formatNairaPrice(position.currentPrice || position.entryPrice || 0)} movement={Number(position.currentPrice || 0) - Number(position.entryPrice || 0)} />
-              <SimplePredictionRow label="Live time left" value={formatPositionCountdown(position)} />
+            <div className="mt-4 grid gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#151E28] px-3 py-2">
+                <span className="text-xs font-bold text-[#8B98A8]">You picked {position.side}</span>
+                <span className="text-sm font-black text-white">{formatNaira(position.stake)} backed</span>
+              </div>
+              <div className="rounded-xl border border-[#263241] bg-[#151E28] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <MovementStatus insight={insight} />
+                  <StrengthBadge insight={insight} />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div>
+                    <div className="text-[11px] font-bold text-[#8B98A8]">If market ended now</div>
+                    <div className="mt-1 text-lg font-black text-white">{insight.multiplierLabel}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[11px] font-bold text-[#8B98A8]">Live time left</div>
+                    <div className="mt-1 text-sm font-black text-white">{formatPositionCountdown(position)}</div>
+                  </div>
+                </div>
+              </div>
             </div>
             <p className="mt-4 inline-flex items-center gap-1 text-xs font-black text-[#8B98A8] transition group-hover:text-[#12B886]">
               Tap to view details <ArrowRight className="h-3.5 w-3.5" />
             </p>
           </button>
-      ))}
+        );
+      })}
     </div>
   );
 };
@@ -278,15 +375,10 @@ const PredictionDetailModal = ({
   const shares = Number(position.sharesOwned ?? position.sharesReceived ?? 0);
   const rules = (position as ApiPosition & { rules?: string }).rules;
   const resolutionSource = (position as ApiPosition & { resolutionSource?: string }).resolutionSource;
-  const totalPool = Number(position.totalPool || 0);
-  const opposingPool = Number(position.opposingPool || 0);
-  const sidePool = Number(position.sidePool || 0);
   const timeLeft = formatPositionCountdown(position);
   const displayStatus = getPredictionDisplayStatus(position, now).label;
-  const currentCrowdView = Number(position.currentPrice || position.entryPrice || 0);
-  const entryCrowdView = Number(position.entryPrice || 0);
-  const movement = currentCrowdView - entryCrowdView;
   const marketQuestion = position.marketQuestion || "Prediction details unavailable";
+  const insight = getPredictionInsight(position);
 
   return (
     <div className="fixed inset-0 z-[70] flex animate-in fade-in duration-200 items-end justify-center bg-black/70 px-3 pb-[calc(84px+env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-6">
@@ -317,18 +409,51 @@ const PredictionDetailModal = ({
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Metric label="Entry Crowd View" value={entryCrowdView ? formatNairaPrice(entryCrowdView) : "Not available yet"} large />
-            <Metric label="Current Crowd View" value={currentCrowdView ? formatNairaPrice(currentCrowdView) : "Not available yet"} large movement={movement} />
-            <Metric label="Total Pool" value={formatMaybeMoney(totalPool)} large />
-            <Metric label="Opposing Pool" value={formatMaybeMoney(opposingPool)} large />
-            <Metric label="Your side's pool" value={formatMaybeMoney(sidePool)} large />
-            <Metric label="Units" value={shares ? shares.toFixed(2) : "Not available yet"} large />
-          </div>
+          <section className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h4 className="text-sm font-black">Crowd Movement</h4>
+                <p className="mt-1 text-sm font-bold text-[#8B98A8]">{insight.directionLabel}</p>
+              </div>
+              <MovementStatus insight={insight} />
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <Metric label="Entry Crowd View" value={insight.entryCrowdView ? formatNairaPrice(insight.entryCrowdView) : "Not available yet"} large />
+              <Metric label="Current Crowd View" value={insight.currentCrowdView ? formatNairaPrice(insight.currentCrowdView) : "Not available yet"} large movement={insight.movement} />
+              <Metric label="Movement since entry" value={formatMovement(insight.movement)} large tone={insight.direction === "toward" ? "green" : insight.direction === "against" ? "red" : "neutral"} />
+            </div>
+          </section>
 
-          <p className="rounded-2xl border border-[#263241] bg-[#151E28] p-4 text-sm font-bold leading-relaxed text-[#D5DEE8]">
-            Final payout is calculated after market resolution. If your side is correct, you receive your stake plus a share of the losing side's pool.
-          </p>
+          <section className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h4 className="text-sm font-black">Position Strength</h4>
+                <p className="mt-1 text-sm font-bold text-[#8B98A8]">{insight.strengthDetail}</p>
+              </div>
+              <StrengthBadge insight={insight} />
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
+            <h4 className="text-sm font-black">Pool Snapshot</h4>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <Metric label="Total Pool" value={formatMaybeMoney(insight.totalPool)} large />
+              <Metric label="Your Side Pool" value={formatMaybeMoney(insight.sidePool)} large />
+              <Metric label="Opposing Pool" value={formatMaybeMoney(insight.opposingPool)} large />
+              <Metric label="Participants" value="Not available yet" large />
+              <Metric label="Units" value={shares ? shares.toFixed(2) : "Not available yet"} large />
+              <Metric label="Status" value={displayStatus} large />
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
+            <h4 className="text-sm font-black">If Market Ended Now</h4>
+            <div className="mt-2 text-3xl font-black text-white">{insight.multiplierLabel}</div>
+            <p className="mt-2 text-sm font-bold leading-relaxed text-[#8B98A8]">{insight.multiplierDetail}</p>
+            <p className="mt-3 text-sm font-bold leading-relaxed text-[#D5DEE8]">
+              Final payout is calculated after market resolution. If your side is correct, you receive your stake plus a share of the losing side's pool.
+            </p>
+          </section>
 
           <section className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
             <h4 className="text-sm font-black">Prediction history</h4>
@@ -345,6 +470,9 @@ const PredictionDetailModal = ({
             <p className="mt-3 text-xs font-bold text-[#8B98A8]">
               Resolution source: {resolutionSource || "Shown on the market page when available."}
             </p>
+            <p className="mt-2 text-xs font-bold text-[#8B98A8]">
+              Trading close time: {getPredictionCloseTime(position) ? new Date(getPredictionCloseTime(position)).toLocaleString() : "Not available yet"}
+            </p>
           </section>
 
           <button
@@ -359,12 +487,56 @@ const PredictionDetailModal = ({
   );
 };
 
+const formatMovement = (movement: number) => {
+  if (Math.abs(movement) < 0.5) return "0";
+  return `${movement > 0 ? "+" : ""}${movement.toFixed(0)}`;
+};
+
+const getMovementTone = (insight: PredictionInsight) => {
+  if (insight.direction === "toward") return "text-[#12B886]";
+  if (insight.direction === "against") return "text-[#E85D5D]";
+  return "text-[#8B98A8]";
+};
+
+const MovementStatus = ({ insight }: { insight: PredictionInsight }) => {
+  const Icon = insight.direction === "toward" ? ArrowUpRight : insight.direction === "against" ? ArrowDownRight : Minus;
+  return (
+    <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-black transition duration-300 ${
+      insight.direction === "toward"
+        ? "border-[#12B886]/30 bg-[#12B886]/10 text-[#7AE4BD]"
+        : insight.direction === "against"
+          ? "border-[#E85D5D]/30 bg-[#E85D5D]/10 text-[#FF9C9C]"
+          : "border-[#263241] bg-[#101720] text-[#8B98A8]"
+    }`}>
+      <Icon className="h-3.5 w-3.5" />
+      <span>{insight.directionLabel}</span>
+      <span className={getMovementTone(insight)}>{formatMovement(insight.movement)}</span>
+    </div>
+  );
+};
+
+const StrengthBadge = ({ insight }: { insight: PredictionInsight }) => {
+  const classes =
+    insight.strengthTone === "green"
+      ? "border-[#12B886]/35 bg-[#12B886]/10 text-[#7AE4BD]"
+      : insight.strengthTone === "red"
+        ? "border-[#E85D5D]/35 bg-[#E85D5D]/10 text-[#FF9C9C]"
+        : insight.strengthTone === "yellow"
+          ? "border-[#F2C94C]/35 bg-[#F2C94C]/10 text-[#F2C94C]"
+          : "border-[#263241] bg-[#101720] text-[#D5DEE8]";
+  return (
+    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black transition duration-300 ${classes}`}>
+      {insight.strength} position
+    </span>
+  );
+};
+
 const MovementPill = ({ movement }: { movement?: number }) => {
   if (!movement || Math.abs(movement) < 0.5) return null;
   const positive = movement > 0;
   return (
     <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-black ${positive ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
-      {positive ? "+" : ""}{movement.toFixed(0)}
+      {formatMovement(movement)}
     </span>
   );
 };
