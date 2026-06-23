@@ -235,7 +235,7 @@ export default function MarketDetail() {
         </div>
 
         <article className="overflow-hidden rounded-[1.35rem] bg-white shadow-[0_18px_60px_rgba(16,24,40,0.08)]">
-          <div className="relative aspect-[4/5] max-h-[620px] overflow-hidden sm:aspect-[16/10]">
+          <div className="relative h-[320px] overflow-hidden rounded-t-[1.35rem] sm:h-[360px] lg:h-[400px]">
             {media.type === "video" ? (
               <video src={media.src} poster={media.poster} className="absolute inset-0 h-full w-full object-cover" muted playsInline loop autoPlay />
             ) : (
@@ -245,33 +245,32 @@ export default function MarketDetail() {
               className="absolute inset-0"
               style={{
                 background:
-                  "linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.55), rgba(0,0,0,0.15))",
+                  "linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0.15), transparent)",
               }}
             />
-            <div className="absolute inset-0 bg-black/10" />
-            <div className="absolute inset-x-0 bottom-0 p-3 sm:p-5">
-              <div className="rounded-2xl border border-white/15 bg-black/75 p-4 text-white shadow-[0_24px_90px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-5">
-                <div className="mb-3 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#101828] shadow-sm">{marketCategoryLabel}</span>
-                  <span className={`rounded-full border px-3 py-1 text-xs font-black ${marketIsActive ? "border-[#12B886]/70 bg-[#047857] text-white" : "border-white/30 bg-white/15 text-white"}`}>{marketIsActive ? "Live" : "Ended"}</span>
-                </div>
-                <h1 className="max-w-4xl text-2xl font-black leading-tight tracking-tight text-white drop-shadow-[0_3px_18px_rgba(0,0,0,0.75)] sm:text-4xl lg:text-5xl">{market.question}</h1>
-                <div className="mt-4 grid gap-2 text-sm font-black text-white sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 backdrop-blur">
-                    <Users className="h-4 w-4 shrink-0 text-white" />
-                    <span>{market.participants} participants</span>
-                  </div>
-                  <div className="rounded-xl bg-white/10 px-3 py-2 backdrop-blur">
-                    {market.tradeCount || 0} predictions
-                  </div>
-                  <div className="rounded-xl bg-white/10 px-3 py-2 backdrop-blur">
-                    {formatNaira(market.totalPool)} total predicted
-                  </div>
-                  <div className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 backdrop-blur">
-                    <Clock className="h-4 w-4 shrink-0 text-white" />
-                    <span>{formatCountdown(tradingCloseTime, market.closesIn)} left</span>
-                  </div>
-                </div>
+            <div className="absolute inset-x-0 top-0 flex flex-wrap items-center gap-2 p-4 sm:p-5">
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#101828] shadow-sm">{marketCategoryLabel}</span>
+              <span className={`rounded-full border px-3 py-1 text-xs font-black shadow-sm ${marketIsActive ? "border-[#12B886]/70 bg-[#047857] text-white" : "border-white/30 bg-black/50 text-white"}`}>{marketIsActive ? "Live" : "Ended"}</span>
+            </div>
+            <div className="absolute inset-x-0 bottom-0 p-4 sm:p-6">
+              <h1 className="max-w-4xl text-2xl font-black leading-tight tracking-tight text-white drop-shadow-[0_3px_18px_rgba(0,0,0,0.75)] sm:text-4xl lg:text-5xl">{market.question}</h1>
+            </div>
+          </div>
+          <div className="rounded-b-[1.35rem] bg-[#050505] p-4 text-white sm:p-5">
+            <div className="grid gap-2 text-sm font-black text-white sm:grid-cols-2 lg:grid-cols-4">
+              <div className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-3 backdrop-blur">
+                <Users className="h-4 w-4 shrink-0 text-white" />
+                <span>{market.participants} participants</span>
+              </div>
+              <div className="rounded-xl bg-white/10 px-3 py-3 backdrop-blur">
+                {market.tradeCount || 0} predictions
+              </div>
+              <div className="rounded-xl bg-white/10 px-3 py-3 backdrop-blur">
+                {formatNaira(market.totalPool)} total predicted
+              </div>
+              <div className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-3 backdrop-blur">
+                <Clock className="h-4 w-4 shrink-0 text-white" />
+                <span>{formatCountdown(tradingCloseTime, market.closesIn)} left</span>
               </div>
             </div>
           </div>
