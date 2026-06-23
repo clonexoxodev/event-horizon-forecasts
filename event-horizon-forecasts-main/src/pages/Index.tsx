@@ -392,14 +392,14 @@ const Index = () => {
 };
 
 const HomeSummaryCard = ({ icon: Icon, title, items }: { icon: any; title: string; items: string[] }) => (
-  <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-[0_14px_36px_rgba(17,24,39,0.07)]">
+  <div className="rounded-2xl bg-white p-4 shadow-[0_14px_36px_rgba(17,24,39,0.06)]">
     <div className="mb-3 flex items-center gap-2">
       <Icon className="h-4 w-4 text-[#4F46E5]" />
       <h2 className="text-sm font-black">{title}</h2>
     </div>
-    <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-1 lg:grid-cols-3">
+    <div className="grid gap-2 divide-y divide-[#E5E7EB] sm:grid-cols-3 sm:divide-x sm:divide-y-0 md:grid-cols-1 md:divide-x-0 md:divide-y lg:grid-cols-3 lg:divide-x lg:divide-y-0">
       {items.map((item) => (
-        <div key={item} className="rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] px-3 py-2 text-xs font-bold text-[#374151]">
+        <div key={item} className="px-3 py-2 text-xs font-bold text-[#374151]">
           {item}
         </div>
       ))}
@@ -408,21 +408,21 @@ const HomeSummaryCard = ({ icon: Icon, title, items }: { icon: any; title: strin
 );
 
 const ProgressSummaryCard = ({ level, streak, accuracy }: { level: string; streak: number; accuracy: number }) => (
-  <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-[0_14px_36px_rgba(17,24,39,0.07)]">
+  <div className="rounded-2xl bg-white p-4 shadow-[0_14px_36px_rgba(17,24,39,0.06)]">
     <div className="mb-3 flex items-center gap-2">
       <Award className="h-4 w-4 text-[#4F46E5]" />
       <h2 className="text-sm font-black">Your Progress</h2>
     </div>
-    <div className="grid grid-cols-3 gap-2">
-      <div className="min-w-0 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-2.5 sm:p-3">
+    <div className="grid grid-cols-3 divide-x divide-[#E5E7EB]">
+      <div className="min-w-0 px-2.5 py-2 sm:px-3">
         <div className="text-[11px] font-bold text-[#6B7280]">Level</div>
         <div className="mt-1 break-words text-[12px] font-black leading-tight sm:text-sm">{level}</div>
       </div>
-      <div className="min-w-0 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-2.5 sm:p-3">
+      <div className="min-w-0 px-2.5 py-2 sm:px-3">
         <div className="text-[11px] font-bold text-[#6B7280]">Streak</div>
         <div className="mt-1 break-words text-[12px] font-black leading-tight sm:text-sm">{streak}</div>
       </div>
-      <div className="min-w-0 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-2.5 sm:p-3">
+      <div className="min-w-0 px-2.5 py-2 sm:px-3">
         <div className="text-[11px] font-bold text-[#6B7280]">Accuracy</div>
         <div className="mt-1 break-words text-[12px] font-black leading-tight sm:text-sm">{accuracy ? `${accuracy}%` : "-"}</div>
       </div>

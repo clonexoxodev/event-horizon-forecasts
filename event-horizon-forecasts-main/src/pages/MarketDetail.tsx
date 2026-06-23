@@ -235,37 +235,37 @@ export default function MarketDetail() {
           </div>
         </div>
 
-        <article className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
+        <article className="overflow-hidden rounded-[1.35rem] bg-white shadow-[0_18px_60px_rgba(16,24,40,0.08)]">
           <div className="relative aspect-[4/5] max-h-[620px] overflow-hidden sm:aspect-[16/10]">
             {media.type === "video" ? (
               <video src={media.src} poster={media.poster} className="absolute inset-0 h-full w-full object-cover" muted playsInline loop autoPlay />
             ) : (
               <img src={media.src} alt="" className="absolute inset-0 h-full w-full object-cover" />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#080c10] via-[#080c10]/42 to-black/10" />
-            <div className="absolute bottom-0 left-0 right-0 p-5">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/92 via-black/48 to-black/10" />
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/72 to-transparent p-5 sm:p-7">
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#080c10]">{marketCategoryLabel}</span>
-                <span className="rounded-full border border-[#12B886]/25 bg-[#12B886]/10 px-3 py-1 text-xs font-black text-[#7AE4BD]">{marketIsActive ? "Live" : "Ended"}</span>
-                <span className="rounded-full border border-white/20 bg-black/45 px-3 py-1 text-xs font-black text-white backdrop-blur-xl">
+                <span className="rounded-full bg-white/95 px-3 py-1 text-xs font-black text-[#101828] shadow-sm">{marketCategoryLabel}</span>
+                <span className={`rounded-full border px-3 py-1 text-xs font-black backdrop-blur ${marketIsActive ? "border-[#12B886]/40 bg-[#12B886]/20 text-white" : "border-white/30 bg-white/15 text-white"}`}>{marketIsActive ? "Live" : "Ended"}</span>
+                <span className="rounded-full border border-white/25 bg-black/40 px-3 py-1 text-xs font-black text-white backdrop-blur-xl">
                   {formatCountdown(tradingCloseTime, market.closesIn)}
                 </span>
               </div>
-              <h1 className="max-w-3xl text-3xl font-black leading-tight tracking-tight text-white sm:text-5xl">{market.question}</h1>
-              <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-bold text-white/78">
-                <span className="flex items-center gap-1.5"><Users className="h-4 w-4 text-[#4F46E5]" />{market.participants} participants</span>
+              <h1 className="max-w-3xl text-3xl font-black leading-tight tracking-tight text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.45)] sm:text-5xl">{market.question}</h1>
+              <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-bold text-white/88">
+                <span className="flex items-center gap-1.5"><Users className="h-4 w-4 text-white/85" />{market.participants} participants</span>
                 <span>{market.tradeCount || 0} predictions</span>
                 <span>{formatNaira(market.totalPool)} total predicted</span>
-                <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-[#4F46E5]" />Closes {formatCountdown(tradingCloseTime, market.closesIn)}</span>
+                <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-white/85" />Closes {formatCountdown(tradingCloseTime, market.closesIn)}</span>
               </div>
             </div>
           </div>
         </article>
 
-        <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4">
-          <div className="mb-3 flex items-center justify-between gap-3">
+        <section className="mt-7">
+          <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-black">Crowd View movement</h2>
+              <h2 className="text-xl font-black">Crowd View movement</h2>
               <p className="text-xs font-bold text-[#6B7280]">Crowd View moves as people back YES or NO.</p>
             </div>
             <div className="flex rounded-full border border-[#E5E7EB] bg-[#F8F7F4] p-1">
@@ -279,8 +279,8 @@ export default function MarketDetail() {
           <Chart market={market} timeframe={timeframe} />
         </section>
 
-        <section className="mt-4 grid gap-3 md:grid-cols-2">
-          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
+        <section className="mt-7 grid gap-8 md:grid-cols-2">
+          <div>
             <h2 className="text-lg font-black">Crowd View</h2>
             <p className="mt-1 text-sm text-[#6B7280]">
               {market.yesPrice >= market.noPrice ? "The crowd currently favors YES." : "The crowd currently favors NO."} This changes as people back each side.
@@ -288,14 +288,14 @@ export default function MarketDetail() {
             <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#E85D5D]/20">
               <div className="h-full bg-[#12B886]" style={{ width: `${yesSideShare}%` }} />
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-              <div className="rounded-xl bg-[#F8F7F4] p-3">
+            <div className="mt-4 grid grid-cols-2 gap-6 text-sm">
+              <div>
                 <div className="text-xs font-black uppercase tracking-[0.12em] text-[#6B7280]">YES</div>
-                <div className="mt-1 text-xl font-black text-[#7AE4BD]">{formatNairaPrice(market.yesPrice)}</div>
+                <div className="mt-1 text-2xl font-black text-[#12B886]">{formatNairaPrice(market.yesPrice)}</div>
               </div>
-              <div className="rounded-xl bg-[#F8F7F4] p-3">
+              <div>
                 <div className="text-xs font-black uppercase tracking-[0.12em] text-[#6B7280]">NO</div>
-                <div className="mt-1 text-xl font-black text-[#FF9C9C]">{formatNairaPrice(market.noPrice)}</div>
+                <div className="mt-1 text-2xl font-black text-[#E85D5D]">{formatNairaPrice(market.noPrice)}</div>
               </div>
             </div>
             <p className="mt-3 text-xs font-bold leading-relaxed text-[#6B7280]">
@@ -303,11 +303,11 @@ export default function MarketDetail() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
+          <div>
             <h2 className="text-lg font-black">Recent predictions</h2>
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 divide-y divide-[#E5E7EB]">
               {recentTrades.length ? recentTrades.map((trade) => (
-                <div key={`${trade.timestamp}-${trade.side}-${trade.amount}`} className="flex items-center justify-between rounded-xl bg-[#F8F7F4] px-3 py-2 text-xs">
+                <div key={`${trade.timestamp}-${trade.side}-${trade.amount}`} className="flex items-center justify-between py-3 text-xs">
                   <span className={`font-black ${trade.side === "YES" ? "text-[#12B886]" : "text-[#E85D5D]"}`}>Backed {trade.side}</span>
                   <span className="text-[#6B7280]">{formatNaira(Number(trade.amount || 0))}</span>
                 </div>
@@ -318,7 +318,7 @@ export default function MarketDetail() {
           </div>
         </section>
 
-        <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4">
+        <section className="mt-8 border-t border-[#E5E7EB] pt-6">
           <h2 className="text-lg font-black">Rules</h2>
           <p className="mt-2 text-sm leading-6 text-[#6B7280]">{market.rules || market.description || "This market resolves based on the stated outcome and admin review."}</p>
         </section>
@@ -592,7 +592,7 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
 
   if (emptyHistory) {
     return (
-      <div className="rounded-2xl border border-[#E5E7EB] bg-white p-3 sm:p-4">
+      <div className="rounded-2xl bg-white p-4 shadow-[0_18px_52px_rgba(16,24,40,0.08)] sm:p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-black text-[#12B886]"><span className="h-2 w-2 rounded-full bg-[#12B886]" />YES {formatNairaPrice(currentYes)}</span>
@@ -600,7 +600,7 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
           </div>
           <span className="text-xs font-bold text-[#6B7280]">{market.tradeCount || 0} predictions</span>
         </div>
-        <div className="grid h-[230px] place-items-center rounded-xl border border-dashed border-[#E5E7EB] bg-white p-6 text-center shadow-[0_12px_36px_rgba(16,24,40,0.06)] sm:h-[300px]">
+        <div className="grid h-[280px] place-items-center border-t border-dashed border-[#E5E7EB] p-6 text-center sm:h-[360px]">
           <div>
             <p className="text-sm font-black text-[#111827]">No movement yet.</p>
             <p className="mt-2 max-w-sm text-sm font-bold leading-relaxed text-[#6B7280]">
@@ -613,7 +613,7 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
     }
 
   return (
-    <div className="rounded-2xl border border-[#E5E7EB] bg-white p-3 sm:p-4">
+    <div className="rounded-2xl bg-white p-4 shadow-[0_18px_52px_rgba(16,24,40,0.08)] sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <span className="inline-flex items-center gap-1.5 text-xs font-black text-[#12B886]"><span className="h-2 w-2 rounded-full bg-[#12B886]" />YES {formatNairaPrice(market.yesPrice)}</span>
@@ -621,8 +621,8 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
         </div>
         <span className="text-xs font-bold text-[#6B7280]">{market.tradeCount || 0} predictions</span>
       </div>
-      <div className="relative overflow-hidden rounded-xl border border-[#E5E7EB] bg-white px-1 pb-2 pt-3 shadow-[0_12px_36px_rgba(16,24,40,0.06)] sm:px-3">
-        <div className="h-[230px] w-full sm:h-[300px]">
+      <div className="relative overflow-hidden border-t border-[#E5E7EB] pt-4">
+        <div className="h-[280px] w-full sm:h-[360px]">
           <Line data={chartData} options={chartOptions} />
         </div>
       </div>

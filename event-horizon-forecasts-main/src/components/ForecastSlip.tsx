@@ -105,7 +105,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
               </button>
             </div>
 
-            <div className={`rounded-2xl border p-4 ${isPositiveSide ? "border-[#12B886]/25 bg-[#12B886]/10" : "border-[#E85D5D]/25 bg-[#E85D5D]/10"}`}>
+            <div className={`rounded-2xl p-4 ${isPositiveSide ? "bg-[#12B886]/8" : "bg-[#E85D5D]/8"}`}>
               <div className="flex items-start gap-3">
                 <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white text-2xl shadow-sm">
                   {selection.marketIcon}
@@ -126,7 +126,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-6 border-y border-[#E5E7EB] py-4">
               <InfoCard label="Wallet balance" value={user ? formatNaira(userBalance) : "Login required"} />
               <InfoCard label="Crowd View" value={formatNairaPrice(probability)} />
             </div>
@@ -184,7 +184,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
               ))}
             </div>
 
-            <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+            <div className="border-t border-[#E5E7EB] pt-4">
               <div className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">
                 Projection
               </div>
@@ -259,7 +259,7 @@ const SuccessState = ({ selection, amount }: { selection: ForecastSelection; amo
 };
 
 const InfoCard = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+  <div>
     <div className="text-xs font-bold text-[#6B7280]">{label}</div>
     <div className="mt-1 text-base font-black text-[#111827]">{value}</div>
   </div>

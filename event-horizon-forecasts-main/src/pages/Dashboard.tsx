@@ -327,26 +327,18 @@ const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[];
                 {position.side}
               </span>
             </div>
-            <div className="mt-4 grid gap-3">
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F8F7F4] px-3 py-2">
-                <span className="text-xs font-bold text-[#6B7280]">You picked {position.side}</span>
+            <div className="mt-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm font-black text-[#111827]">{formatNaira(position.stake)} backed</span>
+                <span className="text-xs font-bold text-[#6B7280]">{formatPositionCountdown(position)} left</span>
               </div>
-              <div className="rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <MovementStatus insight={insight} />
-                  <StrengthBadge insight={insight} />
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <div>
-                    <div className="text-[11px] font-bold text-[#6B7280]">If market ended now</div>
-                    <div className="mt-1 text-lg font-black text-[#111827]">{insight.multiplierLabel}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[11px] font-bold text-[#6B7280]">Live time left</div>
-                    <div className="mt-1 text-sm font-black text-[#111827]">{formatPositionCountdown(position)}</div>
-                  </div>
-                </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <MovementStatus insight={insight} />
+                <StrengthBadge insight={insight} />
+              </div>
+              <div className="border-t border-[#E5E7EB] pt-3">
+                <div className="text-[11px] font-bold text-[#6B7280]">If market ended now</div>
+                <div className="mt-1 text-lg font-black text-[#111827]">{insight.multiplierLabel}</div>
               </div>
             </div>
             <p className="mt-4 inline-flex items-center gap-1 text-xs font-black text-[#6B7280] transition group-hover:text-[#4F46E5]">
@@ -399,14 +391,14 @@ const PredictionDetailModal = ({
         </div>
 
         <div className="space-y-4 p-4 sm:p-5">
-          <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+          <div>
             <div className="mb-3 flex items-start justify-between gap-3">
               <h3 className="text-xl font-black leading-tight">{marketQuestion}</h3>
               <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
                 {position.side || "N/A"}
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[#E5E7EB] pt-4 sm:grid-cols-4">
               <Metric label="Amount backed" value={formatNaira(position.stake)} />
               <Metric label="Your pick" value={position.side || "N/A"} />
               <Metric label="Time left" value={timeLeft} />
@@ -414,7 +406,7 @@ const PredictionDetailModal = ({
             </div>
           </div>
 
-          <section className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+          <section className="border-t border-[#E5E7EB] pt-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h4 className="text-sm font-black">Crowd Movement</h4>
@@ -422,14 +414,14 @@ const PredictionDetailModal = ({
               </div>
               <MovementStatus insight={insight} />
             </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="mt-4 grid gap-x-4 gap-y-3 sm:grid-cols-3">
               <Metric label="Entry Crowd View" value={insight.entryCrowdView ? formatNairaPrice(insight.entryCrowdView) : "-"} large />
               <Metric label="Current Crowd View" value={insight.currentCrowdView ? formatNairaPrice(insight.currentCrowdView) : "-"} large movement={insight.movement} />
               <Metric label="Movement since entry" value={formatMovement(insight.movement)} large tone={insight.direction === "toward" ? "green" : insight.direction === "against" ? "red" : "neutral"} />
             </div>
           </section>
 
-          <section className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+          <section className="border-t border-[#E5E7EB] pt-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h4 className="text-sm font-black">Position Strength</h4>
@@ -439,16 +431,16 @@ const PredictionDetailModal = ({
             </div>
           </section>
 
-          <section className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+          <section className="border-t border-[#E5E7EB] pt-4">
             <h4 className="text-sm font-black">Pool Snapshot</h4>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-4 grid gap-x-4 gap-y-3 sm:grid-cols-2">
               {optionalPoolMetrics.map((metric) => (
                 <Metric key={metric.label} label={metric.label} value={metric.value} large />
               ))}
             </div>
           </section>
 
-          <section className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+          <section className="border-t border-[#E5E7EB] pt-4">
             <h4 className="text-sm font-black">If Market Ended Now</h4>
             <div className="mt-2 text-3xl font-black text-[#111827]">{insight.multiplierLabel}</div>
             <p className="mt-2 text-sm font-bold leading-relaxed text-[#6B7280]">{insight.multiplierDetail}</p>
@@ -457,14 +449,14 @@ const PredictionDetailModal = ({
             </p>
           </section>
 
-          <section className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+          <section className="border-t border-[#E5E7EB] pt-4">
             <h4 className="text-sm font-black">Prediction history</h4>
-            <div className="mt-3 rounded-xl bg-white p-3 text-sm font-bold text-[#6B7280]">
+            <div className="mt-3 text-sm font-bold text-[#6B7280]">
               You predicted {position.side} with {formatNaira(position.stake)} on {new Date(position.createdAt).toLocaleString()}.
             </div>
           </section>
 
-          <section className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+          <section className="border-t border-[#E5E7EB] pt-4">
             <h4 className="text-sm font-black">Rules and resolution</h4>
             <p className="mt-2 text-sm leading-relaxed text-[#6B7280]">
               {rules || "Open the market to review the full rules and resolution criteria."}
@@ -778,7 +770,7 @@ const AchievementCard = ({ icon: Icon, title, description, unlocked }: Achieveme
 );
 
 const Metric = ({ label, value, large = false, tone = "neutral", movement }: { label: string; value: string; large?: boolean; tone?: "neutral" | "green" | "red"; movement?: number }) => (
-  <div className="rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3 transition-colors duration-300">
+  <div className="min-w-0 transition-colors duration-300">
     <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6B7280]">{label}</div>
     <div className={`mt-2 flex items-center font-black transition-all duration-300 ${large ? "text-2xl" : "text-sm"} ${tone === "green" ? "text-[#12B886]" : tone === "red" ? "text-[#E85D5D]" : "text-[#111827]"}`}>
       {value}
