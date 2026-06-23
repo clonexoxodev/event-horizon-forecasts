@@ -1292,6 +1292,11 @@ const normalizePosition = (position: any, market: any) => {
   const sharesReceived = Number(position.shares_owned || position.shares_received || 0);
   const finalPayout = toAmount(position.settlement_payout_smallest_unit ?? position.final_payout_smallest_unit ?? position.payout_smallest_unit);
   const entryPrice = Number(position.entry_price ?? position.price_at_purchase ?? currentPrice);
+  const yesPool = Number(normalizedMarket.yesVolume || normalizedMarket.yesPool || 0);
+  const noPool = Number(normalizedMarket.noVolume || normalizedMarket.noPool || 0);
+  const sidePool = position.side === 'YES' ? yesPool : noPool;
+  const opposingPool = position.side === 'YES' ? noPool : yesPool;
+  const totalPool = Number(normalizedMarket.totalPool || yesPool + noPool || 0);
   const sideShares = position.side === 'YES'
     ? Number((market || {}).total_yes_shares || 0)
     : Number((market || {}).total_no_shares || 0);
@@ -1329,6 +1334,9 @@ const normalizePosition = (position: any, market: any) => {
     positionValue: currentValue,
     projectedPayout,
     projectedProfit,
+    totalPool,
+    sidePool,
+    opposingPool,
     sentimentMarkValue,
     unrealizedPnl: projectedProfit,
     estimatedPayout: toAmount(position.estimated_payout_smallest_unit ?? position.potential_return_smallest_unit),

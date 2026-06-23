@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  CategoryScale,
+  Chart as ChartJS,
+  Filler,
+  Legend,
+  LinearScale,
+  LineElement,
+  PointElement,
+  Tooltip as ChartTooltip,
+  type ChartData,
+  type ChartOptions,
+} from "chart.js";
+import { Line } from "react-chartjs-2";
 import { ArrowLeft, CheckCircle, Clock, Loader2, Share2, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
@@ -15,6 +27,8 @@ import { formatCountdown, formatNaira, formatNairaPrice, getMarketCategoryLabel,
 import { categoryMatches } from "@/lib/categories";
 
 type Timeframe = "1H" | "24H" | "7D" | "ALL";
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, ChartTooltip, Legend);
 
 export default function MarketDetail() {
   const { id } = useParams();
@@ -158,8 +172,13 @@ export default function MarketDetail() {
     setSubmitting(true);
     try {
       const result = await apiService.placePrediction(market.id, { side: sheetSide, amount: numericAmount, currency: "NGN" });
-      setMarket(result.market);
-      upsertMarket(result.market);
+      const historyResponse = await apiService.getMarketPriceHistory(market.id).catch(() => null);
+      const updatedMarket = {
+        ...result.market,
+        priceHistory: historyResponse?.priceHistory?.length ? historyResponse.priceHistory : result.market.priceHistory,
+      };
+      setMarket(updatedMarket);
+      upsertMarket(updatedMarket);
       refreshUser().catch((error) => console.warn("User refresh after prediction failed", error));
       setJustPredicted(sheetSide);
       setAmount("");
@@ -394,85 +413,195 @@ export default function MarketDetail() {
 }
 
 const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) => {
-  const rawHistory = useMemo(() => {
+  const savedHistory = useMemo(() => {
     const stored = (market.priceHistory || [])
       .filter((point) => point?.timestamp)
       .map((point) => ({
         timestamp: point.timestamp,
         time: new Date(point.timestamp).getTime(),
-        yesPrice: Number(point.yesPrice || market.yesPrice || 50),
-        noPrice: Number(point.noPrice || market.noPrice || 50),
+        yesPrice: clampCrowdValue(Number(point.yesPrice || market.yesPrice || 50)),
+        noPrice: clampCrowdValue(Number(point.noPrice || market.noPrice || 50)),
         volume: Number(point.volume || 0),
         tradeCount: Number(point.tradeCount || 0),
         side: point.side || null,
         amount: Number(point.amount || 0),
       }));
 
-    if (stored.length > 0) return stored;
-
-    const timestamp = new Date().toISOString();
-    return [{
-      timestamp,
-      time: new Date(timestamp).getTime(),
-      yesPrice: Number(market.yesPrice || 50),
-      noPrice: Number(market.noPrice || 50),
-      volume: Number(market.totalVolume || 0),
-      tradeCount: Number(market.tradeCount || 0),
-      side: null,
-      amount: 0,
-    }];
-  }, [market.noPrice, market.priceHistory, market.totalVolume, market.tradeCount, market.yesPrice]);
-
-  const chartData = useMemo(() => {
-    const sortedHistory = rawHistory
+    return stored
       .filter((point) => Number.isFinite(point.time))
+      .map((point) => {
+        const yesPrice = clampCrowdValue(point.yesPrice);
+        return { ...point, yesPrice, noPrice: clampCrowdValue(100 - yesPrice) };
+      })
       .sort((a, b) => a.time - b.time);
+  }, [market.noPrice, market.priceHistory, market.yesPrice]);
+
+  const filteredHistory = useMemo(() => {
     const cutoff = getTimeframeCutoff(timeframe);
-    const filtered = cutoff
-      ? sortedHistory.filter((point) => point.time >= cutoff)
-      : sortedHistory;
-    let source = filtered.length ? filtered : sortedHistory.slice(-1);
+    if (!cutoff) return savedHistory;
+    const ranged = savedHistory.filter((point) => point.time >= cutoff);
+    if (ranged.length >= 2) return ranged;
+    if (savedHistory.length <= 1) return savedHistory;
+    const latest = ranged[0] || savedHistory[savedHistory.length - 1];
+    const previous = savedHistory
+      .slice()
+      .reverse()
+      .find((point) => point.time < latest.time);
+    return previous ? [previous, latest] : savedHistory.slice(-2);
+  }, [savedHistory, timeframe]);
 
-    if (source.length < 2 && sortedHistory.length > 1) {
-      const latest = source[source.length - 1] || sortedHistory[sortedHistory.length - 1];
-      const previous = sortedHistory
-        .slice()
-        .reverse()
-        .find((point) => point.time < latest.time) || sortedHistory[0];
-      source = [previous, latest].sort((a, b) => a.time - b.time);
+  const chartData = useMemo<ChartData<"line">>(() => {
+    const labels = filteredHistory.map((point) => formatAxisTime(point.time, timeframe));
+    return {
+      labels,
+      datasets: [
+        {
+          label: "YES",
+          data: filteredHistory.map((point) => point.yesPrice),
+          borderColor: "#12B886",
+          backgroundColor: "rgba(18,184,134,0.12)",
+          borderWidth: 3,
+          pointRadius: filteredHistory.length === 1 ? 4 : 0,
+          pointHoverRadius: 5,
+          pointBackgroundColor: "#12B886",
+          pointBorderColor: "#08111f",
+          pointBorderWidth: 2,
+          tension: 0.38,
+          fill: false,
+        },
+        {
+          label: "NO",
+          data: filteredHistory.map((point) => point.noPrice),
+          borderColor: "#E85D5D",
+          backgroundColor: "rgba(232,93,93,0.10)",
+          borderWidth: 2.4,
+          pointRadius: filteredHistory.length === 1 ? 4 : 0,
+          pointHoverRadius: 5,
+          pointBackgroundColor: "#E85D5D",
+          pointBorderColor: "#08111f",
+          pointBorderWidth: 2,
+          tension: 0.38,
+          fill: false,
+        },
+      ],
+    };
+  }, [filteredHistory, timeframe]);
+
+  const chartOptions = useMemo<ChartOptions<"line">>(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: {
+      duration: 550,
+      easing: "easeOutQuart",
+    },
+    interaction: {
+      mode: "index",
+      intersect: false,
+    },
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        enabled: true,
+        displayColors: true,
+        backgroundColor: "rgba(16, 23, 32, 0.96)",
+        borderColor: "#263241",
+        borderWidth: 1,
+        titleColor: "#F5F7FA",
+        bodyColor: "#D5DEE8",
+        padding: 12,
+        cornerRadius: 12,
+        callbacks: {
+          title: (items) => {
+            const point = filteredHistory[items[0]?.dataIndex ?? 0];
+            return point ? formatChartTime(point.timestamp) : "";
+          },
+          label: (item) => `${item.dataset.label}: ${formatNairaPrice(Number(item.raw || 0))}`,
+          afterBody: (items) => {
+            const point = filteredHistory[items[0]?.dataIndex ?? 0];
+            if (!point) return [];
+            const rows = [
+              `Total pool: ${formatNaira(point.volume || 0)}`,
+              `Predictions: ${point.tradeCount || 0}`,
+            ];
+            if (point.side && Number(point.amount || 0) > 0) {
+              rows.push(`Last: ${point.side} ${formatNaira(point.amount || 0)}`);
+            }
+            return rows;
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false,
+        },
+        border: {
+          display: false,
+        },
+        ticks: {
+          color: "rgba(139,152,168,0.82)",
+          maxRotation: 0,
+          autoSkip: true,
+          maxTicksLimit: 5,
+          font: {
+            size: 10,
+            weight: 700,
+          },
+        },
+      },
+      y: {
+        min: 0,
+        max: 100,
+        position: "right",
+        grid: {
+          color: "rgba(148,163,184,0.12)",
+        },
+        border: {
+          display: false,
+        },
+        ticks: {
+          stepSize: 25,
+          color: "rgba(139,152,168,0.82)",
+          callback: (value) => `${value}`,
+          font: {
+            size: 10,
+            weight: 800,
+          },
+        },
+      },
+    },
+  }), [filteredHistory]);
+
+  const emptyHistory = savedHistory.length === 0;
+  const hasOnePoint = savedHistory.length === 1;
+  const hasMovement = savedHistory.length > 1;
+  const currentYes = clampCrowdValue(Number(market.yesPrice || 50));
+  const currentNo = clampCrowdValue(100 - currentYes);
+
+  if (emptyHistory) {
+    return (
+      <div className="rounded-2xl border border-[#263241] bg-[#101720] p-3 sm:p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 text-xs font-black text-[#12B886]"><span className="h-2 w-2 rounded-full bg-[#12B886]" />YES {formatNairaPrice(currentYes)}</span>
+            <span className="inline-flex items-center gap-1.5 text-xs font-black text-[#E85D5D]"><span className="h-2 w-2 rounded-full bg-[#E85D5D]" />NO {formatNairaPrice(currentNo)}</span>
+          </div>
+          <span className="text-xs font-bold text-[#8B98A8]">{market.tradeCount || 0} predictions</span>
+        </div>
+        <div className="grid h-[230px] place-items-center rounded-xl border border-dashed border-[#263241] bg-[#080C10] p-6 text-center sm:h-[300px]">
+          <div>
+            <p className="text-sm font-black text-white">No movement yet.</p>
+            <p className="mt-2 max-w-sm text-sm font-bold leading-relaxed text-[#8B98A8]">
+              Crowd View updates when people back YES or NO.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
     }
-
-    if (source.length === 1) {
-      const point = source[0];
-      const startTimestamp = point.time - 5 * 60_000;
-      return [
-        { ...point, timestamp: new Date(startTimestamp).toISOString(), time: startTimestamp },
-        point,
-      ];
-    }
-
-    return source;
-  }, [rawHistory, timeframe]);
-
-  const timeDomain = useMemo(() => {
-    const times = chartData.map((point) => point.time).filter(Number.isFinite);
-    const min = times.length ? Math.min(...times) : Date.now() - 5 * 60_000;
-    const max = times.length ? Math.max(...times) : Date.now();
-    if (min === max) return { min: min - 5 * 60_000, max: max + 5 * 60_000 };
-    const padding = Math.max(1000, (max - min) * 0.06);
-    return { min: min - padding, max: max + padding };
-  }, [chartData]);
-
-  const hasSavedHistory = Boolean(market.priceHistory?.length);
-  const hasStoredMovement = Boolean(
-    (market.priceHistory?.length || 0) > 1 ||
-    Number(market.tradeCount || 0) > 0 ||
-    rawHistory.some((point) => point.side || point.tradeCount > 0)
-  );
-  const axisTickFormatter = useMemo(
-    () => (timestamp: number) => formatAxisTime(timestamp, timeDomain.max - timeDomain.min),
-    [timeDomain.max, timeDomain.min]
-  );
 
   return (
     <div className="rounded-2xl border border-[#263241] bg-[#101720] p-3 sm:p-4">
@@ -485,107 +614,12 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
       </div>
       <div className="relative overflow-hidden rounded-xl border border-[#263241] bg-[#080C10] px-1 pb-2 pt-3 sm:px-3">
         <div className="h-[230px] w-full sm:h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 10, right: 8, bottom: 6, left: 0 }}>
-              <CartesianGrid stroke="rgba(148,163,184,0.12)" strokeDasharray="3 6" vertical={false} />
-              <XAxis
-                dataKey="time"
-                type="number"
-                domain={[timeDomain.min, timeDomain.max]}
-                tickFormatter={axisTickFormatter}
-                stroke="rgba(148,163,184,0.52)"
-                tick={{ fill: "rgba(148,163,184,0.75)", fontSize: 10, fontWeight: 700 }}
-                tickLine={false}
-                axisLine={false}
-                minTickGap={24}
-              />
-              <YAxis
-                domain={[0, 100]}
-                ticks={[0, 25, 50, 75, 100]}
-                orientation="right"
-                width={28}
-                stroke="rgba(148,163,184,0.52)"
-                tick={{ fill: "rgba(148,163,184,0.75)", fontSize: 10, fontWeight: 800 }}
-                tickFormatter={(value) => `${value}`}
-                tickLine={false}
-                axisLine={false}
-              />
-              <Tooltip
-                cursor={{ stroke: "rgba(255,255,255,0.28)", strokeWidth: 1 }}
-                content={<PriceTooltip />}
-                isAnimationActive={false}
-                allowEscapeViewBox={{ x: false, y: false }}
-                wrapperStyle={{ outline: "none", maxWidth: "min(220px, calc(100vw - 48px))" }}
-              />
-              <Line
-                type="monotone"
-                dataKey="yesPrice"
-                stroke="#12B886"
-                strokeWidth={3}
-                dot={false}
-                activeDot={{ r: 4, strokeWidth: 2, stroke: "#08111f", fill: "#12B886" }}
-                isAnimationActive
-                animationDuration={450}
-                animationEasing="ease-out"
-              />
-              <Line
-                type="monotone"
-                dataKey="noPrice"
-                stroke="#E85D5D"
-                strokeWidth={2.4}
-                dot={false}
-                activeDot={{ r: 3.5, strokeWidth: 2, stroke: "#08111f", fill: "#E85D5D" }}
-                isAnimationActive
-                animationDuration={450}
-                animationEasing="ease-out"
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <Line data={chartData} options={chartOptions} />
         </div>
-        {!hasSavedHistory && (
-          <div className="pointer-events-none absolute inset-x-4 top-5 rounded-xl border border-[#263241] bg-[#080C10]/82 px-3 py-2 text-center text-xs font-bold text-[#8B98A8] backdrop-blur-xl">
-            Price movement starts after predictions.
-          </div>
-        )}
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-[#8B98A8]">
-        <span>{hasStoredMovement ? "Crowd View history from saved predictions" : "Flat starting line until the first prediction."}</span>
+        <span>{hasMovement ? "Crowd View history from saved predictions." : hasOnePoint ? "One saved prediction so far." : "Crowd View updates when people back YES or NO."}</span>
         <span>YES {formatNairaPrice(market.yesPrice)} / NO {formatNairaPrice(market.noPrice)}</span>
-      </div>
-    </div>
-  );
-};
-
-const PriceTooltip = ({ active, payload }: any) => {
-  if (!active || !payload?.length) return null;
-  const point = payload[0]?.payload;
-  if (!point) return null;
-
-  return (
-    <div className="max-w-[210px] rounded-xl border border-[#263241] bg-[#101720]/96 p-3 text-xs shadow-2xl backdrop-blur-xl">
-      <div className="font-black text-white">{formatChartTime(point.timestamp)}</div>
-      <div className="mt-2 grid gap-1.5 font-bold">
-        <div className="flex items-center justify-between gap-5 text-[#7AE4BD]">
-          <span>YES</span>
-          <span>{formatNairaPrice(point.yesPrice)}</span>
-        </div>
-        <div className="flex items-center justify-between gap-5 text-[#FF9C9C]">
-          <span>NO</span>
-          <span>{formatNairaPrice(point.noPrice)}</span>
-        </div>
-        <div className="flex items-center justify-between gap-5 text-[#8B98A8]">
-          <span>Volume</span>
-          <span>{formatNaira(point.volume || 0)}</span>
-        </div>
-        <div className="flex items-center justify-between gap-5 text-[#8B98A8]">
-          <span>Trades</span>
-          <span>{point.tradeCount || 0}</span>
-        </div>
-        {point.side && (
-          <div className="mt-1 rounded-lg bg-[#151E28] px-2 py-1 text-center text-[11px] font-black text-white">
-            Last trade: {point.side} {formatNaira(point.amount || 0)}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -599,18 +633,20 @@ const getTimeframeCutoff = (timeframe: Timeframe) => {
   return null;
 };
 
+const clampCrowdValue = (value: number) => Math.max(0, Math.min(100, Math.round((Number(value) || 0) * 10) / 10));
+
 const formatChartTime = (timestamp: string) => {
   const date = new Date(timestamp);
   return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 };
 
-const formatAxisTime = (timestamp: number, spanMs = 0) => {
+const formatAxisTime = (timestamp: number, timeframe: Timeframe) => {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return "";
-  if (spanMs <= 60 * 60 * 1000) {
+  if (timeframe === "1H") {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   }
-  if (spanMs > 24 * 60 * 60 * 1000) {
+  if (timeframe === "7D" || timeframe === "ALL") {
     return date.toLocaleDateString([], { month: "short", day: "numeric" });
   }
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });

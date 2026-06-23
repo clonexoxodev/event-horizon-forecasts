@@ -201,6 +201,9 @@ export type ApiPosition = {
   unrealizedPnl?: number;
   projectedPayout?: number;
   projectedProfit?: number;
+  totalPool?: number;
+  sidePool?: number;
+  opposingPool?: number;
   sentimentMarkValue?: number;
   currentValue: number;
   estimatedPayout?: number;

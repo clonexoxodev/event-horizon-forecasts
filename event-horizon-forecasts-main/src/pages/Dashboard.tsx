@@ -38,6 +38,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<PortfolioTab>("positions");
   const [selectedPosition, setSelectedPosition] = useState<ApiPosition | null>(null);
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
     if (authLoading) return;
@@ -82,6 +83,11 @@ const Dashboard = () => {
     };
   }, [authLoading, userId]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const activePositions = useMemo(
     () => positions.filter((position) => position.marketStatus === "active"),
     [positions]
@@ -121,7 +127,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="app-bg min-h-screen overflow-x-hidden pb-24 text-white md:pb-0 xl:pl-64">
+    <div className="app-bg min-h-screen overflow-x-hidden pb-24 text-white md:pb-0 xl:pl-64" data-now={now}>
       <Header />
       <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:py-8">
         <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5 shadow-[0_18px_52px_rgba(0,0,0,0.28)] sm:p-6">
@@ -162,7 +168,7 @@ const Dashboard = () => {
           </div>
         ) : (
           <div className="mt-5">
-            {tab === "positions" && <PositionsView positions={activePositions} onSelect={setSelectedPosition} />}
+            {tab === "positions" && <PositionsView positions={activePositions} onSelect={setSelectedPosition} now={now} />}
             {tab === "activity" && <ActivityView positions={positions} settledCount={settledPositions.length} />}
             {tab === "performance" && <PerformanceView positions={positions} stats={stats} />}
           </div>
@@ -171,6 +177,7 @@ const Dashboard = () => {
       {selectedPosition && (
         <PredictionDetailModal
           position={selectedPosition}
+          now={now}
           onClose={() => setSelectedPosition(null)}
           onViewMarket={() => {
             const marketId = selectedPosition.marketId;
@@ -192,7 +199,7 @@ const HeroStat = ({ icon: Icon, label, value, tone = "neutral" }: { icon: any; l
   </div>
 );
 
-const PositionsView = ({ positions, onSelect }: { positions: ApiPosition[]; onSelect: (position: ApiPosition) => void }) => {
+const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[]; onSelect: (position: ApiPosition) => void; now: number }) => {
   if (positions.length === 0) {
     return (
       <EmptyState
@@ -210,6 +217,7 @@ const PositionsView = ({ positions, onSelect }: { positions: ApiPosition[]; onSe
           <button
             key={position.id}
             onClick={() => onSelect(position)}
+            data-now={now}
             className="rounded-2xl border border-[#263241] bg-[#101720] p-4 text-left transition hover:border-[#12B886]/45 hover:bg-[#151E28] active:scale-[0.99]"
           >
             <div className="flex items-start justify-between gap-3">
@@ -237,19 +245,28 @@ const PositionsView = ({ positions, onSelect }: { positions: ApiPosition[]; onSe
 
 const PredictionDetailModal = ({
   position,
+  now,
   onClose,
   onViewMarket,
 }: {
   position: ApiPosition;
+  now: number;
   onClose: () => void;
   onViewMarket: () => void;
 }) => {
   const shares = Number(position.sharesOwned ?? position.sharesReceived ?? 0);
   const rules = (position as ApiPosition & { rules?: string }).rules;
   const resolutionSource = (position as ApiPosition & { resolutionSource?: string }).resolutionSource;
-  const totalPool = Number((position as ApiPosition & { totalPool?: number }).totalPool || 0);
-  const opposingPool = Number((position as ApiPosition & { opposingPool?: number }).opposingPool || 0);
-  const sidePool = Number((position as ApiPosition & { sidePool?: number }).sidePool || 0);
+  const totalPool = Number(position.totalPool || 0);
+  const opposingPool = Number(position.opposingPool || 0);
+  const sidePool = Number(position.sidePool || 0);
+  const timeLeft = formatCountdown(position.tradingCloseTime || position.marketCloseTime);
+  const isClosed = (position.tradingCloseTime || position.marketCloseTime)
+    ? new Date(position.tradingCloseTime || position.marketCloseTime || "").getTime() <= now
+    : position.marketStatus !== "active";
+  const displayStatus = isClosed && position.marketStatus === "active"
+    ? "closed"
+    : (position.status || position.marketStatus).replace(/_/g, " ");
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 px-3 pb-[calc(84px+env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-6">
@@ -275,17 +292,17 @@ const PredictionDetailModal = ({
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <Metric label="Amount backed" value={formatNaira(position.stake)} />
               <Metric label="Your pick" value={position.side} />
-              <Metric label="Time left" value={formatCountdown(position.tradingCloseTime || position.marketCloseTime)} />
-              <Metric label="Status" value={(position.status || position.marketStatus).replace(/_/g, " ")} />
+              <Metric label="Time left" value={timeLeft} />
+              <Metric label="Status" value={displayStatus} />
             </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Metric label="Entry Crowd View" value={formatNairaPrice(position.entryPrice || 0)} large />
             <Metric label="Current Crowd View" value={formatNairaPrice(position.currentPrice || position.entryPrice || 0)} large />
-            <Metric label="Total Pool" value={totalPool ? formatNaira(totalPool) : "View market"} large />
-            <Metric label="Opposing Pool" value={opposingPool ? formatNaira(opposingPool) : "Changes until close"} large />
-            <Metric label="Your side's pool" value={sidePool ? formatNaira(sidePool) : "View market"} large />
+            <Metric label="Total Pool" value={totalPool ? formatNaira(totalPool) : "Available on market page"} large />
+            <Metric label="Opposing Pool" value={opposingPool ? formatNaira(opposingPool) : "Available on market page"} large />
+            <Metric label="Your side's pool" value={sidePool ? formatNaira(sidePool) : "Available on market page"} large />
             <Metric label="Units" value={shares ? shares.toFixed(2) : "-"} large />
           </div>
 
