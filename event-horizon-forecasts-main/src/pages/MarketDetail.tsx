@@ -241,21 +241,37 @@ export default function MarketDetail() {
             ) : (
               <img src={media.src} alt="" className="absolute inset-0 h-full w-full object-cover" />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/92 via-black/48 to-black/10" />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/72 to-transparent p-5 sm:p-7">
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-white/95 px-3 py-1 text-xs font-black text-[#101828] shadow-sm">{marketCategoryLabel}</span>
-                <span className={`rounded-full border px-3 py-1 text-xs font-black backdrop-blur ${marketIsActive ? "border-[#12B886]/70 bg-[#047857] text-white" : "border-white/30 bg-black/45 text-white"}`}>{marketIsActive ? "Live" : "Ended"}</span>
-                <span className="rounded-full border border-white/25 bg-black/40 px-3 py-1 text-xs font-black text-white backdrop-blur-xl">
-                  {formatCountdown(tradingCloseTime, market.closesIn)}
-                </span>
-              </div>
-              <h1 className="max-w-3xl text-3xl font-black leading-tight tracking-tight text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.45)] sm:text-5xl">{market.question}</h1>
-              <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-bold text-white/88">
-                <span className="flex items-center gap-1.5"><Users className="h-4 w-4 text-white/85" />{market.participants} participants</span>
-                <span>{market.tradeCount || 0} predictions</span>
-                <span>{formatNaira(market.totalPool)} total predicted</span>
-                <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-white/85" />Closes {formatCountdown(tradingCloseTime, market.closesIn)}</span>
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.55), rgba(0,0,0,0.15))",
+              }}
+            />
+            <div className="absolute inset-0 bg-black/10" />
+            <div className="absolute inset-x-0 bottom-0 p-3 sm:p-5">
+              <div className="rounded-2xl border border-white/15 bg-black/75 p-4 text-white shadow-[0_24px_90px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-5">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#101828] shadow-sm">{marketCategoryLabel}</span>
+                  <span className={`rounded-full border px-3 py-1 text-xs font-black ${marketIsActive ? "border-[#12B886]/70 bg-[#047857] text-white" : "border-white/30 bg-white/15 text-white"}`}>{marketIsActive ? "Live" : "Ended"}</span>
+                </div>
+                <h1 className="max-w-4xl text-2xl font-black leading-tight tracking-tight text-white drop-shadow-[0_3px_18px_rgba(0,0,0,0.75)] sm:text-4xl lg:text-5xl">{market.question}</h1>
+                <div className="mt-4 grid gap-2 text-sm font-black text-white sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 backdrop-blur">
+                    <Users className="h-4 w-4 shrink-0 text-white" />
+                    <span>{market.participants} participants</span>
+                  </div>
+                  <div className="rounded-xl bg-white/10 px-3 py-2 backdrop-blur">
+                    {market.tradeCount || 0} predictions
+                  </div>
+                  <div className="rounded-xl bg-white/10 px-3 py-2 backdrop-blur">
+                    {formatNaira(market.totalPool)} total predicted
+                  </div>
+                  <div className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 backdrop-blur">
+                    <Clock className="h-4 w-4 shrink-0 text-white" />
+                    <span>{formatCountdown(tradingCloseTime, market.closesIn)} left</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
