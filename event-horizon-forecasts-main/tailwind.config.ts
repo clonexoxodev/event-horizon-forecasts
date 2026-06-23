@@ -19,8 +19,8 @@ export default {
         graphite: "hsl(214, 16%, 60%)",
         "off-white": "hsl(211, 33%, 9%)",
         purple: {
-          DEFAULT: "hsl(158, 100%, 33%)",
-          soft: "hsl(158, 45%, 14%)",
+          DEFAULT: "hsl(243, 75%, 59%)",
+          soft: "hsl(243, 75%, 96%)",
         },
         emerald: {
           DEFAULT: "hsl(158, 76%, 40%)",

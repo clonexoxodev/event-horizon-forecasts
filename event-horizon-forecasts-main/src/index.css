@@ -400,3 +400,50 @@
 .delay-100 { animation-delay: 0.1s; }
 .delay-200 { animation-delay: 0.2s; }
 .delay-300 { animation-delay: 0.3s; }
+
+@layer utilities {
+  /* Light-system compatibility for older hard-coded dark utility classes. */
+  .app-bg.text-white,
+  .bg-\[\#101720\].text-white,
+  .bg-\[\#151E28\].text-white,
+  .bg-\[\#0B1118\].text-white,
+  .bg-\[\#0D131A\].text-white {
+    color: #101828 !important;
+  }
+
+  .bg-\[\#101720\],
+  .bg-\[\#0B1118\],
+  .bg-\[\#0D131A\],
+  .bg-\[\#080c10\] {
+    background-color: #ffffff !important;
+  }
+
+  .bg-\[\#151E28\],
+  .bg-\[\#1B2633\] {
+    background-color: #f3f4f6 !important;
+  }
+
+  .border-\[\#263241\],
+  .divide-\[\#263241\] > :not([hidden]) ~ :not([hidden]) {
+    border-color: #e5e7eb !important;
+  }
+
+  .text-\[\#8B98A8\],
+  .text-\[\#64748B\] {
+    color: #667085 !important;
+  }
+
+  .text-\[\#D5DEE8\],
+  .text-\[\#F5F7FA\] {
+    color: #344054 !important;
+  }
+
+  .bg-gradient-soft,
+  .bg-gradient-card {
+    background: #ffffff !important;
+  }
+
+  .bg-gradient-hero {
+    background: linear-gradient(135deg, #4f46e5, #6366f1) !important;
+  }
+}

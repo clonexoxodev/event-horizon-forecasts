@@ -218,8 +218,6 @@ const getPredictionDisplayStatus = (position: ApiPosition, now = Date.now()) => 
 
 const formatPositionCountdown = (position: ApiPosition) => formatCountdown(getPredictionCloseTime(position));
 
-const formatMaybeMoney = (value: number) => (Number(value) > 0 ? formatNaira(value) : "Not available yet");
-
 type PredictionInsight = {
   entryCrowdView: number;
   currentCrowdView: number;
@@ -379,6 +377,13 @@ const PredictionDetailModal = ({
   const displayStatus = getPredictionDisplayStatus(position, now).label;
   const marketQuestion = position.marketQuestion || "Prediction details unavailable";
   const insight = getPredictionInsight(position);
+  const optionalPoolMetrics = [
+    insight.totalPool > 0 ? { label: "Total Pool", value: formatNaira(insight.totalPool) } : null,
+    insight.sidePool > 0 ? { label: "Your Side Pool", value: formatNaira(insight.sidePool) } : null,
+    insight.opposingPool > 0 ? { label: "Opposing Pool", value: formatNaira(insight.opposingPool) } : null,
+    shares > 0 ? { label: "Units", value: shares.toFixed(2) } : null,
+    { label: "Status", value: displayStatus },
+  ].filter(Boolean) as Array<{ label: string; value: string }>;
 
   return (
     <div className="fixed inset-0 z-[70] flex animate-in fade-in duration-200 items-end justify-center bg-black/70 px-3 pb-[calc(84px+env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-6">
@@ -403,7 +408,7 @@ const PredictionDetailModal = ({
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <Metric label="Amount backed" value={formatNaira(position.stake)} />
-              <Metric label="Your pick" value={position.side || "Not available yet"} />
+              <Metric label="Your pick" value={position.side || "N/A"} />
               <Metric label="Time left" value={timeLeft} />
               <Metric label="Status" value={displayStatus} />
             </div>
@@ -418,8 +423,8 @@ const PredictionDetailModal = ({
               <MovementStatus insight={insight} />
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <Metric label="Entry Crowd View" value={insight.entryCrowdView ? formatNairaPrice(insight.entryCrowdView) : "Not available yet"} large />
-              <Metric label="Current Crowd View" value={insight.currentCrowdView ? formatNairaPrice(insight.currentCrowdView) : "Not available yet"} large movement={insight.movement} />
+              <Metric label="Entry Crowd View" value={insight.entryCrowdView ? formatNairaPrice(insight.entryCrowdView) : "-"} large />
+              <Metric label="Current Crowd View" value={insight.currentCrowdView ? formatNairaPrice(insight.currentCrowdView) : "-"} large movement={insight.movement} />
               <Metric label="Movement since entry" value={formatMovement(insight.movement)} large tone={insight.direction === "toward" ? "green" : insight.direction === "against" ? "red" : "neutral"} />
             </div>
           </section>
@@ -437,12 +442,9 @@ const PredictionDetailModal = ({
           <section className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
             <h4 className="text-sm font-black">Pool Snapshot</h4>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Metric label="Total Pool" value={formatMaybeMoney(insight.totalPool)} large />
-              <Metric label="Your Side Pool" value={formatMaybeMoney(insight.sidePool)} large />
-              <Metric label="Opposing Pool" value={formatMaybeMoney(insight.opposingPool)} large />
-              <Metric label="Participants" value="Not available yet" large />
-              <Metric label="Units" value={shares ? shares.toFixed(2) : "Not available yet"} large />
-              <Metric label="Status" value={displayStatus} large />
+              {optionalPoolMetrics.map((metric) => (
+                <Metric key={metric.label} label={metric.label} value={metric.value} large />
+              ))}
             </div>
           </section>
 
@@ -470,9 +472,11 @@ const PredictionDetailModal = ({
             <p className="mt-3 text-xs font-bold text-[#6B7280]">
               Resolution source: {resolutionSource || "Shown on the market page when available."}
             </p>
-            <p className="mt-2 text-xs font-bold text-[#6B7280]">
-              Trading close time: {getPredictionCloseTime(position) ? new Date(getPredictionCloseTime(position)).toLocaleString() : "Not available yet"}
-            </p>
+            {getPredictionCloseTime(position) && (
+              <p className="mt-2 text-xs font-bold text-[#6B7280]">
+                Trading close time: {new Date(getPredictionCloseTime(position)).toLocaleString()}
+              </p>
+            )}
           </section>
 
           <button
