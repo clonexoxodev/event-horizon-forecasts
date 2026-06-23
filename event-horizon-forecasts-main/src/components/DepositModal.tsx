@@ -51,13 +51,13 @@ export const DepositModal = ({ open, onClose, currency }: DepositModalProps) => 
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="overflow-hidden rounded-2xl border border-[#263241] bg-[#101720] p-0 text-white shadow-[0_24px_80px_rgba(0,0,0,0.6)] sm:max-w-md">
+      <DialogContent className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-0 text-[#111827] shadow-[0_24px_80px_rgba(17,24,39,0.16)] sm:max-w-md">
         <div className="h-1 w-full bg-[#12B886]" />
         <div className="p-6">
           <button
             onClick={handleClose}
             disabled={loading}
-            className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#8B98A8] transition hover:text-white disabled:opacity-50"
+            className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
           >
             <X className="h-4 w-4" />
           </button>
@@ -65,16 +65,16 @@ export const DepositModal = ({ open, onClose, currency }: DepositModalProps) => 
           <div className="mb-6">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-[#12B886]">Wallet</p>
             <h3 className="mt-1 text-2xl font-black">Add Money</h3>
-            <p className="mt-1 text-sm text-[#8B98A8]">
+            <p className="mt-1 text-sm text-[#6B7280]">
               Enter an amount and continue to secure checkout. Your wallet is credited only after payment is verified.
             </p>
           </div>
 
-          <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">
+          <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">
             Amount ({currency})
           </label>
           <div className="relative mb-4">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-[#8B98A8]">₦</span>
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-[#6B7280]">₦</span>
             <Input
               type="number"
               min="1"
@@ -82,7 +82,7 @@ export const DepositModal = ({ open, onClose, currency }: DepositModalProps) => 
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
               disabled={loading}
-              className="h-13 rounded-xl border-[#263241] bg-[#151E28] pl-10 text-lg font-black text-white placeholder:text-[#8B98A8] focus:border-[#12B886]"
+              className="h-13 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-10 text-lg font-black text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5]"
             />
           </div>
 
@@ -94,8 +94,8 @@ export const DepositModal = ({ open, onClose, currency }: DepositModalProps) => 
                 disabled={loading}
                 className={`h-10 rounded-xl border text-xs font-black transition sm:text-sm ${
                   amount === value.toString()
-                    ? "border-[#12B886]/40 bg-[#12B886]/18 text-[#7AE4BD]"
-                    : "border-[#263241] bg-[#151E28] text-[#8B98A8] hover:text-white"
+                    ? "border-[#12B886]/40 bg-[#12B886]/18 text-[#047857]"
+                    : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:text-[#111827]"
                 }`}
               >
                 {formatNaira(value)}
@@ -103,7 +103,7 @@ export const DepositModal = ({ open, onClose, currency }: DepositModalProps) => 
             ))}
           </div>
 
-          <div className="mb-6 rounded-xl border border-[#263241] bg-[#151E28] p-4 text-xs font-bold leading-relaxed text-[#8B98A8]">
+          <div className="mb-6 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4 text-xs font-bold leading-relaxed text-[#6B7280]">
             FLIPPE will send you to the configured payment provider. We never credit your wallet until the backend verifies the payment.
           </div>
 

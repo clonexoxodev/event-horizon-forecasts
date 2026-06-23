@@ -194,7 +194,7 @@ export default function MarketDetail() {
 
   if (loading && !market) {
     return (
-      <div className="app-bg min-h-screen text-white xl:pl-64">
+      <div className="app-bg min-h-screen text-[#111827] xl:pl-64">
         <Header />
         <main className="grid min-h-[70vh] place-items-center px-4">
           <DelayedFlippeLoader active label="Loading market" />
@@ -222,11 +222,11 @@ export default function MarketDetail() {
     .reverse();
 
   return (
-    <div className="app-bg min-h-screen pb-[calc(150px+env(safe-area-inset-bottom))] text-white md:pb-24 xl:pl-64">
+    <div className="app-bg min-h-screen pb-[calc(150px+env(safe-area-inset-bottom))] text-[#111827] md:pb-24 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:py-6" data-now={now}>
         <div className="mb-4 flex items-center justify-between">
-          <Link to="/" className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#263241] bg-[#101720] px-3 text-sm font-black text-[#8B98A8] transition hover:text-white">
+          <Link to="/" className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm font-black text-[#6B7280] transition hover:text-[#111827]">
             <ArrowLeft className="h-4 w-4" />
             Home
           </Link>
@@ -235,7 +235,7 @@ export default function MarketDetail() {
           </div>
         </div>
 
-        <article className="overflow-hidden rounded-2xl border border-[#263241] bg-[#101720]">
+        <article className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
           <div className="relative aspect-[4/5] max-h-[620px] overflow-hidden sm:aspect-[16/10]">
             {media.type === "video" ? (
               <video src={media.src} poster={media.poster} className="absolute inset-0 h-full w-full object-cover" muted playsInline loop autoPlay />
@@ -247,12 +247,12 @@ export default function MarketDetail() {
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#080c10]">{marketCategoryLabel}</span>
                 <span className="rounded-full border border-[#12B886]/25 bg-[#12B886]/10 px-3 py-1 text-xs font-black text-[#7AE4BD]">{marketIsActive ? "Live" : "Ended"}</span>
-                <span className="rounded-full border border-[#263241] bg-black/45 px-3 py-1 text-xs font-black text-white backdrop-blur-xl">
+                <span className="rounded-full border border-white/20 bg-black/45 px-3 py-1 text-xs font-black text-white backdrop-blur-xl">
                   {formatCountdown(tradingCloseTime, market.closesIn)}
                 </span>
               </div>
-              <h1 className="max-w-3xl text-3xl font-black leading-tight tracking-tight sm:text-5xl">{market.question}</h1>
-              <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-bold text-[#D5DEE8]">
+              <h1 className="max-w-3xl text-3xl font-black leading-tight tracking-tight text-white sm:text-5xl">{market.question}</h1>
+              <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-bold text-white/78">
                 <span className="flex items-center gap-1.5"><Users className="h-4 w-4 text-[#12B886]" />{market.participants} participants</span>
                 <span>{market.tradeCount || 0} predictions</span>
                 <span>{formatNaira(market.totalPool)} total predicted</span>
@@ -262,15 +262,15 @@ export default function MarketDetail() {
           </div>
         </article>
 
-        <section className="mt-4 rounded-2xl border border-[#263241] bg-[#101720] p-4">
+        <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-black">Crowd View movement</h2>
-              <p className="text-xs font-bold text-[#8B98A8]">Crowd View moves as people back YES or NO.</p>
+              <p className="text-xs font-bold text-[#6B7280]">Crowd View moves as people back YES or NO.</p>
             </div>
-            <div className="flex rounded-full border border-[#263241] bg-[#151E28] p-1">
+            <div className="flex rounded-full border border-[#E5E7EB] bg-[#F8F7F4] p-1">
               {(["1H", "24H", "7D", "ALL"] as Timeframe[]).map((item) => (
-                <button key={item} onClick={() => setTimeframe(item)} className={`rounded-full px-3 py-1 text-xs font-black ${timeframe === item ? "bg-[#12B886] text-[#06100d]" : "text-[#8B98A8]"}`}>
+                <button key={item} onClick={() => setTimeframe(item)} className={`rounded-full px-3 py-1 text-xs font-black ${timeframe === item ? "bg-[#12B886] text-[#06100d]" : "text-[#6B7280]"}`}>
                   {item}
                 </button>
               ))}
@@ -280,47 +280,47 @@ export default function MarketDetail() {
         </section>
 
         <section className="mt-4 grid gap-3 md:grid-cols-2">
-          <div className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
+          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
             <h2 className="text-lg font-black">Crowd View</h2>
-            <p className="mt-1 text-sm text-[#8B98A8]">
+            <p className="mt-1 text-sm text-[#6B7280]">
               {market.yesPrice >= market.noPrice ? "The crowd currently favors YES." : "The crowd currently favors NO."} This changes as people back each side.
             </p>
             <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#E85D5D]/20">
               <div className="h-full bg-[#12B886]" style={{ width: `${yesSideShare}%` }} />
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-              <div className="rounded-xl bg-[#151E28] p-3">
-                <div className="text-xs font-black uppercase tracking-[0.12em] text-[#8B98A8]">YES</div>
+              <div className="rounded-xl bg-[#F8F7F4] p-3">
+                <div className="text-xs font-black uppercase tracking-[0.12em] text-[#6B7280]">YES</div>
                 <div className="mt-1 text-xl font-black text-[#7AE4BD]">{formatNairaPrice(market.yesPrice)}</div>
               </div>
-              <div className="rounded-xl bg-[#151E28] p-3">
-                <div className="text-xs font-black uppercase tracking-[0.12em] text-[#8B98A8]">NO</div>
+              <div className="rounded-xl bg-[#F8F7F4] p-3">
+                <div className="text-xs font-black uppercase tracking-[0.12em] text-[#6B7280]">NO</div>
                 <div className="mt-1 text-xl font-black text-[#FF9C9C]">{formatNairaPrice(market.noPrice)}</div>
               </div>
             </div>
-            <p className="mt-3 text-xs font-bold leading-relaxed text-[#8B98A8]">
+            <p className="mt-3 text-xs font-bold leading-relaxed text-[#6B7280]">
               If your side is correct, you receive your stake plus a share of the losing side's pool.
             </p>
           </div>
 
-          <div className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
+          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
             <h2 className="text-lg font-black">Recent predictions</h2>
             <div className="mt-3 space-y-2">
               {recentTrades.length ? recentTrades.map((trade) => (
-                <div key={`${trade.timestamp}-${trade.side}-${trade.amount}`} className="flex items-center justify-between rounded-xl bg-[#151E28] px-3 py-2 text-xs">
+                <div key={`${trade.timestamp}-${trade.side}-${trade.amount}`} className="flex items-center justify-between rounded-xl bg-[#F8F7F4] px-3 py-2 text-xs">
                   <span className={`font-black ${trade.side === "YES" ? "text-[#12B886]" : "text-[#E85D5D]"}`}>Backed {trade.side}</span>
-                  <span className="text-[#8B98A8]">{formatNaira(Number(trade.amount || 0))}</span>
+                  <span className="text-[#6B7280]">{formatNaira(Number(trade.amount || 0))}</span>
                 </div>
               )) : (
-                <p className="text-sm text-[#8B98A8]">Recent predictions appear after people join.</p>
+                <p className="text-sm text-[#6B7280]">Recent predictions appear after people join.</p>
               )}
             </div>
           </div>
         </section>
 
-        <section className="mt-4 rounded-2xl border border-[#263241] bg-[#101720] p-4">
+        <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4">
           <h2 className="text-lg font-black">Rules</h2>
-          <p className="mt-2 text-sm leading-6 text-[#8B98A8]">{market.rules || market.description || "This market resolves based on the stated outcome and admin review."}</p>
+          <p className="mt-2 text-sm leading-6 text-[#6B7280]">{market.rules || market.description || "This market resolves based on the stated outcome and admin review."}</p>
         </section>
 
         {relatedMarkets.length > 0 && (
@@ -328,7 +328,7 @@ export default function MarketDetail() {
             <h2 className="mb-3 text-lg font-black">Related markets</h2>
             <div className="grid gap-3 sm:grid-cols-3">
               {relatedMarkets.map((item) => (
-                <Link key={item.id} to={`/market/${item.id}`} className="rounded-xl border border-[#263241] bg-[#101720] p-4 transition hover:border-[#12B886]/45 hover:bg-[#151E28]">
+                <Link key={item.id} to={`/market/${item.id}`} className="rounded-xl border border-[#E5E7EB] bg-white p-4 transition hover:border-[#12B886]/45 hover:bg-[#F8F7F4]">
                   <div className="text-xs font-black text-[#12B886]">{getMarketCategoryLabel(item)}</div>
                   <div className="mt-1 line-clamp-2 text-sm font-black">{item.question}</div>
                   <div className="mt-3 text-xs font-black text-slate-500">YES {formatNairaPrice(item.yesPrice)} · NO {formatNairaPrice(item.noPrice)}</div>
@@ -339,12 +339,12 @@ export default function MarketDetail() {
         )}
       </main>
 
-      <div className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-[#263241] bg-[#080c10]/92 p-3 backdrop-blur-xl md:bottom-0 xl:left-64">
+      <div className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-[#E5E7EB] bg-[#F8F7F4]/92 p-3 backdrop-blur-xl md:bottom-0 xl:left-64">
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-3">
           <button disabled={!marketIsActive} onClick={() => setSheetSide("YES")} className="h-12 rounded-xl bg-[#12B886] text-sm font-black text-[#06100d] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">
             Back YES {formatNairaPrice(market.yesPrice)}
           </button>
-          <button disabled={!marketIsActive} onClick={() => setSheetSide("NO")} className="h-12 rounded-xl bg-[#E85D5D] text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">
+          <button disabled={!marketIsActive} onClick={() => setSheetSide("NO")} className="h-12 rounded-xl bg-[#E85D5D] text-sm font-black text-[#111827] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">
             Back NO {formatNairaPrice(market.noPrice)}
           </button>
         </div>
@@ -352,7 +352,7 @@ export default function MarketDetail() {
 
       {sheetSide && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => !submitting && setSheetSide(null)}>
-          <div className="absolute bottom-0 left-0 right-0 max-h-[88vh] overflow-y-auto rounded-t-2xl border border-[#263241] bg-[#101720] p-5 pb-[calc(90px+env(safe-area-inset-bottom))] text-white shadow-[0_-24px_80px_rgba(0,0,0,0.55)] md:left-auto md:right-6 md:top-24 md:h-fit md:w-[380px] md:rounded-2xl md:pb-5" onClick={(event) => event.stopPropagation()}>
+          <div className="absolute bottom-0 left-0 right-0 max-h-[88vh] overflow-y-auto rounded-t-2xl border border-[#E5E7EB] bg-white p-5 pb-[calc(90px+env(safe-area-inset-bottom))] text-[#111827] shadow-[0_-24px_80px_rgba(17,24,39,0.18)] md:left-auto md:right-6 md:top-24 md:h-fit md:w-[380px] md:rounded-2xl md:pb-5" onClick={(event) => event.stopPropagation()}>
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <p className={`text-xs font-black uppercase tracking-[0.16em] ${sheetSide === "YES" ? "text-[#12B886]" : "text-[#E85D5D]"}`}>
@@ -360,7 +360,7 @@ export default function MarketDetail() {
                 </p>
                 <h2 className="mt-1 text-2xl font-black">You picked {sheetSide}</h2>
               </div>
-              <button onClick={() => setSheetSide(null)} disabled={submitting} className="grid h-10 w-10 place-items-center rounded-xl border border-[#263241] bg-[#151E28] disabled:cursor-not-allowed disabled:opacity-50">
+              <button onClick={() => setSheetSide(null)} disabled={submitting} className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] disabled:cursor-not-allowed disabled:opacity-50">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -370,26 +370,26 @@ export default function MarketDetail() {
               </div>
             ) : (
               <>
-                <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Amount</label>
-                <Input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} disabled={submitting} placeholder="0" className="h-13 rounded-xl border-[#263241] bg-[#151E28] text-lg font-black text-white placeholder:text-[#8B98A8]" />
+                <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">Amount</label>
+                <Input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} disabled={submitting} placeholder="0" className="h-13 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] text-lg font-black text-[#111827] placeholder:text-[#6B7280]" />
                 <div className="mt-3 grid grid-cols-4 gap-2">
                   {[100, 500, 1000, 5000].map((value) => (
-                    <button key={value} onClick={() => setAmount(value.toString())} disabled={submitting} className="h-10 rounded-xl border border-[#263241] bg-[#151E28] text-xs font-black text-[#8B98A8] disabled:cursor-not-allowed disabled:opacity-50">
+                    <button key={value} onClick={() => setAmount(value.toString())} disabled={submitting} className="h-10 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-xs font-black text-[#6B7280] disabled:cursor-not-allowed disabled:opacity-50">
                       {formatNaira(value)}
                     </button>
                   ))}
                 </div>
-                <div className="mt-5 rounded-xl border border-[#263241] bg-[#151E28] p-4">
+                <div className="mt-5 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
                   <Row label="Wallet balance" value={user ? formatNaira(user.balance || 0) : "Login required"} />
                   <Row label="Crowd View" value={formatNairaPrice(selectedPrice)} />
                   <Row label="Total Pool" value={formatNaira(market.totalPool || market.totalVolume || 0)} />
                   <Row label="Opposing Pool" value={formatNaira(oppositeStake)} highlight />
                   <Row label="Market participants" value={`${market.participants || 0}`} />
-                  <p className="mt-3 text-xs font-bold leading-relaxed text-[#8B98A8]">
+                  <p className="mt-3 text-xs font-bold leading-relaxed text-[#6B7280]">
                     Final payout depends on the result and the final pool when the market closes.
                   </p>
                 </div>
-                <Button onClick={confirmPrediction} disabled={submitting || numericAmount <= 0} className={`mt-5 h-12 w-full rounded-xl text-base font-black ${sheetSide === "YES" ? "bg-[#12B886] text-[#06100d] hover:bg-[#2dd4a0]" : "bg-[#E85D5D] text-white hover:bg-[#f07575]"}`}>
+                <Button onClick={confirmPrediction} disabled={submitting || numericAmount <= 0} className={`mt-5 h-12 w-full rounded-xl text-base font-black ${sheetSide === "YES" ? "bg-[#12B886] text-[#06100d] hover:bg-[#2dd4a0]" : "bg-[#E85D5D] text-[#111827] hover:bg-[#f07575]"}`}>
                   {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <TrendingUp className="mr-2 h-4 w-4" />}
                   {user ? `Back ${sheetSide}` : "Login to predict"}
                 </Button>
@@ -401,7 +401,7 @@ export default function MarketDetail() {
 
       {justPredicted && (
         <div className="pointer-events-none fixed inset-0 z-[60] grid place-items-center bg-black/30 backdrop-blur-[2px]">
-          <div className="animate-fade-up rounded-2xl border border-[#263241] bg-[#101720]/96 p-8 text-center shadow-[0_24px_90px_rgba(0,0,0,0.6)]">
+          <div className="animate-fade-up rounded-2xl border border-[#E5E7EB] bg-white/96 p-8 text-center shadow-[0_24px_90px_rgba(17,24,39,0.18)]">
             <div className={`mx-auto mb-4 grid h-20 w-20 place-items-center rounded-full ${justPredicted === "YES" ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
               <CheckCircle className="h-10 w-10" />
             </div>
@@ -411,7 +411,7 @@ export default function MarketDetail() {
               </span>
             </div>
             <h3 className="mt-3 text-2xl font-black">You picked {justPredicted}</h3>
-            <p className="mt-2 text-sm font-bold text-[#8B98A8]">Track it in My Predictions.</p>
+            <p className="mt-2 text-sm font-bold text-[#6B7280]">Track it in My Predictions.</p>
           </div>
         </div>
       )}
@@ -515,7 +515,7 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
         enabled: true,
         displayColors: true,
         backgroundColor: "rgba(16, 23, 32, 0.96)",
-        borderColor: "#263241",
+        borderColor: "#E5E7EB",
         borderWidth: 1,
         titleColor: "#F5F7FA",
         bodyColor: "#D5DEE8",
@@ -592,18 +592,18 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
 
   if (emptyHistory) {
     return (
-      <div className="rounded-2xl border border-[#263241] bg-[#101720] p-3 sm:p-4">
+      <div className="rounded-2xl border border-[#E5E7EB] bg-white p-3 sm:p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-black text-[#12B886]"><span className="h-2 w-2 rounded-full bg-[#12B886]" />YES {formatNairaPrice(currentYes)}</span>
             <span className="inline-flex items-center gap-1.5 text-xs font-black text-[#E85D5D]"><span className="h-2 w-2 rounded-full bg-[#E85D5D]" />NO {formatNairaPrice(currentNo)}</span>
           </div>
-          <span className="text-xs font-bold text-[#8B98A8]">{market.tradeCount || 0} predictions</span>
+          <span className="text-xs font-bold text-[#6B7280]">{market.tradeCount || 0} predictions</span>
         </div>
-        <div className="grid h-[230px] place-items-center rounded-xl border border-dashed border-[#263241] bg-[#080C10] p-6 text-center sm:h-[300px]">
+        <div className="grid h-[230px] place-items-center rounded-xl border border-dashed border-[#E5E7EB] bg-[#080C10] p-6 text-center sm:h-[300px]">
           <div>
-            <p className="text-sm font-black text-white">No movement yet.</p>
-            <p className="mt-2 max-w-sm text-sm font-bold leading-relaxed text-[#8B98A8]">
+            <p className="text-sm font-black text-[#111827]">No movement yet.</p>
+            <p className="mt-2 max-w-sm text-sm font-bold leading-relaxed text-[#6B7280]">
               Crowd View updates when people back YES or NO.
             </p>
           </div>
@@ -613,20 +613,20 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
     }
 
   return (
-    <div className="rounded-2xl border border-[#263241] bg-[#101720] p-3 sm:p-4">
+    <div className="rounded-2xl border border-[#E5E7EB] bg-white p-3 sm:p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <span className="inline-flex items-center gap-1.5 text-xs font-black text-[#12B886]"><span className="h-2 w-2 rounded-full bg-[#12B886]" />YES {formatNairaPrice(market.yesPrice)}</span>
           <span className="inline-flex items-center gap-1.5 text-xs font-black text-[#E85D5D]"><span className="h-2 w-2 rounded-full bg-[#E85D5D]" />NO {formatNairaPrice(market.noPrice)}</span>
         </div>
-        <span className="text-xs font-bold text-[#8B98A8]">{market.tradeCount || 0} predictions</span>
+        <span className="text-xs font-bold text-[#6B7280]">{market.tradeCount || 0} predictions</span>
       </div>
-      <div className="relative overflow-hidden rounded-xl border border-[#263241] bg-[#080C10] px-1 pb-2 pt-3 sm:px-3">
+      <div className="relative overflow-hidden rounded-xl border border-[#E5E7EB] bg-[#080C10] px-1 pb-2 pt-3 sm:px-3">
         <div className="h-[230px] w-full sm:h-[300px]">
           <Line data={chartData} options={chartOptions} />
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-[#8B98A8]">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-[#6B7280]">
         <span>{hasMovement ? "Crowd View history from saved predictions." : hasOnePoint ? "One saved prediction so far." : "Crowd View updates when people back YES or NO."}</span>
         <span>YES {formatNairaPrice(market.yesPrice)} / NO {formatNairaPrice(market.noPrice)}</span>
       </div>
@@ -662,21 +662,21 @@ const formatAxisTime = (timestamp: number, timeframe: Timeframe) => {
 };
 
 const Row = ({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) => (
-  <div className="flex items-center justify-between border-b border-[#263241] py-2 last:border-0">
-    <span className="text-sm font-bold text-[#8B98A8]">{label}</span>
-    <span className={`text-sm font-black ${highlight ? "text-emerald-300" : "text-white"}`}>{value}</span>
+  <div className="flex items-center justify-between border-b border-[#E5E7EB] py-2 last:border-0">
+    <span className="text-sm font-bold text-[#6B7280]">{label}</span>
+    <span className={`text-sm font-black ${highlight ? "text-emerald-300" : "text-[#111827]"}`}>{value}</span>
   </div>
 );
 
 const Metric = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-xl border border-[#263241] bg-[#151E28] p-3">
-    <div className="text-[10px] font-black uppercase tracking-[0.12em] text-[#8B98A8]">{label}</div>
-    <div className="mt-1 text-sm font-black text-white">{value}</div>
+  <div className="rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3">
+    <div className="text-[10px] font-black uppercase tracking-[0.12em] text-[#6B7280]">{label}</div>
+    <div className="mt-1 text-sm font-black text-[#111827]">{value}</div>
   </div>
 );
 
 const IconButton = ({ icon: Icon, onClick, active = false, label }: { icon: any; onClick: () => void; active?: boolean; label: string }) => (
-  <button onClick={onClick} aria-label={label} title={label} className={`grid h-10 w-10 place-items-center rounded-xl border transition ${active ? "border-[#12B886]/40 bg-[#12B886]/15 text-[#7AE4BD]" : "border-[#263241] bg-[#101720] text-white hover:bg-[#151E28]"}`}>
+  <button onClick={onClick} aria-label={label} title={label} className={`grid h-10 w-10 place-items-center rounded-xl border transition ${active ? "border-[#12B886]/40 bg-[#12B886]/15 text-[#7AE4BD]" : "border-[#E5E7EB] bg-white text-[#111827] hover:bg-[#F8F7F4]"}`}>
     <Icon className={`h-4 w-4 ${active ? "fill-current" : ""}`} />
   </button>
 );

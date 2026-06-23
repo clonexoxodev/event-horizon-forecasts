@@ -80,9 +80,9 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm" onClick={() => !loading && onClose()} />
+      <div className="fixed inset-0 z-40 bg-[#111827]/35 backdrop-blur-sm" onClick={() => !loading && onClose()} />
 
-      <div className="fixed bottom-0 left-0 right-0 z-50 max-h-[88vh] overflow-y-auto rounded-t-2xl border border-[#263241] bg-[#101720] pb-[calc(90px+env(safe-area-inset-bottom))] shadow-[0_-24px_80px_rgba(0,0,0,0.55)] md:bottom-auto md:left-auto md:top-0 md:h-screen md:w-[460px] md:rounded-none md:border-l md:pb-0">
+      <div className="fixed bottom-0 left-0 right-0 z-50 max-h-[88vh] overflow-y-auto rounded-t-2xl border border-[#E5E7EB] bg-white pb-[calc(90px+env(safe-area-inset-bottom))] shadow-[0_-24px_80px_rgba(17,24,39,0.16)] md:bottom-auto md:left-auto md:top-0 md:h-screen md:w-[460px] md:rounded-none md:border-l md:pb-0">
         <div className="flex justify-center pt-3 md:hidden">
           <div className="h-1 w-10 rounded-full bg-white/20" />
         </div>
@@ -93,13 +93,13 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
           <div className="space-y-5 p-5 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Prediction slip</p>
-                <h2 className="mt-1 text-2xl font-black text-white">Back your opinion</h2>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">Prediction slip</p>
+                <h2 className="mt-1 text-2xl font-black text-[#111827]">Back your opinion</h2>
               </div>
               <button
                 onClick={handleClear}
                 disabled={loading}
-                className="grid h-10 w-10 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#8B98A8] transition hover:text-white disabled:opacity-50"
+                className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -107,18 +107,18 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
 
             <div className={`rounded-2xl border p-4 ${isPositiveSide ? "border-[#12B886]/25 bg-[#12B886]/10" : "border-[#E85D5D]/25 bg-[#E85D5D]/10"}`}>
               <div className="flex items-start gap-3">
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/10 text-2xl">
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white text-2xl shadow-sm">
                   {selection.marketIcon}
                 </div>
                 <div className="min-w-0">
-                  <div className="line-clamp-3 text-sm font-black leading-snug text-white">
+                  <div className="line-clamp-3 text-sm font-black leading-snug text-[#111827]">
                     {selection.marketQuestion}
                   </div>
                   <div className="mt-3 flex items-center gap-2">
-                    <span className={`rounded-full px-3 py-1 text-xs font-black ${isPositiveSide ? "bg-[#12B886]/12 text-[#7AE4BD]" : "bg-[#E85D5D]/12 text-[#FF9C9C]"}`}>
+                    <span className={`rounded-full px-3 py-1 text-xs font-black ${isPositiveSide ? "bg-[#12B886]/12 text-[#047857]" : "bg-[#E85D5D]/12 text-[#B42318]"}`}>
                       {selection.side}
                     </span>
-                    <span className="rounded-full border border-[#263241] bg-[#151E28] px-3 py-1 text-xs font-bold text-[#8B98A8]">
+                    <span className="rounded-full border border-[#E5E7EB] bg-white px-3 py-1 text-xs font-bold text-[#6B7280]">
                       Crowd View {formatNairaPrice(probability)}
                     </span>
                   </div>
@@ -133,8 +133,8 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
 
             {!user && (
               <div className="rounded-2xl border border-[#12B886]/25 bg-[#12B886]/10 p-4">
-                <div className="font-black text-white">Login to place this prediction</div>
-                <p className="mt-1 text-sm text-[#8B98A8]">You can browse markets freely. Sign in only when you are ready to predict.</p>
+                <div className="font-black text-[#111827]">Login to place this prediction</div>
+                <p className="mt-1 text-sm text-[#6B7280]">You can browse markets freely. Sign in only when you are ready to predict.</p>
                 <button onClick={() => { onClose(); setAuthOpen(true); }} className="mt-4 flex h-11 w-full items-center justify-center rounded-xl bg-[#12B886] text-sm font-black text-[#06100d]">
                   Continue
                 </button>
@@ -142,11 +142,11 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
             )}
 
             <div>
-              <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">
+              <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">
                 Amount
               </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-[#8B98A8]">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-[#6B7280]">
                   NGN
                 </span>
                 <Input
@@ -155,8 +155,8 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                   value={amount}
                   onChange={(event) => setAmount(event.target.value)}
                   disabled={loading}
-                  className={`h-14 rounded-xl border-2 bg-[#151E28] pl-14 text-xl font-black text-white placeholder:text-[#8B98A8] focus:border-[#12B886] ${
-                    insufficientBalance && numAmount > 0 ? "border-[#E85D5D]" : "border-[#263241]"
+                  className={`h-14 rounded-xl border-2 bg-[#F8F7F4] pl-14 text-xl font-black text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5] ${
+                    insufficientBalance && numAmount > 0 ? "border-[#E85D5D]" : "border-[#E5E7EB]"
                   }`}
                 />
               </div>
@@ -174,9 +174,9 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                   className={`h-11 rounded-xl border text-sm font-black transition ${
                     amount === value.toString()
                       ? isPositiveSide
-                        ? "border-[#12B886]/45 bg-[#12B886]/18 text-[#7AE4BD]"
-                        : "border-[#E85D5D]/45 bg-[#E85D5D]/18 text-[#FF9C9C]"
-                      : "border-[#263241] bg-[#151E28] text-[#8B98A8] hover:text-white"
+                        ? "border-[#12B886]/45 bg-[#12B886]/18 text-[#047857]"
+                        : "border-[#E85D5D]/45 bg-[#E85D5D]/18 text-[#B42318]"
+                      : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:text-[#111827]"
                   }`}
                 >
                   {formatNaira(value).replace(".00", "")}
@@ -184,8 +184,8 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
               ))}
             </div>
 
-            <div className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
-              <div className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">
+            <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+              <div className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">
                 Projection
               </div>
               {numAmount > 0 && !insufficientBalance ? (
@@ -195,12 +195,12 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                 <Row label="Total Pool" value={formatNaira(totalPool)} />
                 <Row label="Opposing Pool" value={formatNaira(oppositeStake)} highlight />
                 <Row label="Market participants" value={`${selection.participants ?? 0}`} />
-                <p className="mt-3 text-xs font-bold leading-relaxed text-[#8B98A8]">
+                <p className="mt-3 text-xs font-bold leading-relaxed text-[#6B7280]">
                   Final payout depends on the result and the final pool when the market closes.
                 </p>
                 </>
               ) : (
-                <p className="text-sm font-bold text-[#8B98A8]">Choose an amount to back this side.</p>
+                <p className="text-sm font-bold text-[#6B7280]">Choose an amount to back this side.</p>
               )}
             </div>
 
@@ -228,7 +228,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
             <button
               onClick={handleClear}
               disabled={loading}
-              className="w-full text-sm font-bold text-[#8B98A8] transition hover:text-white disabled:opacity-50"
+              className="w-full text-sm font-bold text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
             >
               Cancel
             </button>
@@ -248,26 +248,26 @@ const SuccessState = ({ selection, amount }: { selection: ForecastSelection; amo
         <div className={`mx-auto mb-6 grid h-20 w-20 place-items-center rounded-full ${isPositiveSide ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
           <CheckCircle className="h-10 w-10" />
         </div>
-        <h3 className="text-3xl font-black text-white">Prediction locked</h3>
-        <p className="mt-2 text-sm text-[#8B98A8]">
+        <h3 className="text-3xl font-black text-[#111827]">Prediction locked</h3>
+        <p className="mt-2 text-sm text-[#6B7280]">
           {formatNaira(amount)} on {selection.side} at {formatNairaPrice(selection.currentPrice)}.
         </p>
-        <p className="mt-1 text-xs font-bold text-[#8B98A8]">Track it in My Predictions.</p>
+        <p className="mt-1 text-xs font-bold text-[#6B7280]">Track it in My Predictions.</p>
       </div>
     </div>
   );
 };
 
 const InfoCard = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-xl border border-[#263241] bg-[#151E28] p-4">
-    <div className="text-xs font-bold text-[#8B98A8]">{label}</div>
-    <div className="mt-1 text-base font-black text-white">{value}</div>
+  <div className="rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+    <div className="text-xs font-bold text-[#6B7280]">{label}</div>
+    <div className="mt-1 text-base font-black text-[#111827]">{value}</div>
   </div>
 );
 
 const Row = ({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) => (
-  <div className="flex items-center justify-between border-b border-[#263241] py-2 last:border-0">
-    <span className="text-sm font-bold text-[#8B98A8]">{label}</span>
-    <span className={`text-sm font-black ${highlight ? "text-[#7AE4BD]" : "text-white"}`}>{value}</span>
+  <div className="flex items-center justify-between border-b border-[#E5E7EB] py-2 last:border-0">
+    <span className="text-sm font-bold text-[#6B7280]">{label}</span>
+    <span className={`text-sm font-black ${highlight ? "text-[#047857]" : "text-[#111827]"}`}>{value}</span>
   </div>
 );

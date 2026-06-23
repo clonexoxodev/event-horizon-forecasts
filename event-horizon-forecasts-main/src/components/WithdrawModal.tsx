@@ -98,7 +98,7 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="overflow-hidden rounded-2xl border border-[#263241] bg-[#101720] p-0 text-white shadow-[0_24px_80px_rgba(0,0,0,0.6)] sm:max-w-md">
+      <DialogContent className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-0 text-[#111827] shadow-[0_24px_80px_rgba(17,24,39,0.16)] sm:max-w-md">
         <div className="h-1 w-full bg-[#E85D5D]" />
         {success ? (
           <div className="p-8 text-center">
@@ -106,7 +106,7 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
               <CheckCircle className="h-8 w-8" />
             </div>
             <h3 className="mb-2 text-xl font-black">Withdrawal submitted</h3>
-            <p className="text-sm text-[#8B98A8]">
+            <p className="text-sm text-[#6B7280]">
               Your withdrawal request has been submitted and is awaiting review.
             </p>
             {reference && <p className="mt-3 text-sm font-black text-[#12B886]">Reference: {reference}</p>}
@@ -116,7 +116,7 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
             <button
               onClick={handleClose}
               disabled={loading}
-              className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#8B98A8] transition hover:text-white disabled:opacity-50"
+              className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
             >
               <X className="h-4 w-4" />
             </button>
@@ -124,14 +124,14 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
             <div className="mb-6">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-[#E85D5D]">Wallet</p>
               <h3 className="mt-1 text-2xl font-black">Withdraw</h3>
-              <p className="mt-1 text-sm text-[#8B98A8]">Available: {formatNaira(availableBalance)}</p>
+              <p className="mt-1 text-sm text-[#6B7280]">Available: {formatNaira(availableBalance)}</p>
             </div>
 
-            <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">
+            <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">
               Amount ({currency})
             </label>
             <div className="relative mb-2">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-[#8B98A8]">₦</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-[#6B7280]">₦</span>
               <Input
                 type="number"
                 min="1"
@@ -139,8 +139,8 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 disabled={loading}
-                className={`h-13 rounded-xl bg-[#151E28] pl-10 text-lg font-black text-white placeholder:text-[#8B98A8] ${
-                  insufficientFunds ? "border-[#E85D5D] focus:border-[#E85D5D]" : "border-[#263241] focus:border-[#12B886]"
+                className={`h-13 rounded-xl bg-[#F8F7F4] pl-10 text-lg font-black text-[#111827] placeholder:text-[#9CA3AF] ${
+                  insufficientFunds ? "border-[#E85D5D] focus:border-[#E85D5D]" : "border-[#E5E7EB] focus:border-[#4F46E5]"
                 }`}
               />
               {insufficientFunds && <AlertCircle className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#E85D5D]" />}
@@ -156,8 +156,8 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
                   disabled={loading}
                   className={`h-10 rounded-xl border text-xs font-black transition sm:text-sm ${
                     amount === value.toString()
-                      ? "border-[#E85D5D]/40 bg-[#E85D5D]/18 text-[#FF9C9C]"
-                      : "border-[#263241] bg-[#151E28] text-[#8B98A8] hover:text-white"
+                      ? "border-[#E85D5D]/40 bg-[#E85D5D]/18 text-[#B42318]"
+                      : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:text-[#111827]"
                   }`}
                 >
                   {formatNaira(value)}
@@ -166,10 +166,10 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
             </div>
 
             <div className="mb-6 grid gap-3">
-              <Input value={bankName} onChange={(event) => setBankName(event.target.value)} disabled={loading} placeholder="Bank name" className="h-12 rounded-xl border-[#263241] bg-[#151E28] text-white placeholder:text-[#8B98A8]" />
-              <Input value={accountNumber} onChange={(event) => setAccountNumber(event.target.value)} disabled={loading} placeholder="Account number" className="h-12 rounded-xl border-[#263241] bg-[#151E28] text-white placeholder:text-[#8B98A8]" />
-              <Input value={accountName} onChange={(event) => setAccountName(event.target.value)} disabled={loading} placeholder="Account name" className="h-12 rounded-xl border-[#263241] bg-[#151E28] text-white placeholder:text-[#8B98A8]" />
-              <label className="flex items-center gap-3 rounded-xl border border-[#263241] bg-[#151E28] p-3 text-sm font-bold text-[#D5DEE8]">
+              <Input value={bankName} onChange={(event) => setBankName(event.target.value)} disabled={loading} placeholder="Bank name" className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] text-[#111827] placeholder:text-[#9CA3AF]" />
+              <Input value={accountNumber} onChange={(event) => setAccountNumber(event.target.value)} disabled={loading} placeholder="Account number" className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] text-[#111827] placeholder:text-[#9CA3AF]" />
+              <Input value={accountName} onChange={(event) => setAccountName(event.target.value)} disabled={loading} placeholder="Account name" className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] text-[#111827] placeholder:text-[#9CA3AF]" />
+              <label className="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3 text-sm font-bold text-[#374151]">
                 <input
                   type="checkbox"
                   checked={saveDetails}
@@ -179,7 +179,7 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
                 />
                 Save these bank details for next time
               </label>
-              <div className="rounded-xl border border-[#263241] bg-[#151E28] p-4 text-xs font-bold leading-relaxed text-[#8B98A8]">
+              <div className="rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4 text-xs font-bold leading-relaxed text-[#6B7280]">
                 For faster processing, use a bank account that matches your registered name. Third-party accounts may require additional review.
               </div>
             </div>

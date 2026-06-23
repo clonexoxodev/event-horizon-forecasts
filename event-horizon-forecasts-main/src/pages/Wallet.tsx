@@ -88,7 +88,7 @@ export default function Wallet() {
   const ngnBalance = walletSnapshot?.availableNgn ?? user?.balance ?? 0;
   if (authLoading) {
     return (
-      <div className="app-bg min-h-screen text-white xl:pl-64">
+      <div className="app-bg min-h-screen text-[#111827] xl:pl-64">
         <Header />
         <main className="grid min-h-[70vh] place-items-center px-4">
           <DelayedFlippeLoader active label="Restoring your wallet" />
@@ -100,11 +100,11 @@ export default function Wallet() {
 
   if (!user) {
     return (
-      <div className="app-bg min-h-screen text-white xl:pl-64">
+      <div className="app-bg min-h-screen text-[#111827] xl:pl-64">
         <Header />
         <main className="mx-auto max-w-3xl px-4 py-20 text-center">
           <h2 className="text-2xl font-black">Log in to see your wallet</h2>
-          <p className="mt-2 text-sm text-[#8B98A8]">Your balance and history will show here.</p>
+          <p className="mt-2 text-sm text-[#6B7280]">Your balance and history will show here.</p>
         </main>
         <MobileNav />
       </div>
@@ -112,33 +112,33 @@ export default function Wallet() {
   }
 
   return (
-    <div className="app-bg min-h-screen pb-24 text-white md:pb-0 xl:pl-64">
+    <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
         <div className="mb-6">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#8B98A8]">Wallet</p>
+            <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#6B7280]">Wallet</p>
             <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Balance and history</h1>
-            <p className="mt-2 text-sm text-[#8B98A8]">Add money, withdraw, and review transactions.</p>
+            <p className="mt-2 text-sm text-[#6B7280]">Add money, withdraw, and review transactions.</p>
           </div>
         </div>
 
         <section>
-          <div className="rounded-2xl border border-[#263241] bg-[#101720] p-5 shadow-[0_18px_52px_rgba(0,0,0,0.28)] sm:p-6">
+          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_18px_52px_rgba(17,24,39,0.08)] sm:p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#12B886]">
+                <div className="grid h-12 w-12 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#12B886]">
                   <WalletIcon className="h-6 w-6" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-white">Available balance</div>
-                  <div className="text-xs text-[#8B98A8]">Ready to use</div>
+                  <div className="text-sm font-bold text-[#111827]">Available balance</div>
+                  <div className="text-xs text-[#6B7280]">Ready to use</div>
                 </div>
               </div>
               <button
                 onClick={refreshWallet}
                 disabled={refreshing}
-                className="grid h-10 w-10 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#8B98A8] transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827] disabled:cursor-not-allowed disabled:opacity-50"
                 title="Refresh"
               >
                 <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
@@ -158,7 +158,7 @@ export default function Wallet() {
               <Button
                 onClick={() => setWithdrawModalOpen(true)}
                 variant="outline"
-                className="h-12 rounded-xl border-[#263241] bg-[#151E28] font-black text-white hover:bg-[#1a2530]"
+                className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] font-black text-[#111827] hover:bg-[#EEF2FF]"
               >
                 <ArrowUpRight className="mr-2 h-4 w-4" />
                 Withdraw
@@ -167,36 +167,36 @@ export default function Wallet() {
           </div>
         </section>
 
-        <section className="mt-6 rounded-2xl border border-[#263241] bg-[#101720] p-4 sm:p-5">
+        <section className="mt-6 rounded-2xl border border-[#E5E7EB] bg-white p-4 sm:p-5">
           <div className="mb-5 flex items-center justify-between">
             <div>
               <h2 className="text-xl font-black">History</h2>
-              <p className="text-sm text-[#8B98A8]">Deposits, withdrawals, predictions, winnings, and refunds.</p>
+              <p className="text-sm text-[#6B7280]">Deposits, withdrawals, predictions, winnings, and refunds.</p>
             </div>
-            <span className="rounded-full border border-[#263241] bg-[#151E28] px-3 py-1 text-xs font-bold text-[#8B98A8]">
+            <span className="rounded-full border border-[#E5E7EB] bg-[#F8F7F4] px-3 py-1 text-xs font-bold text-[#6B7280]">
               {historyLoading ? "Loading" : `${transactions.length} items`}
             </span>
           </div>
 
           {transactions.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[#263241] py-14 text-center">
-              <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#12B886]">
+            <div className="rounded-2xl border border-dashed border-[#E5E7EB] py-14 text-center">
+              <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#12B886]">
                 <WalletIcon className="h-6 w-6" />
               </div>
               <div className="font-black">No history yet</div>
-              <p className="mt-1 text-sm text-[#8B98A8]">Add money or make a prediction to start.</p>
+              <p className="mt-1 text-sm text-[#6B7280]">Add money or make a prediction to start.</p>
             </div>
           ) : (
             <ul className="space-y-2">
               {transactions.map((tx) => (
-                <li key={tx.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#263241] bg-[#151E28] p-4">
+                <li key={tx.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
                   <div className="flex min-w-0 items-center gap-3">
                     <div className={`grid h-11 w-11 place-items-center rounded-xl ${tx.amount >= 0 ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
                       {tx.amount >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
                     </div>
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-black text-white">{tx.label}</div>
-                      <div className="mt-1 flex items-center gap-1 text-xs text-[#8B98A8]">
+                      <div className="truncate text-sm font-black text-[#111827]">{tx.label}</div>
+                      <div className="mt-1 flex items-center gap-1 text-xs text-[#6B7280]">
                         <Clock className="h-3 w-3" />
                         {tx.date}
                       </div>
@@ -207,7 +207,7 @@ export default function Wallet() {
                       {tx.amount >= 0 ? "+" : "-"}
                       {formatNaira(Math.abs(tx.amount))}
                     </div>
-                    <div className="mt-1 text-xs capitalize text-[#8B98A8]">{tx.status}</div>
+                    <div className="mt-1 text-xs capitalize text-[#6B7280]">{tx.status}</div>
                   </div>
                 </li>
               ))}

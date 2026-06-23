@@ -107,15 +107,15 @@ const Dashboard = () => {
 
   if (!user) {
     return (
-      <div className="app-bg min-h-screen text-white xl:pl-64">
+      <div className="app-bg min-h-screen text-[#111827] xl:pl-64">
         <Header />
         <main className="mx-auto grid min-h-[70vh] max-w-3xl place-items-center px-4 text-center">
           <div>
-            <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl border border-[#263241] bg-[#101720] text-[#12B886]">
+            <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl border border-[#E5E7EB] bg-white text-[#12B886]">
               <LineChart className="h-8 w-8" />
             </div>
             <h1 className="text-3xl font-black tracking-tight">Track your predictions</h1>
-            <p className="mt-3 text-sm text-[#8B98A8]">Log in to see open predictions, resolved results, and wallet-linked history.</p>
+            <p className="mt-3 text-sm text-[#6B7280]">Log in to see open predictions, resolved results, and wallet-linked history.</p>
             <Link to="/login" className="mt-6 inline-flex h-12 items-center rounded-xl bg-[#12B886] px-6 text-sm font-black text-[#06100d]">
               Log in
             </Link>
@@ -127,15 +127,15 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="app-bg min-h-screen overflow-x-hidden pb-24 text-white md:pb-0 xl:pl-64" data-now={now}>
+    <div className="app-bg min-h-screen overflow-x-hidden pb-24 text-[#111827] md:pb-0 xl:pl-64" data-now={now}>
       <Header />
       <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:py-8">
-        <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5 shadow-[0_18px_52px_rgba(0,0,0,0.28)] sm:p-6">
+        <section className="rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_18px_52px_rgba(17,24,39,0.08)] sm:p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">My Predictions</p>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">My Predictions</p>
               <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-5xl">{formatNaira(openStake)}</h1>
-              <p className="mt-2 max-w-xl text-sm text-[#8B98A8]">
+              <p className="mt-2 max-w-xl text-sm text-[#6B7280]">
                 Money you have backed in open predictions. Final payouts are calculated only after market resolution.
               </p>
             </div>
@@ -148,13 +148,13 @@ const Dashboard = () => {
           </div>
         </section>
 
-        <div className="mt-5 grid grid-cols-3 gap-1 rounded-xl border border-[#263241] bg-[#101720] p-1">
+        <div className="mt-5 grid grid-cols-3 gap-1 rounded-xl border border-[#E5E7EB] bg-white p-1">
           {(["positions", "activity", "performance"] as PortfolioTab[]).map((item) => (
             <button
               key={item}
               onClick={() => setTab(item)}
               className={`h-11 rounded-lg text-sm font-black capitalize transition ${
-                tab === item ? "bg-[#12B886] text-[#06100d]" : "text-[#8B98A8] hover:bg-[#151E28] hover:text-white"
+                tab === item ? "bg-[#12B886] text-[#06100d]" : "text-[#6B7280] hover:bg-[#F8F7F4] hover:text-[#111827]"
               }`}
             >
               {tabLabels[item]}
@@ -192,9 +192,9 @@ const Dashboard = () => {
 };
 
 const HeroStat = ({ icon: Icon, label, value, tone = "neutral" }: { icon: any; label: string; value: string; tone?: "neutral" | "green" | "red" }) => (
-  <div className="rounded-xl border border-[#263241] bg-[#151E28] p-3">
-    <Icon className={`mb-3 h-4 w-4 ${tone === "green" ? "text-[#12B886]" : tone === "red" ? "text-[#E85D5D]" : "text-[#8B98A8]"}`} />
-    <div className="text-[11px] font-bold text-[#8B98A8]">{label}</div>
+  <div className="rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3">
+    <Icon className={`mb-3 h-4 w-4 ${tone === "green" ? "text-[#12B886]" : tone === "red" ? "text-[#E85D5D]" : "text-[#6B7280]"}`} />
+    <div className="text-[11px] font-bold text-[#6B7280]">{label}</div>
     <div className="mt-1 text-lg font-black">{value}</div>
   </div>
 );
@@ -318,11 +318,11 @@ const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[];
             key={position.id}
             onClick={() => onSelect(position)}
             data-now={now}
-            className="group rounded-2xl border border-[#263241] bg-[#101720] p-4 text-left shadow-[0_16px_48px_rgba(0,0,0,0.22)] transition duration-200 hover:-translate-y-0.5 hover:border-[#12B886]/45 hover:bg-[#151E28] active:scale-[0.99]"
+            className="group rounded-2xl border border-[#E5E7EB] bg-white p-4 text-left shadow-[0_16px_48px_rgba(17,24,39,0.08)] transition duration-200 hover:-translate-y-0.5 hover:border-[#12B886]/45 hover:bg-[#F8F7F4] active:scale-[0.99]"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Open prediction</div>
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">Open prediction</div>
                 <h2 className="mt-2 line-clamp-2 text-lg font-black leading-tight">{position.marketQuestion}</h2>
               </div>
               <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
@@ -330,28 +330,28 @@ const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[];
               </span>
             </div>
             <div className="mt-4 grid gap-3">
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#151E28] px-3 py-2">
-                <span className="text-xs font-bold text-[#8B98A8]">You picked {position.side}</span>
-                <span className="text-sm font-black text-white">{formatNaira(position.stake)} backed</span>
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F8F7F4] px-3 py-2">
+                <span className="text-xs font-bold text-[#6B7280]">You picked {position.side}</span>
+                <span className="text-sm font-black text-[#111827]">{formatNaira(position.stake)} backed</span>
               </div>
-              <div className="rounded-xl border border-[#263241] bg-[#151E28] p-3">
+              <div className="rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3">
                 <div className="flex items-center justify-between gap-3">
                   <MovementStatus insight={insight} />
                   <StrengthBadge insight={insight} />
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <div>
-                    <div className="text-[11px] font-bold text-[#8B98A8]">If market ended now</div>
-                    <div className="mt-1 text-lg font-black text-white">{insight.multiplierLabel}</div>
+                    <div className="text-[11px] font-bold text-[#6B7280]">If market ended now</div>
+                    <div className="mt-1 text-lg font-black text-[#111827]">{insight.multiplierLabel}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[11px] font-bold text-[#8B98A8]">Live time left</div>
-                    <div className="mt-1 text-sm font-black text-white">{formatPositionCountdown(position)}</div>
+                    <div className="text-[11px] font-bold text-[#6B7280]">Live time left</div>
+                    <div className="mt-1 text-sm font-black text-[#111827]">{formatPositionCountdown(position)}</div>
                   </div>
                 </div>
               </div>
             </div>
-            <p className="mt-4 inline-flex items-center gap-1 text-xs font-black text-[#8B98A8] transition group-hover:text-[#12B886]">
+            <p className="mt-4 inline-flex items-center gap-1 text-xs font-black text-[#6B7280] transition group-hover:text-[#12B886]">
               Tap to view details <ArrowRight className="h-3.5 w-3.5" />
             </p>
           </button>
@@ -382,19 +382,19 @@ const PredictionDetailModal = ({
 
   return (
     <div className="fixed inset-0 z-[70] flex animate-in fade-in duration-200 items-end justify-center bg-black/70 px-3 pb-[calc(84px+env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-6">
-      <section className="max-h-[88vh] w-full max-w-2xl animate-in slide-in-from-bottom-4 duration-300 overflow-y-auto rounded-2xl border border-[#263241] bg-[#101720] shadow-[0_24px_90px_rgba(0,0,0,0.65)] sm:zoom-in-95">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#263241] bg-[#101720]/95 p-4 backdrop-blur">
+      <section className="max-h-[88vh] w-full max-w-2xl animate-in slide-in-from-bottom-4 duration-300 overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_24px_90px_rgba(17,24,39,0.18)] sm:zoom-in-95">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#E5E7EB] bg-white/95 p-4 backdrop-blur">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Prediction detail</p>
-            <h2 className="mt-1 text-lg font-black text-white">Your {position.side || "selected"} prediction</h2>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">Prediction detail</p>
+            <h2 className="mt-1 text-lg font-black text-[#111827]">Your {position.side || "selected"} prediction</h2>
           </div>
-          <button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#8B98A8] transition hover:text-white">
+          <button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827]">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="space-y-4 p-4 sm:p-5">
-          <div className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
+          <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
             <div className="mb-3 flex items-start justify-between gap-3">
               <h3 className="text-xl font-black leading-tight">{marketQuestion}</h3>
               <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
@@ -409,11 +409,11 @@ const PredictionDetailModal = ({
             </div>
           </div>
 
-          <section className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
+          <section className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h4 className="text-sm font-black">Crowd Movement</h4>
-                <p className="mt-1 text-sm font-bold text-[#8B98A8]">{insight.directionLabel}</p>
+                <p className="mt-1 text-sm font-bold text-[#6B7280]">{insight.directionLabel}</p>
               </div>
               <MovementStatus insight={insight} />
             </div>
@@ -424,17 +424,17 @@ const PredictionDetailModal = ({
             </div>
           </section>
 
-          <section className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
+          <section className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h4 className="text-sm font-black">Position Strength</h4>
-                <p className="mt-1 text-sm font-bold text-[#8B98A8]">{insight.strengthDetail}</p>
+                <p className="mt-1 text-sm font-bold text-[#6B7280]">{insight.strengthDetail}</p>
               </div>
               <StrengthBadge insight={insight} />
             </div>
           </section>
 
-          <section className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
+          <section className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
             <h4 className="text-sm font-black">Pool Snapshot</h4>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <Metric label="Total Pool" value={formatMaybeMoney(insight.totalPool)} large />
@@ -446,31 +446,31 @@ const PredictionDetailModal = ({
             </div>
           </section>
 
-          <section className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
+          <section className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
             <h4 className="text-sm font-black">If Market Ended Now</h4>
-            <div className="mt-2 text-3xl font-black text-white">{insight.multiplierLabel}</div>
-            <p className="mt-2 text-sm font-bold leading-relaxed text-[#8B98A8]">{insight.multiplierDetail}</p>
-            <p className="mt-3 text-sm font-bold leading-relaxed text-[#D5DEE8]">
+            <div className="mt-2 text-3xl font-black text-[#111827]">{insight.multiplierLabel}</div>
+            <p className="mt-2 text-sm font-bold leading-relaxed text-[#6B7280]">{insight.multiplierDetail}</p>
+            <p className="mt-3 text-sm font-bold leading-relaxed text-[#374151]">
               Final payout is calculated after market resolution. If your side is correct, you receive your stake plus a share of the losing side's pool.
             </p>
           </section>
 
-          <section className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
+          <section className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
             <h4 className="text-sm font-black">Prediction history</h4>
-            <div className="mt-3 rounded-xl bg-[#101720] p-3 text-sm font-bold text-[#8B98A8]">
+            <div className="mt-3 rounded-xl bg-white p-3 text-sm font-bold text-[#6B7280]">
               You predicted {position.side} with {formatNaira(position.stake)} on {new Date(position.createdAt).toLocaleString()}.
             </div>
           </section>
 
-          <section className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
+          <section className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
             <h4 className="text-sm font-black">Rules and resolution</h4>
-            <p className="mt-2 text-sm leading-relaxed text-[#8B98A8]">
+            <p className="mt-2 text-sm leading-relaxed text-[#6B7280]">
               {rules || "Open the market to review the full rules and resolution criteria."}
             </p>
-            <p className="mt-3 text-xs font-bold text-[#8B98A8]">
+            <p className="mt-3 text-xs font-bold text-[#6B7280]">
               Resolution source: {resolutionSource || "Shown on the market page when available."}
             </p>
-            <p className="mt-2 text-xs font-bold text-[#8B98A8]">
+            <p className="mt-2 text-xs font-bold text-[#6B7280]">
               Trading close time: {getPredictionCloseTime(position) ? new Date(getPredictionCloseTime(position)).toLocaleString() : "Not available yet"}
             </p>
           </section>
@@ -495,7 +495,7 @@ const formatMovement = (movement: number) => {
 const getMovementTone = (insight: PredictionInsight) => {
   if (insight.direction === "toward") return "text-[#12B886]";
   if (insight.direction === "against") return "text-[#E85D5D]";
-  return "text-[#8B98A8]";
+  return "text-[#6B7280]";
 };
 
 const MovementStatus = ({ insight }: { insight: PredictionInsight }) => {
@@ -506,7 +506,7 @@ const MovementStatus = ({ insight }: { insight: PredictionInsight }) => {
         ? "border-[#12B886]/30 bg-[#12B886]/10 text-[#7AE4BD]"
         : insight.direction === "against"
           ? "border-[#E85D5D]/30 bg-[#E85D5D]/10 text-[#FF9C9C]"
-          : "border-[#263241] bg-[#101720] text-[#8B98A8]"
+          : "border-[#E5E7EB] bg-white text-[#6B7280]"
     }`}>
       <Icon className="h-3.5 w-3.5" />
       <span>{insight.directionLabel}</span>
@@ -523,7 +523,7 @@ const StrengthBadge = ({ insight }: { insight: PredictionInsight }) => {
         ? "border-[#E85D5D]/35 bg-[#E85D5D]/10 text-[#FF9C9C]"
         : insight.strengthTone === "yellow"
           ? "border-[#F2C94C]/35 bg-[#F2C94C]/10 text-[#F2C94C]"
-          : "border-[#263241] bg-[#101720] text-[#D5DEE8]";
+          : "border-[#E5E7EB] bg-white text-[#374151]";
   return (
     <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black transition duration-300 ${classes}`}>
       {insight.strength} position
@@ -542,9 +542,9 @@ const MovementPill = ({ movement }: { movement?: number }) => {
 };
 
 const SimplePredictionRow = ({ label, value, movement }: { label: string; value: string; movement?: number }) => (
-  <div className="flex items-center justify-between gap-4 rounded-xl bg-[#151E28] px-3 py-2">
-    <span className="text-xs font-bold text-[#8B98A8]">{label}</span>
-    <span className="flex items-center text-sm font-black text-white">{value}<MovementPill movement={movement} /></span>
+  <div className="flex items-center justify-between gap-4 rounded-xl bg-[#F8F7F4] px-3 py-2">
+    <span className="text-xs font-bold text-[#6B7280]">{label}</span>
+    <span className="flex items-center text-sm font-black text-[#111827]">{value}<MovementPill movement={movement} /></span>
   </div>
 );
 
@@ -558,28 +558,28 @@ const ActivityView = ({ positions, settledCount }: { positions: ApiPosition[]; s
   }
 
   return (
-    <section className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
+    <section className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-black">Prediction History</h2>
-        <span className="rounded-full border border-[#263241] bg-[#151E28] px-3 py-1 text-xs font-bold text-[#8B98A8]">{settledCount} settled</span>
+        <span className="rounded-full border border-[#E5E7EB] bg-[#F8F7F4] px-3 py-1 text-xs font-bold text-[#6B7280]">{settledCount} settled</span>
       </div>
       <div className="space-y-2">
         {sorted.map((position) => (
-          <Link key={position.id} to={`/market/${position.marketId}`} className="flex items-center justify-between gap-3 rounded-xl border border-[#263241] bg-[#151E28] p-4 transition hover:border-[#12B886]/45">
+          <Link key={position.id} to={`/market/${position.marketId}`} className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4 transition hover:border-[#12B886]/45">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#101720] text-[#12B886]">
+              <div className="grid h-11 w-11 place-items-center rounded-xl bg-white text-[#12B886]">
                 {position.marketStatus === "active" ? <Clock className="h-5 w-5" /> : <Trophy className="h-5 w-5" />}
               </div>
               <div className="min-w-0">
                 <div className="truncate text-sm font-black">{position.marketQuestion}</div>
-                <div className="mt-1 text-xs text-[#8B98A8]">{getCategoryLabel(position.category)} · {position.side} prediction · {new Date(position.createdAt).toLocaleDateString()}</div>
+                <div className="mt-1 text-xs text-[#6B7280]">{getCategoryLabel(position.category)} · {position.side} prediction · {new Date(position.createdAt).toLocaleDateString()}</div>
               </div>
             </div>
             <div className="shrink-0 text-right">
               <div className="text-sm font-black">
                 {position.resolvedAt ? formatNaira(position.payout || 0) : formatNaira(position.stake)}
               </div>
-              <div className={`mt-1 text-xs capitalize ${position.resolvedAt ? (position.isWinner ? "text-[#12B886]" : "text-[#E85D5D]") : "text-[#8B98A8]"}`}>
+              <div className={`mt-1 text-xs capitalize ${position.resolvedAt ? (position.isWinner ? "text-[#12B886]" : "text-[#E85D5D]") : "text-[#6B7280]"}`}>
                 {position.resolvedAt ? (position.isWinner ? "won" : "lost") : position.marketStatus}
               </div>
             </div>
@@ -613,14 +613,14 @@ const PerformanceView = ({ positions, stats }: { positions: ApiPosition[]; stats
 
   return (
     <div className="grid gap-4">
-      <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+      <section className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">My Score</p>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">My Score</p>
                 <h2 className="mt-2 text-3xl font-black">{level}</h2>
-                <p className="mt-2 max-w-xl text-sm text-[#8B98A8]">
+                <p className="mt-2 max-w-xl text-sm text-[#6B7280]">
                   Build your forecasting record through resolved predictions. Streaks and accuracy use real results only.
                 </p>
               </div>
@@ -628,18 +628,18 @@ const PerformanceView = ({ positions, stats }: { positions: ApiPosition[]; stats
                 <Award className="h-7 w-7" />
               </div>
             </div>
-            <div className="mt-6 h-4 overflow-hidden rounded-full bg-[#263241]">
+            <div className="mt-6 h-4 overflow-hidden rounded-full bg-[#E5E7EB]">
               <div className="h-full rounded-full bg-[#12B886] transition-all duration-700" style={{ width: `${progress}%` }} />
             </div>
-            <div className="mt-2 flex items-center justify-between text-xs font-bold text-[#8B98A8]">
+            <div className="mt-2 flex items-center justify-between text-xs font-bold text-[#6B7280]">
               <span>{progress}% progress</span>
               <span>{nextLevel === level ? "Top level reached" : `Next: ${nextLevel}`}</span>
             </div>
           </div>
-          <div className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
-            <div className="text-xs font-black uppercase tracking-[0.14em] text-[#8B98A8]">Rank</div>
+          <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+            <div className="text-xs font-black uppercase tracking-[0.14em] text-[#6B7280]">Rank</div>
             <div className="mt-2 text-2xl font-black">{rankLabel}</div>
-            <p className="mt-2 text-xs font-bold text-[#8B98A8]">
+            <p className="mt-2 text-xs font-bold text-[#6B7280]">
               {stats.rank
                 ? `${stats.totalRankedUsers || 0} forecasters are ranked from real prediction results.`
                 : "Make a prediction to enter the leaderboard."}
@@ -657,7 +657,7 @@ const PerformanceView = ({ positions, stats }: { positions: ApiPosition[]; stats
           <Metric label="Level" value={level} large />
         </div>
       </section>
-      <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+      <section className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
         <div className="mb-4 flex items-center gap-2">
           <Medal className="h-5 w-5 text-[#12B886]" />
           <h2 className="text-xl font-black">Achievements</h2>
@@ -761,22 +761,22 @@ const getAchievements = ({
 ];
 
 const AchievementCard = ({ icon: Icon, title, description, unlocked }: Achievement) => (
-  <div className={`rounded-xl border p-3 transition ${unlocked ? "border-[#12B886]/30 bg-[#12B886]/10" : "border-[#263241] bg-[#151E28]"}`}>
-    <div className={`mb-2 grid h-8 w-8 place-items-center rounded-lg ${unlocked ? "bg-[#12B886] text-[#06100d]" : "bg-[#101720] text-[#8B98A8]"}`}>
+  <div className={`rounded-xl border p-3 transition ${unlocked ? "border-[#12B886]/30 bg-[#12B886]/10" : "border-[#E5E7EB] bg-[#F8F7F4]"}`}>
+    <div className={`mb-2 grid h-8 w-8 place-items-center rounded-lg ${unlocked ? "bg-[#12B886] text-[#06100d]" : "bg-white text-[#6B7280]"}`}>
       <Icon className="h-4 w-4" />
     </div>
     <div className="text-xs font-black leading-tight">{title}</div>
-    <div className={`mt-1 text-[11px] font-black ${unlocked ? "text-[#7AE4BD]" : "text-[#8B98A8]"}`}>
+    <div className={`mt-1 text-[11px] font-black ${unlocked ? "text-[#7AE4BD]" : "text-[#6B7280]"}`}>
       {unlocked ? "Unlocked" : "Locked"}
     </div>
-    <p className="mt-1 hidden text-[11px] font-bold leading-relaxed text-[#8B98A8] sm:block">{description}</p>
+    <p className="mt-1 hidden text-[11px] font-bold leading-relaxed text-[#6B7280] sm:block">{description}</p>
   </div>
 );
 
 const Metric = ({ label, value, large = false, tone = "neutral", movement }: { label: string; value: string; large?: boolean; tone?: "neutral" | "green" | "red"; movement?: number }) => (
-  <div className="rounded-xl border border-[#263241] bg-[#151E28] p-3 transition-colors duration-300">
-    <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#8B98A8]">{label}</div>
-    <div className={`mt-2 flex items-center font-black transition-all duration-300 ${large ? "text-2xl" : "text-sm"} ${tone === "green" ? "text-[#12B886]" : tone === "red" ? "text-[#E85D5D]" : "text-white"}`}>
+  <div className="rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3 transition-colors duration-300">
+    <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6B7280]">{label}</div>
+    <div className={`mt-2 flex items-center font-black transition-all duration-300 ${large ? "text-2xl" : "text-sm"} ${tone === "green" ? "text-[#12B886]" : tone === "red" ? "text-[#E85D5D]" : "text-[#111827]"}`}>
       {value}
       <MovementPill movement={movement} />
     </div>
@@ -784,13 +784,13 @@ const Metric = ({ label, value, large = false, tone = "neutral", movement }: { l
 );
 
 const EmptyState = ({ icon: Icon, title, body, action }: { icon: any; title: string; body: string; action?: React.ReactNode }) => (
-  <div className="grid min-h-[360px] place-items-center rounded-2xl border border-dashed border-[#263241] bg-[#101720]/70 p-6 text-center">
+  <div className="grid min-h-[360px] place-items-center rounded-2xl border border-dashed border-[#E5E7EB] bg-white/70 p-6 text-center">
     <div>
-      <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl border border-[#263241] bg-[#151E28] text-[#12B886]">
+      <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#12B886]">
         <Icon className="h-8 w-8" />
       </div>
       <div className="text-xl font-black">{title}</div>
-      <p className="mx-auto mt-2 max-w-sm text-sm text-[#8B98A8]">{body}</p>
+      <p className="mx-auto mt-2 max-w-sm text-sm text-[#6B7280]">{body}</p>
       {action && <div className="mt-6">{action}</div>}
     </div>
   </div>
@@ -799,7 +799,7 @@ const EmptyState = ({ icon: Icon, title, body, action }: { icon: any; title: str
 export default Dashboard;
 
 const SessionLoading = ({ label }: { label: string }) => (
-  <div className="app-bg min-h-screen text-white xl:pl-64">
+  <div className="app-bg min-h-screen text-[#111827] xl:pl-64">
     <Header />
     <main className="grid min-h-[70vh] place-items-center px-4">
       <DelayedFlippeLoader active label={label} />

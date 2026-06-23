@@ -254,7 +254,7 @@ const Index = () => {
   }, [liveMarkets]);
 
   return (
-    <div className="app-bg min-h-screen pb-24 text-white md:pb-0 xl:pl-64">
+    <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-[1320px] px-4 py-4 sm:px-6 lg:py-6">
         <section className="mb-4 flex items-center justify-between gap-3 md:hidden">
@@ -262,32 +262,32 @@ const Index = () => {
             <FlippeSymbol size="sm" />
             <div>
               <div className="text-2xl font-black tracking-[0.04em]">FLIPPE</div>
-              <div className="flex items-center gap-1.5 text-xs font-bold text-[#8B98A8]">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#6B7280]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#12B886]" />
                 {liveCount} live markets
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link to="/wallet" className="rounded-xl border border-[#263241] bg-[#101720] px-3 py-2 text-xs font-black">
+            <Link to="/wallet" className="rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 text-xs font-black shadow-sm">
               <Wallet className="mr-1 inline h-3.5 w-3.5 text-[#12B886]" />
               {formatNaira(user?.balance || 0)}
             </Link>
             <NotificationBell />
-            <Link to={user ? "/more" : "/login"} className="grid h-10 w-10 place-items-center rounded-full border border-[#263241] bg-[#151E28] text-white">
+            <Link to={user ? "/more" : "/login"} className="grid h-10 w-10 place-items-center rounded-full border border-[#E5E7EB] bg-white text-[#111827] shadow-sm">
               {user?.username?.charAt(0).toUpperCase() || <UserCircle className="h-5 w-5" />}
             </Link>
           </div>
         </section>
 
-        <section className="sticky top-0 z-30 mb-4 space-y-3 border-b border-[#263241] bg-[#080c10]/94 py-2 backdrop-blur-xl md:top-[65px]" data-now={now}>
+        <section className="sticky top-0 z-30 mb-4 space-y-3 border-b border-[#E5E7EB] bg-[#F8F7F4]/90 py-2 backdrop-blur-xl md:top-[65px]" data-now={now}>
           <div className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8B98A8]" />
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search markets or topics"
-              className="h-12 w-full rounded-xl border border-[#263241] bg-[#101720] pl-11 pr-4 text-sm font-bold text-white outline-none placeholder:text-[#8B98A8] focus:border-[#12B886]/70"
+              className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white pl-11 pr-4 text-sm font-bold text-[#111827] shadow-sm outline-none placeholder:text-[#9CA3AF] focus:border-[#4F46E5]/70 focus:ring-4 focus:ring-[#4F46E5]/10"
             />
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -297,14 +297,14 @@ const Index = () => {
                 onClick={() => setCategory(chip)}
                 className={`shrink-0 rounded-full px-4 py-2 text-sm font-black transition ${
                   category === chip
-                    ? "bg-[#12B886] text-[#06100d]"
-                    : "border border-[#263241] bg-[#101720] text-[#8B98A8] hover:text-white"
+                    ? "bg-[#4F46E5] text-white"
+                    : "border border-[#E5E7EB] bg-white text-[#6B7280] hover:text-[#111827]"
                 }`}
               >
                 {chip}
                 {chip !== "Trending" && Number(categoryCounts[chip] || 0) > 0 && (
                   <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] ${
-                    category === chip ? "bg-[#06100d]/15 text-[#06100d]" : "bg-[#151E28] text-[#8B98A8]"
+                    category === chip ? "bg-white/20 text-white" : "bg-[#F3F4F6] text-[#6B7280]"
                   }`}>
                     {categoryCounts[chip]}
                   </span>
@@ -337,7 +337,7 @@ const Index = () => {
         ) : (
           <button
             onClick={reopenSummary}
-            className="mb-5 rounded-full border border-[#263241] bg-[#101720] px-4 py-2 text-xs font-black text-[#8B98A8] transition hover:border-[#12B886]/45 hover:text-white"
+            className="mb-5 rounded-full border border-[#E5E7EB] bg-white px-4 py-2 text-xs font-black text-[#6B7280] shadow-sm transition hover:border-[#4F46E5]/35 hover:text-[#111827]"
           >
             Today's summary
           </button>
@@ -346,7 +346,7 @@ const Index = () => {
         <section>
             <div className="mb-4">
               <h1 className="text-2xl font-black tracking-tight">{sectionTitle}</h1>
-              <p className="mt-1 text-xs font-bold text-[#8B98A8]">
+              <p className="mt-1 text-xs font-bold text-[#6B7280]">
                 {sectionSubtext}
               </p>
             </div>
@@ -354,13 +354,13 @@ const Index = () => {
             {isLoadingMarkets && markets.length === 0 ? (
               <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
                 {[1, 2, 3, 4, 5, 6].map((item) => (
-                  <div key={item} className="h-64 rounded-2xl border border-[#263241] soft-shimmer" />
+                  <div key={item} className="h-64 rounded-2xl border border-[#E5E7EB] bg-white/70 soft-shimmer" />
                 ))}
               </div>
             ) : marketError && filtered.length === 0 ? (
               <div className="rounded-2xl border border-[#F2C94C]/25 bg-[#F2C94C]/10 p-10 text-center">
                 <h3 className="text-lg font-black">Could not load markets</h3>
-                <p className="mt-1 text-sm text-amber-100/70">{marketError}</p>
+                <p className="mt-1 text-sm text-amber-900/70">{marketError}</p>
                 <button
                   onClick={() => loadMarkets({ force: true })}
                   className="mt-5 rounded-xl bg-white px-5 py-3 text-sm font-black text-[#080c10]"
@@ -377,9 +377,9 @@ const Index = () => {
                 ))}
               </div>
             ) : (
-              <div className="rounded-2xl border border-dashed border-[#263241] bg-[#101720]/60 p-10 text-center">
+              <div className="rounded-2xl border border-dashed border-[#D1D5DB] bg-white/70 p-10 text-center">
                 <h3 className="text-lg font-black">{emptyTitle}</h3>
-                <p className="mt-1 text-sm text-[#8B98A8]">
+                <p className="mt-1 text-sm text-[#6B7280]">
                   {emptyBody}
                 </p>
               </div>
@@ -392,14 +392,14 @@ const Index = () => {
 };
 
 const HomeSummaryCard = ({ icon: Icon, title, items }: { icon: any; title: string; items: string[] }) => (
-  <div className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
+  <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-[0_14px_36px_rgba(17,24,39,0.07)]">
     <div className="mb-3 flex items-center gap-2">
       <Icon className="h-4 w-4 text-[#12B886]" />
       <h2 className="text-sm font-black">{title}</h2>
     </div>
     <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-1 lg:grid-cols-3">
       {items.map((item) => (
-        <div key={item} className="rounded-xl border border-[#263241] bg-[#151E28] px-3 py-2 text-xs font-bold text-[#D5DEE8]">
+        <div key={item} className="rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] px-3 py-2 text-xs font-bold text-[#374151]">
           {item}
         </div>
       ))}
@@ -408,22 +408,22 @@ const HomeSummaryCard = ({ icon: Icon, title, items }: { icon: any; title: strin
 );
 
 const ProgressSummaryCard = ({ level, streak, accuracy }: { level: string; streak: number; accuracy: number }) => (
-  <div className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
+  <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-[0_14px_36px_rgba(17,24,39,0.07)]">
     <div className="mb-3 flex items-center gap-2">
       <Award className="h-4 w-4 text-[#12B886]" />
       <h2 className="text-sm font-black">Your Progress</h2>
     </div>
     <div className="grid grid-cols-3 gap-2">
-      <div className="min-w-0 rounded-xl border border-[#263241] bg-[#151E28] p-2.5 sm:p-3">
-        <div className="text-[11px] font-bold text-[#8B98A8]">Level</div>
+      <div className="min-w-0 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-2.5 sm:p-3">
+        <div className="text-[11px] font-bold text-[#6B7280]">Level</div>
         <div className="mt-1 break-words text-[12px] font-black leading-tight sm:text-sm">{level}</div>
       </div>
-      <div className="min-w-0 rounded-xl border border-[#263241] bg-[#151E28] p-2.5 sm:p-3">
-        <div className="text-[11px] font-bold text-[#8B98A8]">Streak</div>
+      <div className="min-w-0 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-2.5 sm:p-3">
+        <div className="text-[11px] font-bold text-[#6B7280]">Streak</div>
         <div className="mt-1 break-words text-[12px] font-black leading-tight sm:text-sm">{streak}</div>
       </div>
-      <div className="min-w-0 rounded-xl border border-[#263241] bg-[#151E28] p-2.5 sm:p-3">
-        <div className="text-[11px] font-bold text-[#8B98A8]">Accuracy</div>
+      <div className="min-w-0 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-2.5 sm:p-3">
+        <div className="text-[11px] font-bold text-[#6B7280]">Accuracy</div>
         <div className="mt-1 break-words text-[12px] font-black leading-tight sm:text-sm">{accuracy ? `${accuracy}%` : "-"}</div>
       </div>
     </div>

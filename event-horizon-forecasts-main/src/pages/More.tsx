@@ -23,30 +23,30 @@ export default function More() {
   const adminPath = isSuperAdmin() ? "/super-admin" : "/admin";
 
   return (
-    <div className="app-bg min-h-screen pb-24 text-white md:pb-0 xl:pl-64">
+    <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-5xl px-4 py-5 sm:px-6 lg:py-8">
-        <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
+        <section className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[#12B886]">More</p>
           <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-black tracking-tight">Account and help</h1>
-              <p className="mt-2 max-w-2xl text-sm text-[#8B98A8]">
+              <p className="mt-2 max-w-2xl text-sm text-[#6B7280]">
                 Manage your account, get support, and read the rules behind Flippe before public launch.
               </p>
             </div>
-            <div className="rounded-2xl border border-[#263241] bg-[#151E28] px-4 py-3 text-sm">
+            <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] px-4 py-3 text-sm">
               {isLoading ? (
                 <Loader2 className="h-5 w-5 animate-spin text-[#12B886]" />
               ) : user ? (
                 <>
                   <div className="font-black">{user.username}</div>
-                  <div className="mt-1 text-[#8B98A8]">{formatNaira(user.balance)} available</div>
+                  <div className="mt-1 text-[#6B7280]">{formatNaira(user.balance)} available</div>
                 </>
               ) : (
                 <>
                   <div className="font-black">Browsing as guest</div>
-                  <div className="mt-1 text-[#8B98A8]">Log in to predict or use wallet features.</div>
+                  <div className="mt-1 text-[#6B7280]">Log in to predict or use wallet features.</div>
                 </>
               )}
             </div>
@@ -94,22 +94,22 @@ export default function More() {
 }
 
 const Group = ({ title, description, children }: { title: string; description: string; children: React.ReactNode }) => (
-  <section className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
+  <section className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
     <h2 className="text-sm font-black uppercase tracking-[0.16em] text-[#12B886]">{title}</h2>
-    <p className="mt-1 min-h-10 text-sm text-[#8B98A8]">{description}</p>
-    <div className="mt-4 overflow-hidden rounded-2xl border border-[#263241] bg-[#0D131A]">{children}</div>
+    <p className="mt-1 min-h-10 text-sm text-[#6B7280]">{description}</p>
+    <div className="mt-4 overflow-hidden rounded-2xl border border-[#E5E7EB] bg-[#0D131A]">{children}</div>
   </section>
 );
 
 const MoreLink = ({ to, icon: Icon, title, subtitle }: { to: string; icon: any; title: string; subtitle: string }) => (
-  <Link to={to} className="group flex min-h-20 items-center gap-3 border-b border-[#263241] p-4 transition last:border-b-0 hover:bg-[#151E28]">
-    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#12B886]">
+  <Link to={to} className="group flex min-h-20 items-center gap-3 border-b border-[#E5E7EB] p-4 transition last:border-b-0 hover:bg-[#F8F7F4]">
+    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#12B886]">
       <Icon className="h-5 w-5" />
     </div>
     <div className="min-w-0 flex-1">
-      <div className="font-black text-white">{title}</div>
-      <div className="mt-1 text-sm text-[#8B98A8]">{subtitle}</div>
+      <div className="font-black text-[#111827]">{title}</div>
+      <div className="mt-1 text-sm text-[#6B7280]">{subtitle}</div>
     </div>
-    <ChevronRight className="h-4 w-4 shrink-0 text-[#8B98A8] transition group-hover:translate-x-0.5 group-hover:text-white" />
+    <ChevronRight className="h-4 w-4 shrink-0 text-[#6B7280] transition group-hover:translate-x-0.5 group-hover:text-[#111827]" />
   </Link>
 );

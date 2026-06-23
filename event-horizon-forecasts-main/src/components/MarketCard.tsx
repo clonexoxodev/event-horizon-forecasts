@@ -40,21 +40,21 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
   return (
     <Link
       to={`/market/${m.id}`}
-      className="group block overflow-hidden rounded-2xl border border-[#263241] bg-[#101720] shadow-[0_14px_38px_rgba(0,0,0,0.24)] transition duration-200 hover:-translate-y-0.5 hover:border-[#12B886]/45 hover:bg-[#151E28]"
+      className="group block overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_14px_38px_rgba(17,24,39,0.08)] transition duration-200 hover:-translate-y-0.5 hover:border-[#4F46E5]/30 hover:shadow-[0_18px_46px_rgba(17,24,39,0.12)]"
     >
       <div className="p-3">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <span className="rounded-full border border-[#263241] bg-[#151E28] px-2.5 py-1 text-[11px] font-bold text-[#8B98A8]">
+          <span className="rounded-full border border-[#E5E7EB] bg-[#F8F7F4] px-2.5 py-1 text-[11px] font-bold text-[#6B7280]">
             {categoryLabel}
           </span>
-          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black ${isLive ? "border-[#12B886]/25 bg-[#12B886]/10 text-[#7AE4BD]" : "border-[#263241] bg-[#151E28] text-[#8B98A8]"}`}>
+          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black ${isLive ? "border-[#12B886]/25 bg-[#12B886]/10 text-[#047857]" : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280]"}`}>
             {isLive && <span className="h-1.5 w-1.5 rounded-full bg-[#12B886]" />}
             {isLive ? "Live" : "Ended"}
           </span>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-[112px_minmax(0,1fr)]">
-          <div className={`relative ${compact ? "h-28" : "h-36"} overflow-hidden rounded-xl bg-[#151E28] sm:h-full`}>
+          <div className={`relative ${compact ? "h-28" : "h-36"} overflow-hidden rounded-xl bg-[#F3F4F6] sm:h-full`}>
             {media.type === "video" ? (
               <video src={media.src} poster={media.poster} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" muted playsInline loop preload="metadata" />
             ) : (
@@ -69,7 +69,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
           </div>
 
           <div className="min-w-0">
-            <h3 className="line-clamp-2 text-base font-black leading-snug text-white">
+            <h3 className="line-clamp-2 text-base font-black leading-snug text-[#111827]">
               {m.question}
             </h3>
 
@@ -80,13 +80,13 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
           </div>
         </div>
 
-        <div className="mt-3 border-t border-[#263241] pt-3">
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-[11px] font-bold text-[#8B98A8]">
+        <div className="mt-3 border-t border-[#E5E7EB] pt-3">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-[11px] font-bold text-[#6B7280]">
             <span className="flex items-center gap-1">
               <Clock className="h-3.5 w-3.5" />
               {formatCountdown(tradingCloseTime, m.closesIn)}
             </span>
-            <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${isLive ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#151E28] text-[#8B98A8]"}`}>
+            <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${isLive ? "bg-[#4F46E5]/10 text-[#4F46E5]" : "bg-[#F3F4F6] text-[#6B7280]"}`}>
               {isLive ? "Back opinion" : "Closed"}
             </span>
           </div>
@@ -102,11 +102,11 @@ const PriceButton = ({ label, value, tone, disabled = false, onClick }: { label:
     disabled={disabled}
     className={`rounded-xl border px-3 py-2 text-left transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 ${
       tone === "green"
-        ? "border-[#12B886]/25 bg-[#12B886]/10 text-[#7AE4BD] hover:bg-[#12B886]/16"
-        : "border-[#E85D5D]/25 bg-[#E85D5D]/10 text-[#FF9C9C] hover:bg-[#E85D5D]/16"
+        ? "border-[#12B886]/25 bg-[#12B886]/10 text-[#047857] hover:bg-[#12B886]/16"
+        : "border-[#E85D5D]/25 bg-[#E85D5D]/10 text-[#B42318] hover:bg-[#E85D5D]/16"
     }`}
   >
-    <span className="block text-[10px] font-black uppercase text-white/45">{label}</span>
+    <span className="block text-[10px] font-black uppercase text-[#6B7280]">{label}</span>
     <span className="mt-0.5 block text-base font-black">
       <AnimatedNumber value={value} prefix={formatNairaPrice(0).replace("0", "")} />
     </span>
