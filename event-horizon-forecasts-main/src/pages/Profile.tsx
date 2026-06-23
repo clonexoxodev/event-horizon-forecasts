@@ -149,7 +149,7 @@ export default function Profile() {
                       <div className="line-clamp-2 text-sm font-black">{position.marketQuestion}</div>
                       <div className="mt-2 text-xs text-slate-500">{getCategoryLabel(position.category)} · {new Date(position.createdAt).toLocaleDateString()}</div>
                     </div>
-                    <span className={`rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-emerald-400/10 text-emerald-300" : "bg-red-400/10 text-red-300"}`}>
+                    <span className={`rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-emerald-400/10 text-[#047857]" : "bg-red-400/10 text-[#B42318]"}`}>
                       {position.side}
                     </span>
                   </div>

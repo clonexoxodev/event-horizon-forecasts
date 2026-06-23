@@ -102,7 +102,7 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
         <div className="h-1 w-full bg-[#E85D5D]" />
         {success ? (
           <div className="p-8 text-center">
-            <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-[#12B886]/10 text-[#12B886]">
+            <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-[#12B886]/10 text-[#047857]">
               <CheckCircle className="h-8 w-8" />
             </div>
             <h3 className="mb-2 text-xl font-black">Withdrawal submitted</h3>
@@ -145,7 +145,7 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
               />
               {insufficientFunds && <AlertCircle className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#E85D5D]" />}
             </div>
-            {insufficientFunds && <p className="mb-4 text-xs font-bold text-[#FF9C9C]">Amount must not exceed your wallet balance.</p>}
+            {insufficientFunds && <p className="mb-4 text-xs font-bold text-[#B42318]">Amount must not exceed your wallet balance.</p>}
             {belowMinimum && <p className="mb-4 text-xs font-bold text-[#F2C94C]">Minimum withdrawal is ₦500.</p>}
 
             <div className="mb-4 grid grid-cols-4 gap-2">

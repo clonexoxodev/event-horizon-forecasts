@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { CheckCircle, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,12 +60,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
       await onConfirm(selection, numAmount);
       setSuccess(true);
       toast.success("Prediction locked.");
-      setTimeout(() => {
-        setSuccess(false);
-        setLoading(false);
-        setAmount("");
-        onClose();
-      }, 1400);
+      setLoading(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Server error. Please try again.");
       setLoading(false);
@@ -73,6 +69,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
 
   const handleClear = () => {
     setAmount("");
+    setSuccess(false);
     onClose();
   };
 
@@ -88,7 +85,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
         </div>
 
         {success ? (
-          <SuccessState selection={selection} amount={numAmount} />
+          <SuccessState selection={selection} amount={numAmount} onClose={handleClear} />
         ) : (
           <div className="space-y-5 p-5 sm:p-6">
             <div className="flex items-center justify-between">
@@ -132,10 +129,10 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
             </div>
 
             {!user && (
-              <div className="rounded-2xl border border-[#12B886]/25 bg-[#12B886]/10 p-4">
+              <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
                 <div className="font-black text-[#111827]">Login to place this prediction</div>
                 <p className="mt-1 text-sm text-[#6B7280]">You can browse markets freely. Sign in only when you are ready to predict.</p>
-                <button onClick={() => { onClose(); setAuthOpen(true); }} className="mt-4 flex h-11 w-full items-center justify-center rounded-xl bg-[#12B886] text-sm font-black text-[#06100d]">
+                <button onClick={() => { onClose(); setAuthOpen(true); }} className="mt-4 flex h-11 w-full items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-black text-white hover:bg-[#4338CA]">
                   Continue
                 </button>
               </div>
@@ -161,7 +158,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                 />
               </div>
               {insufficientBalance && numAmount > 0 && (
-                <p className="mt-2 text-xs font-bold text-[#FF9C9C]">Insufficient balance.</p>
+                <p className="mt-2 text-xs font-bold text-[#B42318]">Insufficient balance.</p>
               )}
             </div>
 
@@ -239,20 +236,30 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
   );
 };
 
-const SuccessState = ({ selection, amount }: { selection: ForecastSelection; amount: number }) => {
+const SuccessState = ({ selection, amount, onClose }: { selection: ForecastSelection; amount: number; onClose: () => void }) => {
   const isPositiveSide = selection.side === "YES" || selection.side === "UP";
 
   return (
-    <div className="grid min-h-[420px] place-items-center p-8 text-center">
-      <div>
-        <div className={`mx-auto mb-6 grid h-20 w-20 place-items-center rounded-full ${isPositiveSide ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
-          <CheckCircle className="h-10 w-10" />
+    <div className="grid min-h-[460px] place-items-center bg-white p-8 text-center">
+      <div className="w-full max-w-sm">
+        <div className={`mx-auto mb-6 grid h-20 w-20 place-items-center rounded-full text-white shadow-[0_18px_44px_rgba(16,24,40,0.16)] ${isPositiveSide ? "bg-[#12B886]" : "bg-[#E85D5D]"}`}>
+          <CheckCircle className="h-11 w-11" />
         </div>
-        <h3 className="text-3xl font-black text-[#111827]">Prediction locked</h3>
-        <p className="mt-2 text-sm text-[#6B7280]">
-          {formatNaira(amount)} on {selection.side} at {formatNairaPrice(selection.currentPrice)}.
+        <h3 className="text-3xl font-black text-[#101828]">Prediction Locked</h3>
+        <p className="mt-3 text-base font-black text-[#101828]">
+          You backed {selection.side}
         </p>
-        <p className="mt-1 text-xs font-bold text-[#6B7280]">Track it in My Predictions.</p>
+        <p className="mt-2 text-sm font-semibold leading-6 text-[#475467]">
+          {formatNaira(amount)} at {formatNairaPrice(selection.currentPrice)}. Track this prediction in My Predictions.
+        </p>
+        <div className="mt-7 grid gap-3">
+          <Link to="/portfolio" onClick={onClose} className="flex h-12 items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-black text-white transition hover:bg-[#4338CA]">
+            View Prediction
+          </Link>
+          <button onClick={onClose} className="h-12 rounded-xl border border-[#E5E7EB] bg-white text-sm font-black text-[#344054] transition hover:bg-[#F3F4F6]">
+            Continue Browsing
+          </button>
+        </div>
       </div>
     </div>
   );

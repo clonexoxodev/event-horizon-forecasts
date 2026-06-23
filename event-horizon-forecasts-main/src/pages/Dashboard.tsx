@@ -323,7 +323,7 @@ const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[];
                 <div className="text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">Open prediction</div>
                 <h2 className="mt-2 line-clamp-2 text-lg font-black leading-tight">{position.marketQuestion}</h2>
               </div>
-              <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
+              <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#E85D5D]/10 text-[#B42318]"}`}>
                 {position.side}
               </span>
             </div>
@@ -394,7 +394,7 @@ const PredictionDetailModal = ({
           <div>
             <div className="mb-3 flex items-start justify-between gap-3">
               <h3 className="text-xl font-black leading-tight">{marketQuestion}</h3>
-              <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
+              <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#E85D5D]/10 text-[#B42318]"}`}>
                 {position.side || "N/A"}
               </span>
             </div>
@@ -499,9 +499,9 @@ const MovementStatus = ({ insight }: { insight: PredictionInsight }) => {
   return (
     <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-black transition duration-300 ${
       insight.direction === "toward"
-        ? "border-[#12B886]/30 bg-[#12B886]/10 text-[#7AE4BD]"
+        ? "border-[#12B886]/30 bg-[#12B886]/10 text-[#047857]"
         : insight.direction === "against"
-          ? "border-[#E85D5D]/30 bg-[#E85D5D]/10 text-[#FF9C9C]"
+          ? "border-[#E85D5D]/30 bg-[#E85D5D]/10 text-[#B42318]"
           : "border-[#E5E7EB] bg-white text-[#6B7280]"
     }`}>
       <Icon className="h-3.5 w-3.5" />
@@ -514,9 +514,9 @@ const MovementStatus = ({ insight }: { insight: PredictionInsight }) => {
 const StrengthBadge = ({ insight }: { insight: PredictionInsight }) => {
   const classes =
     insight.strengthTone === "green"
-      ? "border-[#12B886]/35 bg-[#12B886]/10 text-[#7AE4BD]"
+      ? "border-[#12B886]/35 bg-[#12B886]/10 text-[#047857]"
       : insight.strengthTone === "red"
-        ? "border-[#E85D5D]/35 bg-[#E85D5D]/10 text-[#FF9C9C]"
+        ? "border-[#E85D5D]/35 bg-[#E85D5D]/10 text-[#B42318]"
         : insight.strengthTone === "yellow"
           ? "border-[#F2C94C]/35 bg-[#F2C94C]/10 text-[#F2C94C]"
           : "border-[#E5E7EB] bg-white text-[#374151]";
@@ -531,7 +531,7 @@ const MovementPill = ({ movement }: { movement?: number }) => {
   if (!movement || Math.abs(movement) < 0.5) return null;
   const positive = movement > 0;
   return (
-    <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-black ${positive ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
+    <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-black ${positive ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#E85D5D]/10 text-[#B42318]"}`}>
       {formatMovement(movement)}
     </span>
   );

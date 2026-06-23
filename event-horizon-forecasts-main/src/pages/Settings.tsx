@@ -91,7 +91,7 @@ export default function Settings() {
             </button>
             <button
               onClick={logout}
-              className="mt-3 flex h-12 w-full items-center justify-center rounded-2xl border border-red-400/30 bg-red-400/10 text-sm font-black text-red-200 transition hover:bg-red-400/20"
+              className="mt-3 flex h-12 w-full items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-sm font-black text-red-700 transition hover:bg-red-100"
             >
               <LogOut className="mr-2 h-4 w-4" />
               Sign out

@@ -184,7 +184,6 @@ export default function MarketDetail() {
       setAmount("");
       setSheetSide(null);
       toast.success(`Prediction saved: ${sheetSide} with ${formatNaira(numericAmount)}.`);
-      window.setTimeout(() => setJustPredicted(null), 1800);
     } catch (error: any) {
       toast.error(error.message || "Could not save prediction.");
     } finally {
@@ -246,7 +245,7 @@ export default function MarketDetail() {
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/72 to-transparent p-5 sm:p-7">
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-white/95 px-3 py-1 text-xs font-black text-[#101828] shadow-sm">{marketCategoryLabel}</span>
-                <span className={`rounded-full border px-3 py-1 text-xs font-black backdrop-blur ${marketIsActive ? "border-[#12B886]/40 bg-[#12B886]/20 text-white" : "border-white/30 bg-white/15 text-white"}`}>{marketIsActive ? "Live" : "Ended"}</span>
+                <span className={`rounded-full border px-3 py-1 text-xs font-black backdrop-blur ${marketIsActive ? "border-[#12B886]/70 bg-[#047857] text-white" : "border-white/30 bg-black/45 text-white"}`}>{marketIsActive ? "Live" : "Ended"}</span>
                 <span className="rounded-full border border-white/25 bg-black/40 px-3 py-1 text-xs font-black text-white backdrop-blur-xl">
                   {formatCountdown(tradingCloseTime, market.closesIn)}
                 </span>
@@ -365,7 +364,7 @@ export default function MarketDetail() {
               </button>
             </div>
             {slipDataMissing ? (
-              <div className="rounded-xl border border-[#E85D5D]/30 bg-[#E85D5D]/10 p-4 text-sm font-bold leading-relaxed text-[#FFB4B4]">
+              <div className="rounded-xl border border-[#E85D5D]/30 bg-[#E85D5D]/10 p-4 text-sm font-bold leading-relaxed text-[#B42318]">
                 Unable to open prediction slip. Please try again.
               </div>
             ) : (
@@ -400,18 +399,22 @@ export default function MarketDetail() {
       )}
 
       {justPredicted && (
-        <div className="pointer-events-none fixed inset-0 z-[60] grid place-items-center bg-black/30 backdrop-blur-[2px]">
-          <div className="animate-fade-up rounded-2xl border border-[#E5E7EB] bg-white/96 p-8 text-center shadow-[0_24px_90px_rgba(17,24,39,0.18)]">
-            <div className={`mx-auto mb-4 grid h-20 w-20 place-items-center rounded-full ${justPredicted === "YES" ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
-              <CheckCircle className="h-10 w-10" />
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/35 p-4 backdrop-blur-[2px]">
+          <div className="animate-fade-up w-full max-w-sm rounded-2xl border border-[#E5E7EB] bg-white p-8 text-center shadow-[0_24px_90px_rgba(17,24,39,0.22)]">
+            <div className={`mx-auto mb-5 grid h-20 w-20 place-items-center rounded-full text-white shadow-[0_18px_44px_rgba(16,24,40,0.16)] ${justPredicted === "YES" ? "bg-[#12B886]" : "bg-[#E85D5D]"}`}>
+              <CheckCircle className="h-11 w-11" />
             </div>
-            <div className="flex justify-center">
-            <span className="inline-flex items-center gap-2 rounded-full bg-[#12B886]/10 px-3 py-1 text-xs font-black text-[#7AE4BD]">
-                Prediction locked
-              </span>
+            <h3 className="text-3xl font-black text-[#101828]">Prediction Locked</h3>
+            <p className="mt-3 text-base font-black text-[#101828]">You backed {justPredicted}</p>
+            <p className="mt-2 text-sm font-semibold leading-6 text-[#475467]">Track this prediction in My Predictions.</p>
+            <div className="mt-7 grid gap-3">
+              <Link to="/portfolio" onClick={() => setJustPredicted(null)} className="flex h-12 items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-black text-white transition hover:bg-[#4338CA]">
+                View Prediction
+              </Link>
+              <button onClick={() => setJustPredicted(null)} className="h-12 rounded-xl border border-[#E5E7EB] bg-white text-sm font-black text-[#344054] transition hover:bg-[#F3F4F6]">
+                Continue Browsing
+              </button>
             </div>
-            <h3 className="mt-3 text-2xl font-black">You picked {justPredicted}</h3>
-            <p className="mt-2 text-sm font-bold text-[#6B7280]">Track it in My Predictions.</p>
           </div>
         </div>
       )}

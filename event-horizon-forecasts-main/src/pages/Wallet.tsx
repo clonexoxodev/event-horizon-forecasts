@@ -191,7 +191,7 @@ export default function Wallet() {
               {transactions.map((tx) => (
                 <li key={tx.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className={`grid h-11 w-11 place-items-center rounded-xl ${tx.amount >= 0 ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
+                    <div className={`grid h-11 w-11 place-items-center rounded-xl ${tx.amount >= 0 ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#E85D5D]/10 text-[#B42318]"}`}>
                       {tx.amount >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
                     </div>
                     <div className="min-w-0">

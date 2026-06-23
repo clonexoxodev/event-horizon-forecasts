@@ -108,7 +108,7 @@ export default function Notifications() {
                         <div className="line-clamp-2 text-sm font-black">{position.marketQuestion}</div>
                         <div className="mt-2 text-xs text-[#8B98A8]">{new Date(position.createdAt).toLocaleDateString()}</div>
                       </div>
-                      <span className={`rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-emerald-400/10 text-emerald-300" : "bg-red-400/10 text-red-300"}`}>
+                      <span className={`rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-emerald-400/10 text-[#047857]" : "bg-red-400/10 text-[#B42318]"}`}>
                         {position.side}
                       </span>
                     </div>
@@ -167,8 +167,8 @@ export default function Notifications() {
 const SummaryCard = ({ icon: Icon, label, value, tone }: { icon: any; label: string; value: string; tone: "neutral" | "green" | "red" }) => {
   const tones = {
     neutral: "border-[#263241] bg-[#151E28] text-[#8B98A8]",
-    green: "border-[#12B886]/25 bg-[#12B886]/10 text-[#12B886]",
-    red: "border-[#E85D5D]/25 bg-[#E85D5D]/10 text-[#E85D5D]",
+    green: "border-[#12B886]/25 bg-[#12B886]/10 text-[#047857]",
+    red: "border-[#E85D5D]/25 bg-[#E85D5D]/10 text-[#B42318]",
   };
 
   return (

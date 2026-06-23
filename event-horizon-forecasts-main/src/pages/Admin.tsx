@@ -1256,7 +1256,7 @@ const MetricCard = ({
     neutral: "bg-[#151E28] text-[#8B98A8]",
     green: "bg-emerald-500/10 text-[#4F46E5]",
     amber: "bg-amber-500/10 text-amber-300",
-    red: "bg-red-500/10 text-red-300",
+    red: "bg-red-500/10 text-[#B42318]",
     blue: "bg-sky-500/10 text-sky-300",
   };
 
@@ -1282,7 +1282,7 @@ const Badge = ({ children, tone = "neutral" }: { children: React.ReactNode; tone
       "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold",
       tone === "green" && "border-emerald-500/30 bg-emerald-500/10 text-[#4F46E5]",
       tone === "amber" && "border-amber-500/30 bg-amber-500/10 text-amber-300",
-      tone === "red" && "border-red-500/30 bg-red-500/10 text-red-300",
+      tone === "red" && "border-red-500/30 bg-red-500/10 text-[#B42318]",
       tone === "blue" && "border-sky-500/30 bg-sky-500/10 text-sky-300",
       tone === "neutral" && "border-[#263241] bg-[#151E28] text-[#8B98A8]"
     )}
@@ -1627,7 +1627,7 @@ const MarketsView = ({
                   <div className="text-[#4F46E5]">
                     {market.yes_label || "YES"} {Number(market.yes_price ?? 50)}%
                   </div>
-                  <div className="text-red-300">
+                  <div className="text-[#B42318]">
                     {market.no_label || "NO"} {Number(market.no_price ?? 50)}%
                   </div>
                 </td>
@@ -1747,7 +1747,7 @@ const ActionButton = ({
     tone === "green" &&
       "border-emerald-500/30 bg-emerald-500/10 text-[#4F46E5] hover:bg-[#4338CA]/20",
     tone === "red" &&
-      "border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20",
+      "border-red-500/30 bg-red-500/10 text-[#B42318] hover:bg-red-500/20",
     tone === "neutral" &&
       "border-[#263241] bg-[#151E28] text-[#8B98A8] hover:bg-[#1B2633] hover:text-white",
     disabled && "cursor-not-allowed opacity-40"
@@ -1907,7 +1907,7 @@ const CreateMarketView = ({
               "rounded-lg border px-4 py-3 text-sm",
               priceSum === 100
                 ? "border-emerald-500/30 bg-emerald-500/10 text-[#4F46E5]"
-                : "border-red-500/30 bg-red-500/10 text-red-300"
+                : "border-red-500/30 bg-red-500/10 text-[#B42318]"
             )}
           >
             YES + NO = {priceSum}. Prices must always equal 100.
@@ -2036,7 +2036,7 @@ const CreateMarketView = ({
                   <div className="rounded-lg bg-emerald-500/10 px-3 py-2 text-center text-sm font-semibold text-[#4F46E5]">
                     {form.yes_label} {form.yes_price}
                   </div>
-                  <div className="rounded-lg bg-red-500/10 px-3 py-2 text-center text-sm font-semibold text-red-300">
+                  <div className="rounded-lg bg-red-500/10 px-3 py-2 text-center text-sm font-semibold text-[#B42318]">
                     {form.no_label} {form.no_price}
                   </div>
                 </div>
@@ -2092,7 +2092,7 @@ const Field = ({
   <label className="block">
     <span className="mb-2 block text-sm font-medium text-[#D7DEE8]">
       {label}
-      {required && <span className="ml-1 text-red-300">*</span>}
+      {required && <span className="ml-1 text-[#B42318]">*</span>}
     </span>
     {children}
   </label>
@@ -2306,7 +2306,7 @@ const FinanceQueue = ({
               <Button
                 size="sm"
                 variant="outline"
-                className="border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20"
+                className="border-red-500/30 bg-red-500/10 text-[#B42318] hover:bg-red-500/20"
                 disabled={item.status !== "pending" || Boolean(busyId)}
                 onClick={() => onAction(kind, item.id, "reject")}
               >
@@ -2649,7 +2649,7 @@ const AddAdminView = ({
                   </Badge>
                   <Button
                     variant="outline"
-                    className="border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20"
+                    className="border-red-500/30 bg-red-500/10 text-[#B42318] hover:bg-red-500/20"
                     onClick={() => onRemove(admin)}
                     disabled={saving || loading || admin.role === "super_admin" || !admin.id}
                   >

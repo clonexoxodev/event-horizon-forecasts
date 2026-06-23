@@ -17,11 +17,11 @@ export default function RiskDisclaimer() {
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
         <section className="rounded-2xl border border-red-400/25 bg-red-400/10 p-5">
           <div className="flex items-start gap-4">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-red-400/25 bg-red-400/10 text-red-200">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-red-200 bg-red-50 text-red-700">
               <AlertTriangle className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-sm font-bold uppercase tracking-[0.16em] text-red-200">Responsible Use</p>
+              <p className="text-sm font-bold uppercase tracking-[0.16em] text-red-700">Responsible Use</p>
               <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Forecast carefully. Risk is real.</h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-red-100/80">
                 Predictions can resolve against you. Final payout is not known until resolution, and active predictions are not withdrawable cash.
