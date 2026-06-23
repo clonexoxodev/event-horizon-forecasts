@@ -19,7 +19,7 @@ export const ProtectedRoute = ({
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#080C10]">
+      <div className="flex min-h-screen items-center justify-center bg-[#F8F7F4]">
         <DelayedFlippeLoader active label="Checking your session" />
       </div>
     );

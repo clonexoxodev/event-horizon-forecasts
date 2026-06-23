@@ -59,7 +59,7 @@ export const Header = () => {
         <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
           <div className="flex items-center justify-between text-xs font-bold text-[#6B7280]">
             <span>Available</span>
-            <Wallet className="h-4 w-4 text-[#12B886]" />
+            <Wallet className="h-4 w-4 text-[#4F46E5]" />
           </div>
           <div className="mt-2 text-2xl font-black text-[#111827]">{formatNaira(user?.balance || 0)}</div>
           <Link to="/wallet" className="mt-4 flex h-10 items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-black text-white transition hover:bg-[#4338CA]">

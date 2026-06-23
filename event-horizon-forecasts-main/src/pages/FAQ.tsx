@@ -54,11 +54,11 @@ export default function FAQ() {
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-8">
         <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
           <div className="flex items-start gap-4">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#12B886]">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#4F46E5]">
               <CircleHelp className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#12B886]">FAQs</p>
+              <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#4F46E5]">FAQs</p>
               <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Questions before you predict</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#8B98A8]">
                 Simple answers about Crowd View, market pools, wallet movement, and responsible use.
@@ -70,7 +70,7 @@ export default function FAQ() {
         <section className="mt-6 space-y-5">
           {faqs.map((group) => (
             <div key={group.section} className="rounded-2xl border border-[#263241] bg-[#101720] p-4">
-              <h2 className="mb-3 text-sm font-black uppercase tracking-[0.16em] text-[#12B886]">{group.section}</h2>
+              <h2 className="mb-3 text-sm font-black uppercase tracking-[0.16em] text-[#4F46E5]">{group.section}</h2>
               <div className="overflow-hidden rounded-2xl border border-[#263241] bg-[#0D131A]">
                 {group.items.map(([question, answer], index) => {
                   const id = `${group.section}-${index}`;
@@ -94,8 +94,8 @@ export default function FAQ() {
           <h2 className="text-xl font-black">Still unsure?</h2>
           <p className="mt-2 text-sm text-[#8B98A8]">Read the beginner guide or open Support before locking a prediction.</p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Link to="/how-it-works" className="rounded-2xl bg-[#12B886] px-5 py-3 text-sm font-black text-white hover:bg-[#0EA371]">How It Works</Link>
-            <Link to="/support" className="rounded-2xl border border-[#263241] bg-[#151E28] px-5 py-3 text-sm font-black text-white hover:border-[#12B886]/40">Support</Link>
+            <Link to="/how-it-works" className="rounded-2xl bg-[#4F46E5] px-5 py-3 text-sm font-black text-white hover:bg-[#4338CA]">How It Works</Link>
+            <Link to="/support" className="rounded-2xl border border-[#263241] bg-[#151E28] px-5 py-3 text-sm font-black text-white hover:border-[#4F46E5]/40">Support</Link>
           </div>
         </section>
       </main>

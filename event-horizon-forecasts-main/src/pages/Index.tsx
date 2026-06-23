@@ -270,7 +270,7 @@ const Index = () => {
           </div>
           <div className="flex items-center gap-2">
             <Link to="/wallet" className="rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 text-xs font-black shadow-sm">
-              <Wallet className="mr-1 inline h-3.5 w-3.5 text-[#12B886]" />
+              <Wallet className="mr-1 inline h-3.5 w-3.5 text-[#4F46E5]" />
               {formatNaira(user?.balance || 0)}
             </Link>
             <NotificationBell />
@@ -394,7 +394,7 @@ const Index = () => {
 const HomeSummaryCard = ({ icon: Icon, title, items }: { icon: any; title: string; items: string[] }) => (
   <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-[0_14px_36px_rgba(17,24,39,0.07)]">
     <div className="mb-3 flex items-center gap-2">
-      <Icon className="h-4 w-4 text-[#12B886]" />
+      <Icon className="h-4 w-4 text-[#4F46E5]" />
       <h2 className="text-sm font-black">{title}</h2>
     </div>
     <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-1 lg:grid-cols-3">
@@ -410,7 +410,7 @@ const HomeSummaryCard = ({ icon: Icon, title, items }: { icon: any; title: strin
 const ProgressSummaryCard = ({ level, streak, accuracy }: { level: string; streak: number; accuracy: number }) => (
   <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-[0_14px_36px_rgba(17,24,39,0.07)]">
     <div className="mb-3 flex items-center gap-2">
-      <Award className="h-4 w-4 text-[#12B886]" />
+      <Award className="h-4 w-4 text-[#4F46E5]" />
       <h2 className="text-sm font-black">Your Progress</h2>
     </div>
     <div className="grid grid-cols-3 gap-2">

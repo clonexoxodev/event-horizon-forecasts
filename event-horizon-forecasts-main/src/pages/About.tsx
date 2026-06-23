@@ -16,7 +16,7 @@ export default function About() {
       <Header />
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
         <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
-          <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#12B886]">About FLIPPE</p>
+          <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#4F46E5]">About FLIPPE</p>
           <h1 className="mt-2 max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">Stop arguing. Back your opinion.</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-[#8B98A8]">
             FLIPPE is a pooled opinion market. Users forecast public outcomes by backing YES or NO, then the correct side receives a share of the losing side's pool after resolution.
@@ -26,7 +26,7 @@ export default function About() {
         <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {principles.map(([title, body, Icon]) => (
             <article key={title as string} className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
-              <div className="grid h-11 w-11 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#12B886]">
+              <div className="grid h-11 w-11 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#4F46E5]">
                 <Icon className="h-5 w-5" />
               </div>
               <h2 className="mt-5 text-xl font-black">{title}</h2>
@@ -54,8 +54,8 @@ export default function About() {
             FLIPPE is being prepared for MVP testing. Legal pages, contact details, dispute handling, and payment automation should be reviewed before public launch.
           </p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-            <Link to="/how-it-works" className="rounded-2xl bg-[#12B886] px-5 py-3 text-center text-sm font-black text-white hover:bg-[#0EA371]">Learn how it works</Link>
-            <Link to="/responsible-use" className="rounded-2xl border border-[#263241] bg-[#151E28] px-5 py-3 text-center text-sm font-black text-white hover:border-[#12B886]/40">Responsible use</Link>
+            <Link to="/how-it-works" className="rounded-2xl bg-[#4F46E5] px-5 py-3 text-center text-sm font-black text-white hover:bg-[#4338CA]">Learn how it works</Link>
+            <Link to="/responsible-use" className="rounded-2xl border border-[#263241] bg-[#151E28] px-5 py-3 text-center text-sm font-black text-white hover:border-[#4F46E5]/40">Responsible use</Link>
           </div>
         </section>
       </main>

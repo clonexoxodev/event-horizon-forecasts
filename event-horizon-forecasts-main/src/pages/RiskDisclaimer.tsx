@@ -63,7 +63,7 @@ export default function RiskDisclaimer() {
         <section className="mt-6 rounded-2xl border border-[#263241] bg-[#101720] p-5 text-center">
           <h2 className="text-xl font-black">Need help or disagree with a market outcome?</h2>
           <p className="mt-2 text-sm text-[#8B98A8]">Use Support to create a dispute draft or contact the team before public launch details are finalized.</p>
-          <Link to="/support" className="mt-4 inline-flex rounded-2xl bg-[#12B886] px-5 py-3 text-sm font-black text-white hover:bg-[#0EA371]">Open Support</Link>
+          <Link to="/support" className="mt-4 inline-flex rounded-2xl bg-[#4F46E5] px-5 py-3 text-sm font-black text-white hover:bg-[#4338CA]">Open Support</Link>
         </section>
       </main>
       <MobileNav />

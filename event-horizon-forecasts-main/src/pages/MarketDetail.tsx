@@ -253,10 +253,10 @@ export default function MarketDetail() {
               </div>
               <h1 className="max-w-3xl text-3xl font-black leading-tight tracking-tight text-white sm:text-5xl">{market.question}</h1>
               <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-bold text-white/78">
-                <span className="flex items-center gap-1.5"><Users className="h-4 w-4 text-[#12B886]" />{market.participants} participants</span>
+                <span className="flex items-center gap-1.5"><Users className="h-4 w-4 text-[#4F46E5]" />{market.participants} participants</span>
                 <span>{market.tradeCount || 0} predictions</span>
                 <span>{formatNaira(market.totalPool)} total predicted</span>
-                <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-[#12B886]" />Closes {formatCountdown(tradingCloseTime, market.closesIn)}</span>
+                <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-[#4F46E5]" />Closes {formatCountdown(tradingCloseTime, market.closesIn)}</span>
               </div>
             </div>
           </div>
@@ -270,7 +270,7 @@ export default function MarketDetail() {
             </div>
             <div className="flex rounded-full border border-[#E5E7EB] bg-[#F8F7F4] p-1">
               {(["1H", "24H", "7D", "ALL"] as Timeframe[]).map((item) => (
-                <button key={item} onClick={() => setTimeframe(item)} className={`rounded-full px-3 py-1 text-xs font-black ${timeframe === item ? "bg-[#12B886] text-[#06100d]" : "text-[#6B7280]"}`}>
+                <button key={item} onClick={() => setTimeframe(item)} className={`rounded-full px-3 py-1 text-xs font-black ${timeframe === item ? "bg-[#4F46E5] text-white" : "text-[#6B7280]"}`}>
                   {item}
                 </button>
               ))}
@@ -328,8 +328,8 @@ export default function MarketDetail() {
             <h2 className="mb-3 text-lg font-black">Related markets</h2>
             <div className="grid gap-3 sm:grid-cols-3">
               {relatedMarkets.map((item) => (
-                <Link key={item.id} to={`/market/${item.id}`} className="rounded-xl border border-[#E5E7EB] bg-white p-4 transition hover:border-[#12B886]/45 hover:bg-[#F8F7F4]">
-                  <div className="text-xs font-black text-[#12B886]">{getMarketCategoryLabel(item)}</div>
+                <Link key={item.id} to={`/market/${item.id}`} className="rounded-xl border border-[#E5E7EB] bg-white p-4 transition hover:border-[#4F46E5]/35 hover:bg-[#F8F7F4]">
+                  <div className="text-xs font-black text-[#4F46E5]">{getMarketCategoryLabel(item)}</div>
                   <div className="mt-1 line-clamp-2 text-sm font-black">{item.question}</div>
                   <div className="mt-3 text-xs font-black text-slate-500">YES {formatNairaPrice(item.yesPrice)} · NO {formatNairaPrice(item.noPrice)}</div>
                 </Link>
@@ -514,11 +514,11 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
       tooltip: {
         enabled: true,
         displayColors: true,
-        backgroundColor: "rgba(16, 23, 32, 0.96)",
+        backgroundColor: "rgba(255, 255, 255, 0.98)",
         borderColor: "#E5E7EB",
         borderWidth: 1,
-        titleColor: "#F5F7FA",
-        bodyColor: "#D5DEE8",
+        titleColor: "#101828",
+        bodyColor: "#344054",
         padding: 12,
         cornerRadius: 12,
         callbacks: {
@@ -600,7 +600,7 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
           </div>
           <span className="text-xs font-bold text-[#6B7280]">{market.tradeCount || 0} predictions</span>
         </div>
-        <div className="grid h-[230px] place-items-center rounded-xl border border-dashed border-[#E5E7EB] bg-[#080C10] p-6 text-center sm:h-[300px]">
+        <div className="grid h-[230px] place-items-center rounded-xl border border-dashed border-[#E5E7EB] bg-white p-6 text-center shadow-[0_12px_36px_rgba(16,24,40,0.06)] sm:h-[300px]">
           <div>
             <p className="text-sm font-black text-[#111827]">No movement yet.</p>
             <p className="mt-2 max-w-sm text-sm font-bold leading-relaxed text-[#6B7280]">
@@ -621,7 +621,7 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
         </div>
         <span className="text-xs font-bold text-[#6B7280]">{market.tradeCount || 0} predictions</span>
       </div>
-      <div className="relative overflow-hidden rounded-xl border border-[#E5E7EB] bg-[#080C10] px-1 pb-2 pt-3 sm:px-3">
+      <div className="relative overflow-hidden rounded-xl border border-[#E5E7EB] bg-white px-1 pb-2 pt-3 shadow-[0_12px_36px_rgba(16,24,40,0.06)] sm:px-3">
         <div className="h-[230px] w-full sm:h-[300px]">
           <Line data={chartData} options={chartOptions} />
         </div>
@@ -664,7 +664,7 @@ const formatAxisTime = (timestamp: number, timeframe: Timeframe) => {
 const Row = ({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) => (
   <div className="flex items-center justify-between border-b border-[#E5E7EB] py-2 last:border-0">
     <span className="text-sm font-bold text-[#6B7280]">{label}</span>
-    <span className={`text-sm font-black ${highlight ? "text-emerald-300" : "text-[#111827]"}`}>{value}</span>
+    <span className={`text-sm font-black ${highlight ? "text-[#4F46E5]" : "text-[#111827]"}`}>{value}</span>
   </div>
 );
 
@@ -676,7 +676,7 @@ const Metric = ({ label, value }: { label: string; value: string }) => (
 );
 
 const IconButton = ({ icon: Icon, onClick, active = false, label }: { icon: any; onClick: () => void; active?: boolean; label: string }) => (
-  <button onClick={onClick} aria-label={label} title={label} className={`grid h-10 w-10 place-items-center rounded-xl border transition ${active ? "border-[#12B886]/40 bg-[#12B886]/15 text-[#7AE4BD]" : "border-[#E5E7EB] bg-white text-[#111827] hover:bg-[#F8F7F4]"}`}>
+  <button onClick={onClick} aria-label={label} title={label} className={`grid h-10 w-10 place-items-center rounded-xl border transition ${active ? "border-[#4F46E5]/40 bg-[#EEF2FF] text-[#4F46E5]" : "border-[#E5E7EB] bg-white text-[#111827] hover:bg-[#F8F7F4]"}`}>
     <Icon className={`h-4 w-4 ${active ? "fill-current" : ""}`} />
   </button>
 );

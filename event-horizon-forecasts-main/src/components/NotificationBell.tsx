@@ -111,11 +111,11 @@ export const NotificationBell = () => {
 
           {loading ? (
             <div className="grid h-36 place-items-center">
-              <Loader2 className="h-5 w-5 animate-spin text-[#12B886]" />
+              <Loader2 className="h-5 w-5 animate-spin text-[#4F46E5]" />
             </div>
           ) : notifications.length === 0 ? (
             <div className="px-5 py-10 text-center">
-              <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#12B886]">
+              <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl border border-[#E5E7EB] bg-[#EEF2FF] text-[#4F46E5]">
                 <Bell className="h-5 w-5" />
               </div>
               <div className="font-black">No notifications yet.</div>
@@ -125,13 +125,13 @@ export const NotificationBell = () => {
             <div className="max-h-[380px] overflow-y-auto p-2">
               {notifications.map((notification) => {
                 const content = (
-                  <div className={`rounded-xl p-3 transition hover:bg-[#F8F7F4] ${notification.read ? "" : "bg-[#12B886]/10"}`}>
+                  <div className={`rounded-xl p-3 transition hover:bg-[#F8F7F4] ${notification.read ? "" : "bg-[#EEF2FF]"}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="line-clamp-1 text-sm font-black">{notification.title}</div>
                         <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#6B7280]">{notification.message}</p>
                       </div>
-                      {!notification.read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#12B886]" />}
+                      {!notification.read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#4F46E5]" />}
                     </div>
                     <div className="mt-2 text-[11px] font-bold text-[#6B7280]">{formatNotificationTime(notification.createdAt)}</div>
                   </div>

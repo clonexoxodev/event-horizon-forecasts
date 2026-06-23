@@ -101,7 +101,7 @@ export default function Contact() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full bg-[#12B886] text-white hover:bg-[#0EA371]"
+                    className="w-full bg-[#4F46E5] text-white hover:bg-[#4338CA]"
                   >
                     {isSubmitting ? "Opening email..." : "Open email app"}
                   </Button>
@@ -112,19 +112,19 @@ export default function Contact() {
             {/* Contact Info */}
             <div className="space-y-6">
               <div className="surface-raised rounded-2xl p-6">
-                <div className="w-10 h-10 rounded-xl bg-[#12B886]/10 grid place-items-center mb-4">
-                  <Mail className="w-5 h-5 text-[#12B886]" />
+                <div className="w-10 h-10 rounded-xl bg-[#4F46E5]/10 grid place-items-center mb-4">
+                  <Mail className="w-5 h-5 text-[#4F46E5]" />
                 </div>
                 <h3 className="font-bold text-[#F5F7FA] mb-2">Contact email</h3>
-                <a href="mailto:support@flippe.com" className="text-sm text-[#8B98A8] hover:text-[#12B886] transition-fast">
+                <a href="mailto:support@flippe.com" className="text-sm text-[#8B98A8] hover:text-[#4F46E5] transition-fast">
                   support@flippe.com
                 </a>
                 <p className="mt-2 text-xs text-[#8B98A8]">To be confirmed before public launch.</p>
               </div>
 
               <div className="surface-raised rounded-2xl p-6">
-                <div className="w-10 h-10 rounded-xl bg-[#12B886]/10 grid place-items-center mb-4">
-                  <MessageCircle className="w-5 h-5 text-[#12B886]" />
+                <div className="w-10 h-10 rounded-xl bg-[#4F46E5]/10 grid place-items-center mb-4">
+                  <MessageCircle className="w-5 h-5 text-[#4F46E5]" />
                 </div>
                 <h3 className="font-bold text-[#F5F7FA] mb-2">Support hours</h3>
                 <p className="text-sm text-[#8B98A8]">
@@ -137,13 +137,13 @@ export default function Contact() {
                 <div className="flex gap-2">
                   <a
                     href="#"
-                    className="w-9 h-9 rounded-xl border border-[#263241] grid place-items-center text-[#8B98A8] hover:text-[#F5F7FA] hover:border-[#12B886]/40 hover:bg-[#151E28] transition-fast"
+                    className="w-9 h-9 rounded-xl border border-[#263241] grid place-items-center text-[#8B98A8] hover:text-[#F5F7FA] hover:border-[#4F46E5]/40 hover:bg-[#151E28] transition-fast"
                   >
                     <Twitter className="w-4 h-4" />
                   </a>
                   <a
                     href="#"
-                    className="w-9 h-9 rounded-xl border border-[#263241] grid place-items-center text-[#8B98A8] hover:text-[#F5F7FA] hover:border-[#12B886]/40 hover:bg-[#151E28] transition-fast"
+                    className="w-9 h-9 rounded-xl border border-[#263241] grid place-items-center text-[#8B98A8] hover:text-[#F5F7FA] hover:border-[#4F46E5]/40 hover:bg-[#151E28] transition-fast"
                   >
                     <Send className="w-4 h-4" />
                   </a>

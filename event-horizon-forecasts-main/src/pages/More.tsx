@@ -27,7 +27,7 @@ export default function More() {
       <Header />
       <main className="mx-auto max-w-5xl px-4 py-5 sm:px-6 lg:py-8">
         <section className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#12B886]">More</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#4F46E5]">More</p>
           <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-black tracking-tight">Account and help</h1>
@@ -37,7 +37,7 @@ export default function More() {
             </div>
             <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] px-4 py-3 text-sm">
               {isLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin text-[#12B886]" />
+                <Loader2 className="h-5 w-5 animate-spin text-[#4F46E5]" />
               ) : user ? (
                 <>
                   <div className="font-black">{user.username}</div>
@@ -81,7 +81,7 @@ export default function More() {
         {user && (
           <button
             onClick={logout}
-            className="mt-5 flex h-14 w-full items-center justify-center rounded-2xl border border-red-400/25 bg-red-400/10 text-sm font-black text-red-200 transition hover:bg-red-400/20"
+            className="mt-5 flex h-14 w-full items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-sm font-black text-red-600 transition hover:bg-red-100"
           >
             <LogOut className="mr-2 h-4 w-4" />
             Logout
@@ -95,15 +95,15 @@ export default function More() {
 
 const Group = ({ title, description, children }: { title: string; description: string; children: React.ReactNode }) => (
   <section className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
-    <h2 className="text-sm font-black uppercase tracking-[0.16em] text-[#12B886]">{title}</h2>
+    <h2 className="text-sm font-black uppercase tracking-[0.16em] text-[#4F46E5]">{title}</h2>
     <p className="mt-1 min-h-10 text-sm text-[#6B7280]">{description}</p>
-    <div className="mt-4 overflow-hidden rounded-2xl border border-[#E5E7EB] bg-[#0D131A]">{children}</div>
+    <div className="mt-4 overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">{children}</div>
   </section>
 );
 
 const MoreLink = ({ to, icon: Icon, title, subtitle }: { to: string; icon: any; title: string; subtitle: string }) => (
   <Link to={to} className="group flex min-h-20 items-center gap-3 border-b border-[#E5E7EB] p-4 transition last:border-b-0 hover:bg-[#F8F7F4]">
-    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#12B886]">
+    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[#E5E7EB] bg-[#EEF2FF] text-[#4F46E5]">
       <Icon className="h-5 w-5" />
     </div>
     <div className="min-w-0 flex-1">

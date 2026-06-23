@@ -406,12 +406,16 @@
   .app-bg.text-white,
   .bg-\[\#101720\].text-white,
   .bg-\[\#151E28\].text-white,
+  .bg-\[\#080C10\].text-white,
   .bg-\[\#0B1118\].text-white,
   .bg-\[\#0D131A\].text-white {
     color: #101828 !important;
   }
 
   .bg-\[\#101720\],
+  .bg-\[\#101720\]\/44,
+  .bg-\[\#080C10\],
+  .bg-\[\#080C10\]\/95,
   .bg-\[\#0B1118\],
   .bg-\[\#0D131A\],
   .bg-\[\#080c10\] {
@@ -424,6 +428,7 @@
   }
 
   .border-\[\#263241\],
+  .border-white\/10,
   .divide-\[\#263241\] > :not([hidden]) ~ :not([hidden]) {
     border-color: #e5e7eb !important;
   }
@@ -436,6 +441,25 @@
   .text-\[\#D5DEE8\],
   .text-\[\#F5F7FA\] {
     color: #344054 !important;
+  }
+
+  .bg-\[\#101720\] .text-white,
+  .bg-\[\#151E28\] .text-white,
+  .bg-\[\#080C10\] .text-white,
+  .bg-\[\#0B1118\] .text-white,
+  .bg-\[\#0D131A\] .text-white {
+    color: #101828 !important;
+  }
+
+  .bg-\[\#4F46E5\].text-white,
+  .bg-red-600.text-white,
+  .bg-\[\#E85D5D\].text-white {
+    color: #ffffff !important;
+  }
+
+  .bg-white\/\[0\.04\],
+  .bg-white\/5 {
+    background-color: #ffffff !important;
   }
 
   .bg-gradient-soft,

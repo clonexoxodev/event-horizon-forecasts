@@ -52,7 +52,7 @@ export const DepositModal = ({ open, onClose, currency }: DepositModalProps) => 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-0 text-[#111827] shadow-[0_24px_80px_rgba(17,24,39,0.16)] sm:max-w-md">
-        <div className="h-1 w-full bg-[#12B886]" />
+        <div className="h-1 w-full bg-[#4F46E5]" />
         <div className="p-6">
           <button
             onClick={handleClose}
@@ -63,7 +63,7 @@ export const DepositModal = ({ open, onClose, currency }: DepositModalProps) => 
           </button>
 
           <div className="mb-6">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#12B886]">Wallet</p>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#4F46E5]">Wallet</p>
             <h3 className="mt-1 text-2xl font-black">Add Money</h3>
             <p className="mt-1 text-sm text-[#6B7280]">
               Enter an amount and continue to secure checkout. Your wallet is credited only after payment is verified.
@@ -94,7 +94,7 @@ export const DepositModal = ({ open, onClose, currency }: DepositModalProps) => 
                 disabled={loading}
                 className={`h-10 rounded-xl border text-xs font-black transition sm:text-sm ${
                   amount === value.toString()
-                    ? "border-[#12B886]/40 bg-[#12B886]/18 text-[#047857]"
+                    ? "border-[#4F46E5]/40 bg-[#4F46E5]/10 text-[#4F46E5]"
                     : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:text-[#111827]"
                 }`}
               >
@@ -110,7 +110,7 @@ export const DepositModal = ({ open, onClose, currency }: DepositModalProps) => 
           <Button
             onClick={handleContinue}
             disabled={loading || numAmount <= 0}
-            className="h-12 w-full rounded-xl bg-[#12B886] text-base font-black text-[#06100d] hover:bg-[#2dd4a0] disabled:opacity-50"
+            className="h-12 w-full rounded-xl bg-[#4F46E5] text-base font-black text-white hover:bg-[#4338CA] disabled:opacity-50"
           >
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowDownRight className="mr-2 h-4 w-4" />}
             Continue

@@ -127,7 +127,7 @@ export default function Wallet() {
           <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_18px_52px_rgba(17,24,39,0.08)] sm:p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#12B886]">
+                <div className="grid h-12 w-12 place-items-center rounded-xl border border-[#E5E7EB] bg-[#EEF2FF] text-[#4F46E5]">
                   <WalletIcon className="h-6 w-6" />
                 </div>
                 <div>
@@ -150,7 +150,7 @@ export default function Wallet() {
             <div className="mt-8 grid grid-cols-2 gap-3">
               <Button
                 onClick={() => setDepositModalOpen(true)}
-                className="h-12 rounded-xl bg-[#12B886] font-black text-[#06100d] hover:bg-[#2dd4a0]"
+                className="h-12 rounded-xl bg-[#4F46E5] font-black text-white hover:bg-[#4338CA]"
               >
                 <ArrowDownRight className="mr-2 h-4 w-4" />
                 Add Money
@@ -180,7 +180,7 @@ export default function Wallet() {
 
           {transactions.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[#E5E7EB] py-14 text-center">
-              <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#12B886]">
+              <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-xl border border-[#E5E7EB] bg-[#EEF2FF] text-[#4F46E5]">
                 <WalletIcon className="h-6 w-6" />
               </div>
               <div className="font-black">No history yet</div>

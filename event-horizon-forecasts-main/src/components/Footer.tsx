@@ -13,31 +13,31 @@ const links = [
 
 export const Footer = () => {
   return (
-    <footer className="mt-16 hidden border-t border-[#263241] bg-[#080c10] text-white md:block">
+    <footer className="mt-16 hidden border-t border-[#E5E7EB] bg-white text-[#101828] md:block">
       <div className="mx-auto flex max-w-[1280px] flex-col gap-8 px-6 py-10 lg:flex-row lg:items-center lg:justify-between">
         <div className="max-w-md">
           <Link to="/" className="flex items-center gap-2 text-xl font-black">
             <FlippeWordmark tagline="Many possibilities. One reality." />
           </Link>
-          <p className="mt-3 text-sm leading-6 text-[#8B98A8]">
+          <p className="mt-3 text-sm leading-6 text-[#667085]">
             Predict real-world outcomes with simple markets, clear wallet history, and safer controls.
           </p>
         </div>
 
         <nav className="flex flex-wrap gap-x-5 gap-y-3">
           {links.map((link) => (
-            <Link key={link.path} to={link.path} className="text-sm font-bold text-[#8B98A8] transition hover:text-white">
+            <Link key={link.path} to={link.path} className="text-sm font-bold text-[#667085] transition hover:text-[#4F46E5]">
               {link.name}
             </Link>
           ))}
         </nav>
       </div>
 
-      <div className="border-t border-[#263241]">
-        <div className="mx-auto flex max-w-[1280px] flex-col gap-3 px-6 py-5 text-xs text-[#8B98A8] lg:flex-row lg:items-center lg:justify-between">
+      <div className="border-t border-[#E5E7EB]">
+        <div className="mx-auto flex max-w-[1280px] flex-col gap-3 px-6 py-5 text-xs text-[#667085] lg:flex-row lg:items-center lg:justify-between">
           <span>© 2026 Flippe Technologies Ltd. All rights reserved.</span>
           <span className="flex items-center gap-2">
-            <ShieldCheck className="h-3.5 w-3.5 text-[#12B886]" />
+            <ShieldCheck className="h-3.5 w-3.5 text-[#4F46E5]" />
             Use only money you can afford to lose.
           </span>
         </div>

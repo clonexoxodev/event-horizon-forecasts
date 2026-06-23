@@ -72,8 +72,8 @@ export default function Signup() {
       benefits={["Predict real-world events", "Track your streak and score", "Compete with other forecasters"]}
     >
       <div className="w-full">
-        <div className="overflow-hidden rounded-2xl border border-[#263241] bg-[#101720]/96 shadow-[0_24px_90px_rgba(0,0,0,0.55)] backdrop-blur">
-          <div className="h-1 w-full bg-[#12B886]" />
+        <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_24px_90px_rgba(16,24,40,0.12)] backdrop-blur">
+          <div className="h-1 w-full bg-[#4F46E5]" />
 
           <div className="p-6 sm:p-8">
             <Link to="/" className="mb-7 inline-flex items-center gap-3">
@@ -81,18 +81,18 @@ export default function Signup() {
             </Link>
 
             <div className="mb-8">
-              <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Join Flippe</p>
-              <h1 className="text-3xl font-black tracking-tight text-white">Create account</h1>
-              <p className="mt-2 text-sm text-slate-400">Start predicting, tracking wins, and building your record.</p>
+              <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-[#667085]">Join Flippe</p>
+              <h1 className="text-3xl font-black tracking-tight text-[#101828]">Create account</h1>
+              <p className="mt-2 text-sm text-[#667085]">Start predicting, tracking wins, and building your record.</p>
             </div>
 
             {success ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-emerald-400/10 text-emerald-300">
+                <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-[#EEF2FF] text-[#4F46E5]">
                   <CheckCircle className="h-8 w-8" />
                 </div>
-                <h3 className="mb-2 text-lg font-black text-white">Account created</h3>
-                <p className="text-sm text-slate-400">Taking you to the app...</p>
+                <h3 className="mb-2 text-lg font-black text-[#101828]">Account created</h3>
+                <p className="text-sm text-[#667085]">Taking you to the app...</p>
               </div>
             ) : (
               <>
@@ -103,7 +103,7 @@ export default function Signup() {
                       placeholder="Username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="h-13 rounded-xl border-[#263241] bg-[#151E28] pl-11 text-base font-semibold text-white placeholder:text-[#8B98A8] focus:border-[#12B886]"
+                      className="h-13 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-base font-semibold text-[#101828] placeholder:text-[#9CA3AF] focus:border-[#4F46E5]"
                       disabled={loading}
                     />
                   </div>
@@ -115,7 +115,7 @@ export default function Signup() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="h-13 rounded-xl border-[#263241] bg-[#151E28] pl-11 text-base font-semibold text-white placeholder:text-[#8B98A8] focus:border-[#12B886]"
+                      className="h-13 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-base font-semibold text-[#101828] placeholder:text-[#9CA3AF] focus:border-[#4F46E5]"
                       disabled={loading}
                     />
                   </div>
@@ -127,13 +127,13 @@ export default function Signup() {
                       type={showPass ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="h-13 rounded-xl border-[#263241] bg-[#151E28] pl-11 pr-11 text-base font-semibold text-white placeholder:text-[#8B98A8] focus:border-[#12B886]"
+                      className="h-13 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 pr-11 text-base font-semibold text-[#101828] placeholder:text-[#9CA3AF] focus:border-[#4F46E5]"
                       disabled={loading}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPass((value) => !value)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-white"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-[#101828]"
                     >
                       {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -146,20 +146,20 @@ export default function Signup() {
                       type={showConfirmPass ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="h-13 rounded-xl border-[#263241] bg-[#151E28] pl-11 pr-11 text-base font-semibold text-white placeholder:text-[#8B98A8] focus:border-[#12B886]"
+                      className="h-13 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 pr-11 text-base font-semibold text-[#101828] placeholder:text-[#9CA3AF] focus:border-[#4F46E5]"
                       disabled={loading}
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPass((value) => !value)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-white"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-[#101828]"
                     >
                       {showConfirmPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
 
                   {error && (
-                    <div className="flex items-center gap-2 rounded-2xl border border-red-300/20 bg-red-400/10 px-4 py-3 text-sm font-bold text-red-200">
+                    <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
                       <AlertCircle className="h-4 w-4 shrink-0" />
                       {error}
                     </div>
@@ -168,16 +168,16 @@ export default function Signup() {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="h-13 w-full rounded-xl bg-[#12B886] text-base font-black text-[#06100d] hover:bg-[#2dd4a0] disabled:opacity-50"
+                    className="h-13 w-full rounded-xl bg-[#4F46E5] text-base font-black text-white hover:bg-[#4338CA] disabled:opacity-50"
                   >
                     {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Create account"}
                   </Button>
                 </form>
 
                 <div className="relative flex items-center gap-3 py-6">
-                  <div className="h-px flex-1 bg-white/10" />
+                  <div className="h-px flex-1 bg-[#E5E7EB]" />
                   <span className="text-xs font-bold text-slate-500">or</span>
-                  <div className="h-px flex-1 bg-white/10" />
+                  <div className="h-px flex-1 bg-[#E5E7EB]" />
                 </div>
 
                 <Button
@@ -187,16 +187,16 @@ export default function Signup() {
                     });
                   }}
                   variant="outline"
-                  className="h-12 w-full rounded-2xl border-white/10 bg-white/[0.055] font-bold text-white hover:bg-white/10"
+                  className="h-12 w-full rounded-2xl border-[#E5E7EB] bg-white font-bold text-[#101828] hover:bg-[#F3F4F6]"
                   disabled={loading}
                 >
                   <GoogleIcon />
                   Continue with Google
                 </Button>
 
-                <p className="mt-6 text-center text-sm text-slate-400">
+                <p className="mt-6 text-center text-sm text-[#667085]">
                   Already have an account?{" "}
-                  <Link to="/login" className="font-black text-[#12B886] hover:text-[#7AE4BD]">
+                  <Link to="/login" className="font-black text-[#4F46E5] hover:text-[#6366F1]">
                     Log in
                   </Link>
                 </p>

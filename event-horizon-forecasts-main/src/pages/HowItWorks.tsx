@@ -18,7 +18,7 @@ export default function HowItWorks() {
       <Header />
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
         <section className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
-          <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#12B886]">How It Works</p>
+          <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#4F46E5]">How It Works</p>
           <h1 className="mt-2 max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">Forecast live events in a few clear steps</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-[#8B98A8]">
             FLIPPE keeps the flow simple: choose a market, pick YES or NO, back your opinion with money, then track the result until resolution.
@@ -29,7 +29,7 @@ export default function HowItWorks() {
           {steps.map(([title, body, Icon], index) => (
             <article key={title as string} className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
               <div className="flex items-center justify-between">
-                <div className="grid h-11 w-11 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#12B886]">
+                <div className="grid h-11 w-11 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#4F46E5]">
                   <Icon className="h-5 w-5" />
                 </div>
                 <span className="text-sm font-black text-[#8B98A8]">{String(index + 1).padStart(2, "0")}</span>
@@ -66,7 +66,7 @@ export default function HowItWorks() {
         <section className="mt-6 rounded-2xl border border-[#263241] bg-[#101720] p-5 text-center">
           <h2 className="text-xl font-black">Ready to browse markets?</h2>
           <p className="mt-2 text-sm text-[#8B98A8]">Read each market rule before locking a prediction.</p>
-          <Link to="/" className="mt-4 inline-flex rounded-2xl bg-[#12B886] px-5 py-3 text-sm font-black text-white hover:bg-[#0EA371]">Open markets</Link>
+          <Link to="/" className="mt-4 inline-flex rounded-2xl bg-[#4F46E5] px-5 py-3 text-sm font-black text-white hover:bg-[#4338CA]">Open markets</Link>
         </section>
       </main>
       <MobileNav />

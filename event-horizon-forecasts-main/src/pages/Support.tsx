@@ -6,7 +6,7 @@ import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 
 const issueTypes = ["Wrong resolution", "Unclear rules", "Source disagreement", "Wallet/payout issue", "Other"];
-const fieldClass = "w-full rounded-2xl border border-[#263241] bg-[#151E28] px-4 py-3 text-sm text-white outline-none transition placeholder:text-[#8B98A8] focus:border-[#12B886]/60";
+const fieldClass = "w-full rounded-2xl border border-[#263241] bg-[#151E28] px-4 py-3 text-sm text-white outline-none transition placeholder:text-[#8B98A8] focus:border-[#4F46E5]/60";
 
 export default function Support() {
   const [showChat, setShowChat] = useState(false);
@@ -26,7 +26,7 @@ export default function Support() {
     <div className="app-bg min-h-screen pb-24 text-white md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
-        <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#12B886]">Support</p>
+        <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#4F46E5]">Support</p>
         <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Get help</h1>
         <p className="mt-2 max-w-2xl text-sm text-[#8B98A8]">
           Clear routes for market, wallet, dispute, and account questions. Nothing here pretends to submit to a backend that does not exist yet.
@@ -44,7 +44,7 @@ export default function Support() {
         {showChat && (
           <section className="mt-5 rounded-2xl border border-[#263241] bg-[#101720] p-5">
             <div className="flex items-start gap-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#12B886]">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#4F46E5]">
                 <MessageCircle className="h-5 w-5" />
               </div>
               <div className="min-w-0">
@@ -52,7 +52,7 @@ export default function Support() {
                 <p className="mt-2 text-sm leading-6 text-[#8B98A8]">
                   Live support is not available yet. For now, use Contact for account questions or Market disputes for resolution concerns.
                 </p>
-                <button onClick={() => setShowChat(false)} className="mt-4 rounded-xl border border-[#263241] bg-[#151E28] px-4 py-2 text-sm font-black hover:border-[#12B886]/40">
+                <button onClick={() => setShowChat(false)} className="mt-4 rounded-xl border border-[#263241] bg-[#151E28] px-4 py-2 text-sm font-black hover:border-[#4F46E5]/40">
                   Close
                 </button>
               </div>
@@ -62,7 +62,7 @@ export default function Support() {
 
         <section id="market-disputes" className="mt-6 grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
           <div className="rounded-2xl border border-[#263241] bg-[#101720] p-5">
-            <ShieldCheck className="h-8 w-8 text-[#12B886]" />
+            <ShieldCheck className="h-8 w-8 text-[#4F46E5]" />
             <h2 className="mt-4 text-2xl font-black">Market disputes</h2>
             <p className="mt-2 text-sm leading-6 text-[#8B98A8]">
               Use this when a market resolution looks wrong, unclear, or unsupported by the stated source. A real backend dispute queue should be connected before public launch.
@@ -89,7 +89,7 @@ export default function Support() {
               <Field label="Evidence/source link">
                 <input value={dispute.evidence} onChange={(event) => setDispute((prev) => ({ ...prev, evidence: event.target.value }))} placeholder="Official source, article, result page, transaction reference..." className={fieldClass} />
               </Field>
-              <button className="h-12 rounded-2xl bg-[#12B886] text-sm font-black text-white transition hover:bg-[#0EA371]">
+              <button className="h-12 rounded-2xl bg-[#4F46E5] text-sm font-black text-white transition hover:bg-[#4338CA]">
                 Save dispute draft
               </button>
             </div>
@@ -114,9 +114,9 @@ const ActionLink = ({ to, icon, title, body }: { to: string; icon: any; title: s
 );
 
 const ActionShell = ({ icon: Icon, title, body, external = false }: { icon: any; title: string; body: string; external?: boolean }) => (
-  <div className="h-full rounded-2xl border border-[#263241] bg-[#101720] p-4 transition hover:border-[#12B886]/40 hover:bg-[#151E28]">
+  <div className="h-full rounded-2xl border border-[#263241] bg-[#101720] p-4 transition hover:border-[#4F46E5]/40 hover:bg-[#151E28]">
     <div className="flex items-start justify-between gap-3">
-      <div className="grid h-11 w-11 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#12B886]">
+      <div className="grid h-11 w-11 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#4F46E5]">
         <Icon className="h-5 w-5" />
       </div>
       {external && <ExternalLink className="h-4 w-4 text-[#8B98A8]" />}

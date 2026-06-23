@@ -111,12 +111,12 @@ const Dashboard = () => {
         <Header />
         <main className="mx-auto grid min-h-[70vh] max-w-3xl place-items-center px-4 text-center">
           <div>
-            <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl border border-[#E5E7EB] bg-white text-[#12B886]">
+            <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl border border-[#E5E7EB] bg-white text-[#4F46E5]">
               <LineChart className="h-8 w-8" />
             </div>
             <h1 className="text-3xl font-black tracking-tight">Track your predictions</h1>
             <p className="mt-3 text-sm text-[#6B7280]">Log in to see open predictions, resolved results, and wallet-linked history.</p>
-            <Link to="/login" className="mt-6 inline-flex h-12 items-center rounded-xl bg-[#12B886] px-6 text-sm font-black text-[#06100d]">
+            <Link to="/login" className="mt-6 inline-flex h-12 items-center rounded-xl bg-[#4F46E5] px-6 text-sm font-black text-white hover:bg-[#4338CA]">
               Log in
             </Link>
           </div>
@@ -154,7 +154,7 @@ const Dashboard = () => {
               key={item}
               onClick={() => setTab(item)}
               className={`h-11 rounded-lg text-sm font-black capitalize transition ${
-                tab === item ? "bg-[#12B886] text-[#06100d]" : "text-[#6B7280] hover:bg-[#F8F7F4] hover:text-[#111827]"
+                tab === item ? "bg-[#4F46E5] text-white" : "text-[#6B7280] hover:bg-[#F8F7F4] hover:text-[#111827]"
               }`}
             >
               {tabLabels[item]}
@@ -164,7 +164,7 @@ const Dashboard = () => {
 
         {loading ? (
           <div className="grid min-h-[360px] place-items-center">
-            <Loader2 className="h-8 w-8 animate-spin text-[#12B886]" />
+            <Loader2 className="h-8 w-8 animate-spin text-[#4F46E5]" />
           </div>
         ) : (
           <div className="mt-5">
@@ -302,7 +302,7 @@ const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[];
         icon={Target}
         title="No open predictions"
         body="Pick a market, choose YES or NO, and your open predictions will appear here."
-        action={<Link to="/" className="rounded-xl bg-[#12B886] px-5 py-3 text-sm font-black text-[#06100d]">Explore markets</Link>}
+        action={<Link to="/" className="rounded-xl bg-[#4F46E5] px-5 py-3 text-sm font-black text-white hover:bg-[#4338CA]">Explore markets</Link>}
       />
     );
   }
@@ -316,7 +316,7 @@ const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[];
             key={position.id}
             onClick={() => onSelect(position)}
             data-now={now}
-            className="group rounded-2xl border border-[#E5E7EB] bg-white p-4 text-left shadow-[0_16px_48px_rgba(17,24,39,0.08)] transition duration-200 hover:-translate-y-0.5 hover:border-[#12B886]/45 hover:bg-[#F8F7F4] active:scale-[0.99]"
+            className="group rounded-2xl border border-[#E5E7EB] bg-white p-4 text-left shadow-[0_16px_48px_rgba(17,24,39,0.08)] transition duration-200 hover:-translate-y-0.5 hover:border-[#4F46E5]/35 hover:bg-[#F8F7F4] active:scale-[0.99]"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -349,7 +349,7 @@ const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[];
                 </div>
               </div>
             </div>
-            <p className="mt-4 inline-flex items-center gap-1 text-xs font-black text-[#6B7280] transition group-hover:text-[#12B886]">
+            <p className="mt-4 inline-flex items-center gap-1 text-xs font-black text-[#6B7280] transition group-hover:text-[#4F46E5]">
               Tap to view details <ArrowRight className="h-3.5 w-3.5" />
             </p>
           </button>
@@ -481,7 +481,7 @@ const PredictionDetailModal = ({
 
           <button
             onClick={onViewMarket}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#12B886] text-sm font-black text-[#06100d] transition hover:bg-[#2dd4a0]"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#4F46E5] text-sm font-black text-white transition hover:bg-[#4338CA]"
           >
             View Market <ArrowRight className="h-4 w-4" />
           </button>
@@ -569,9 +569,9 @@ const ActivityView = ({ positions, settledCount }: { positions: ApiPosition[]; s
       </div>
       <div className="space-y-2">
         {sorted.map((position) => (
-          <Link key={position.id} to={`/market/${position.marketId}`} className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4 transition hover:border-[#12B886]/45">
+          <Link key={position.id} to={`/market/${position.marketId}`} className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4 transition hover:border-[#4F46E5]/35">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-xl bg-white text-[#12B886]">
+              <div className="grid h-11 w-11 place-items-center rounded-xl bg-white text-[#4F46E5]">
                 {position.marketStatus === "active" ? <Clock className="h-5 w-5" /> : <Trophy className="h-5 w-5" />}
               </div>
               <div className="min-w-0">
@@ -628,12 +628,12 @@ const PerformanceView = ({ positions, stats }: { positions: ApiPosition[]; stats
                   Build your forecasting record through resolved predictions. Streaks and accuracy use real results only.
                 </p>
               </div>
-              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#12B886]/10 text-[#7AE4BD]">
+              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#EEF2FF] text-[#4F46E5]">
                 <Award className="h-7 w-7" />
               </div>
             </div>
             <div className="mt-6 h-4 overflow-hidden rounded-full bg-[#E5E7EB]">
-              <div className="h-full rounded-full bg-[#12B886] transition-all duration-700" style={{ width: `${progress}%` }} />
+              <div className="h-full rounded-full bg-[#4F46E5] transition-all duration-700" style={{ width: `${progress}%` }} />
             </div>
             <div className="mt-2 flex items-center justify-between text-xs font-bold text-[#6B7280]">
               <span>{progress}% progress</span>
@@ -663,7 +663,7 @@ const PerformanceView = ({ positions, stats }: { positions: ApiPosition[]; stats
       </section>
       <section className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
         <div className="mb-4 flex items-center gap-2">
-          <Medal className="h-5 w-5 text-[#12B886]" />
+          <Medal className="h-5 w-5 text-[#4F46E5]" />
           <h2 className="text-xl font-black">Achievements</h2>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
@@ -765,12 +765,12 @@ const getAchievements = ({
 ];
 
 const AchievementCard = ({ icon: Icon, title, description, unlocked }: Achievement) => (
-  <div className={`rounded-xl border p-3 transition ${unlocked ? "border-[#12B886]/30 bg-[#12B886]/10" : "border-[#E5E7EB] bg-[#F8F7F4]"}`}>
-    <div className={`mb-2 grid h-8 w-8 place-items-center rounded-lg ${unlocked ? "bg-[#12B886] text-[#06100d]" : "bg-white text-[#6B7280]"}`}>
+  <div className={`rounded-xl border p-3 transition ${unlocked ? "border-[#4F46E5]/30 bg-[#EEF2FF]" : "border-[#E5E7EB] bg-[#F8F7F4]"}`}>
+    <div className={`mb-2 grid h-8 w-8 place-items-center rounded-lg ${unlocked ? "bg-[#4F46E5] text-white" : "bg-white text-[#6B7280]"}`}>
       <Icon className="h-4 w-4" />
     </div>
     <div className="text-xs font-black leading-tight">{title}</div>
-    <div className={`mt-1 text-[11px] font-black ${unlocked ? "text-[#7AE4BD]" : "text-[#6B7280]"}`}>
+    <div className={`mt-1 text-[11px] font-black ${unlocked ? "text-[#4F46E5]" : "text-[#6B7280]"}`}>
       {unlocked ? "Unlocked" : "Locked"}
     </div>
     <p className="mt-1 hidden text-[11px] font-bold leading-relaxed text-[#6B7280] sm:block">{description}</p>
@@ -790,7 +790,7 @@ const Metric = ({ label, value, large = false, tone = "neutral", movement }: { l
 const EmptyState = ({ icon: Icon, title, body, action }: { icon: any; title: string; body: string; action?: React.ReactNode }) => (
   <div className="grid min-h-[360px] place-items-center rounded-2xl border border-dashed border-[#E5E7EB] bg-white/70 p-6 text-center">
     <div>
-      <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#12B886]">
+      <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl border border-[#E5E7EB] bg-[#EEF2FF] text-[#4F46E5]">
         <Icon className="h-8 w-8" />
       </div>
       <div className="text-xl font-black">{title}</div>

@@ -221,7 +221,7 @@ const statusText = (status?: string | null) => {
 const statusClasses = (status?: string | null) => {
   switch (status) {
     case "active":
-      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+      return "border-emerald-500/30 bg-emerald-500/10 text-[#4F46E5]";
     case "pending_resolution":
     case "closed":
       return "border-amber-500/30 bg-amber-500/10 text-amber-300";
@@ -960,9 +960,9 @@ const Admin = () => {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-[#080C10] text-[#F5F7FA]">
+      <div className="min-h-screen bg-[#F7F8FA] text-[#101828]">
         <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center">
-          <div className="rounded-2xl border border-[#263241] bg-[#101720] px-8 py-7">
+          <div className="rounded-2xl border border-[#E5E7EB] bg-white px-8 py-7 shadow-[0_18px_52px_rgba(16,24,40,0.08)]">
             <DelayedFlippeLoader active label="Loading operations console" />
           </div>
         </div>
@@ -973,8 +973,8 @@ const Admin = () => {
   if (!isAdmin) return null;
 
   return (
-    <div className="min-h-screen bg-[#080C10] text-[#F5F7FA]">
-      <aside className="fixed left-0 top-0 z-30 hidden h-screen w-72 border-r border-[#263241] bg-[#0B1118] px-5 py-6 xl:block">
+    <div className="min-h-screen bg-[#F7F8FA] text-[#101828]">
+      <aside className="fixed left-0 top-0 z-30 hidden h-screen w-72 border-r border-[#E5E7EB] bg-white px-5 py-6 xl:block">
         <div className="flex h-full min-h-0 flex-col">
           <div className="mb-8 flex shrink-0 items-center gap-3">
             <FlippeSymbol size="lg" />
@@ -999,8 +999,8 @@ const Admin = () => {
                     className={classNames(
                       "group flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition",
                       active
-                        ? "bg-[#151E28] text-white shadow-[inset_3px_0_0_#12B886]"
-                        : "text-[#8B98A8] hover:bg-[#101720] hover:text-white"
+                        ? "bg-[#EEF2FF] text-[#4F46E5] shadow-[inset_3px_0_0_#4F46E5]"
+                        : "text-[#667085] hover:bg-[#F3F4F6] hover:text-[#101828]"
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -1008,7 +1008,7 @@ const Admin = () => {
                       <span className="block text-sm font-semibold">{item.label}</span>
                       <span className="block text-xs text-[#64748B]">{item.hint}</span>
                     </span>
-                    {active && <ChevronRight className="h-4 w-4 text-[#12B886]" />}
+                    {active && <ChevronRight className="h-4 w-4 text-[#4F46E5]" />}
                   </button>
                 );
               })}
@@ -1017,10 +1017,10 @@ const Admin = () => {
       </aside>
 
       <div className="xl:pl-72">
-        <header className="sticky top-0 z-20 border-b border-[#263241] bg-[#080C10]/95 px-4 py-4 backdrop-blur sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-20 border-b border-[#E5E7EB] bg-[#F7F8FA]/95 px-4 py-4 backdrop-blur sm:px-6 lg:px-8">
           <div className="mx-auto flex max-w-[1500px] flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#12B886]">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#4F46E5]">
                 Operations
               </p>
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -1033,14 +1033,14 @@ const Admin = () => {
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
-                className="border-[#263241] bg-[#101720] text-[#F5F7FA] hover:bg-[#151E28]"
+                className="border-[#E5E7EB] bg-white text-[#344054] hover:bg-[#F3F4F6]"
                 onClick={() => void loadData()}
               >
                 <RefreshCcw className="mr-2 h-4 w-4" />
                 Refresh
               </Button>
               <Button
-                className="bg-[#12B886] text-[#08100D] hover:bg-[#00A878]"
+                className="bg-[#4F46E5] text-[#FFFFFF] hover:bg-[#4338CA]"
                 onClick={() => {
                   resetForm();
                   setView("create");
@@ -1062,7 +1062,7 @@ const Admin = () => {
                   className={classNames(
                     "whitespace-nowrap rounded-full border px-4 py-2 text-sm",
                     view === item.id
-                      ? "border-[#12B886] bg-[#12B886] text-[#08100D]"
+                      ? "border-[#4F46E5] bg-[#4F46E5] text-[#FFFFFF]"
                       : "border-[#263241] bg-[#101720] text-[#8B98A8]"
                   )}
                 >
@@ -1228,7 +1228,7 @@ const SectionHeader = ({
   <div className="flex flex-col gap-3 border-b border-[#263241] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
     <div>
       {eyebrow && (
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#12B886]">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#4F46E5]">
           {eyebrow}
         </p>
       )}
@@ -1254,7 +1254,7 @@ const MetricCard = ({
 }) => {
   const tones = {
     neutral: "bg-[#151E28] text-[#8B98A8]",
-    green: "bg-emerald-500/10 text-emerald-300",
+    green: "bg-emerald-500/10 text-[#4F46E5]",
     amber: "bg-amber-500/10 text-amber-300",
     red: "bg-red-500/10 text-red-300",
     blue: "bg-sky-500/10 text-sky-300",
@@ -1280,7 +1280,7 @@ const Badge = ({ children, tone = "neutral" }: { children: React.ReactNode; tone
   <span
     className={classNames(
       "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold",
-      tone === "green" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+      tone === "green" && "border-emerald-500/30 bg-emerald-500/10 text-[#4F46E5]",
       tone === "amber" && "border-amber-500/30 bg-amber-500/10 text-amber-300",
       tone === "red" && "border-red-500/30 bg-red-500/10 text-red-300",
       tone === "blue" && "border-sky-500/30 bg-sky-500/10 text-sky-300",
@@ -1470,7 +1470,7 @@ const QueueList = ({
           <Link
             key={market.id}
             to={`/market/${market.id}`}
-            className="block rounded-lg border border-[#263241] bg-[#0B1118] p-3 transition hover:border-[#12B886]/50"
+            className="block rounded-lg border border-[#263241] bg-[#0B1118] p-3 transition hover:border-[#4F46E5]/50"
           >
             <p className="line-clamp-2 text-sm font-medium">{market.question}</p>
             <div className="mt-2 flex items-center justify-between text-xs text-[#8B98A8]">
@@ -1578,7 +1578,7 @@ const MarketsView = ({
             className={classNames(
               "whitespace-nowrap rounded-full border px-3 py-2 text-sm transition",
               statusFilter === tab.id
-                ? "border-[#12B886] bg-[#12B886] text-[#08100D]"
+                ? "border-[#4F46E5] bg-[#4F46E5] text-[#FFFFFF]"
                 : "border-[#263241] bg-[#0B1118] text-[#8B98A8] hover:text-white"
             )}
           >
@@ -1624,7 +1624,7 @@ const MarketsView = ({
                   </span>
                 </td>
                 <td className="py-4">
-                  <div className="text-emerald-300">
+                  <div className="text-[#4F46E5]">
                     {market.yes_label || "YES"} {Number(market.yes_price ?? 50)}%
                   </div>
                   <div className="text-red-300">
@@ -1745,7 +1745,7 @@ const ActionButton = ({
   const classes = classNames(
     "inline-flex h-9 w-9 items-center justify-center rounded-lg border transition",
     tone === "green" &&
-      "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20",
+      "border-emerald-500/30 bg-emerald-500/10 text-[#4F46E5] hover:bg-[#4338CA]/20",
     tone === "red" &&
       "border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20",
     tone === "neutral" &&
@@ -1861,7 +1861,7 @@ const CreateMarketView = ({
                 onClick={openDateTimePicker}
                 onFocus={openDateTimePicker}
                 onChange={(event) => onChange("close_date", event.target.value)}
-                className="h-11 w-full rounded-md border border-[#263241] bg-[#0B1118] px-3 text-sm text-white outline-none transition focus:border-[#12B886] focus:ring-2 focus:ring-[#12B886]/20"
+                className="h-11 w-full rounded-md border border-[#263241] bg-[#0B1118] px-3 text-sm text-white outline-none transition focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20"
               />
             </Field>
             <Field label="Trading close time">
@@ -1873,7 +1873,7 @@ const CreateMarketView = ({
                 onClick={openDateTimePicker}
                 onFocus={openDateTimePicker}
                 onChange={(event) => onChange("trading_close_at", event.target.value)}
-                className="h-11 w-full rounded-md border border-[#263241] bg-[#0B1118] px-3 text-sm text-white outline-none transition focus:border-[#12B886] focus:ring-2 focus:ring-[#12B886]/20"
+                className="h-11 w-full rounded-md border border-[#263241] bg-[#0B1118] px-3 text-sm text-white outline-none transition focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20"
               />
               <p className="mt-1 text-xs text-[#8B98A8]">Leave blank to close predictions at market end.</p>
             </Field>
@@ -1906,7 +1906,7 @@ const CreateMarketView = ({
             className={classNames(
               "rounded-lg border px-4 py-3 text-sm",
               priceSum === 100
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                ? "border-emerald-500/30 bg-emerald-500/10 text-[#4F46E5]"
                 : "border-red-500/30 bg-red-500/10 text-red-300"
             )}
           >
@@ -1957,7 +1957,7 @@ const CreateMarketView = ({
             </div>
 
             <Field label="Media upload" required>
-              <label className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-[#263241] bg-[#0B1118] px-4 py-6 text-sm text-[#8B98A8] transition hover:border-[#12B886]/60 hover:text-white">
+              <label className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-[#263241] bg-[#0B1118] px-4 py-6 text-sm text-[#8B98A8] transition hover:border-[#4F46E5]/60 hover:text-white">
                 <Upload className="mr-2 h-4 w-4" />
                 Upload image or video
                 <input
@@ -2033,7 +2033,7 @@ const CreateMarketView = ({
                   {form.question || "Market question appears here"}
                 </p>
                 <div className="mt-4 grid grid-cols-2 gap-3">
-                  <div className="rounded-lg bg-emerald-500/10 px-3 py-2 text-center text-sm font-semibold text-emerald-300">
+                  <div className="rounded-lg bg-emerald-500/10 px-3 py-2 text-center text-sm font-semibold text-[#4F46E5]">
                     {form.yes_label} {form.yes_price}
                   </div>
                   <div className="rounded-lg bg-red-500/10 px-3 py-2 text-center text-sm font-semibold text-red-300">
@@ -2057,7 +2057,7 @@ const CreateMarketView = ({
           </div>
           <div className="border-t border-[#263241] p-5">
             <Button
-              className="w-full bg-[#12B886] text-[#08100D] hover:bg-[#00A878]"
+              className="w-full bg-[#4F46E5] text-[#FFFFFF] hover:bg-[#4338CA]"
               onClick={onSave}
               disabled={saving || !ready}
             >
@@ -2101,7 +2101,7 @@ const Field = ({
 const ChecklistItem = ({ ok, children }: { ok: boolean; children: React.ReactNode }) => (
   <div className="flex items-center gap-2">
     {ok ? (
-      <CheckCircle className="h-4 w-4 text-emerald-300" />
+      <CheckCircle className="h-4 w-4 text-[#4F46E5]" />
     ) : (
       <XCircle className="h-4 w-4 text-[#64748B]" />
     )}
@@ -2162,7 +2162,7 @@ const ResolutionCenterView = ({
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <Button
-                  className="bg-emerald-600 text-white hover:bg-emerald-500"
+                  className="bg-[#4F46E5] text-white hover:bg-[#4338CA]"
                   disabled={saving}
                   onClick={() => onResolve(market, "resolved", "YES")}
                 >
@@ -2296,7 +2296,7 @@ const FinanceQueue = ({
             <div className="mt-4 flex gap-2">
               <Button
                 size="sm"
-                className="bg-[#12B886] text-[#08100D] hover:bg-[#00A878]"
+                className="bg-[#4F46E5] text-[#FFFFFF] hover:bg-[#4338CA]"
                 disabled={item.status !== "pending" || Boolean(busyId)}
                 onClick={() => onAction(kind, item.id, "approve")}
               >
@@ -2611,7 +2611,7 @@ const AddAdminView = ({
             className="border-[#263241] bg-[#0B1118] text-white"
           />
           <Button
-            className="w-full bg-[#12B886] text-[#08100D] hover:bg-[#00A878]"
+            className="w-full bg-[#4F46E5] text-[#FFFFFF] hover:bg-[#4338CA]"
             onClick={onAdd}
             disabled={saving || loading}
           >
@@ -2908,7 +2908,7 @@ const ResolutionConfirmModal = ({
               Cancel
             </Button>
             <Button
-              className="bg-[#12B886] text-[#08100D] hover:bg-[#00A878]"
+              className="bg-[#4F46E5] text-[#FFFFFF] hover:bg-[#4338CA]"
               onClick={onConfirm}
               disabled={!confirmed || !source.trim() || saving}
             >
