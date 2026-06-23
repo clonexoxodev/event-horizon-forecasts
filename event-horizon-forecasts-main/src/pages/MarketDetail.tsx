@@ -13,7 +13,7 @@ import {
   type ChartOptions,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
-import { ArrowLeft, CheckCircle, Clock, Loader2, Share2, Users, X } from "lucide-react";
+import { ArrowLeft, CheckCircle, Clock, Loader2, Share2, TrendingUp, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
 import { FlippeLoader } from "@/components/FlippeBrand";
@@ -209,6 +209,7 @@ export default function MarketDetail() {
   const selectedPrice = sheetSide === "YES" ? market.yesPrice : market.noPrice;
   const numericAmount = Number.parseFloat(amount) || 0;
   const oppositeStake = sheetSide === "YES" ? market.noVolume || market.noPool || 0 : market.yesVolume || market.yesPool || 0;
+  const slipDataMissing = Boolean(sheetSide && !Number.isFinite(Number(selectedPrice)));
   const tradingCloseTime = market.tradingCloseTime || market.closeTime;
   const hasTradingClosed = tradingCloseTime ? new Date(tradingCloseTime).getTime() <= now : false;
   const marketIsActive = market.status === "active" && !hasTradingClosed;
@@ -363,29 +364,37 @@ export default function MarketDetail() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Amount</label>
-            <Input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} disabled={submitting} placeholder="0" className="h-13 rounded-xl border-[#263241] bg-[#151E28] text-lg font-black text-white placeholder:text-[#8B98A8]" />
-            <div className="mt-3 grid grid-cols-4 gap-2">
-              {[100, 500, 1000, 5000].map((value) => (
-                <button key={value} onClick={() => setAmount(value.toString())} disabled={submitting} className="h-10 rounded-xl border border-[#263241] bg-[#151E28] text-xs font-black text-[#8B98A8] disabled:cursor-not-allowed disabled:opacity-50">
-                  {formatNaira(value)}
-                </button>
-              ))}
-            </div>
-            <div className="mt-5 rounded-xl border border-[#263241] bg-[#151E28] p-4">
-              <Row label="Wallet balance" value={user ? formatNaira(user.balance || 0) : "Login required"} />
-              <Row label="Crowd View" value={formatNairaPrice(selectedPrice)} />
-              <Row label="Total Pool" value={formatNaira(market.totalPool || market.totalVolume || 0)} />
-              <Row label="Opposing Pool" value={formatNaira(oppositeStake)} highlight />
-              <Row label="Market participants" value={`${market.participants || 0}`} />
-              <p className="mt-3 text-xs font-bold leading-relaxed text-[#8B98A8]">
-                Final payout depends on the result and the final pool when the market closes.
-              </p>
-            </div>
-            <Button onClick={confirmPrediction} disabled={submitting || numericAmount <= 0} className={`mt-5 h-12 w-full rounded-xl text-base font-black ${sheetSide === "YES" ? "bg-[#12B886] text-[#06100d] hover:bg-[#2dd4a0]" : "bg-[#E85D5D] text-white hover:bg-[#f07575]"}`}>
-              {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <TrendingUp className="mr-2 h-4 w-4" />}
-              {user ? `Back ${sheetSide}` : "Login to predict"}
-            </Button>
+            {slipDataMissing ? (
+              <div className="rounded-xl border border-[#E85D5D]/30 bg-[#E85D5D]/10 p-4 text-sm font-bold leading-relaxed text-[#FFB4B4]">
+                Unable to open prediction slip. Please try again.
+              </div>
+            ) : (
+              <>
+                <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Amount</label>
+                <Input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} disabled={submitting} placeholder="0" className="h-13 rounded-xl border-[#263241] bg-[#151E28] text-lg font-black text-white placeholder:text-[#8B98A8]" />
+                <div className="mt-3 grid grid-cols-4 gap-2">
+                  {[100, 500, 1000, 5000].map((value) => (
+                    <button key={value} onClick={() => setAmount(value.toString())} disabled={submitting} className="h-10 rounded-xl border border-[#263241] bg-[#151E28] text-xs font-black text-[#8B98A8] disabled:cursor-not-allowed disabled:opacity-50">
+                      {formatNaira(value)}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-5 rounded-xl border border-[#263241] bg-[#151E28] p-4">
+                  <Row label="Wallet balance" value={user ? formatNaira(user.balance || 0) : "Login required"} />
+                  <Row label="Crowd View" value={formatNairaPrice(selectedPrice)} />
+                  <Row label="Total Pool" value={formatNaira(market.totalPool || market.totalVolume || 0)} />
+                  <Row label="Opposing Pool" value={formatNaira(oppositeStake)} highlight />
+                  <Row label="Market participants" value={`${market.participants || 0}`} />
+                  <p className="mt-3 text-xs font-bold leading-relaxed text-[#8B98A8]">
+                    Final payout depends on the result and the final pool when the market closes.
+                  </p>
+                </div>
+                <Button onClick={confirmPrediction} disabled={submitting || numericAmount <= 0} className={`mt-5 h-12 w-full rounded-xl text-base font-black ${sheetSide === "YES" ? "bg-[#12B886] text-[#06100d] hover:bg-[#2dd4a0]" : "bg-[#E85D5D] text-white hover:bg-[#f07575]"}`}>
+                  {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <TrendingUp className="mr-2 h-4 w-4" />}
+                  {user ? `Back ${sheetSide}` : "Login to predict"}
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}

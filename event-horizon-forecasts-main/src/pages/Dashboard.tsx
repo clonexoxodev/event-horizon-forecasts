@@ -89,13 +89,13 @@ const Dashboard = () => {
   }, []);
 
   const activePositions = useMemo(
-    () => positions.filter((position) => position.marketStatus === "active"),
-    [positions]
+    () => positions.filter((position) => getPredictionDisplayStatus(position, now).isOpen),
+    [positions, now]
   );
 
   const settledPositions = useMemo(
-    () => positions.filter((position) => position.marketStatus !== "active"),
-    [positions]
+    () => positions.filter((position) => !getPredictionDisplayStatus(position, now).isOpen),
+    [positions, now]
   );
 
   const openStake = activePositions.reduce((sum, position) => sum + Number(position.stake || 0), 0);
@@ -180,9 +180,9 @@ const Dashboard = () => {
           now={now}
           onClose={() => setSelectedPosition(null)}
           onViewMarket={() => {
-            const marketId = selectedPosition.marketId;
+            const marketId = selectedPosition?.marketId;
             setSelectedPosition(null);
-            navigate(`/market/${marketId}`);
+            if (marketId) navigate(`/market/${marketId}`);
           }}
         />
       )}
@@ -198,6 +198,27 @@ const HeroStat = ({ icon: Icon, label, value, tone = "neutral" }: { icon: any; l
     <div className="mt-1 text-lg font-black">{value}</div>
   </div>
 );
+
+const getPredictionCloseTime = (position: ApiPosition) => position.tradingCloseTime || position.marketCloseTime || "";
+
+const getPredictionDisplayStatus = (position: ApiPosition, now = Date.now()) => {
+  const status = String(position.status || position.marketStatus || "active").toLowerCase();
+  const closeTime = getPredictionCloseTime(position);
+  const closeMs = closeTime ? new Date(closeTime).getTime() : NaN;
+  const hasEnded = Number.isFinite(closeMs) && closeMs <= now;
+  const unresolvedClosed = hasEnded && ["active", "open", "closed"].includes(status);
+  const isOpen = !hasEnded && position.marketStatus === "active" && ["active", "open"].includes(status);
+
+  return {
+    isOpen,
+    hasEnded,
+    label: unresolvedClosed ? "pending resolution" : status.replace(/_/g, " "),
+  };
+};
+
+const formatPositionCountdown = (position: ApiPosition) => formatCountdown(getPredictionCloseTime(position));
+
+const formatMaybeMoney = (value: number) => (Number(value) > 0 ? formatNaira(value) : "Not available yet");
 
 const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[]; onSelect: (position: ApiPosition) => void; now: number }) => {
   if (positions.length === 0) {
@@ -218,7 +239,7 @@ const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[];
             key={position.id}
             onClick={() => onSelect(position)}
             data-now={now}
-            className="rounded-2xl border border-[#263241] bg-[#101720] p-4 text-left transition hover:border-[#12B886]/45 hover:bg-[#151E28] active:scale-[0.99]"
+            className="group rounded-2xl border border-[#263241] bg-[#101720] p-4 text-left shadow-[0_16px_48px_rgba(0,0,0,0.22)] transition duration-200 hover:-translate-y-0.5 hover:border-[#12B886]/45 hover:bg-[#151E28] active:scale-[0.99]"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -229,12 +250,12 @@ const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[];
                 {position.side}
               </span>
             </div>
-            <div className="mt-4 space-y-2 text-sm">
+            <div className="mt-4 grid gap-2 text-sm">
               <SimplePredictionRow label="Amount backed" value={formatNaira(position.stake)} />
-              <SimplePredictionRow label="Crowd View" value={formatNairaPrice(position.currentPrice || position.entryPrice || 0)} />
-              <SimplePredictionRow label="Time left" value={formatCountdown(position.tradingCloseTime || position.marketCloseTime)} />
+              <SimplePredictionRow label="Current Crowd View" value={formatNairaPrice(position.currentPrice || position.entryPrice || 0)} movement={Number(position.currentPrice || 0) - Number(position.entryPrice || 0)} />
+              <SimplePredictionRow label="Live time left" value={formatPositionCountdown(position)} />
             </div>
-            <p className="mt-4 inline-flex items-center gap-1 text-xs font-black text-[#8B98A8]">
+            <p className="mt-4 inline-flex items-center gap-1 text-xs font-black text-[#8B98A8] transition group-hover:text-[#12B886]">
               Tap to view details <ArrowRight className="h-3.5 w-3.5" />
             </p>
           </button>
@@ -260,21 +281,20 @@ const PredictionDetailModal = ({
   const totalPool = Number(position.totalPool || 0);
   const opposingPool = Number(position.opposingPool || 0);
   const sidePool = Number(position.sidePool || 0);
-  const timeLeft = formatCountdown(position.tradingCloseTime || position.marketCloseTime);
-  const isClosed = (position.tradingCloseTime || position.marketCloseTime)
-    ? new Date(position.tradingCloseTime || position.marketCloseTime || "").getTime() <= now
-    : position.marketStatus !== "active";
-  const displayStatus = isClosed && position.marketStatus === "active"
-    ? "closed"
-    : (position.status || position.marketStatus).replace(/_/g, " ");
+  const timeLeft = formatPositionCountdown(position);
+  const displayStatus = getPredictionDisplayStatus(position, now).label;
+  const currentCrowdView = Number(position.currentPrice || position.entryPrice || 0);
+  const entryCrowdView = Number(position.entryPrice || 0);
+  const movement = currentCrowdView - entryCrowdView;
+  const marketQuestion = position.marketQuestion || "Prediction details unavailable";
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 px-3 pb-[calc(84px+env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-6">
-      <section className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#263241] bg-[#101720] shadow-[0_24px_90px_rgba(0,0,0,0.65)]">
+    <div className="fixed inset-0 z-[70] flex animate-in fade-in duration-200 items-end justify-center bg-black/70 px-3 pb-[calc(84px+env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-6">
+      <section className="max-h-[88vh] w-full max-w-2xl animate-in slide-in-from-bottom-4 duration-300 overflow-y-auto rounded-2xl border border-[#263241] bg-[#101720] shadow-[0_24px_90px_rgba(0,0,0,0.65)] sm:zoom-in-95">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#263241] bg-[#101720]/95 p-4 backdrop-blur">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8B98A8]">Prediction detail</p>
-            <h2 className="mt-1 text-lg font-black text-white">Your {position.side} prediction</h2>
+            <h2 className="mt-1 text-lg font-black text-white">Your {position.side || "selected"} prediction</h2>
           </div>
           <button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-xl border border-[#263241] bg-[#151E28] text-[#8B98A8] transition hover:text-white">
             <X className="h-5 w-5" />
@@ -284,30 +304,30 @@ const PredictionDetailModal = ({
         <div className="space-y-4 p-4 sm:p-5">
           <div className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
             <div className="mb-3 flex items-start justify-between gap-3">
-              <h3 className="text-xl font-black leading-tight">{position.marketQuestion}</h3>
+              <h3 className="text-xl font-black leading-tight">{marketQuestion}</h3>
               <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
-                {position.side}
+                {position.side || "N/A"}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <Metric label="Amount backed" value={formatNaira(position.stake)} />
-              <Metric label="Your pick" value={position.side} />
+              <Metric label="Your pick" value={position.side || "Not available yet"} />
               <Metric label="Time left" value={timeLeft} />
               <Metric label="Status" value={displayStatus} />
             </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <Metric label="Entry Crowd View" value={formatNairaPrice(position.entryPrice || 0)} large />
-            <Metric label="Current Crowd View" value={formatNairaPrice(position.currentPrice || position.entryPrice || 0)} large />
-            <Metric label="Total Pool" value={totalPool ? formatNaira(totalPool) : "Available on market page"} large />
-            <Metric label="Opposing Pool" value={opposingPool ? formatNaira(opposingPool) : "Available on market page"} large />
-            <Metric label="Your side's pool" value={sidePool ? formatNaira(sidePool) : "Available on market page"} large />
-            <Metric label="Units" value={shares ? shares.toFixed(2) : "-"} large />
+            <Metric label="Entry Crowd View" value={entryCrowdView ? formatNairaPrice(entryCrowdView) : "Not available yet"} large />
+            <Metric label="Current Crowd View" value={currentCrowdView ? formatNairaPrice(currentCrowdView) : "Not available yet"} large movement={movement} />
+            <Metric label="Total Pool" value={formatMaybeMoney(totalPool)} large />
+            <Metric label="Opposing Pool" value={formatMaybeMoney(opposingPool)} large />
+            <Metric label="Your side's pool" value={formatMaybeMoney(sidePool)} large />
+            <Metric label="Units" value={shares ? shares.toFixed(2) : "Not available yet"} large />
           </div>
 
-          <p className="rounded-2xl border border-[#263241] bg-[#151E28] p-4 text-sm font-bold leading-relaxed text-[#8B98A8]">
-            Your final payout is calculated only after the market closes. If your side is correct, you receive your stake plus a share of the losing side's pool.
+          <p className="rounded-2xl border border-[#263241] bg-[#151E28] p-4 text-sm font-bold leading-relaxed text-[#D5DEE8]">
+            Final payout is calculated after market resolution. If your side is correct, you receive your stake plus a share of the losing side's pool.
           </p>
 
           <section className="rounded-2xl border border-[#263241] bg-[#151E28] p-4">
@@ -339,10 +359,20 @@ const PredictionDetailModal = ({
   );
 };
 
-const SimplePredictionRow = ({ label, value }: { label: string; value: string }) => (
+const MovementPill = ({ movement }: { movement?: number }) => {
+  if (!movement || Math.abs(movement) < 0.5) return null;
+  const positive = movement > 0;
+  return (
+    <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-black ${positive ? "bg-[#12B886]/10 text-[#7AE4BD]" : "bg-[#E85D5D]/10 text-[#FF9C9C]"}`}>
+      {positive ? "+" : ""}{movement.toFixed(0)}
+    </span>
+  );
+};
+
+const SimplePredictionRow = ({ label, value, movement }: { label: string; value: string; movement?: number }) => (
   <div className="flex items-center justify-between gap-4 rounded-xl bg-[#151E28] px-3 py-2">
     <span className="text-xs font-bold text-[#8B98A8]">{label}</span>
-    <span className="text-sm font-black text-white">{value}</span>
+    <span className="flex items-center text-sm font-black text-white">{value}<MovementPill movement={movement} /></span>
   </div>
 );
 
@@ -571,10 +601,13 @@ const AchievementCard = ({ icon: Icon, title, description, unlocked }: Achieveme
   </div>
 );
 
-const Metric = ({ label, value, large = false, tone = "neutral" }: { label: string; value: string; large?: boolean; tone?: "neutral" | "green" | "red" }) => (
-  <div className="rounded-xl border border-[#263241] bg-[#151E28] p-3">
+const Metric = ({ label, value, large = false, tone = "neutral", movement }: { label: string; value: string; large?: boolean; tone?: "neutral" | "green" | "red"; movement?: number }) => (
+  <div className="rounded-xl border border-[#263241] bg-[#151E28] p-3 transition-colors duration-300">
     <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#8B98A8]">{label}</div>
-    <div className={`mt-2 font-black ${large ? "text-2xl" : "text-sm"} ${tone === "green" ? "text-[#12B886]" : tone === "red" ? "text-[#E85D5D]" : "text-white"}`}>{value}</div>
+    <div className={`mt-2 flex items-center font-black transition-all duration-300 ${large ? "text-2xl" : "text-sm"} ${tone === "green" ? "text-[#12B886]" : tone === "red" ? "text-[#E85D5D]" : "text-white"}`}>
+      {value}
+      <MovementPill movement={movement} />
+    </div>
   </div>
 );
 
