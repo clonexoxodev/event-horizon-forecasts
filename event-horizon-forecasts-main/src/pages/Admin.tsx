@@ -51,7 +51,7 @@ import {
   normalizeCategory,
 } from "@/lib/categories";
 import { formatNaira } from "@/lib/markets";
-import { FlippeLoader, FlippeSymbol } from "@/components/FlippeBrand";
+import { DelayedFlippeLoader, FlippeSymbol } from "@/components/FlippeBrand";
 
 type AdminView =
   | "dashboard"
@@ -963,7 +963,7 @@ const Admin = () => {
       <div className="min-h-screen bg-[#080C10] text-[#F5F7FA]">
         <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center">
           <div className="rounded-2xl border border-[#263241] bg-[#101720] px-8 py-7">
-            <FlippeLoader label="Loading operations console" />
+            <DelayedFlippeLoader active label="Loading operations console" />
           </div>
         </div>
       </div>

@@ -863,6 +863,24 @@ const MAX_DAILY_WITHDRAWAL_KOBO = 250000 * 100;
 const makeWalletReference = (prefix: 'DEP' | 'WDR') => `FLP-${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 90000 + 10000)}`;
 const depositInstruction = (amountSmallestUnit: number, reference: string) =>
   `Transfer exactly ₦${toAmount(amountSmallestUnit).toLocaleString()} and use ${reference} as your payment reference. Your wallet will be credited after admin confirmation.`;
+type PaymentProvider = 'paystack' | 'flutterwave' | 'monnify';
+const SUPPORTED_PAYMENT_PROVIDERS: PaymentProvider[] = ['paystack', 'flutterwave', 'monnify'];
+const getPaymentProvider = (requested?: unknown): PaymentProvider => {
+  const provider = String(requested || process.env.PAYMENT_PROVIDER || 'paystack').toLowerCase();
+  return SUPPORTED_PAYMENT_PROVIDERS.includes(provider as PaymentProvider) ? provider as PaymentProvider : 'paystack';
+};
+const getAppBaseUrl = (req: Request) => `${req.protocol}://${req.get('host')}`;
+const getFrontendBaseUrl = (req: Request) => process.env.FRONTEND_URL || req.get('origin') || 'http://127.0.0.1:8081';
+const getPaymentCallbackUrl = (req: Request, provider: PaymentProvider) =>
+  `${getAppBaseUrl(req)}/api/wallet/payment/callback?provider=${provider}`;
+const paymentSetupError = (provider: PaymentProvider) => ({
+  error: {
+    code: 'PAYMENT_PROVIDER_NOT_CONFIGURED',
+    message: `${provider} is not configured yet. Add the required provider secret keys on the backend before accepting deposits.`,
+    timestamp: new Date().toISOString()
+  }
+});
+
 const serializeWalletV1 = (wallet: any) => ({
   id: wallet.id,
   userId: wallet.user_id,
@@ -899,6 +917,166 @@ const serializeFinanceTransaction = (tx: any) => ({
   createdAt: tx.created_at,
   updatedAt: tx.updated_at,
 });
+
+const initializeProviderCheckout = async ({
+  provider,
+  amountSmallestUnit,
+  amount,
+  reference,
+  email,
+  callbackUrl,
+}: {
+  provider: PaymentProvider;
+  amountSmallestUnit: number;
+  amount: number;
+  reference: string;
+  email: string;
+  callbackUrl: string;
+}) => {
+  if (provider === 'paystack') {
+    const secret = process.env.PAYSTACK_SECRET_KEY;
+    if (!secret) return null;
+    const response = await fetch('https://api.paystack.co/transaction/initialize', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, amount: amountSmallestUnit, currency: 'NGN', reference, callback_url: callbackUrl, metadata: { reference, provider } })
+    });
+    const payload: any = await response.json();
+    if (!response.ok || !payload?.status || !payload?.data?.authorization_url) {
+      throw new Error(payload?.message || 'Paystack checkout could not be initialized.');
+    }
+    return payload.data.authorization_url as string;
+  }
+
+  if (provider === 'flutterwave') {
+    const secret = process.env.FLUTTERWAVE_SECRET_KEY;
+    if (!secret) return null;
+    const response = await fetch('https://api.flutterwave.com/v3/payments', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tx_ref: reference,
+        amount,
+        currency: 'NGN',
+        redirect_url: callbackUrl,
+        customer: { email },
+        customizations: { title: 'FLIPPE Wallet', description: 'Add money to your FLIPPE wallet' }
+      })
+    });
+    const payload: any = await response.json();
+    if (!response.ok || payload?.status !== 'success' || !payload?.data?.link) {
+      throw new Error(payload?.message || 'Flutterwave checkout could not be initialized.');
+    }
+    return payload.data.link as string;
+  }
+
+  const apiKey = process.env.MONNIFY_API_KEY;
+  const secret = process.env.MONNIFY_SECRET_KEY;
+  const contractCode = process.env.MONNIFY_CONTRACT_CODE;
+  if (!apiKey || !secret || !contractCode) return null;
+  const authResponse = await fetch('https://api.monnify.com/api/v1/auth/login', {
+    method: 'POST',
+    headers: { Authorization: `Basic ${Buffer.from(`${apiKey}:${secret}`).toString('base64')}` }
+  });
+  const authPayload: any = await authResponse.json();
+  const accessToken = authPayload?.responseBody?.accessToken;
+  if (!authResponse.ok || !accessToken) throw new Error(authPayload?.responseMessage || 'Monnify auth failed.');
+  const response = await fetch('https://api.monnify.com/api/v1/merchant/transactions/init-transaction', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      amount,
+      customerName: email,
+      customerEmail: email,
+      paymentReference: reference,
+      paymentDescription: 'Add money to FLIPPE wallet',
+      currencyCode: 'NGN',
+      contractCode,
+      redirectUrl: callbackUrl,
+      paymentMethods: ['CARD', 'ACCOUNT_TRANSFER']
+    })
+  });
+  const payload: any = await response.json();
+  if (!response.ok || !payload?.requestSuccessful || !payload?.responseBody?.checkoutUrl) {
+    throw new Error(payload?.responseMessage || 'Monnify checkout could not be initialized.');
+  }
+  return payload.responseBody.checkoutUrl as string;
+};
+
+const verifyProviderPayment = async (provider: PaymentProvider, reference: string, transactionId?: string) => {
+  if (provider === 'paystack') {
+    const secret = process.env.PAYSTACK_SECRET_KEY;
+    if (!secret) throw new Error('Paystack is not configured.');
+    const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
+      headers: { Authorization: `Bearer ${secret}` }
+    });
+    const payload: any = await response.json();
+    return response.ok && payload?.status && payload?.data?.status === 'success';
+  }
+
+  if (provider === 'flutterwave') {
+    const secret = process.env.FLUTTERWAVE_SECRET_KEY;
+    if (!secret) throw new Error('Flutterwave is not configured.');
+    const lookup = transactionId || reference;
+    const response = await fetch(`https://api.flutterwave.com/v3/transactions/${encodeURIComponent(lookup)}/verify`, {
+      headers: { Authorization: `Bearer ${secret}` }
+    });
+    const payload: any = await response.json();
+    return response.ok && payload?.status === 'success' && payload?.data?.status === 'successful';
+  }
+
+  const apiKey = process.env.MONNIFY_API_KEY;
+  const secret = process.env.MONNIFY_SECRET_KEY;
+  if (!apiKey || !secret) throw new Error('Monnify is not configured.');
+  const authResponse = await fetch('https://api.monnify.com/api/v1/auth/login', {
+    method: 'POST',
+    headers: { Authorization: `Basic ${Buffer.from(`${apiKey}:${secret}`).toString('base64')}` }
+  });
+  const authPayload: any = await authResponse.json();
+  const accessToken = authPayload?.responseBody?.accessToken;
+  if (!authResponse.ok || !accessToken) throw new Error('Monnify auth failed.');
+  const response = await fetch(`https://api.monnify.com/api/v2/transactions/${encodeURIComponent(reference)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  const payload: any = await response.json();
+  return response.ok && payload?.requestSuccessful && payload?.responseBody?.paymentStatus === 'PAID';
+};
+
+const creditVerifiedDeposit = async (reference: string) => {
+  const { data: request, error: requestError } = await supabase.from('deposit_requests').select('*').eq('reference', reference).single();
+  if (requestError || !request) throw requestError || new Error('Deposit request not found.');
+  if (request.status === 'completed') return { alreadyCredited: true, request };
+  if (request.status !== 'pending') throw new Error('Deposit request is not pending.');
+  const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('id', request.wallet_id).single();
+  if (walletError || !wallet) throw walletError || new Error('Wallet not found.');
+  const creditedAt = new Date().toISOString();
+  const { data: updatedWallet, error: updateError } = await supabase.from('wallets').update({
+    balance_ngn_kobo: Number(wallet.balance_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
+    available_ngn_kobo: Number(wallet.available_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
+    total_deposited_ngn_kobo: Number(wallet.total_deposited_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
+    updated_at: creditedAt,
+  }).eq('id', wallet.id).select().single();
+  if (updateError || !updatedWallet) throw updateError || new Error('Wallet credit failed.');
+  await supabase.from('deposit_requests').update({ status: 'completed', approved_at: creditedAt, updated_at: creditedAt }).eq('id', request.id).eq('status', 'pending');
+  await supabase.from('transactions').update({ status: 'completed', updated_at: creditedAt }).eq('id', request.transaction_id);
+  const { data: transaction } = await supabase.from('transactions').insert({
+    user_id: request.user_id,
+    wallet_id: request.wallet_id,
+    type: 'deposit_approved',
+    direction: 'IN',
+    amount_smallest_unit: request.amount_smallest_unit,
+    currency: 'NGN',
+    status: 'completed',
+    reference: request.reference,
+    reference_id: request.id,
+    reference_type: 'deposit_request',
+    description: `Deposit successful ${request.reference}`,
+    metadata: { provider: request.provider, reference: request.reference }
+  }).select().single();
+  await insertNotificationSafely({ user_id: request.user_id, type: 'deposit_approved', title: 'Deposit successful', message: `₦${toAmount(request.amount_smallest_unit).toLocaleString()} has been added to your wallet.`, reference_id: request.id, reference_type: 'deposit_request', metadata: { reference: request.reference } }, 'Deposit successful notification');
+  return { alreadyCredited: false, request, wallet: updatedWallet, transaction };
+};
+
 type MarketStatus = 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived';
 type PredictionSide = 'YES' | 'NO';
 
@@ -1502,6 +1680,100 @@ app.get('/api/wallet', authenticate, async (req: Request, res: Response) => {
         timestamp: new Date().toISOString()
       }
     });
+  }
+});
+
+app.post('/api/wallet/deposit-session', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const provider = getPaymentProvider(req.body.provider);
+    const amountSmallestUnit = Number(req.body.amount_smallest_unit || req.body.amountSmallestUnit || Math.round(Number(req.body.amount || 0) * 100));
+    if (!Number.isFinite(amountSmallestUnit) || amountSmallestUnit <= 0) {
+      return res.status(400).json({ error: { code: 'INVALID_AMOUNT', message: 'Amount must be greater than 0.', timestamp: new Date().toISOString() } });
+    }
+    const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('user_id', user.id).single();
+    if (walletError || !wallet) return res.status(404).json({ error: { code: 'WALLET_NOT_FOUND', message: 'Wallet not found', timestamp: new Date().toISOString() } });
+    const reference = makeWalletReference('DEP');
+    const email = user.email || `${user.username || user.id}@flippe.local`;
+    const authorizationUrl = await initializeProviderCheckout({
+      provider,
+      amountSmallestUnit,
+      amount: toAmount(amountSmallestUnit),
+      reference,
+      email,
+      callbackUrl: getPaymentCallbackUrl(req, provider)
+    });
+    if (!authorizationUrl) return res.status(503).json(paymentSetupError(provider));
+
+    const { data: transaction, error: txError } = await supabase.from('transactions').insert({
+      user_id: user.id,
+      wallet_id: wallet.id,
+      type: 'deposit_request',
+      amount_smallest_unit: amountSmallestUnit,
+      currency: 'NGN',
+      direction: 'IN',
+      status: 'pending',
+      reference,
+      reference_type: 'deposit',
+      description: `Payment checkout ${reference}`,
+      metadata: { provider, reference, authorizationUrl }
+    }).select().single();
+    if (txError || !transaction) throw txError || new Error('Could not create deposit transaction');
+
+    const { data: depositRequest, error: requestError } = await supabase.from('deposit_requests').insert({
+      user_id: user.id,
+      wallet_id: wallet.id,
+      transaction_id: transaction.id,
+      amount_smallest_unit: amountSmallestUnit,
+      currency: 'NGN',
+      reference,
+      provider,
+      payment_instruction: `Complete payment with ${provider}.`,
+      status: 'pending',
+      metadata: { provider, checkout: 'hosted' }
+    }).select().single();
+    if (requestError || !depositRequest) throw requestError || new Error('Could not create deposit request');
+
+    await insertNotificationSafely({ user_id: user.id, type: 'deposit_request_created', title: 'Payment started', message: `Complete your ₦${toAmount(amountSmallestUnit).toLocaleString()} payment with ${provider}.`, reference_id: depositRequest.id, reference_type: 'deposit_request', metadata: { reference, provider } }, 'Payment started notification');
+    res.status(201).json({
+      message: 'Payment session created',
+      provider,
+      reference,
+      authorizationUrl,
+      depositRequest: {
+        id: depositRequest.id,
+        amount: toAmount(depositRequest.amount_smallest_unit),
+        amountSmallestUnit: depositRequest.amount_smallest_unit,
+        currency: depositRequest.currency,
+        reference: depositRequest.reference,
+        paymentInstruction: depositRequest.payment_instruction,
+        status: depositRequest.status,
+        createdAt: depositRequest.created_at
+      }
+    });
+  } catch (error: any) {
+    console.error('Deposit session error:', error);
+    res.status(500).json({ error: { code: 'DEPOSIT_SESSION_FAILED', message: error.message || 'Could not start payment session.', timestamp: new Date().toISOString() } });
+  }
+});
+
+app.get('/api/wallet/payment/callback', async (req: Request, res: Response) => {
+  const provider = getPaymentProvider(req.query.provider);
+  const reference = String(req.query.reference || req.query.tx_ref || req.query.paymentReference || '');
+  const transactionId = String(req.query.transaction_id || req.query.transactionId || '');
+  const frontendUrl = getFrontendBaseUrl(req);
+  try {
+    if (!reference) throw new Error('Payment reference missing.');
+    const verified = await verifyProviderPayment(provider, reference, transactionId || undefined);
+    if (!verified) {
+      await supabase.from('deposit_requests').update({ status: 'failed', updated_at: new Date().toISOString() }).eq('reference', reference).eq('status', 'pending');
+      return res.redirect(`${frontendUrl}/wallet?payment=failed`);
+    }
+    await creditVerifiedDeposit(reference);
+    return res.redirect(`${frontendUrl}/wallet?payment=success`);
+  } catch (error) {
+    console.error('Payment callback error:', error);
+    return res.redirect(`${frontendUrl}/wallet?payment=failed`);
   }
 });
 

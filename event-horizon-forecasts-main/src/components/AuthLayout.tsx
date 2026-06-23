@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { FlippeLoader, FlippeWordmark } from "@/components/FlippeBrand";
+import { FlippeSymbol, FlippeWordmark } from "@/components/FlippeBrand";
 
 type AuthLayoutProps = {
   children: ReactNode;
@@ -28,7 +28,8 @@ export const AuthLayout = ({
         <div className="flex flex-col items-center justify-center py-10 text-center">
           <div className="relative">
             <div className="pointer-events-none absolute inset-0 scale-150 rounded-full bg-[#12B886]/16 blur-3xl" />
-            <FlippeLoader label="Many possibilities. One reality." />
+            <FlippeSymbol size="hero" className="relative z-10" />
+            <p className="mt-5 text-sm font-semibold text-[#8B98A8]">Many possibilities. One reality.</p>
           </div>
           <div className="mt-12 max-w-xl">
             <h1 className="text-5xl font-black leading-tight tracking-tight text-white">{title}</h1>

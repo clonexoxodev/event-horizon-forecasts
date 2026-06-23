@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
-import { FlippeLoader } from '@/components/FlippeBrand';
+import { DelayedFlippeLoader } from '@/components/FlippeBrand';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -20,7 +20,7 @@ export const ProtectedRoute = ({
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#080C10]">
-        <FlippeLoader label="Checking your session" />
+        <DelayedFlippeLoader active label="Checking your session" />
       </div>
     );
   }

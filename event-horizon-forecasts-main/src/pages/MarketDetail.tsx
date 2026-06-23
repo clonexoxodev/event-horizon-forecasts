@@ -16,7 +16,7 @@ import { Line } from "react-chartjs-2";
 import { ArrowLeft, CheckCircle, Clock, Loader2, Share2, TrendingUp, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
-import { FlippeLoader } from "@/components/FlippeBrand";
+import { DelayedFlippeLoader } from "@/components/FlippeBrand";
 import { MobileNav } from "@/components/MobileNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -197,7 +197,7 @@ export default function MarketDetail() {
       <div className="app-bg min-h-screen text-white xl:pl-64">
         <Header />
         <main className="grid min-h-[70vh] place-items-center px-4">
-          <FlippeLoader label="Loading market" />
+          <DelayedFlippeLoader active label="Loading market" />
         </main>
       </div>
     );

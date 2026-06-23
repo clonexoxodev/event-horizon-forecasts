@@ -39,13 +39,6 @@
   }
 }
 
-@keyframes flippe-route-fade {
-  0% { opacity: 0; }
-  16% { opacity: 1; }
-  72% { opacity: 1; }
-  100% { opacity: 0; }
-}
-
 .flippe-loader-stage::before,
 .flippe-loader-stage::after {
   content: "";
@@ -93,20 +86,6 @@
   background: rgba(245, 247, 250, 0.94);
   box-shadow: 0 0 16px rgba(245, 247, 250, 0.65), 0 0 32px rgba(18, 184, 134, 0.48);
   animation: flippe-center-spark 2.2s ease-in-out infinite;
-}
-
-.flippe-route-loader {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 50% 44%, rgba(18, 184, 134, 0.22), transparent 24rem),
-    rgba(8, 12, 16, 0.82);
-  backdrop-filter: blur(10px);
-  animation: flippe-route-fade 720ms ease-in-out both;
 }
 
 @layer base {

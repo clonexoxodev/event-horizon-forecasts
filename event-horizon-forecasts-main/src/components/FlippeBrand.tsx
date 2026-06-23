@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 import symbolUrl from "@/assets/flippe-symbol.svg";
 
 type FlippeSymbolProps = {
@@ -63,27 +62,30 @@ export const MiniBrandLoader = ({ label = "Loading" }: { label?: string }) => (
   </div>
 );
 
-export const PageTransitionLoader = () => {
-  const location = useLocation();
-  const firstRender = useRef(true);
+export const DelayedFlippeLoader = ({
+  active,
+  label = "Many possibilities. One reality.",
+  delayMs = 300,
+  compact = false,
+}: {
+  active: boolean;
+  label?: string;
+  delayMs?: number;
+  compact?: boolean;
+}) => {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (firstRender.current) {
-      firstRender.current = false;
+    if (!active) {
+      setVisible(false);
       return;
     }
 
-    setVisible(true);
-    const timer = window.setTimeout(() => setVisible(false), 720);
+    const timer = window.setTimeout(() => setVisible(true), delayMs);
     return () => window.clearTimeout(timer);
-  }, [location.pathname]);
+  }, [active, delayMs]);
 
   if (!visible) return null;
 
-  return (
-    <div className="flippe-route-loader" aria-live="polite" aria-label="Loading page">
-      <FlippeLoader label="Many possibilities. One reality." />
-    </div>
-  );
+  return <FlippeLoader label={label} compact={compact} />;
 };

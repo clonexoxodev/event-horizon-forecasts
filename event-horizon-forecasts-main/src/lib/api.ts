@@ -307,6 +307,16 @@ export type ApiActivity = {
   createdAt: string;
 };
 
+export type PaymentProvider = 'paystack' | 'flutterwave' | 'monnify';
+
+export type PaymentSessionResponse = {
+  message: string;
+  provider: PaymentProvider;
+  reference: string;
+  authorizationUrl: string;
+  depositRequest?: DepositRequest;
+};
+
 export type ApiNotification = {
   id: string;
   user_id?: string;
@@ -577,7 +587,22 @@ class ApiService {
   }
 
   async deposit(amount: number, currency: 'NGN' | 'USD' = 'NGN', method: string = 'bank_transfer') {
-    return this.createDepositRequest(amount, method);
+    void currency;
+    void method;
+    return this.createPaymentSession(amount);
+  }
+
+  async createPaymentSession(amount: number, provider?: PaymentProvider): Promise<PaymentSessionResponse> {
+    return this.request<PaymentSessionResponse>('/api/wallet/deposit-session', {
+      method: 'POST',
+      body: JSON.stringify({
+        amount,
+        amountSmallestUnit: toSmallestUnit(amount),
+        amount_smallest_unit: toSmallestUnit(amount),
+        currency: 'NGN',
+        provider,
+      }),
+    });
   }
 
   async createDepositRequest(amount: number, method: string = 'bank_transfer') {

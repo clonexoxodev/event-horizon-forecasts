@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Camera, LineChart, Trophy, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
-import { FlippeLoader } from "@/components/FlippeBrand";
+import { DelayedFlippeLoader } from "@/components/FlippeBrand";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
@@ -69,7 +69,7 @@ export default function Profile() {
       <div className="app-bg min-h-screen text-white xl:pl-64">
         <Header />
         <main className="grid min-h-[70vh] place-items-center px-4">
-          <FlippeLoader label="Restoring your profile" />
+          <DelayedFlippeLoader active label="Restoring your profile" />
         </main>
         <MobileNav />
       </div>

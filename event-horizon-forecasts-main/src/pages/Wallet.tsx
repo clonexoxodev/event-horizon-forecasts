@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Clock, RefreshCw, TrendingDown, TrendingUp, Wallet as WalletIcon } from "lucide-react";
 import { Header } from "@/components/Header";
-import { FlippeLoader } from "@/components/FlippeBrand";
+import { DelayedFlippeLoader } from "@/components/FlippeBrand";
 import { MobileNav } from "@/components/MobileNav";
 import { Button } from "@/components/ui/button";
 import { DepositModal } from "@/components/DepositModal";
@@ -71,15 +71,27 @@ export default function Wallet() {
     loadHistory();
   }, [authLoading, user]);
 
-  const ngnBalance = walletSnapshot?.availableNgn ?? user?.balance ?? 0;
-  const lockedBalance = walletSnapshot?.lockedNgn || 0;
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get("payment");
+    if (!paymentStatus) return;
+    if (paymentStatus === "success") {
+      toast.success("Deposit successful. Your wallet has been updated.");
+      refreshWallet();
+    }
+    if (paymentStatus === "failed") {
+      toast.error("Deposit was not completed.");
+    }
+    window.history.replaceState({}, "", window.location.pathname);
+  }, []);
 
+  const ngnBalance = walletSnapshot?.availableNgn ?? user?.balance ?? 0;
   if (authLoading) {
     return (
       <div className="app-bg min-h-screen text-white xl:pl-64">
         <Header />
         <main className="grid min-h-[70vh] place-items-center px-4">
-          <FlippeLoader label="Restoring your wallet" />
+          <DelayedFlippeLoader active label="Restoring your wallet" />
         </main>
         <MobileNav />
       </div>
@@ -134,17 +146,6 @@ export default function Wallet() {
             </div>
             <div className="mt-8 text-4xl font-black tracking-tight sm:text-5xl">
               {formatNaira(ngnBalance)}
-            </div>
-            <div className="mt-3 grid gap-2 text-sm font-bold text-[#8B98A8] sm:grid-cols-3">
-              <div className="rounded-xl border border-[#263241] bg-[#151E28] px-4 py-3">
-                Available: <span className="text-white">{formatNaira(ngnBalance)}</span>
-              </div>
-              <div className="rounded-xl border border-[#263241] bg-[#151E28] px-4 py-3">
-                In active markets: <span className="text-white">{formatNaira(lockedBalance)}</span>
-              </div>
-              <div className="rounded-xl border border-[#263241] bg-[#151E28] px-4 py-3">
-                Total: <span className="text-white">{formatNaira(ngnBalance + lockedBalance)}</span>
-              </div>
             </div>
             <div className="mt-8 grid grid-cols-2 gap-3">
               <Button
@@ -225,24 +226,26 @@ export default function Wallet() {
 
 const labelForTransaction = (tx: ApiTransaction) => {
   const marketQuestion = typeof tx.metadata?.marketQuestion === "string" ? tx.metadata.marketQuestion : "";
-  if (marketQuestion && (tx.type === "position_entry" || tx.type === "position_payout")) {
-    return tx.type === "position_payout" ? `Winning: ${marketQuestion}` : `Prediction: ${marketQuestion}`;
+  if (marketQuestion && (tx.type === "position_entry" || tx.type === "prediction_stake" || tx.type === "position_payout" || tx.type === "market_payout")) {
+    return tx.type === "position_payout" || tx.type === "market_payout"
+      ? `Winnings Credited: ${marketQuestion}`
+      : `Prediction Backed: ${marketQuestion}`;
   }
 
   const labels: Record<ApiTransaction["type"], string> = {
-    deposit: "Add money",
-    withdrawal: "Withdraw",
-    position_entry: "Prediction",
-    position_payout: "Winning",
-    refund: "Refund",
-    deposit_request: "Deposit requested",
-    deposit_approved: "Deposit approved",
-    deposit_rejected: "Deposit rejected",
-    withdrawal_request: "Withdrawal requested",
-    withdrawal_approved: "Withdrawal paid",
-    withdrawal_rejected: "Withdrawal rejected",
-    prediction_stake: "Prediction",
-    market_payout: "Winning",
+    deposit: tx.status === "failed" ? "Deposit Failed" : "Deposit Successful",
+    withdrawal: tx.status === "failed" ? "Withdrawal Rejected" : "Withdrawal Approved",
+    position_entry: "Prediction Backed",
+    position_payout: "Winnings Credited",
+    refund: "Refund Credited",
+    deposit_request: "Deposit Pending",
+    deposit_approved: "Deposit Successful",
+    deposit_rejected: "Deposit Failed",
+    withdrawal_request: "Withdrawal Pending",
+    withdrawal_approved: "Withdrawal Approved",
+    withdrawal_rejected: "Withdrawal Rejected",
+    prediction_stake: "Prediction Backed",
+    market_payout: "Winnings Credited",
     admin_adjustment: "Admin adjustment",
   };
 

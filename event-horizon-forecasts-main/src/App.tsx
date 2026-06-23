@@ -8,7 +8,6 @@ import { ForecastSlipProvider, useForecastSlip } from "@/lib/forecast-slip";
 import { MarketStateProvider, useMarketState } from "@/lib/market-state";
 import { NotificationProvider, useNotificationHelpers } from "@/lib/notification-context";
 import { ForecastSlip } from "@/components/ForecastSlip";
-import { PageTransitionLoader } from "@/components/FlippeBrand";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import apiService from "@/lib/api";
 import Index from "./pages/Index.tsx";
@@ -96,7 +95,6 @@ const App = () => (
                   v7_relativeSplatPath: true,
                 }}
               >
-                <PageTransitionLoader />
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/login" element={<Login />} />
