@@ -4,6 +4,57 @@ import { calculateMarketPrices } from "./market-pricing";
 
 export type Market = ApiMarket;
 
+export const MARKET_ACTIVATION_REQUIREMENTS = {
+  totalPool: 10000,
+  yesPool: 2000,
+  noPool: 2000,
+  participants: 5,
+  buildingMaxStake: 1000,
+};
+
+export type MarketActivationState = "BUILDING" | "LIVE" | "RESOLVED" | "REFUNDED";
+
+export const getMarketActivation = (
+  market: Partial<Pick<Market, "status" | "yesPool" | "noPool" | "yesVolume" | "noVolume" | "totalPool" | "totalVolume" | "participants">>,
+  requirements = MARKET_ACTIVATION_REQUIREMENTS
+) => {
+  const status = String(market.status || "").toLowerCase();
+  const yesPool = Number(market.yesPool ?? market.yesVolume ?? 0);
+  const noPool = Number(market.noPool ?? market.noVolume ?? 0);
+  const totalPool = Number(market.totalPool ?? market.totalVolume ?? yesPool + noPool);
+  const participants = Number(market.participants || 0);
+
+  const checks = [
+    totalPool / requirements.totalPool,
+    yesPool / requirements.yesPool,
+    noPool / requirements.noPool,
+    participants / requirements.participants,
+  ];
+  const progress = Math.max(0, Math.min(100, Math.floor(Math.min(...checks) * 100)));
+  const activated =
+    totalPool >= requirements.totalPool &&
+    yesPool >= requirements.yesPool &&
+    noPool >= requirements.noPool &&
+    participants >= requirements.participants;
+
+  let state: MarketActivationState = activated ? "LIVE" : "BUILDING";
+  if (status === "resolved") state = "RESOLVED";
+  if (status === "refunded" || status === "cancelled") state = "REFUNDED";
+
+  return {
+    state,
+    isBuilding: state === "BUILDING",
+    isLive: state === "LIVE",
+    progress,
+    yesPool,
+    noPool,
+    totalPool,
+    participants,
+    requirements,
+    activated,
+  };
+};
+
 export const calculatePrices = (yesPool: number, noPool: number) => {
   return calculateMarketPrices(yesPool, noPool);
 };

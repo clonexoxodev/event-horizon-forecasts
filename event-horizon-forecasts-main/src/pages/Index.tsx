@@ -280,25 +280,25 @@ const Index = () => {
           </div>
         </section>
 
-        <section className="sticky top-0 z-30 mb-4 space-y-3 border-b border-[#E5E7EB] bg-[#F8F7F4]/90 py-2 backdrop-blur-xl md:top-[65px]" data-now={now}>
+        <section className="mb-5 space-y-3" data-now={now}>
           <div className="relative">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search markets or topics"
-              className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white pl-11 pr-4 text-sm font-bold text-[#111827] shadow-sm outline-none placeholder:text-[#9CA3AF] focus:border-[#4F46E5]/70 focus:ring-4 focus:ring-[#4F46E5]/10"
+              className="h-12 w-full rounded-2xl border border-[#E5E7EB] bg-white pl-11 pr-4 text-sm font-bold text-[#111827] shadow-[0_8px_22px_rgba(17,24,39,0.04)] outline-none placeholder:text-[#9CA3AF] focus:border-[#4F46E5]/70 focus:ring-4 focus:ring-[#4F46E5]/10"
             />
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-none sm:mx-0 sm:px-0">
             {HOME_MARKET_FILTERS.map((chip) => (
               <button
                 key={chip}
                 onClick={() => setCategory(chip)}
                 className={`shrink-0 rounded-full px-4 py-2 text-sm font-black transition ${
                   category === chip
-                    ? "bg-[#4F46E5] text-white"
-                    : "border border-[#E5E7EB] bg-white text-[#6B7280] hover:text-[#111827]"
+                    ? "bg-[#4F46E5] text-white shadow-[0_8px_18px_rgba(79,70,229,0.18)]"
+                    : "border border-[#E5E7EB] bg-white/90 text-[#667085] hover:border-[#C7D2FE] hover:text-[#101828]"
                 }`}
               >
                 {chip}

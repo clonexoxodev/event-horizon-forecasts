@@ -1077,14 +1077,35 @@ const creditVerifiedDeposit = async (reference: string) => {
   return { alreadyCredited: false, request, wallet: updatedWallet, transaction };
 };
 
-type MarketStatus = 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived';
+type MarketStatus = 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived' | 'refunded';
 type PredictionSide = 'YES' | 'NO';
 
 const MIN_MARKET_PRICE = 1;
 const MAX_MARKET_PRICE = 99;
+const DEFAULT_ACTIVATION_REQUIREMENTS = {
+  totalPoolSmallestUnit: 1000000,
+  yesPoolSmallestUnit: 200000,
+  noPoolSmallestUnit: 200000,
+  minimumParticipants: 5,
+  buildingMaxStakeSmallestUnit: 100000,
+};
 
 const roundPrice = (value: number) => Math.round(value * 10) / 10;
 const clampPrice = (value: number) => Math.min(MAX_MARKET_PRICE, Math.max(MIN_MARKET_PRICE, roundPrice(value)));
+
+const getActivationState = (market: any) => {
+  const yesPool = Number(market.yes_volume_smallest_unit || market.yes_pool_smallest_unit || 0);
+  const noPool = Number(market.no_volume_smallest_unit || market.no_pool_smallest_unit || 0);
+  const totalPool = Number(market.total_volume_smallest_unit || market.pool_amount_smallest_unit || yesPool + noPool);
+  const participants = Number(market.participant_count || market.participants || 0);
+  const requirements = DEFAULT_ACTIVATION_REQUIREMENTS;
+  const activated =
+    totalPool >= requirements.totalPoolSmallestUnit &&
+    yesPool >= requirements.yesPoolSmallestUnit &&
+    noPool >= requirements.noPoolSmallestUnit &&
+    participants >= requirements.minimumParticipants;
+  return { activated, yesPool, noPool, totalPool, participants, requirements };
+};
 
 const stripNotificationMetadata = (payload: Record<string, any> | Record<string, any>[]) => {
   if (Array.isArray(payload)) {
@@ -1106,6 +1127,193 @@ const insertNotificationSafely = async (payload: Record<string, any> | Record<st
   }
 
   console.warn(`${label} not saved:`, error.message);
+};
+
+const refundUnactivatedMarket = async (market: any, actor?: any) => {
+  const status = normalizeMarketStatus(market);
+  if (status === 'refunded' || market.activation_state === 'refunded' || market.refunded_at) {
+    return { market, alreadyRefunded: true, refundedCount: 0, refundedSmallestUnit: 0 };
+  }
+  if (status === 'resolved' || market.resolved_at) {
+    throw new Error('Resolved markets cannot be refunded through activation protection.');
+  }
+
+  const activation = getActivationState(market);
+  if (activation.activated) {
+    throw new Error('This market activated and must be resolved normally.');
+  }
+
+  const marketStatus = displayStatusForMarket(market);
+  if (!['closed', 'pending_resolution'].includes(marketStatus)) {
+    throw new Error('Market must be closed before activation refunds can run.');
+  }
+
+  const now = new Date().toISOString();
+  const { data: positions, error: positionsError } = await supabase
+    .from('positions')
+    .select('*')
+    .eq('market_id', market.id);
+  if (positionsError) throw positionsError;
+
+  let refundedCount = 0;
+  let refundedSmallestUnit = 0;
+
+  for (const position of positions || []) {
+    const positionStatus = String(position.status || '').toLowerCase();
+    if (position.resolved_at || position.settled_at || ['won', 'lost', 'settled', 'refunded'].includes(positionStatus)) {
+      continue;
+    }
+
+    const refundAmount = Number(position.amount_smallest_unit || 0);
+    if (refundAmount <= 0) continue;
+
+    const { data: existingRefund } = await supabase
+      .from('transactions')
+      .select('id')
+      .eq('position_id', position.id)
+      .eq('type', 'refund')
+      .eq('status', 'completed')
+      .maybeSingle();
+    if (existingRefund) continue;
+
+    const { data: wallet, error: walletError } = await supabase
+      .from('wallets')
+      .select('*')
+      .eq('user_id', position.user_id)
+      .single();
+    if (walletError || !wallet) throw walletError || new Error('Wallet not found for refund.');
+
+    const availableField = position.currency === 'USD' ? 'available_usd_cents' : 'available_ngn_kobo';
+    const { error: walletUpdateError } = await supabase
+      .from('wallets')
+      .update({
+        [availableField]: Number(wallet[availableField] || 0) + refundAmount,
+        updated_at: now
+      })
+      .eq('id', wallet.id);
+    if (walletUpdateError) throw walletUpdateError;
+
+    let { error: positionUpdateError } = await supabase
+      .from('positions')
+      .update({
+        status: 'refunded',
+        is_winner: null,
+        payout_smallest_unit: refundAmount,
+        final_payout_smallest_unit: refundAmount,
+        settlement_payout_smallest_unit: refundAmount,
+        settlement_profit_smallest_unit: 0,
+        profit_smallest_unit: 0,
+        resolved_at: now,
+        settled_at: now,
+        market_question_snapshot: market.question,
+        market_category_snapshot: normalizeMarketCategory(market.category)
+      })
+      .eq('id', position.id);
+
+    if (positionUpdateError && /settled_at|settlement_payout_smallest_unit|settlement_profit_smallest_unit|profit_smallest_unit|market_question_snapshot|market_category_snapshot/i.test(positionUpdateError.message || '')) {
+      const retry = await supabase
+        .from('positions')
+        .update({
+          status: 'refunded',
+          is_winner: null,
+          payout_smallest_unit: refundAmount,
+          final_payout_smallest_unit: refundAmount,
+          resolved_at: now
+        })
+        .eq('id', position.id);
+      positionUpdateError = retry.error;
+    }
+    if (positionUpdateError) throw positionUpdateError;
+
+    await supabase
+      .from('transactions')
+      .insert({
+        user_id: position.user_id,
+        wallet_id: wallet.id,
+        type: 'refund',
+        amount_smallest_unit: refundAmount,
+        currency: position.currency || 'NGN',
+        direction: 'IN',
+        reference_id: position.id,
+        reference_type: 'position',
+        market_id: market.id,
+        position_id: position.id,
+        status: 'completed',
+        description: `Refund protection for ${market.question}`,
+        metadata: {
+          marketId: market.id,
+          marketQuestion: market.question,
+          reason: 'Market did not activate before close',
+          activationSnapshot: market.activation_snapshot || {}
+        }
+      });
+
+    await insertNotificationSafely({
+      user_id: position.user_id,
+      type: 'refund',
+      title: 'Prediction refunded',
+      message: `"${market.question}" did not activate, so your stake was refunded.`,
+      reference_id: market.id,
+      reference_type: 'market',
+      metadata: {
+        marketId: market.id,
+        marketQuestion: market.question,
+        refundSmallestUnit: refundAmount
+      }
+    }, 'Activation refund notification');
+
+    refundedCount += 1;
+    refundedSmallestUnit += refundAmount;
+  }
+
+  let { data: updatedMarket, error: marketError }: { data: any; error: any } = await supabase
+    .from('markets')
+    .update({
+      status: 'refunded',
+      state: 'closed',
+      activation_state: 'refunded',
+      refunded_at: now,
+      payout_status: 'completed',
+      payout_completed_at: now,
+      activation_snapshot: {
+        ...(market.activation_snapshot || {}),
+        refundedAt: now,
+        refundedCount,
+        refundedSmallestUnit,
+        requirements: activation.requirements,
+        processedBy: actor?.id || null
+      },
+      updated_at: now
+    })
+    .eq('id', market.id)
+    .neq('status', 'refunded')
+    .select()
+    .single();
+
+  if (marketError && /payout_status|payout_completed_at|activation_snapshot|activation_state|refunded_at/i.test(marketError.message || '')) {
+    const retry = await supabase
+      .from('markets')
+      .update({
+        status: 'refunded',
+        state: 'closed',
+        refunded_at: now,
+        updated_at: now
+      })
+      .eq('id', market.id)
+      .neq('status', 'refunded')
+      .select()
+      .single();
+    updatedMarket = retry.data;
+    marketError = retry.error;
+  }
+  if (marketError) throw marketError;
+
+  return {
+    market: updatedMarket || { ...market, status: 'refunded', activation_state: 'refunded', refunded_at: now },
+    alreadyRefunded: false,
+    refundedCount,
+    refundedSmallestUnit
+  };
 };
 
 const getStartingPrices = (market: any) => {
@@ -1179,7 +1387,7 @@ const normalizeMarketStatus = (market: any): MarketStatus => {
   const rawStatus = String(market.status || market.state || 'active');
   if (rawStatus === 'open') return 'active';
   if (rawStatus === 'paused') return 'closed';
-  if (['draft', 'active', 'closed', 'pending_resolution', 'resolved', 'cancelled', 'archived'].includes(rawStatus)) {
+  if (['draft', 'active', 'closed', 'pending_resolution', 'resolved', 'cancelled', 'archived', 'refunded'].includes(rawStatus)) {
     return rawStatus as MarketStatus;
   }
   return 'active';
@@ -1214,6 +1422,17 @@ const legacyStateFor = (status: string) => {
 const autoCloseExpiredMarket = async (market: any) => {
   const status = normalizeMarketStatus(market);
   if (status !== 'active' || !isMarketPastClose(market)) return market;
+
+  const activation = getActivationState(market);
+  if (!activation.activated) {
+    try {
+      const result = await refundUnactivatedMarket({ ...market, status: 'pending_resolution', state: 'closed' });
+      return result.market;
+    } catch (error: any) {
+      console.warn('Failed to auto-refund unactivated market:', error.message || error);
+      return { ...market, status: 'pending_resolution', state: 'closed' };
+    }
+  }
 
   const { data, error } = await supabase
     .from('markets')
@@ -1950,12 +2169,15 @@ app.post('/api/wallet/deposit', authenticate, async (req: Request, res: Response
 });
 
 app.post('/api/wallet/withdrawal-request', authenticate, async (req: Request, res: Response) => {
+  let rollbackWallet: { id: string; available: number; locked: number } | null = null;
+  let createdTransactionId: string | null = null;
   try {
     const user = (req as any).user;
     const amountSmallestUnit = Number(req.body.amount_smallest_unit || req.body.amountSmallestUnit || Math.round(Number(req.body.amount || 0) * 100));
     const bankName = String(req.body.bankName || req.body.bank_name || '').trim();
     const accountNumber = String(req.body.accountNumber || req.body.account_number || '').trim();
     const accountName = String(req.body.accountName || req.body.account_name || '').trim();
+    const saveBankDetails = Boolean(req.body.saveBankDetails || req.body.save_bank_details);
     if (!Number.isFinite(amountSmallestUnit) || amountSmallestUnit < MIN_WITHDRAWAL_KOBO) {
       return res.status(400).json({ error: { code: 'INVALID_AMOUNT', message: 'Minimum withdrawal is ₦500.', timestamp: new Date().toISOString() } });
     }
@@ -1974,6 +2196,11 @@ app.post('/api/wallet/withdrawal-request', authenticate, async (req: Request, re
     if (Number(wallet.available_ngn_kobo || 0) < amountSmallestUnit) return res.status(422).json({ error: { code: 'INSUFFICIENT_BALANCE', message: 'Insufficient available balance.', timestamp: new Date().toISOString() } });
     const reference = makeWalletReference('WDR');
     const reviewTier = amountSmallestUnit > FAST_REVIEW_THRESHOLD_KOBO ? 'manual_review' : 'fast_review';
+    rollbackWallet = {
+      id: wallet.id,
+      available: Number(wallet.available_ngn_kobo || 0),
+      locked: Number(wallet.locked_ngn_kobo || 0)
+    };
     const { data: updatedWallet, error: updateError } = await supabase.from('wallets').update({
       available_ngn_kobo: Number(wallet.available_ngn_kobo || 0) - amountSmallestUnit,
       locked_ngn_kobo: Number(wallet.locked_ngn_kobo || 0) + amountSmallestUnit,
@@ -1991,9 +2218,10 @@ app.post('/api/wallet/withdrawal-request', authenticate, async (req: Request, re
       reference,
       reference_type: 'withdrawal',
       description: `Withdrawal request ${reference}`,
-      metadata: { reference, bankName, accountNumber, accountName, reviewTier }
+      metadata: { reference, bankName, accountNumber, accountName, reviewTier, saveBankDetails }
     }).select().single();
     if (txError || !transaction) throw txError || new Error('Could not create withdrawal transaction');
+    createdTransactionId = transaction.id;
     const { data: withdrawalRequest, error: requestError } = await supabase.from('withdrawal_requests').insert({
       user_id: user.id,
       wallet_id: wallet.id,
@@ -2007,9 +2235,20 @@ app.post('/api/wallet/withdrawal-request', authenticate, async (req: Request, re
       account_name: accountName,
       review_tier: reviewTier,
       status: 'pending',
-      metadata: { destination: 'bank_account' }
+      metadata: { destination: 'bank_account', saveBankDetails }
     }).select().single();
     if (requestError || !withdrawalRequest) throw requestError || new Error('Could not create withdrawal request');
+    if (saveBankDetails) {
+      await supabase.from('saved_bank_details').upsert({
+        user_id: user.id,
+        bank_name: bankName,
+        account_number: accountNumber,
+        account_name: accountName,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' }).then(({ error: savedBankError }) => {
+        if (savedBankError) console.warn('Saved bank details skipped:', savedBankError.message);
+      });
+    }
     await insertNotificationSafely({ user_id: user.id, type: 'withdrawal_requested', title: 'Withdrawal requested', message: `Your ₦${toAmount(amountSmallestUnit).toLocaleString()} withdrawal is pending review.`, reference_id: withdrawalRequest.id, reference_type: 'withdrawal_request', metadata: { reference, amount: toAmount(amountSmallestUnit), reviewTier } }, 'Withdrawal notification');
     res.status(201).json({
       message: 'Withdrawal request created',
@@ -2028,7 +2267,22 @@ app.post('/api/wallet/withdrawal-request', authenticate, async (req: Request, re
     });
   } catch (error) {
     console.error('Withdrawal request error:', error);
-    res.status(500).json({ error: { code: 'WITHDRAWAL_REQUEST_FAILED', message: 'Failed to create withdrawal request.', timestamp: new Date().toISOString() } });
+    if (rollbackWallet) {
+      await supabase.from('wallets').update({
+        available_ngn_kobo: rollbackWallet.available,
+        locked_ngn_kobo: rollbackWallet.locked,
+        updated_at: new Date().toISOString()
+      }).eq('id', rollbackWallet.id);
+    }
+    if (createdTransactionId) {
+      await supabase.from('transactions').update({
+        status: 'failed',
+        description: 'Withdrawal request failed before admin review',
+        updated_at: new Date().toISOString()
+      }).eq('id', createdTransactionId);
+    }
+    const message = error instanceof Error ? error.message : 'Failed to create withdrawal request.';
+    res.status(500).json({ error: { code: 'WITHDRAWAL_REQUEST_FAILED', message, timestamp: new Date().toISOString() } });
   }
 });
 
@@ -2676,6 +2930,17 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
       });
     }
 
+    const activationState = getActivationState(currentMarket);
+    if (!activationState.activated && amountSmallestUnit > activationState.requirements.buildingMaxStakeSmallestUnit) {
+      return res.status(400).json({
+        error: {
+          code: 'BUILDING_MARKET_STAKE_LIMIT',
+          message: `Building markets are limited to ₦${toAmount(activationState.requirements.buildingMaxStakeSmallestUnit).toLocaleString()} per user.`,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
     const { data: wallet, error: walletError } = await supabase
       .from('wallets')
       .select('*')
@@ -2794,6 +3059,17 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
       .select('user_id')
       .eq('market_id', marketId);
     const participantCount = new Set((participantRows || []).map((row) => row.user_id)).size;
+    const nextActivation = getActivationState({
+      ...currentMarket,
+      yes_volume_smallest_unit: trade.nextYesVolume,
+      no_volume_smallest_unit: trade.nextNoVolume,
+      yes_pool_smallest_unit: trade.nextYesVolume,
+      no_pool_smallest_unit: trade.nextNoVolume,
+      total_volume_smallest_unit: currentVolume + amountSmallestUnit,
+      pool_amount_smallest_unit: trade.nextTotalVolume,
+      participant_count: participantCount || Number(currentMarket.participant_count || 0),
+    });
+    const nextActivationState = nextActivation.activated ? 'live' : 'building';
 
     const { data: updatedMarket, error: marketUpdateError } = await supabase
       .from('markets')
@@ -2812,6 +3088,15 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
         trade_count: nextTradeCount,
         participant_count: participantCount || Number(currentMarket.participant_count || 0),
         total_volume_smallest_unit: currentVolume + amountSmallestUnit,
+        activation_state: nextActivationState,
+        activated_at: nextActivation.activated && !currentMarket.activated_at ? new Date().toISOString() : currentMarket.activated_at,
+        activation_snapshot: {
+          totalPoolSmallestUnit: currentVolume + amountSmallestUnit,
+          yesPoolSmallestUnit: trade.nextYesVolume,
+          noPoolSmallestUnit: trade.nextNoVolume,
+          participants: participantCount || Number(currentMarket.participant_count || 0),
+          requirements: nextActivation.requirements
+        },
         updated_at: new Date().toISOString()
       })
       .eq('id', marketId)
@@ -3288,7 +3573,7 @@ app.get('/api/admin/list-admins', authenticate, requireRole('super_admin'), asyn
  * GET /api/admin/analytics
  * Get platform analytics (super_admin only)
  */
-app.get('/api/admin/analytics', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+app.get('/api/admin/analytics', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
   try {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
@@ -3411,6 +3696,10 @@ const normalizeAdminMarket = (market: any) => ({
   outcome: market.outcome,
   resolved_outcome: market.resolved_outcome,
   winning_outcome: market.winning_outcome,
+  activation_state: market.activation_state || (getActivationState(market).activated ? 'live' : 'building'),
+  activated_at: market.activated_at || null,
+  refunded_at: market.refunded_at || null,
+  activation_snapshot: market.activation_snapshot || {},
   pool_amount_smallest_unit: Number(market.pool_amount_smallest_unit || 0),
   total_volume_smallest_unit: Number(market.total_volume_smallest_unit || 0),
   seed_liquidity_yes_smallest_unit: Number(market.seed_liquidity_yes_smallest_unit || 0),
@@ -3556,6 +3845,10 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
   const marketStatus = displayStatusForMarket(market);
   if (!['closed', 'pending_resolution'].includes(marketStatus)) {
     throw new Error('Market must be ended or pending resolution before settlement.');
+  }
+
+  if (!getActivationState(market).activated) {
+    throw new Error('This market did not activate. Refund it instead of resolving winners.');
   }
 
   const allPositions = await loadSettlementPositions(market.id);
@@ -4145,7 +4438,7 @@ app.patch('/api/admin/markets/:marketId/status', authenticate, requireRole('admi
 
     const requestedStatus = String(req.body.status || '').trim();
     const requestedOutcome = normalizePredictionSide(req.body.outcome);
-    const allowedStatusUpdates = ['draft', 'active', 'closed', 'pending_resolution', 'resolved', 'archived'];
+    const allowedStatusUpdates = ['draft', 'active', 'closed', 'pending_resolution', 'resolved', 'archived', 'refunded'];
     if (!allowedStatusUpdates.includes(requestedStatus)) {
       return res.status(400).json({ success: false, error: { code: 'INVALID_STATUS', message: 'Choose a valid market status.' } });
     }
@@ -4164,8 +4457,26 @@ app.patch('/api/admin/markets/:marketId/status', authenticate, requireRole('admi
       return res.json({ success: true, market: normalizeAdminMarket(result.market), summary: result.payoutSummary });
     }
 
-    if (requestedStatus === 'archived' && normalizeMarketStatus(existingMarket) !== 'resolved') {
-      return res.status(422).json({ success: false, error: { code: 'ARCHIVE_REQUIRES_RESOLUTION', message: 'Only resolved markets can be archived.' } });
+    if (requestedStatus === 'refunded') {
+      const result = await refundUnactivatedMarket(
+        { ...existingMarket, status: displayStatusForMarket(existingMarket), state: 'closed' },
+        user
+      );
+
+      return res.json({
+        success: true,
+        market: normalizeAdminMarket(result.market),
+        summary: {
+          alreadyRefunded: result.alreadyRefunded,
+          refundedCount: result.refundedCount,
+          refundedAmount: toAmount(result.refundedSmallestUnit),
+          refundedSmallestUnit: result.refundedSmallestUnit
+        }
+      });
+    }
+
+    if (requestedStatus === 'archived' && !['resolved', 'refunded'].includes(normalizeMarketStatus(existingMarket))) {
+      return res.status(422).json({ success: false, error: { code: 'ARCHIVE_REQUIRES_FINAL_STATE', message: 'Only resolved or refunded markets can be archived.' } });
     }
 
     const updateData: any = {
@@ -4190,7 +4501,7 @@ app.patch('/api/admin/markets/:marketId/status', authenticate, requireRole('admi
   }
 });
 
-app.get('/api/admin/users', authenticate, requireRole('super_admin'), async (_req: Request, res: Response) => {
+app.get('/api/admin/users', authenticate, requireRole('admin'), async (_req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from('users')
@@ -4263,7 +4574,7 @@ app.get('/api/admin/users', authenticate, requireRole('super_admin'), async (_re
   }
 });
 
-app.get('/api/admin/transactions', authenticate, requireRole('super_admin'), async (_req: Request, res: Response) => {
+app.get('/api/admin/transactions', authenticate, requireRole('admin'), async (_req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from('transactions')
@@ -4322,7 +4633,7 @@ app.get('/api/admin/transactions', authenticate, requireRole('super_admin'), asy
   }
 });
 
-app.get('/api/admin/finance/overview', authenticate, requireRole('super_admin'), async (_req: Request, res: Response) => {
+app.get('/api/admin/finance/overview', authenticate, requireRole('admin'), async (_req: Request, res: Response) => {
   try {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
@@ -4396,7 +4707,7 @@ const serializeWithdrawalRequest = (request: any) => ({
   updatedAt: request.updated_at,
 });
 
-app.get('/api/admin/finance/deposits', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+app.get('/api/admin/finance/deposits', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
   try {
     const status = String(req.query.status || 'pending');
     let query = supabase.from('deposit_requests').select('*, users(email, username)').order('created_at', { ascending: false }).limit(200);
@@ -4410,7 +4721,7 @@ app.get('/api/admin/finance/deposits', authenticate, requireRole('super_admin'),
   }
 });
 
-app.get('/api/admin/finance/withdrawals', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+app.get('/api/admin/finance/withdrawals', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
   try {
     const status = String(req.query.status || 'pending');
     let query = supabase.from('withdrawal_requests').select('*, users(email, username)').order('created_at', { ascending: false }).limit(200);
@@ -4424,7 +4735,7 @@ app.get('/api/admin/finance/withdrawals', authenticate, requireRole('super_admin
   }
 });
 
-app.get('/api/admin/finance/transactions', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+app.get('/api/admin/finance/transactions', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
   try {
     const type = String(req.query.type || '');
     const status = String(req.query.status || '');
@@ -4442,7 +4753,7 @@ app.get('/api/admin/finance/transactions', authenticate, requireRole('super_admi
   }
 });
 
-app.post('/api/admin/finance/deposits/:id/approve', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+app.post('/api/admin/finance/deposits/:id/approve', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
   try {
     const admin = (req as any).user;
     const { data: request, error: requestError } = await supabase.from('deposit_requests').select('*').eq('id', req.params.id).single();
@@ -4484,7 +4795,7 @@ app.post('/api/admin/finance/deposits/:id/approve', authenticate, requireRole('s
   }
 });
 
-app.post('/api/admin/finance/deposits/:id/reject', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+app.post('/api/admin/finance/deposits/:id/reject', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
   try {
     const admin = (req as any).user;
     const { data: request, error: requestError } = await supabase.from('deposit_requests').select('*').eq('id', req.params.id).single();
@@ -4517,9 +4828,10 @@ app.post('/api/admin/finance/deposits/:id/reject', authenticate, requireRole('su
   }
 });
 
-app.post('/api/admin/finance/withdrawals/:id/approve', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+app.post('/api/admin/finance/withdrawals/:id/approve', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
   try {
     const admin = (req as any).user;
+    const adminNote = String(req.body?.note || req.body?.adminNote || '').trim();
     const { data: request, error: requestError } = await supabase.from('withdrawal_requests').select('*').eq('id', req.params.id).single();
     if (requestError || !request) return res.status(404).json({ error: { code: 'WITHDRAWAL_NOT_FOUND', message: 'Withdrawal request not found.', timestamp: new Date().toISOString() } });
     if (request.status !== 'pending') return res.status(409).json({ error: { code: 'WITHDRAWAL_ALREADY_HANDLED', message: 'This withdrawal request has already been handled.', timestamp: new Date().toISOString() } });
@@ -4534,8 +4846,8 @@ app.post('/api/admin/finance/withdrawals/:id/approve', authenticate, requireRole
       updated_at: approvedAt,
     }).eq('id', wallet.id).select().single();
     if (updateError || !updatedWallet) throw updateError || new Error('Wallet withdrawal update failed');
-    await supabase.from('withdrawal_requests').update({ status: 'completed', approved_by: admin.id, approved_at: approvedAt, updated_at: approvedAt }).eq('id', request.id).eq('status', 'pending');
-    if (request.transaction_id) await supabase.from('transactions').update({ status: 'completed', approved_by: admin.id, approved_at: approvedAt, updated_at: approvedAt }).eq('id', request.transaction_id);
+    await supabase.from('withdrawal_requests').update({ status: 'completed', approved_by: admin.id, approved_at: approvedAt, updated_at: approvedAt, metadata: { ...(request.metadata || {}), adminNote } }).eq('id', request.id).eq('status', 'pending');
+    if (request.transaction_id) await supabase.from('transactions').update({ status: 'completed', approved_by: admin.id, approved_at: approvedAt, updated_at: approvedAt, metadata: { ...(request.metadata || {}), adminNote } }).eq('id', request.transaction_id);
     const { data: approvedTx } = await supabase.from('transactions').insert({
       user_id: request.user_id,
       wallet_id: request.wallet_id,
@@ -4550,7 +4862,7 @@ app.post('/api/admin/finance/withdrawals/:id/approve', authenticate, requireRole
       approved_by: admin.id,
       approved_at: approvedAt,
       description: `Paid withdrawal ${request.reference}`,
-      metadata: { bankName: request.bank_name, accountNumber: request.account_number, accountName: request.account_name }
+      metadata: { bankName: request.bank_name, accountNumber: request.account_number, accountName: request.account_name, adminNote }
     }).select().single();
     await insertNotificationSafely({ user_id: request.user_id, type: 'withdrawal_approved', title: 'Withdrawal paid', message: `Your ₦${toAmount(request.amount_smallest_unit).toLocaleString()} withdrawal has been marked paid.`, reference_id: request.id, reference_type: 'withdrawal_request', metadata: { reference: request.reference } }, 'Withdrawal approved notification');
     res.json({ success: true, wallet: serializeWalletV1(updatedWallet), transaction: approvedTx ? serializeFinanceTransaction(approvedTx) : null });
@@ -4560,9 +4872,10 @@ app.post('/api/admin/finance/withdrawals/:id/approve', authenticate, requireRole
   }
 });
 
-app.post('/api/admin/finance/withdrawals/:id/reject', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+app.post('/api/admin/finance/withdrawals/:id/reject', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
   try {
     const admin = (req as any).user;
+    const adminNote = String(req.body?.reason || req.body?.note || req.body?.adminNote || 'Rejected by admin').trim();
     const { data: request, error: requestError } = await supabase.from('withdrawal_requests').select('*').eq('id', req.params.id).single();
     if (requestError || !request) return res.status(404).json({ error: { code: 'WITHDRAWAL_NOT_FOUND', message: 'Withdrawal request not found.', timestamp: new Date().toISOString() } });
     if (request.status !== 'pending') return res.status(409).json({ error: { code: 'WITHDRAWAL_ALREADY_HANDLED', message: 'This withdrawal request has already been handled.', timestamp: new Date().toISOString() } });
@@ -4575,8 +4888,8 @@ app.post('/api/admin/finance/withdrawals/:id/reject', authenticate, requireRole(
       updated_at: rejectedAt,
     }).eq('id', wallet.id).select().single();
     if (updateError || !updatedWallet) throw updateError || new Error('Wallet release failed');
-    await supabase.from('withdrawal_requests').update({ status: 'rejected', rejected_by: admin.id, rejected_at: rejectedAt, updated_at: rejectedAt }).eq('id', request.id).eq('status', 'pending');
-    if (request.transaction_id) await supabase.from('transactions').update({ status: 'rejected', approved_by: admin.id, approved_at: rejectedAt, updated_at: rejectedAt }).eq('id', request.transaction_id);
+    await supabase.from('withdrawal_requests').update({ status: 'rejected', rejected_by: admin.id, rejected_at: rejectedAt, updated_at: rejectedAt, metadata: { ...(request.metadata || {}), adminNote } }).eq('id', request.id).eq('status', 'pending');
+    if (request.transaction_id) await supabase.from('transactions').update({ status: 'rejected', approved_by: admin.id, approved_at: rejectedAt, updated_at: rejectedAt, metadata: { ...(request.metadata || {}), adminNote } }).eq('id', request.transaction_id);
     const { data: rejectedTx } = await supabase.from('transactions').insert({
       user_id: request.user_id,
       wallet_id: request.wallet_id,
@@ -4591,7 +4904,7 @@ app.post('/api/admin/finance/withdrawals/:id/reject', authenticate, requireRole(
       approved_by: admin.id,
       approved_at: rejectedAt,
       description: `Rejected withdrawal ${request.reference}`,
-      metadata: { reason: req.body?.reason || 'Rejected by admin' }
+      metadata: { reason: adminNote, adminNote }
     }).select().single();
     await insertNotificationSafely({ user_id: request.user_id, type: 'withdrawal_rejected', title: 'Withdrawal rejected', message: `Your ₦${toAmount(request.amount_smallest_unit).toLocaleString()} withdrawal was rejected and funds returned.`, reference_id: request.id, reference_type: 'withdrawal_request', metadata: { reference: request.reference } }, 'Withdrawal rejected notification');
     res.json({ success: true, wallet: serializeWalletV1(updatedWallet), transaction: rejectedTx ? serializeFinanceTransaction(rejectedTx) : null });

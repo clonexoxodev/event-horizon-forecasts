@@ -1,10 +1,11 @@
 import { Clock, Play } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Market,
   formatCountdown,
   formatNaira,
   formatNairaPrice,
+  getMarketActivation,
   getMarketCategoryLabel,
   getMarketMedia,
 } from "@/lib/markets";
@@ -13,11 +14,13 @@ import { AnimatedNumber } from "@/components/AnimatedNumber";
 
 export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolean }) => {
   const { openForecastSlip } = useForecastSlip();
+  const navigate = useNavigate();
   const media = getMarketMedia(m);
   const categoryLabel = getMarketCategoryLabel(m);
   const tradingCloseTime = m.tradingCloseTime || m.closeTime;
   const hasEnded = tradingCloseTime ? new Date(tradingCloseTime).getTime() <= Date.now() : false;
   const isLive = m.status === "active" && !hasEnded;
+  const activation = getMarketActivation(m);
   const openSide = (event: React.MouseEvent, side: "YES" | "NO") => {
     event.preventDefault();
     event.stopPropagation();
@@ -37,10 +40,20 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
       maxAmount: m.maxAmount,
     });
   };
+  const openMarket = () => navigate(`/market/${m.id}`);
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openMarket();
+    }
+  };
 
   return (
-    <Link
-      to={`/market/${m.id}`}
+    <article
+      role="link"
+      tabIndex={0}
+      onClick={openMarket}
+      onKeyDown={handleKeyDown}
       className="group block rounded-2xl border border-[#E5E7EB] bg-white p-3 shadow-[0_8px_24px_rgba(17,24,39,0.06)] transition duration-200 hover:-translate-y-0.5 hover:border-[#4F46E5]/30 hover:shadow-[0_14px_34px_rgba(17,24,39,0.1)]"
     >
       <div className="flex items-start gap-3">
@@ -64,7 +77,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
             </span>
             <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-black ${isLive ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#F3F4F6] text-[#667085]"}`}>
               {isLive && <span className="h-1.5 w-1.5 rounded-full bg-[#12B886]" />}
-              {isLive ? "Live" : "Closed"}
+              {isLive ? (activation.isBuilding ? "Building" : "Live") : "Closed"}
             </span>
           </div>
           <h3 className="line-clamp-2 text-[15px] font-black leading-snug text-[#101828] sm:text-[17px]">
@@ -78,10 +91,28 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
         </div>
       </div>
 
+      {activation.isBuilding ? (
+        <div className="mt-3 rounded-xl bg-[#FFF7ED] p-3">
+          <div className="flex items-center justify-between gap-3 text-[11px] font-black text-[#9A3412]">
+            <span>🔥 Market Building</span>
+            <span>🛡 Refund Protection Active</span>
+          </div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
+            <div className="h-full rounded-full bg-[#F97316]" style={{ width: `${activation.progress}%` }} />
+          </div>
+          <div className="mt-1.5 text-[11px] font-bold text-[#9A3412]/80">
+            {activation.progress}% activated
+          </div>
+        </div>
+      ) : (
+        <div className="mt-3 flex items-center gap-3 text-[11px] font-black">
+          <span className="text-[#047857]">YES {formatNairaPrice(m.yesPrice)}</span>
+          <span className="text-[#B42318]">NO {formatNairaPrice(m.noPrice)}</span>
+        </div>
+      )}
+
       <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-[#EEF2F6] pt-2.5 text-[11px] font-bold text-[#667085]">
-        <span>{m.participants || 0} participants</span>
-        <span>{m.tradeCount || 0} predictions</span>
-        <span>{formatNaira(m.totalPool || m.totalVolume || 0)} backed</span>
+        {!activation.isBuilding && <span>{formatNaira(m.totalPool || m.totalVolume || 0)} backed</span>}
         <span className="flex items-center gap-1">
           <Clock className="h-3.5 w-3.5" />
           {formatCountdown(tradingCloseTime, m.closesIn)}
@@ -90,12 +121,13 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
           {isLive ? "Back opinion" : "Closed"}
         </span>
         </div>
-    </Link>
+    </article>
   );
 };
 
 const PriceButton = ({ label, value, tone, disabled = false, onClick }: { label: string; value: number; tone: "green" | "red"; disabled?: boolean; onClick: (event: React.MouseEvent) => void }) => (
   <button
+    type="button"
     onClick={onClick}
     disabled={disabled}
     className={`rounded-xl border px-3 py-2 text-left transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 ${

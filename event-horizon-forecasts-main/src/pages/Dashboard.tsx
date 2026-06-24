@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Award, BarChart3, CheckCircle, Clock, Flame, LineChart, Loader2, Medal, Minus, Target, Trophy, X } from "lucide-react";
+import { Activity, ArrowRight, Award, BarChart3, CheckCircle, Clock, Flame, LineChart, Loader2, Medal, Target, Trophy, X } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
 import apiService, { type ApiPosition, type ApiProfileStats } from "@/lib/api";
-import { formatCountdown, formatNaira, formatNairaPrice } from "@/lib/markets";
+import { formatCountdown, formatNaira, formatNairaPrice, MARKET_ACTIVATION_REQUIREMENTS } from "@/lib/markets";
 import { getCategoryLabel } from "@/lib/categories";
 import { DelayedFlippeLoader } from "@/components/FlippeBrand";
 
@@ -233,6 +233,9 @@ type PredictionInsight = {
   totalPool: number;
   sidePool: number;
   opposingPool: number;
+  isBuilding: boolean;
+  currentValue: number;
+  profitLoss: number;
 };
 
 const getPredictionInsight = (position: ApiPosition): PredictionInsight => {
@@ -244,10 +247,16 @@ const getPredictionInsight = (position: ApiPosition): PredictionInsight => {
   const sidePool = Number(position.sidePool || 0);
   const opposingPool = Number(position.opposingPool || 0);
   const stake = Number(position.stake || 0);
+  const currentValue = Number(position.currentValue || position.positionValue || position.projectedPayout || 0);
+  const profitLoss = currentValue > 0 ? currentValue - stake : Number(position.projectedProfit || position.estimatedProfit || 0);
+  const isBuilding =
+    totalPool < MARKET_ACTIVATION_REQUIREMENTS.totalPool ||
+    sidePool < MARKET_ACTIVATION_REQUIREMENTS.yesPool ||
+    opposingPool < MARKET_ACTIVATION_REQUIREMENTS.noPool;
   const projectedPayout = Number(position.projectedPayout || position.estimatedPayout || 0);
   const fallbackPayout = opposingPool > 0 && sidePool > 0 && stake > 0 ? stake + (stake / sidePool) * opposingPool : 0;
   const currentPayoutEstimate = projectedPayout > 0 ? projectedPayout : fallbackPayout;
-  const multiplier = opposingPool > 0 && stake > 0 && currentPayoutEstimate > 0 ? currentPayoutEstimate / stake : null;
+  const multiplier = !isBuilding && opposingPool > 0 && stake > 0 && currentPayoutEstimate > 0 ? currentPayoutEstimate / stake : null;
 
   let strength: PredictionInsight["strength"] = "Balanced";
   let strengthTone: PredictionInsight["strengthTone"] = "neutral";
@@ -285,13 +294,16 @@ const getPredictionInsight = (position: ApiPosition): PredictionInsight => {
     strengthDetail,
     strengthTone,
     multiplier,
-    multiplierLabel: multiplier ? `${multiplier.toFixed(2)}x stake` : "Waiting for opposing side",
+    multiplierLabel: multiplier ? `${multiplier.toFixed(2)}x stake` : "Market Building",
     multiplierDetail: multiplier
       ? "This changes as people join either side. Final payout is calculated after resolution."
-      : "Multiplier will appear when the opposite side has activity.",
+      : "Returns become visible after the market activates.",
     totalPool,
     sidePool,
     opposingPool,
+    isBuilding,
+    currentValue,
+    profitLoss,
   };
 };
 
@@ -311,6 +323,7 @@ const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[];
     <div className="grid gap-3 lg:grid-cols-2">
       {positions.map((position) => {
         const insight = getPredictionInsight(position);
+        const profitPositive = insight.profitLoss >= 0;
         return (
           <button
             key={position.id}
@@ -332,14 +345,25 @@ const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[];
                 <span className="text-sm font-black text-[#111827]">{formatNaira(position.stake)} backed</span>
                 <span className="text-xs font-bold text-[#6B7280]">{formatPositionCountdown(position)} left</span>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <MovementStatus insight={insight} />
-                <StrengthBadge insight={insight} />
-              </div>
-              <div className="border-t border-[#E5E7EB] pt-3">
-                <div className="text-[11px] font-bold text-[#6B7280]">If market ended now</div>
-                <div className="mt-1 text-lg font-black text-[#111827]">{insight.multiplierLabel}</div>
-              </div>
+              {insight.isBuilding ? (
+                <div className="rounded-xl bg-[#FFF7ED] p-3">
+                  <div className="text-sm font-black text-[#9A3412]">Market Building 🔥</div>
+                  <p className="mt-1 text-xs font-bold text-[#9A3412]/80">🛡 Refund Protection Active</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 border-t border-[#E5E7EB] pt-3">
+                  <div>
+                    <div className="text-[11px] font-bold text-[#6B7280]">Current Value</div>
+                    <div className="mt-1 text-base font-black text-[#111827]">{formatNaira(insight.currentValue)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-bold text-[#6B7280]">Profit/Loss</div>
+                    <div className={`mt-1 text-base font-black ${profitPositive ? "text-[#047857]" : "text-[#B42318]"}`}>
+                      {profitPositive ? "+" : ""}{formatNaira(insight.profitLoss)}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             <p className="mt-4 inline-flex items-center gap-1 text-xs font-black text-[#6B7280] transition group-hover:text-[#4F46E5]">
               Tap to view details <ArrowRight className="h-3.5 w-3.5" />
@@ -406,70 +430,75 @@ const PredictionDetailModal = ({
             </div>
           </div>
 
-          <section className="border-t border-[#E5E7EB] pt-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h4 className="text-sm font-black">Crowd Movement</h4>
-                <p className="mt-1 text-sm font-bold text-[#6B7280]">{insight.directionLabel}</p>
-              </div>
-              <MovementStatus insight={insight} />
-            </div>
-            <div className="mt-4 grid gap-x-4 gap-y-3 sm:grid-cols-3">
-              <Metric label="Entry Crowd View" value={insight.entryCrowdView ? formatNairaPrice(insight.entryCrowdView) : "-"} large />
-              <Metric label="Current Crowd View" value={insight.currentCrowdView ? formatNairaPrice(insight.currentCrowdView) : "-"} large movement={insight.movement} />
-              <Metric label="Movement since entry" value={formatMovement(insight.movement)} large tone={insight.direction === "toward" ? "green" : insight.direction === "against" ? "red" : "neutral"} />
-            </div>
-          </section>
-
-          <section className="border-t border-[#E5E7EB] pt-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h4 className="text-sm font-black">Position Strength</h4>
-                <p className="mt-1 text-sm font-bold text-[#6B7280]">{insight.strengthDetail}</p>
-              </div>
-              <StrengthBadge insight={insight} />
-            </div>
-          </section>
-
-          <section className="border-t border-[#E5E7EB] pt-4">
-            <h4 className="text-sm font-black">Pool Snapshot</h4>
-            <div className="mt-4 grid gap-x-4 gap-y-3 sm:grid-cols-2">
-              {optionalPoolMetrics.map((metric) => (
-                <Metric key={metric.label} label={metric.label} value={metric.value} large />
-              ))}
-            </div>
-          </section>
-
-          <section className="border-t border-[#E5E7EB] pt-4">
-            <h4 className="text-sm font-black">If Market Ended Now</h4>
-            <div className="mt-2 text-3xl font-black text-[#111827]">{insight.multiplierLabel}</div>
-            <p className="mt-2 text-sm font-bold leading-relaxed text-[#6B7280]">{insight.multiplierDetail}</p>
-            <p className="mt-3 text-sm font-bold leading-relaxed text-[#374151]">
-              Final payout is calculated after market resolution. If your side is correct, you receive your stake plus a share of the losing side's pool.
-            </p>
-          </section>
-
-          <section className="border-t border-[#E5E7EB] pt-4">
-            <h4 className="text-sm font-black">Prediction history</h4>
-            <div className="mt-3 text-sm font-bold text-[#6B7280]">
-              You predicted {position.side} with {formatNaira(position.stake)} on {new Date(position.createdAt).toLocaleString()}.
-            </div>
-          </section>
-
-          <section className="border-t border-[#E5E7EB] pt-4">
-            <h4 className="text-sm font-black">Rules and resolution</h4>
-            <p className="mt-2 text-sm leading-relaxed text-[#6B7280]">
-              {rules || "Open the market to review the full rules and resolution criteria."}
-            </p>
-            <p className="mt-3 text-xs font-bold text-[#6B7280]">
-              Resolution source: {resolutionSource || "Shown on the market page when available."}
-            </p>
-            {getPredictionCloseTime(position) && (
-              <p className="mt-2 text-xs font-bold text-[#6B7280]">
-                Trading close time: {new Date(getPredictionCloseTime(position)).toLocaleString()}
+          {insight.isBuilding ? (
+            <section className="rounded-2xl bg-[#FFF7ED] p-4">
+              <h4 className="text-base font-black text-[#9A3412]">Market Building 🔥</h4>
+              <p className="mt-2 text-sm font-bold leading-6 text-[#9A3412]">
+                Refund Protection is active. Returns become visible once the market activates.
               </p>
-            )}
-          </section>
+            </section>
+          ) : (
+            <section className="grid grid-cols-2 gap-4 border-t border-[#E5E7EB] pt-4">
+              <Metric label="Current Value" value={formatNaira(insight.currentValue)} large />
+              <Metric
+                label="Profit/Loss"
+                value={`${insight.profitLoss >= 0 ? "+" : ""}${formatNaira(insight.profitLoss)}`}
+                tone={insight.profitLoss >= 0 ? "green" : "red"}
+                large
+              />
+            </section>
+          )}
+
+          <details className="group border-t border-[#E5E7EB] pt-4">
+            <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-black text-[#111827]">
+              More Details
+              <span className="text-xs font-bold text-[#6B7280] group-open:hidden">Show</span>
+              <span className="hidden text-xs font-bold text-[#6B7280] group-open:inline">Hide</span>
+            </summary>
+            <div className="mt-4 space-y-5">
+              <section>
+                <h4 className="text-sm font-black">Market View</h4>
+                <div className="mt-3 grid gap-x-4 gap-y-3 sm:grid-cols-3">
+                  <Metric label="Entry market view" value={insight.entryCrowdView ? formatNairaPrice(insight.entryCrowdView) : "-"} />
+                  <Metric label="Current market view" value={insight.currentCrowdView ? formatNairaPrice(insight.currentCrowdView) : "-"} movement={insight.movement} />
+                  <Metric label="Movement" value={formatMovement(insight.movement)} tone={insight.direction === "toward" ? "green" : insight.direction === "against" ? "red" : "neutral"} />
+                </div>
+              </section>
+
+              {optionalPoolMetrics.length > 0 && (
+                <section>
+                  <h4 className="text-sm font-black">Pool Snapshot</h4>
+                  <div className="mt-3 grid gap-x-4 gap-y-3 sm:grid-cols-2">
+                    {optionalPoolMetrics.map((metric) => (
+                      <Metric key={metric.label} label={metric.label} value={metric.value} />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              <section>
+                <h4 className="text-sm font-black">Prediction history</h4>
+                <div className="mt-2 text-sm font-bold text-[#6B7280]">
+                  You predicted {position.side} with {formatNaira(position.stake)} on {new Date(position.createdAt).toLocaleString()}.
+                </div>
+              </section>
+
+              <section>
+                <h4 className="text-sm font-black">Rules and resolution</h4>
+                <p className="mt-2 text-sm leading-relaxed text-[#6B7280]">
+                  {rules || "Open the market to review the full rules and resolution criteria."}
+                </p>
+                <p className="mt-3 text-xs font-bold text-[#6B7280]">
+                  Resolution source: {resolutionSource || "Shown on the market page when available."}
+                </p>
+                {getPredictionCloseTime(position) && (
+                  <p className="mt-2 text-xs font-bold text-[#6B7280]">
+                    Trading close time: {new Date(getPredictionCloseTime(position)).toLocaleString()}
+                  </p>
+                )}
+              </section>
+            </div>
+          </details>
 
           <button
             onClick={onViewMarket}
@@ -488,45 +517,6 @@ const formatMovement = (movement: number) => {
   return `${movement > 0 ? "+" : ""}${movement.toFixed(0)}`;
 };
 
-const getMovementTone = (insight: PredictionInsight) => {
-  if (insight.direction === "toward") return "text-[#12B886]";
-  if (insight.direction === "against") return "text-[#E85D5D]";
-  return "text-[#6B7280]";
-};
-
-const MovementStatus = ({ insight }: { insight: PredictionInsight }) => {
-  const Icon = insight.direction === "toward" ? ArrowUpRight : insight.direction === "against" ? ArrowDownRight : Minus;
-  return (
-    <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-black transition duration-300 ${
-      insight.direction === "toward"
-        ? "border-[#12B886]/30 bg-[#12B886]/10 text-[#047857]"
-        : insight.direction === "against"
-          ? "border-[#E85D5D]/30 bg-[#E85D5D]/10 text-[#B42318]"
-          : "border-[#E5E7EB] bg-white text-[#6B7280]"
-    }`}>
-      <Icon className="h-3.5 w-3.5" />
-      <span>{insight.directionLabel}</span>
-      <span className={getMovementTone(insight)}>{formatMovement(insight.movement)}</span>
-    </div>
-  );
-};
-
-const StrengthBadge = ({ insight }: { insight: PredictionInsight }) => {
-  const classes =
-    insight.strengthTone === "green"
-      ? "border-[#12B886]/35 bg-[#12B886]/10 text-[#047857]"
-      : insight.strengthTone === "red"
-        ? "border-[#E85D5D]/35 bg-[#E85D5D]/10 text-[#B42318]"
-        : insight.strengthTone === "yellow"
-          ? "border-[#F2C94C]/35 bg-[#F2C94C]/10 text-[#F2C94C]"
-          : "border-[#E5E7EB] bg-white text-[#374151]";
-  return (
-    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black transition duration-300 ${classes}`}>
-      {insight.strength} position
-    </span>
-  );
-};
-
 const MovementPill = ({ movement }: { movement?: number }) => {
   if (!movement || Math.abs(movement) < 0.5) return null;
   const positive = movement > 0;
@@ -536,13 +526,6 @@ const MovementPill = ({ movement }: { movement?: number }) => {
     </span>
   );
 };
-
-const SimplePredictionRow = ({ label, value, movement }: { label: string; value: string; movement?: number }) => (
-  <div className="flex items-center justify-between gap-4 rounded-xl bg-[#F8F7F4] px-3 py-2">
-    <span className="text-xs font-bold text-[#6B7280]">{label}</span>
-    <span className="flex items-center text-sm font-black text-[#111827]">{value}<MovementPill movement={movement} /></span>
-  </div>
-);
 
 const ActivityView = ({ positions, settledCount }: { positions: ApiPosition[]; settledCount: number }) => {
   const sorted = positions
@@ -575,8 +558,8 @@ const ActivityView = ({ positions, settledCount }: { positions: ApiPosition[]; s
               <div className="text-sm font-black">
                 {position.resolvedAt ? formatNaira(position.payout || 0) : formatNaira(position.stake)}
               </div>
-              <div className={`mt-1 text-xs capitalize ${position.resolvedAt ? (position.isWinner ? "text-[#12B886]" : "text-[#E85D5D]") : "text-[#6B7280]"}`}>
-                {position.resolvedAt ? (position.isWinner ? "won" : "lost") : position.marketStatus}
+              <div className={`mt-1 text-xs capitalize ${position.status === "refunded" || position.marketStatus === "refunded" ? "text-[#4F46E5]" : position.resolvedAt ? (position.isWinner ? "text-[#12B886]" : "text-[#E85D5D]") : "text-[#6B7280]"}`}>
+                {position.status === "refunded" || position.marketStatus === "refunded" ? "refunded" : position.resolvedAt ? (position.isWinner ? "won" : "lost") : position.marketStatus}
               </div>
             </div>
           </Link>

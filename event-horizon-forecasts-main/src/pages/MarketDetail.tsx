@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import apiService, { ApiRequestError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useMarketState } from "@/lib/market-state";
-import { formatCountdown, formatNaira, formatNairaPrice, getMarketCategoryLabel, getMarketMedia, type Market } from "@/lib/markets";
+import { formatCountdown, formatNaira, formatNairaPrice, getMarketActivation, getMarketCategoryLabel, getMarketMedia, type Market } from "@/lib/markets";
 
 type Timeframe = "1H" | "24H" | "7D" | "ALL";
 
@@ -149,6 +149,10 @@ export default function MarketDetail() {
     }
     const numericAmount = Number.parseFloat(amount) || 0;
     if (numericAmount <= 0) return toast.error("Enter an amount.");
+    const currentActivation = getMarketActivation(market);
+    if (currentActivation.isBuilding && numericAmount > currentActivation.requirements.buildingMaxStake) {
+      return toast.error(`Building markets are limited to ${formatNaira(currentActivation.requirements.buildingMaxStake)} per user.`);
+    }
 
     setSubmitting(true);
     try {
@@ -188,11 +192,12 @@ export default function MarketDetail() {
   const media = getMarketMedia(market);
   const selectedPrice = sheetSide === "YES" ? market.yesPrice : market.noPrice;
   const numericAmount = Number.parseFloat(amount) || 0;
-  const oppositeStake = sheetSide === "YES" ? market.noVolume || market.noPool || 0 : market.yesVolume || market.yesPool || 0;
   const slipDataMissing = Boolean(sheetSide && !Number.isFinite(Number(selectedPrice)));
   const tradingCloseTime = market.tradingCloseTime || market.closeTime;
   const hasTradingClosed = tradingCloseTime ? new Date(tradingCloseTime).getTime() <= now : false;
   const marketIsActive = market.status === "active" && !hasTradingClosed;
+  const activation = getMarketActivation(market);
+  const exceedsBuildingLimit = activation.isBuilding && numericAmount > activation.requirements.buildingMaxStake;
   return (
     <div className="app-bg min-h-screen pb-[calc(150px+env(safe-area-inset-bottom))] text-[#111827] md:pb-24 xl:pl-64">
       <Header />
@@ -222,7 +227,7 @@ export default function MarketDetail() {
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-[#F3F4F6] px-2.5 py-1 text-[11px] font-black text-[#667085]">{marketCategoryLabel}</span>
                     <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${marketIsActive ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#F3F4F6] text-[#667085]"}`}>
-                      {marketIsActive ? "Live" : "Closed"}
+                      {marketIsActive ? (activation.isBuilding ? "Building" : "Live") : "Closed"}
                     </span>
                   </div>
                   <h1 className="text-[24px] font-black leading-tight tracking-tight text-[#101828] sm:text-[32px]">
@@ -232,20 +237,42 @@ export default function MarketDetail() {
               </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-bold text-[#667085] sm:text-sm">
-                <span className="inline-flex items-center gap-1.5">
-                  <Users className="h-4 w-4" />
-                  {market.participants || 0} participants
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <BarChart3 className="h-4 w-4" />
-                  {market.tradeCount || 0} predictions
-                </span>
-                <span>{formatNaira(market.totalPool || market.totalVolume || 0)} backed</span>
+                {!activation.isBuilding && (
+                  <>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Users className="h-4 w-4" />
+                      {market.participants || 0} participants
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <BarChart3 className="h-4 w-4" />
+                      {market.tradeCount || 0} predictions
+                    </span>
+                    <span>{formatNaira(market.totalPool || market.totalVolume || 0)} backed</span>
+                  </>
+                )}
                 <span className="inline-flex items-center gap-1.5">
                   <Clock className="h-4 w-4" />
                   {formatCountdown(tradingCloseTime, market.closesIn)} left
                 </span>
               </div>
+              {activation.isBuilding && (
+                <div className="mt-5 rounded-2xl bg-[#FFF7ED] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-black text-[#9A3412]">Market Building 🔥</div>
+                    <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#9A3412]">🛡 Refund Protection Active</span>
+                  </div>
+                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-white">
+                    <div className="h-full rounded-full bg-[#F97316]" style={{ width: `${activation.progress}%` }} />
+                  </div>
+                  <div className="mt-2 text-sm font-black text-[#9A3412]">{activation.progress}% Activated</div>
+                  <p className="mt-1 text-xs font-bold text-[#9A3412]/80">
+                    {formatNaira(activation.totalPool)} of {formatNaira(activation.requirements.totalPool)} required
+                  </p>
+                  <p className="mt-3 text-sm font-bold leading-6 text-[#9A3412]">
+                    This market becomes active once enough activity enters both sides. If activation requirements are not met before closing, eligible participants receive a full refund.
+                  </p>
+                </div>
+              )}
             </section>
 
             <section className="mt-7">
@@ -308,7 +335,7 @@ export default function MarketDetail() {
                 <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">Amount</label>
                 <Input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} disabled={submitting} placeholder="0" className="h-13 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] text-lg font-black text-[#111827] placeholder:text-[#6B7280]" />
                 <div className="mt-3 grid grid-cols-4 gap-2">
-                  {[100, 500, 1000, 5000].map((value) => (
+                  {[100, 500, 1000, 2000].map((value) => (
                     <button key={value} onClick={() => setAmount(value.toString())} disabled={submitting} className="h-10 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-xs font-black text-[#6B7280] disabled:cursor-not-allowed disabled:opacity-50">
                       {formatNaira(value)}
                     </button>
@@ -316,15 +343,30 @@ export default function MarketDetail() {
                 </div>
                 <div className="mt-5 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
                   <Row label="Wallet balance" value={user ? formatNaira(user.balance || 0) : "Login required"} />
-                  <Row label="Crowd View" value={formatNairaPrice(selectedPrice)} />
-                  <Row label="Total Pool" value={formatNaira(market.totalPool || market.totalVolume || 0)} />
-                  <Row label="Opposing Pool" value={formatNaira(oppositeStake)} highlight />
-                  <Row label="Market participants" value={`${market.participants || 0}`} />
-                  <p className="mt-3 text-xs font-bold leading-relaxed text-[#6B7280]">
-                    Final payout depends on the result and the final pool when the market closes.
-                  </p>
+                  <Row label="Crowd View" value={`YES ${formatNairaPrice(market.yesPrice)} / NO ${formatNairaPrice(market.noPrice)}`} />
+                  {activation.isBuilding ? (
+                    <div className="mt-4 rounded-xl bg-[#FFF7ED] p-4">
+                      <div className="text-sm font-black text-[#9A3412]">Market Building 🔥</div>
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+                        <div className="h-full rounded-full bg-[#F97316]" style={{ width: `${activation.progress}%` }} />
+                      </div>
+                      <p className="mt-2 text-xs font-bold text-[#9A3412]">🛡 Refund Protection Active</p>
+                      <p className="mt-2 text-xs font-bold leading-relaxed text-[#9A3412]/80">
+                        Your stake is protected if the market does not activate.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-xs font-bold leading-relaxed text-[#6B7280]">
+                      Returns may change as market activity changes.
+                    </p>
+                  )}
+                  {exceedsBuildingLimit && (
+                    <p className="mt-3 text-xs font-bold text-[#B42318]">
+                      Building markets are limited to {formatNaira(activation.requirements.buildingMaxStake)} per user.
+                    </p>
+                  )}
                 </div>
-                <Button onClick={confirmPrediction} disabled={submitting || numericAmount <= 0} className={`mt-5 h-12 w-full rounded-xl text-base font-black ${sheetSide === "YES" ? "bg-[#12B886] text-[#06100d] hover:bg-[#2dd4a0]" : "bg-[#E85D5D] text-[#111827] hover:bg-[#f07575]"}`}>
+                <Button onClick={confirmPrediction} disabled={submitting || numericAmount <= 0 || exceedsBuildingLimit} className={`mt-5 h-12 w-full rounded-xl text-base font-black ${sheetSide === "YES" ? "bg-[#12B886] text-[#06100d] hover:bg-[#2dd4a0]" : "bg-[#E85D5D] text-[#111827] hover:bg-[#f07575]"}`}>
                   {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <TrendingUp className="mr-2 h-4 w-4" />}
                   {user ? `Back ${sheetSide}` : "Login to predict"}
                 </Button>

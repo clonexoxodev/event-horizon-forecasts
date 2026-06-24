@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, Clock, RefreshCw, TrendingDown, TrendingUp, Wallet as WalletIcon } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Clock, RefreshCw, TrendingDown, TrendingUp, Wallet as WalletIcon, X } from "lucide-react";
 import { Header } from "@/components/Header";
 import { DelayedFlippeLoader } from "@/components/FlippeBrand";
 import { MobileNav } from "@/components/MobileNav";
@@ -18,6 +18,7 @@ type WalletRow = {
   status: string;
   date: string;
   type: ApiTransaction["type"];
+  transaction: ApiTransaction;
 };
 
 export default function Wallet() {
@@ -28,6 +29,7 @@ export default function Wallet() {
   const [walletSnapshot, setWalletSnapshot] = useState<{ availableNgn?: number; lockedNgn?: number; balanceNgn?: number } | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<ApiTransaction | null>(null);
 
   const loadHistory = async () => {
     if (!user || authLoading) return;
@@ -44,6 +46,7 @@ export default function Wallet() {
           status: statusText(tx),
           date: new Date(tx.createdAt).toLocaleDateString(),
           type: tx.type,
+          transaction: tx,
         }))
       );
     } catch (error: any) {
@@ -189,7 +192,12 @@ export default function Wallet() {
           ) : (
             <ul className="space-y-2">
               {transactions.map((tx) => (
-                <li key={tx.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+                <li key={tx.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTransaction(tx.transaction)}
+                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4 text-left transition hover:border-[#4F46E5]/30 hover:bg-white hover:shadow-[0_10px_28px_rgba(17,24,39,0.08)]"
+                  >
                   <div className="flex min-w-0 items-center gap-3">
                     <div className={`grid h-11 w-11 place-items-center rounded-xl ${tx.amount >= 0 ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#E85D5D]/10 text-[#B42318]"}`}>
                       {tx.amount >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
@@ -209,6 +217,7 @@ export default function Wallet() {
                     </div>
                     <div className="mt-1 text-xs capitalize text-[#6B7280]">{tx.status}</div>
                   </div>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -218,11 +227,91 @@ export default function Wallet() {
 
       <DepositModal open={depositModalOpen} onClose={() => setDepositModalOpen(false)} currency="NGN" onSaved={refreshWallet} />
       <WithdrawModal open={withdrawModalOpen} onClose={() => setWithdrawModalOpen(false)} currency="NGN" availableBalance={ngnBalance} onSaved={refreshWallet} />
+      {selectedTransaction && (
+        <TransactionDetailModal transaction={selectedTransaction} onClose={() => setSelectedTransaction(null)} />
+      )}
 
       <MobileNav />
     </div>
   );
 }
+
+const TransactionDetailModal = ({
+  transaction,
+  onClose,
+}: {
+  transaction: ApiTransaction;
+  onClose: () => void;
+}) => {
+  const metadata = transaction.metadata || {};
+  const bankName = stringMeta(metadata, "bankName") || stringMeta(metadata, "bank_name");
+  const accountNumber = stringMeta(metadata, "accountNumber") || stringMeta(metadata, "account_number");
+  const accountName = stringMeta(metadata, "accountName") || stringMeta(metadata, "account_name");
+  const adminNote = stringMeta(metadata, "adminNote") || stringMeta(metadata, "reason") || stringMeta(metadata, "admin_note");
+  const marketQuestion = stringMeta(metadata, "marketQuestion") || stringMeta(metadata, "market_question");
+  const side = stringMeta(metadata, "side") || stringMeta(metadata, "outcome");
+  const paymentMethod = stringMeta(metadata, "provider") || stringMeta(metadata, "paymentMethod") || stringMeta(metadata, "payment_method");
+  const isWithdrawal = transaction.type.includes("withdrawal");
+  const isDeposit = transaction.type.includes("deposit");
+  const isPrediction = transaction.type === "prediction_stake" || transaction.type === "position_entry";
+  const isPayout = transaction.type === "market_payout" || transaction.type === "position_payout" || transaction.type === "refund";
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-end bg-black/35 px-3 py-4 sm:place-items-center">
+      <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white p-5 text-[#111827] shadow-[0_24px_80px_rgba(17,24,39,0.22)]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#667085]">Wallet history</p>
+            <h3 className="mt-1 text-2xl font-black">{labelForTransaction(transaction)}</h3>
+            <p className="mt-1 text-sm text-[#667085]">{new Date(transaction.createdAt).toLocaleString()}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#667085] transition hover:text-[#111827]"
+            aria-label="Close transaction details"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-3">
+          <DetailRow label="Amount" value={formatNaira(transaction.amount)} />
+          <DetailRow label="Status" value={statusText(transaction)} />
+          <DetailRow label="Reference" value={transaction.reference || transaction.referenceId || "Not available"} />
+          {isDeposit && <DetailRow label="Payment method" value={paymentMethod || "Payment provider"} />}
+          {isWithdrawal && (
+            <>
+              <DetailRow label="Bank name" value={bankName || "Not available"} />
+              <DetailRow label="Account number" value={accountNumber || "Not available"} />
+              <DetailRow label="Account name" value={accountName || "Not available"} />
+              {adminNote && <DetailRow label="Admin note" value={adminNote} />}
+            </>
+          )}
+          {(isPrediction || isPayout) && (
+            <>
+              {marketQuestion && <DetailRow label="Market" value={marketQuestion} />}
+              {side && <DetailRow label="Side" value={side} />}
+            </>
+          )}
+          <DetailRow label="Ledger type" value={transaction.type.replace(/_/g, " ")} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DetailRow = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-xl bg-[#F8F7F4] px-4 py-3">
+    <div className="text-xs font-black uppercase tracking-[0.14em] text-[#667085]">{label}</div>
+    <div className="mt-1 break-words text-sm font-bold text-[#111827]">{value}</div>
+  </div>
+);
+
+const stringMeta = (metadata: Record<string, unknown>, key: string) => {
+  const value = metadata[key];
+  return typeof value === "string" && value.trim() ? value.trim() : "";
+};
 
 const labelForTransaction = (tx: ApiTransaction) => {
   const marketQuestion = typeof tx.metadata?.marketQuestion === "string" ? tx.metadata.marketQuestion : "";

@@ -94,7 +94,7 @@ export type ApiMarket = {
   noPrice: number;
   closeTime: string;
   tradingCloseTime?: string;
-  status: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived';
+  status: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived' | 'refunded';
   rules?: string;
   minAmount?: number;
   maxAmount?: number;
@@ -119,7 +119,7 @@ export type AdminMarket = {
   question: string;
   description?: string | null;
   category: string;
-  status: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived';
+  status: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived' | 'refunded';
   market_type?: string;
   yes_label?: string;
   no_label?: string;
@@ -132,6 +132,10 @@ export type AdminMarket = {
   resolution_instructions?: string | null;
   outcome?: string | null;
   winning_outcome?: string | null;
+  activation_state?: 'building' | 'live' | 'resolved' | 'refunded';
+  activated_at?: string | null;
+  refunded_at?: string | null;
+  activation_snapshot?: Record<string, any>;
   pool_amount_smallest_unit?: number;
   total_volume_smallest_unit?: number;
   seed_liquidity_yes_smallest_unit?: number;
@@ -213,7 +217,7 @@ export type ApiPosition = {
   marketQuestion: string;
   marketIcon: string;
   category?: string;
-  marketStatus: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived';
+  marketStatus: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived' | 'refunded';
   marketCloseTime?: string;
   tradingCloseTime?: string;
   isWinner?: boolean | null;
@@ -624,7 +628,7 @@ class ApiService {
     return this.createWithdrawalRequest(amount, { bankName: 'Bank account', accountNumber: '0000000000', accountName: 'Account holder' });
   }
 
-  async createWithdrawalRequest(amount: number, bankDetails: { bankName: string; accountNumber: string; accountName: string }) {
+  async createWithdrawalRequest(amount: number, bankDetails: { bankName: string; accountNumber: string; accountName: string; saveBankDetails?: boolean }) {
     return this.request<{ message: string; wallet: ApiWallet; withdrawalRequest: WithdrawalRequest; transaction: ApiTransaction }>('/api/wallet/withdrawal-request', {
       method: 'POST',
       body: JSON.stringify({
@@ -635,6 +639,8 @@ class ApiService {
         bankName: bankDetails.bankName,
         accountNumber: bankDetails.accountNumber,
         accountName: bankDetails.accountName,
+        saveBankDetails: Boolean(bankDetails.saveBankDetails),
+        save_bank_details: Boolean(bankDetails.saveBankDetails),
       }),
     });
   }
@@ -798,8 +804,11 @@ class ApiService {
     return this.request<{ withdrawals: WithdrawalRequest[] }>(`/api/admin/finance/withdrawals?status=${encodeURIComponent(status)}`);
   }
 
-  async approveAdminWithdrawal(id: string) {
-    return this.request<{ success: boolean; wallet?: ApiWallet; transaction?: ApiTransaction }>(`/api/admin/finance/withdrawals/${encodeURIComponent(id)}/approve`, { method: 'POST' });
+  async approveAdminWithdrawal(id: string, note?: string) {
+    return this.request<{ success: boolean; wallet?: ApiWallet; transaction?: ApiTransaction }>(`/api/admin/finance/withdrawals/${encodeURIComponent(id)}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    });
   }
 
   async rejectAdminWithdrawal(id: string, reason?: string) {

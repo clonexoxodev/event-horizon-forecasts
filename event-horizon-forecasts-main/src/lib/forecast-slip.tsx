@@ -6,6 +6,13 @@ type ForecastSelection = {
   marketIcon: string;
   side: "YES" | "NO" | "UP" | "DOWN";
   currentPrice: number;
+  yesPool?: number;
+  noPool?: number;
+  totalYesShares?: number;
+  totalNoShares?: number;
+  participants?: number;
+  minAmount?: number;
+  maxAmount?: number;
 };
 
 type ForecastSlipContextType = {

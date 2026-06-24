@@ -4,7 +4,7 @@ import { CheckCircle, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
-import { formatNaira, formatNairaPrice } from "@/lib/markets";
+import { formatNaira, formatNairaPrice, getMarketActivation } from "@/lib/markets";
 import { toast } from "sonner";
 
 type ForecastSelection = {
@@ -34,24 +34,55 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
   const [success, setSuccess] = useState(false);
   const { user, setAuthOpen } = useAuth();
 
-  const quickAmounts = [100, 500, 1000, 5000];
+  if (!selection) return null;
+
+  const quickAmounts = [100, 500, 1000, 2000];
   const numAmount = Number.parseFloat(amount) || 0;
-  const probability = selection?.currentPrice || 50;
-  const isPositiveSide = selection?.side === "YES" || selection?.side === "UP";
-  const oppositeStake = isPositiveSide ? selection?.noPool ?? 0 : selection?.yesPool ?? 0;
-  const totalPool = (selection?.yesPool ?? 0) + (selection?.noPool ?? 0);
+  const probability = Number(selection.currentPrice || 50);
+  const isPositiveSide = selection.side === "YES" || selection.side === "UP";
+  const yesView = isPositiveSide ? probability : 100 - probability;
+  const noView = 100 - yesView;
+  const selectedStake = isPositiveSide ? selection.yesPool ?? 0 : selection.noPool ?? 0;
+  const oppositeStake = isPositiveSide ? selection.noPool ?? 0 : selection.yesPool ?? 0;
+  const totalPool = (selection.yesPool ?? 0) + (selection.noPool ?? 0);
+  const activation = getMarketActivation({
+    status: "active",
+    yesPool: selection.yesPool,
+    noPool: selection.noPool,
+    totalPool,
+    participants: selection.participants,
+  });
   const userBalance = user?.balance || 0;
   const insufficientBalance = numAmount > userBalance;
+  const exceedsBuildingLimit = activation.isBuilding && numAmount > activation.requirements.buildingMaxStake;
+  const estimatedReturn =
+    activation.isLive && numAmount > 0 && selectedStake + numAmount > 0
+      ? numAmount + (numAmount / (selectedStake + numAmount)) * oppositeStake
+      : 0;
+  const estimatedProfit = Math.max(0, estimatedReturn - numAmount);
+  const selectionMissingData = Boolean(
+    !selection.marketId ||
+      !selection.marketQuestion ||
+      !selection.side ||
+      !Number.isFinite(Number(selection.currentPrice))
+  );
 
   const handleConfirm = async () => {
     if (loading) return;
-    if (!selection || numAmount <= 0) {
+    if (selectionMissingData) {
+      toast.error("Market not available. Please go back and try again.");
+      return;
+    }
+    if (numAmount <= 0) {
       toast.error("Enter a valid amount.");
       return;
     }
-
     if (insufficientBalance) {
       toast.error("Insufficient balance. Add money to continue.");
+      return;
+    }
+    if (exceedsBuildingLimit) {
+      toast.error(`Building markets are limited to ${formatNaira(activation.requirements.buildingMaxStake)} per user.`);
       return;
     }
 
@@ -60,9 +91,9 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
       await onConfirm(selection, numAmount);
       setSuccess(true);
       toast.success("Prediction locked.");
-      setLoading(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Server error. Please try again.");
+    } finally {
       setLoading(false);
     }
   };
@@ -73,34 +104,22 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
     onClose();
   };
 
-  if (!selection) return null;
-
   return (
     <>
       <div className="fixed inset-0 z-40 bg-[#111827]/35 backdrop-blur-sm" onClick={() => !loading && onClose()} />
 
       <div className="fixed bottom-0 left-0 right-0 z-50 max-h-[88vh] overflow-y-auto rounded-t-2xl border border-[#E5E7EB] bg-white pb-[calc(90px+env(safe-area-inset-bottom))] shadow-[0_-24px_80px_rgba(17,24,39,0.16)] md:bottom-auto md:left-auto md:top-0 md:h-screen md:w-[460px] md:rounded-none md:border-l md:pb-0">
         <div className="flex justify-center pt-3 md:hidden">
-          <div className="h-1 w-10 rounded-full bg-white/20" />
+          <div className="h-1 w-10 rounded-full bg-[#E5E7EB]" />
         </div>
 
         {success ? (
           <SuccessState selection={selection} amount={numAmount} onClose={handleClear} />
+        ) : selectionMissingData ? (
+          <UnavailableState loading={loading} onClose={handleClear} />
         ) : (
           <div className="space-y-5 p-5 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">Prediction slip</p>
-                <h2 className="mt-1 text-2xl font-black text-[#111827]">Back your opinion</h2>
-              </div>
-              <button
-                onClick={handleClear}
-                disabled={loading}
-                className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+            <SlipHeader onClose={handleClear} loading={loading} />
 
             <div className={`rounded-2xl p-4 ${isPositiveSide ? "bg-[#12B886]/8" : "bg-[#E85D5D]/8"}`}>
               <div className="flex items-start gap-3">
@@ -116,16 +135,15 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                       {selection.side}
                     </span>
                     <span className="rounded-full border border-[#E5E7EB] bg-white px-3 py-1 text-xs font-bold text-[#6B7280]">
-                      Crowd View {formatNairaPrice(probability)}
+                      YES {formatNairaPrice(yesView)} / NO {formatNairaPrice(noView)}
                     </span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 border-y border-[#E5E7EB] py-4">
+            <div className="border-y border-[#E5E7EB] py-4">
               <InfoCard label="Wallet balance" value={user ? formatNaira(userBalance) : "Login required"} />
-              <InfoCard label="Crowd View" value={formatNairaPrice(probability)} />
             </div>
 
             {!user && (
@@ -153,12 +171,17 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                   onChange={(event) => setAmount(event.target.value)}
                   disabled={loading}
                   className={`h-14 rounded-xl border-2 bg-[#F8F7F4] pl-14 text-xl font-black text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5] ${
-                    insufficientBalance && numAmount > 0 ? "border-[#E85D5D]" : "border-[#E5E7EB]"
+                    (insufficientBalance || exceedsBuildingLimit) && numAmount > 0 ? "border-[#E85D5D]" : "border-[#E5E7EB]"
                   }`}
                 />
               </div>
               {insufficientBalance && numAmount > 0 && (
                 <p className="mt-2 text-xs font-bold text-[#B42318]">Insufficient balance.</p>
+              )}
+              {exceedsBuildingLimit && (
+                <p className="mt-2 text-xs font-bold text-[#B42318]">
+                  Building markets are limited to {formatNaira(activation.requirements.buildingMaxStake)} per user.
+                </p>
               )}
             </div>
 
@@ -182,20 +205,18 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
             </div>
 
             <div className="border-t border-[#E5E7EB] pt-4">
-              <div className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">
-                Projection
-              </div>
-              {numAmount > 0 && !insufficientBalance ? (
-                <>
-                <Row label="Your stake" value={formatNaira(numAmount)} />
-                <Row label="Crowd View" value={formatNairaPrice(probability)} />
-                <Row label="Total Pool" value={formatNaira(totalPool)} />
-                <Row label="Opposing Pool" value={formatNaira(oppositeStake)} highlight />
-                <Row label="Market participants" value={`${selection.participants ?? 0}`} />
-                <p className="mt-3 text-xs font-bold leading-relaxed text-[#6B7280]">
-                  Final payout depends on the result and the final pool when the market closes.
-                </p>
-                </>
+              {activation.isBuilding ? (
+                <MarketBuildingState progress={activation.progress} totalPool={activation.totalPool} requiredPool={activation.requirements.totalPool} />
+              ) : numAmount > 0 && !insufficientBalance ? (
+                <div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InfoCard label="Estimated Return" value={formatNaira(estimatedReturn)} />
+                    <InfoCard label="Estimated Profit" value={formatNaira(estimatedProfit)} />
+                  </div>
+                  <p className="mt-3 text-xs font-bold leading-relaxed text-[#6B7280]">
+                    Returns may change as market activity changes.
+                  </p>
+                </div>
               ) : (
                 <p className="text-sm font-bold text-[#6B7280]">Choose an amount to back this side.</p>
               )}
@@ -203,7 +224,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
 
             <Button
               onClick={handleConfirm}
-              disabled={!user || loading || numAmount <= 0 || insufficientBalance}
+              disabled={!user || loading || numAmount <= 0 || insufficientBalance || exceedsBuildingLimit}
               className={`h-13 w-full rounded-xl text-base font-black text-white transition ${
                 isPositiveSide
                   ? "bg-[#12B886] text-[#06100d] hover:bg-[#2dd4a0]"
@@ -216,9 +237,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                   Saving...
                 </>
               ) : (
-                <>
-                  Back {selection.side}
-                </>
+                <>Back {selection.side}</>
               )}
             </Button>
 
@@ -236,8 +255,60 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
   );
 };
 
+const SlipHeader = ({ onClose, loading }: { onClose: () => void; loading: boolean }) => (
+  <div className="flex items-center justify-between">
+    <div>
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">Prediction slip</p>
+      <h2 className="mt-1 text-2xl font-black text-[#111827]">Back your opinion</h2>
+    </div>
+    <button
+      onClick={onClose}
+      disabled={loading}
+      className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
+    >
+      <X className="h-5 w-5" />
+    </button>
+  </div>
+);
+
+const UnavailableState = ({ loading, onClose }: { loading: boolean; onClose: () => void }) => (
+  <div className="space-y-5 p-5 sm:p-6">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#B42318]">Prediction slip</p>
+        <h2 className="mt-1 text-2xl font-black text-[#111827]">Market not available</h2>
+      </div>
+      <button
+        onClick={onClose}
+        disabled={loading}
+        className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
+      >
+        <X className="h-5 w-5" />
+      </button>
+    </div>
+    <div className="rounded-xl border border-[#E85D5D]/30 bg-[#E85D5D]/10 p-4 text-sm font-bold leading-relaxed text-[#B42318]">
+      Market not available. Please go back and try again.
+    </div>
+  </div>
+);
+
 const SuccessState = ({ selection, amount, onClose }: { selection: ForecastSelection; amount: number; onClose: () => void }) => {
   const isPositiveSide = selection.side === "YES" || selection.side === "UP";
+  const selectedStake = isPositiveSide ? selection.yesPool ?? 0 : selection.noPool ?? 0;
+  const oppositeStake = isPositiveSide ? selection.noPool ?? 0 : selection.yesPool ?? 0;
+  const totalPool = (selection.yesPool ?? 0) + (selection.noPool ?? 0);
+  const activation = getMarketActivation({
+    status: "active",
+    yesPool: selection.yesPool,
+    noPool: selection.noPool,
+    totalPool,
+    participants: selection.participants,
+  });
+  const estimatedReturn =
+    activation.isLive && selectedStake + amount > 0
+      ? amount + (amount / (selectedStake + amount)) * oppositeStake
+      : 0;
+  const estimatedProfit = Math.max(0, estimatedReturn - amount);
 
   return (
     <div className="grid min-h-[460px] place-items-center bg-white p-8 text-center">
@@ -247,34 +318,68 @@ const SuccessState = ({ selection, amount, onClose }: { selection: ForecastSelec
         </div>
         <h3 className="text-3xl font-black text-[#101828]">Prediction Locked</h3>
         <p className="mt-3 text-base font-black text-[#101828]">
-          You backed {selection.side}
+          You backed {selection.side} with {formatNaira(amount)}.
         </p>
-        <p className="mt-2 text-sm font-semibold leading-6 text-[#475467]">
-          {formatNaira(amount)} at {formatNairaPrice(selection.currentPrice)}. Track this prediction in My Predictions.
-        </p>
+        {activation.isBuilding ? (
+          <div className="mt-4">
+            <MarketBuildingState progress={activation.progress} totalPool={activation.totalPool} requiredPool={activation.requirements.totalPool} compact />
+            <p className="mt-3 text-sm font-semibold leading-6 text-[#475467]">
+              We will notify you when this market becomes active or if a refund is issued.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-[#F8F7F4] p-3 text-left">
+            <InfoCard label="Estimated return" value={formatNaira(estimatedReturn)} />
+            <InfoCard label="Estimated profit" value={formatNaira(estimatedProfit)} />
+          </div>
+        )}
         <div className="mt-7 grid gap-3">
           <Link to="/portfolio" onClick={onClose} className="flex h-12 items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-black text-white transition hover:bg-[#4338CA]">
             View Prediction
           </Link>
-          <button onClick={onClose} className="h-12 rounded-xl border border-[#E5E7EB] bg-white text-sm font-black text-[#344054] transition hover:bg-[#F3F4F6]">
-            Continue Browsing
-          </button>
+          <Link to="/" onClick={onClose} className="flex h-12 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-sm font-black text-[#344054] transition hover:bg-[#F3F4F6]">
+            Back Home
+          </Link>
         </div>
       </div>
     </div>
   );
 };
 
+const MarketBuildingState = ({
+  progress,
+  totalPool,
+  requiredPool,
+  compact = false,
+}: {
+  progress: number;
+  totalPool: number;
+  requiredPool: number;
+  compact?: boolean;
+}) => (
+  <div className="rounded-2xl bg-[#FFF7ED] p-4">
+    <div className="flex items-center justify-between gap-3">
+      <div className="text-sm font-black text-[#9A3412]">Market Building 🔥</div>
+      <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#9A3412]">🛡 Refund Protection Active</span>
+    </div>
+    <div className="mt-4 h-2 overflow-hidden rounded-full bg-white">
+      <div className="h-full rounded-full bg-[#F97316]" style={{ width: `${progress}%` }} />
+    </div>
+    <div className="mt-2 text-sm font-black text-[#9A3412]">{progress}% Activated</div>
+    <p className="mt-1 text-xs font-bold text-[#9A3412]/80">
+      {formatNaira(totalPool)} of {formatNaira(requiredPool)} required
+    </p>
+    {!compact && (
+      <p className="mt-3 text-sm font-bold leading-6 text-[#9A3412]">
+        Your stake is protected if the market does not activate before closing.
+      </p>
+    )}
+  </div>
+);
+
 const InfoCard = ({ label, value }: { label: string; value: string }) => (
   <div>
     <div className="text-xs font-bold text-[#6B7280]">{label}</div>
     <div className="mt-1 text-base font-black text-[#111827]">{value}</div>
-  </div>
-);
-
-const Row = ({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) => (
-  <div className="flex items-center justify-between border-b border-[#E5E7EB] py-2 last:border-0">
-    <span className="text-sm font-bold text-[#6B7280]">{label}</span>
-    <span className={`text-sm font-black ${highlight ? "text-[#047857]" : "text-[#111827]"}`}>{value}</span>
   </div>
 );

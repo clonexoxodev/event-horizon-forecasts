@@ -72,6 +72,7 @@ type MarketStatusFilter =
   | "ending_soon"
   | "pending_resolution"
   | "resolved"
+  | "refunded"
   | "cancelled"
   | "archived";
 
@@ -111,7 +112,7 @@ type ResolutionState = {
   preview: ResolutionPreview | null;
 };
 
-type DangerAction = "close" | "cancel" | "archive" | "delete";
+type DangerAction = "close" | "cancel" | "refund" | "archive" | "delete";
 
 type DangerState = {
   market: AdminMarket;
@@ -227,6 +228,8 @@ const statusClasses = (status?: string | null) => {
       return "border-amber-500/30 bg-amber-500/10 text-[#B7791F]";
     case "resolved":
       return "border-sky-500/30 bg-sky-500/10 text-[#2563EB]";
+    case "refunded":
+      return "border-indigo-500/30 bg-indigo-500/10 text-[#4F46E5]";
     case "cancelled":
     case "archived":
       return "border-zinc-500/30 bg-zinc-500/10 text-zinc-300";
@@ -804,6 +807,11 @@ const Admin = () => {
       return;
     }
 
+    if (status === "refunded") {
+      setDangerState({ market, action: "refund" });
+      return;
+    }
+
     if (status === "archived") {
       setDangerState({ market, action: "archive" });
       return;
@@ -845,6 +853,7 @@ const Admin = () => {
     const statusByAction: Record<Exclude<DangerAction, "delete">, string> = {
       close: "pending_resolution",
       cancel: "cancelled",
+      refund: "refunded",
       archive: "archived",
     };
 
@@ -894,15 +903,23 @@ const Admin = () => {
     action: "approve" | "reject"
   ) => {
     const label = `${kind}-${id}-${action}`;
+    const reason =
+      action === "reject"
+        ? window.prompt(`Add a reason for rejecting this ${kind}. This will be visible in the user's history.`) || ""
+        : "";
+    if (action === "reject" && !reason.trim()) {
+      toast.error("A rejection reason is required.");
+      return;
+    }
     setFinanceBusyId(label);
     try {
       if (kind === "deposit") {
         if (action === "approve") await apiService.approveAdminDeposit(id);
-        else await apiService.rejectAdminDeposit(id);
+        else await apiService.rejectAdminDeposit(id, reason);
       } else if (action === "approve") {
-        await apiService.approveAdminWithdrawal(id);
+        await apiService.approveAdminWithdrawal(id, "Marked paid by admin");
       } else {
-        await apiService.rejectAdminWithdrawal(id);
+        await apiService.rejectAdminWithdrawal(id, reason);
       }
       toast.success(`${kind === "deposit" ? "Deposit" : "Withdrawal"} ${action}d.`);
       await loadData();
@@ -1541,6 +1558,11 @@ const MarketsView = ({
       count: allMarkets.filter((market) => market.status === "resolved").length,
     },
     {
+      id: "refunded",
+      label: "Refunded",
+      count: allMarkets.filter((market) => market.status === "refunded").length,
+    },
+    {
       id: "cancelled",
       label: "Cancelled",
       count: allMarkets.filter((market) => market.status === "cancelled").length,
@@ -1677,9 +1699,16 @@ const MarketsView = ({
                           onClick={() => onStatus(market, "resolved", "NO")}
                           disabled={saving}
                         />
+                        <ActionButton
+                          label="Refund protection"
+                          icon={ShieldCheck}
+                          onClick={() => onStatus(market, "refunded")}
+                          disabled={saving}
+                        />
                       </>
                     )}
                     {market.status !== "resolved" &&
+                      market.status !== "refunded" &&
                       market.status !== "archived" && (
                         <ActionButton
                           label="Cancel market"
@@ -1689,7 +1718,7 @@ const MarketsView = ({
                           disabled={saving}
                         />
                       )}
-                    {market.status === "resolved" && (
+                    {(market.status === "resolved" || market.status === "refunded") && (
                       <ActionButton
                         label="Archive market"
                         icon={Archive}
@@ -1698,6 +1727,7 @@ const MarketsView = ({
                       />
                     )}
                     {(market.status === "resolved" ||
+                      market.status === "refunded" ||
                       market.status === "archived") && (
                       <ActionButton
                         label="Delete market - needs backend safety checks"
@@ -2268,7 +2298,7 @@ const FinanceQueue = ({
 }) => (
   <ShellCard>
     <SectionHeader title={title} description="Approve only after operational verification." />
-    <div className="divide-y divide-[#263241]">
+    <div className="divide-y divide-[#E5E7EB]">
       {items.map((item) => {
         const busyApprove = busyId === `${kind}-${item.id}-approve`;
         const busyReject = busyId === `${kind}-${item.id}-reject`;
@@ -2301,7 +2331,7 @@ const FinanceQueue = ({
                 onClick={() => onAction(kind, item.id, "approve")}
               >
                 {busyApprove && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Approve
+                {kind === "withdrawal" ? "Mark paid" : "Approve"}
               </Button>
               <Button
                 size="sm"
@@ -2545,15 +2575,15 @@ class AdminRolesErrorBoundary extends Component<
 const AdminRolesErrorState = ({ error }: { error?: Error | string | null }) => (
   <ShellCard>
     <div className="p-6">
-      <div className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-100">
-        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+      <div className="flex items-start gap-3 rounded-xl border border-[#FCA5A5] bg-[#FEF2F2] p-4 text-[#7F1D1D]">
+        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[#B42318]" />
         <div>
           <p className="font-semibold">Unable to load admin roles</p>
-          <p className="mt-1 text-sm text-red-100/80">
+          <p className="mt-1 text-sm text-[#991B1B]">
             The access-control panel could not render. Please refresh or try again.
           </p>
           {import.meta.env.DEV && error && (
-            <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-[#F3F4F6] p-3 text-xs text-red-50">
+            <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-white p-3 text-xs text-[#7F1D1D]">
               {getErrorMessage(error)}
             </pre>
           )}
@@ -2959,6 +2989,8 @@ const DangerConfirmModal = ({
               "Closing moves the market to pending resolution and disables new predictions."}
             {state.action === "cancel" &&
               "Cancelling should only happen when the market cannot be fairly resolved."}
+            {state.action === "refund" &&
+              "Refund protection returns eligible stakes because the market did not activate before close."}
             {state.action === "archive" &&
               "Archiving removes the market from active operations while preserving records."}
             {state.action === "delete" &&

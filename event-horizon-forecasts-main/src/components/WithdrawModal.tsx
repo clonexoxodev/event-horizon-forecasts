@@ -55,7 +55,12 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
 
     setLoading(true);
     try {
-      const response = await apiService.createWithdrawalRequest(numAmount, { bankName, accountNumber, accountName });
+      const response = await apiService.createWithdrawalRequest(numAmount, {
+        bankName,
+        accountNumber,
+        accountName,
+        saveBankDetails: saveDetails,
+      });
       if (saveDetails) saveBankDetails({ bankName, accountNumber, accountName });
       setReference(response.withdrawalRequest.reference);
       setSuccess(true);
@@ -146,7 +151,7 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
               {insufficientFunds && <AlertCircle className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#E85D5D]" />}
             </div>
             {insufficientFunds && <p className="mb-4 text-xs font-bold text-[#B42318]">Amount must not exceed your wallet balance.</p>}
-            {belowMinimum && <p className="mb-4 text-xs font-bold text-[#F2C94C]">Minimum withdrawal is ₦500.</p>}
+            {belowMinimum && <p className="mb-4 text-xs font-bold text-[#B7791F]">Minimum withdrawal is ₦500.</p>}
 
             <div className="mb-4 grid grid-cols-4 gap-2">
               {quickAmounts.filter((value) => value <= availableBalance).map((value) => (

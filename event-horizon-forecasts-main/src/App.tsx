@@ -54,7 +54,9 @@ const ForecastSlipContainer = () => {
       currency: "NGN",
     });
 
-    upsertMarket(result.market);
+    if (result?.market) {
+      upsertMarket(result.market);
+    }
 
     refreshUser().catch((error) => console.warn("User refresh after prediction failed", error));
 
