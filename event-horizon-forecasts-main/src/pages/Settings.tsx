@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Bell, Eye, Lock, LogOut, Mail, Shield, User } from "lucide-react";
+import { Bell, Eye, Lock, LogOut, Shield, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
@@ -25,6 +26,7 @@ const defaultPreferences: Preferences = {
 
 export default function Settings() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [preferences, setPreferences] = useState<Preferences>(defaultPreferences);
 
   useEffect(() => {
@@ -43,12 +45,10 @@ export default function Settings() {
     toast.success("Preference saved on this device.");
   };
 
-  const sendPasswordReset = () => {
-    if (!user?.email) {
-      toast.error("Log in with an email account before requesting password reset.");
-      return;
-    }
-    toast.info("Password reset emails will be enabled before public launch.");
+  const handleSignOut = async () => {
+    if (!window.confirm("Sign out of Flippe?")) return;
+    await logout();
+    navigate("/login", { replace: true });
   };
 
   return (
@@ -57,9 +57,7 @@ export default function Settings() {
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-8">
         <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#4F46E5]">Settings</p>
         <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Account controls</h1>
-        <p className="mt-2 max-w-2xl text-sm text-[#667085]">
-          Keep preferences clear and safe. Settings that need backend support are marked honestly.
-        </p>
+        <p className="mt-2 max-w-2xl text-sm text-[#667085]">Keep preferences clear and safe for Flippe V1.</p>
 
         <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_1fr]">
           <Panel icon={User} title="Account">
@@ -82,16 +80,9 @@ export default function Settings() {
           </Panel>
 
           <Panel icon={Lock} title="Security">
-            <button onClick={sendPasswordReset} className="flex w-full items-center justify-between rounded-2xl border border-[#E5E7EB] bg-[#F3F4F6] p-4 text-left transition hover:border-[#4F46E5]/40">
-              <span>
-                <span className="block font-black">Send password reset email</span>
-                <span className="mt-1 block text-sm text-[#667085]">Coming soon: secure email reset through the auth provider.</span>
-              </span>
-              <Mail className="h-5 w-5 text-[#4F46E5]" />
-            </button>
             <button
-              onClick={logout}
-              className="mt-3 flex h-12 w-full items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-sm font-black text-red-700 transition hover:bg-red-100"
+              onClick={handleSignOut}
+              className="flex h-12 w-full items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-sm font-black text-red-700 transition hover:bg-red-100"
             >
               <LogOut className="mr-2 h-4 w-4" />
               Sign out

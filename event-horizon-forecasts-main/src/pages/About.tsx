@@ -19,7 +19,7 @@ export default function About() {
           <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#4F46E5]">About FLIPPE</p>
           <h1 className="mt-2 max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">Stop arguing. Back your opinion.</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-[#667085]">
-            FLIPPE is a pooled opinion market. Users forecast public outcomes by backing YES or NO, then the correct side receives a share of the losing side's pool after resolution.
+            Flippe is a pooled opinion market where users back YES or NO on real-world questions. Final payout is calculated after market resolution.
           </p>
         </section>
 
@@ -49,9 +49,9 @@ export default function About() {
         </section>
 
         <section className="mt-6 rounded-2xl border border-[#E5E7EB] bg-white p-5">
-          <h2 className="text-2xl font-black">Pre-launch note</h2>
+          <h2 className="text-2xl font-black">Flippe V1</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#667085]">
-            FLIPPE is being prepared for MVP testing. Legal pages, contact details, dispute handling, and payment automation should be reviewed before public launch.
+            Flippe V1 focuses on clear YES/NO markets, wallet-backed predictions, transparent rules, responsible use, and admin-led resolution.
           </p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <Link to="/how-it-works" className="rounded-2xl bg-[#4F46E5] px-5 py-3 text-center text-sm font-black text-white hover:bg-[#4338CA]">Learn how it works</Link>

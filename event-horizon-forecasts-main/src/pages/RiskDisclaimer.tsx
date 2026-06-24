@@ -23,7 +23,7 @@ export default function RiskDisclaimer() {
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.16em] text-red-700">Responsible Use</p>
               <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Forecast carefully. Risk is real.</h1>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-red-100/80">
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-red-800">
                 Predictions can resolve against you. Final payout is not known until resolution, and active predictions are not withdrawable cash.
               </p>
             </div>
@@ -55,14 +55,14 @@ export default function RiskDisclaimer() {
             <p>If your prediction is wrong, it can settle at zero. Wrong outcomes are part of prediction markets.</p>
             <p>Take a break if you feel pressure to recover losses quickly.</p>
           </Panel>
-          <Panel title="Before public launch">
-            <p>Responsible-use tools such as account limits, cooling-off periods, and support escalation should be reviewed and strengthened before wide release.</p>
+          <Panel title="Use support when needed">
+            <p>If a market feels unclear, a wallet action looks wrong, or you feel pressure to keep predicting, pause and use Support.</p>
           </Panel>
         </section>
 
         <section className="mt-6 rounded-2xl border border-[#E5E7EB] bg-white p-5 text-center">
           <h2 className="text-xl font-black">Need help or disagree with a market outcome?</h2>
-          <p className="mt-2 text-sm text-[#667085]">Use Support to create a dispute draft or contact the team before public launch details are finalized.</p>
+          <p className="mt-2 text-sm text-[#667085]">Use Support to save dispute details or contact the team about account and wallet questions.</p>
           <Link to="/support" className="mt-4 inline-flex rounded-2xl bg-[#4F46E5] px-5 py-3 text-sm font-black text-white hover:bg-[#4338CA]">Open Support</Link>
         </section>
       </main>

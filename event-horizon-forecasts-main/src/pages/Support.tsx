@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertCircle, CircleHelp, ExternalLink, FileWarning, Mail, MessageCircle, ShieldCheck } from "lucide-react";
+import { AlertCircle, CircleHelp, ExternalLink, FileWarning, Mail, ShieldAlert, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
@@ -9,7 +9,6 @@ const issueTypes = ["Wrong resolution", "Unclear rules", "Source disagreement", 
 const fieldClass = "w-full rounded-2xl border border-[#E5E7EB] bg-[#F3F4F6] px-4 py-3 text-sm text-[#101828] outline-none transition placeholder:text-[#667085] focus:border-[#4F46E5]/60";
 
 export default function Support() {
-  const [showChat, setShowChat] = useState(false);
   const [dispute, setDispute] = useState({ market: "", issue: issueTypes[0], description: "", evidence: "" });
 
   const submitDispute = (event: React.FormEvent) => {
@@ -19,7 +18,7 @@ export default function Support() {
       return;
     }
     window.localStorage.setItem("flippe_last_dispute_draft", JSON.stringify({ ...dispute, createdAt: new Date().toISOString() }));
-    toast.info("Dispute submission will be enabled before public launch. Your draft was saved on this device.");
+    toast.info("Your dispute details were saved on this device.");
   };
 
   return (
@@ -33,43 +32,24 @@ export default function Support() {
         </p>
 
         <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <ActionCard icon={MessageCircle} title="Chat with support" body="Live support is not available yet." onClick={() => setShowChat(true)} />
           <ActionLink to="/faq" icon={CircleHelp} title="FAQs" body="Read answers about Crowd View, pools, payouts, and wallet flows." />
           <a href="#market-disputes" className="block">
-            <ActionShell icon={FileWarning} title="Market disputes" body="Create a structured dispute draft for unclear outcomes." />
+            <ActionShell icon={FileWarning} title="Market disputes" body="Save structured dispute details for unclear outcomes." />
           </a>
-          <ActionLink to="/contact" icon={Mail} title="Contact" body="Official contact details will be added before public launch." />
+          <ActionLink to="/contact" icon={Mail} title="Contact" body="Use the contact page for account and wallet questions." />
+          <ActionLink to="/responsible-use" icon={ShieldAlert} title="Responsible Use" body="Read the risk reminders before backing a side." />
         </section>
-
-        {showChat && (
-          <section className="mt-5 rounded-2xl border border-[#E5E7EB] bg-white p-5">
-            <div className="flex items-start gap-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] text-[#4F46E5]">
-                <MessageCircle className="h-5 w-5" />
-              </div>
-              <div className="min-w-0">
-                <h2 className="text-xl font-black">Support coming soon</h2>
-                <p className="mt-2 text-sm leading-6 text-[#667085]">
-                  Live support is not available yet. For now, use Contact for account questions or Market disputes for resolution concerns.
-                </p>
-                <button onClick={() => setShowChat(false)} className="mt-4 rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] px-4 py-2 text-sm font-black hover:border-[#4F46E5]/40">
-                  Close
-                </button>
-              </div>
-            </div>
-          </section>
-        )}
 
         <section id="market-disputes" className="mt-6 grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
           <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
             <ShieldCheck className="h-8 w-8 text-[#4F46E5]" />
             <h2 className="mt-4 text-2xl font-black">Market disputes</h2>
             <p className="mt-2 text-sm leading-6 text-[#667085]">
-              Use this when a market resolution looks wrong, unclear, or unsupported by the stated source. A real backend dispute queue should be connected before public launch.
+              Use this when a market resolution looks wrong, unclear, or unsupported by the stated source. Flippe saves your dispute details locally so you can keep the information organized.
             </p>
             <div className="mt-4 rounded-2xl border border-[#F2C94C]/30 bg-[#F2C94C]/10 p-4 text-sm text-[#F2C94C]">
               <AlertCircle className="mb-2 h-5 w-5" />
-              Submitting below saves a draft locally and shows a clear coming-soon message. It does not silently create a ticket.
+              Submitting below saves the details locally. It does not silently create a ticket.
             </div>
           </div>
 
@@ -90,7 +70,7 @@ export default function Support() {
                 <input value={dispute.evidence} onChange={(event) => setDispute((prev) => ({ ...prev, evidence: event.target.value }))} placeholder="Official source, article, result page, transaction reference..." className={fieldClass} />
               </Field>
               <button className="h-12 rounded-2xl bg-[#4F46E5] text-sm font-black text-white transition hover:bg-[#4338CA]">
-                Save dispute draft
+                Save dispute details
               </button>
             </div>
           </form>
@@ -100,12 +80,6 @@ export default function Support() {
     </div>
   );
 }
-
-const ActionCard = ({ icon: Icon, title, body, onClick }: { icon: any; title: string; body: string; onClick: () => void }) => (
-  <button onClick={onClick} className="text-left">
-    <ActionShell icon={Icon} title={title} body={body} />
-  </button>
-);
 
 const ActionLink = ({ to, icon, title, body }: { to: string; icon: any; title: string; body: string }) => (
   <Link to={to}>

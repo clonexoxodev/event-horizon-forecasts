@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 
 const terms = [
-  ["Eligibility", "Users should be legally eligible to use prediction market products in their location. Age and identity requirements should be reviewed before launch."],
+  ["Eligibility", "Users must be legally eligible to use Flippe in their location and must follow any age, identity, and account requirements that apply."],
   ["Account responsibility", "Users are responsible for keeping login details secure and for activity performed through their account."],
   ["Wallet and balances", "Wallet balances, pending deposits, withdrawals, prediction stakes, payouts, refunds, and adjustments should be recorded in the transaction ledger."],
   ["Market participation", "Users should read the market question, rules, close time, and resolution source before locking a prediction."],
@@ -13,7 +13,7 @@ const terms = [
   ["Prohibited activity", "Market manipulation, fraud, abuse, multiple-account misuse, automated abuse, and attempts to bypass limits are not allowed."],
   ["No guaranteed profit", "Any payout estimate before resolution is informational only. FLIPPE does not guarantee profit or income."],
   ["Platform changes", "Features, supported markets, deposit/withdrawal methods, and operational rules may change as the product develops."],
-  ["Contact details", "Official legal and support contact details should be added before public launch."],
+  ["Contact and support", "Users can use Support for account questions, wallet questions, and market disputes."],
 ];
 
 export default function Terms() {
@@ -28,9 +28,9 @@ export default function Terms() {
             </div>
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#4F46E5]">Terms</p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Draft terms of use</h1>
+              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Terms of use</h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[#667085]">
-                This is a draft terms page and should be reviewed legally before public launch. It gives users a clear view of the rules expected in the MVP.
+                These terms explain the basic rules for using Flippe V1, backing YES or NO, wallet activity, market resolution, and disputes.
               </p>
             </div>
           </div>
@@ -39,7 +39,7 @@ export default function Terms() {
         <section className="mt-6 rounded-2xl border border-[#F2C94C]/30 bg-[#F2C94C]/10 p-5 text-[#F2C94C]">
           <AlertTriangle className="h-6 w-6" />
           <p className="mt-3 text-sm leading-6">
-            FLIPPE is a pre-launch product. These terms are informational until reviewed and finalized by qualified legal counsel.
+            Flippe markets involve risk. Read each market question, rule, close time, and resolution source before backing a side.
           </p>
         </section>
 

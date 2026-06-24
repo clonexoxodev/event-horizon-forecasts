@@ -22,9 +22,9 @@ export default function Privacy() {
             </div>
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#4F46E5]">Privacy</p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Draft privacy notice</h1>
+              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Privacy notice</h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[#667085]">
-                This is a pre-launch privacy notice and should be reviewed before public launch. It explains the kinds of data FLIPPE may need to run markets and wallet flows.
+                This page explains the account, wallet, and market data Flippe uses to run pooled opinion markets safely.
               </p>
             </div>
           </div>
@@ -46,15 +46,15 @@ export default function Privacy() {
             <p>Financial ledger records may need to be retained for accounting, dispute, security, or legal reasons.</p>
           </Panel>
           <Panel icon={EyeOff} title="Public and private activity">
-            <p>Public profile features are paused for V1. Activity and earnings visibility should default to private unless a user clearly opts in later.</p>
+            <p>Public profile features are not part of V1. Activity and earnings visibility default to private.</p>
             <p>Admins may still need access to market, wallet, and transaction records to operate the platform safely.</p>
           </Panel>
           <Panel icon={Shield} title="Security">
             <p>Access tokens, account data, and wallet actions should be handled by backend APIs. The frontend must not directly update wallet balances.</p>
-            <p>No system can promise perfect security, so public-launch review should include security and privacy checks.</p>
+            <p>No system can promise perfect security. Flippe should keep account, wallet, and admin access controls under regular review.</p>
           </Panel>
           <Panel icon={Database} title="Contact details">
-            <p>Official privacy contact details will be added before public launch. For now, users can use the Contact or Support pages.</p>
+            <p>Users can use the Contact or Support pages for privacy and account questions.</p>
             <Link to="/contact" className="mt-3 inline-flex rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] px-4 py-2 text-sm font-black text-[#101828] hover:border-[#4F46E5]/40">Contact</Link>
           </Panel>
         </section>

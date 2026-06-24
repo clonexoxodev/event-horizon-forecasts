@@ -31,7 +31,7 @@ const faqs = [
       ["When do I receive winnings?", "Winnings are credited after the market closes and an admin resolves the outcome using the stated source."],
       ["How are markets resolved?", "Each market has rules and a resolution source. Admins use those rules to resolve YES, NO, or cancel/refund if the market cannot resolve fairly."],
       ["What happens if a market is cancelled?", "The platform should refund eligible stakes according to the market status and wallet ledger."],
-      ["What if I disagree with a resolution?", "Use Support > Market disputes to create a structured dispute draft. A real dispute queue should be connected before public launch."],
+      ["What if I disagree with a resolution?", "Use Support > Market disputes to save structured dispute details and keep the market, issue, description, and evidence organized."],
     ],
   },
   {

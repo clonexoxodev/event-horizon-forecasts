@@ -1,7 +1,5 @@
 import {
-  BookOpen,
   ChevronRight,
-  CircleHelp,
   FileText,
   HelpCircle,
   Info,
@@ -12,7 +10,7 @@ import {
   ShieldAlert,
   ShieldCheck,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
@@ -20,7 +18,14 @@ import { formatNaira } from "@/lib/markets";
 
 export default function More() {
   const { user, logout, isAdmin, isSuperAdmin, isLoading } = useAuth();
+  const navigate = useNavigate();
   const adminPath = isSuperAdmin() ? "/super-admin" : "/admin";
+
+  const handleLogout = async () => {
+    if (!window.confirm("Log out of Flippe?")) return;
+    await logout();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
@@ -32,7 +37,7 @@ export default function More() {
             <div>
               <h1 className="text-3xl font-black tracking-tight">Account and help</h1>
               <p className="mt-2 max-w-2xl text-sm text-[#6B7280]">
-                Manage your account, get support, and read the rules behind Flippe before public launch.
+                Manage your account, get support, and read the V1 rules behind Flippe.
               </p>
             </div>
             <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] px-4 py-3 text-sm">
@@ -54,21 +59,16 @@ export default function More() {
         </section>
 
         <section className="mt-5 grid gap-5 lg:grid-cols-[1fr_1fr]">
-          <Group title="Account" description="Simple account controls for V1. Public profiles are intentionally hidden for now.">
+          <Group title="Account" description="Simple account controls and help for V1.">
             <MoreLink to="/settings" icon={Settings} title="Settings" subtitle="Notifications, privacy, security, and sign out." />
             <MoreLink to="/support" icon={HelpCircle} title="Support" subtitle="Help, disputes, contact, and account questions." />
+            <MoreLink to="/about" icon={Info} title="About Flippe" subtitle="What Flippe is and how pooled opinion markets work." />
           </Group>
 
-          <Group title="Platform" description="Learn how Flippe markets work before locking a prediction.">
-            <MoreLink to="/how-it-works" icon={BookOpen} title="How It Works" subtitle="A beginner-friendly guide to YES/NO markets." />
-            <MoreLink to="/faq" icon={CircleHelp} title="FAQs" subtitle="Plain answers about Crowd View, pools, wallet, and resolution." />
-            <MoreLink to="/about" icon={Info} title="About FLIPPE" subtitle="What Flippe is building and what it is not." />
-          </Group>
-
-          <Group title="Trust & Safety" description="Responsible use and draft legal information for pre-launch review.">
+          <Group title="Trust & Safety" description="Clear rules for using Flippe responsibly.">
             <MoreLink to="/responsible-use" icon={ShieldAlert} title="Responsible Use" subtitle="Risk reminders and healthy usage guidance." />
-            <MoreLink to="/privacy" icon={Shield} title="Privacy" subtitle="Draft notice for account, wallet, and market data." />
-            <MoreLink to="/terms" icon={FileText} title="Terms" subtitle="Draft platform rules and market participation terms." />
+            <MoreLink to="/privacy" icon={Shield} title="Privacy" subtitle="How account, wallet, and market data are handled." />
+            <MoreLink to="/terms" icon={FileText} title="Terms" subtitle="Platform rules and market participation terms." />
           </Group>
 
           {(isAdmin() || isSuperAdmin()) && (
@@ -80,7 +80,7 @@ export default function More() {
 
         {user && (
           <button
-            onClick={logout}
+            onClick={handleLogout}
             className="mt-5 flex h-14 w-full items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-sm font-black text-red-600 transition hover:bg-red-100"
           >
             <LogOut className="mr-2 h-4 w-4" />

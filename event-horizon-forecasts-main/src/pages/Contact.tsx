@@ -39,7 +39,7 @@ export default function Contact() {
             Contact Us
           </h1>
           <p className="text-xl text-[#667085] leading-relaxed">
-            Official contact details will be finalized before public launch. For now, this page helps you prepare a support email.
+            Use this page for account, wallet, market, and support questions.
           </p>
         </section>
 
@@ -119,7 +119,7 @@ export default function Contact() {
                 <a href="mailto:support@flippe.com" className="text-sm text-[#667085] hover:text-[#4F46E5] transition-fast">
                   support@flippe.com
                 </a>
-                <p className="mt-2 text-xs text-[#667085]">To be confirmed before public launch.</p>
+                <p className="mt-2 text-xs text-[#667085]">Use this for account, wallet, and market questions.</p>
               </div>
 
               <div className="surface-raised rounded-2xl p-6">
@@ -128,7 +128,7 @@ export default function Contact() {
                 </div>
                 <h3 className="font-bold text-[#101828] mb-2">Support hours</h3>
                 <p className="text-sm text-[#667085]">
-                  Support hours will be published before public launch.
+                  Support requests are reviewed as part of Flippe V1 operations.
                 </p>
               </div>
 

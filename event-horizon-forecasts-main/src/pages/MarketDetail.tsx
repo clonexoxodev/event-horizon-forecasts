@@ -214,7 +214,6 @@ export default function MarketDetail() {
   const marketIsActive = market.status === "active" && !hasTradingClosed;
   const totalShares = Number(market.totalYesShares || 0) + Number(market.totalNoShares || 0);
   const yesSideShare = totalShares > 0 ? (Number(market.totalYesShares || 0) / totalShares) * 100 : 50;
-  const noSideShare = 100 - yesSideShare;
   const recentTrades = [...(market.priceHistory || [])]
     .filter((point) => point.side && Number(point.amount || 0) > 0)
     .slice(-5)
@@ -234,109 +233,106 @@ export default function MarketDetail() {
           </div>
         </div>
 
-        <article className="overflow-hidden rounded-[1.1rem] bg-white shadow-[0_12px_34px_rgba(16,24,40,0.08)]">
-          <div className="relative h-[210px] overflow-hidden rounded-t-[1.1rem] sm:h-[250px] lg:h-[280px]">
-            {media.type === "video" ? (
-              <video src={media.src} poster={media.poster} className="absolute inset-0 h-full w-full object-cover" muted playsInline loop autoPlay />
-            ) : (
-              <img src={media.src} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            )}
-            <div
-              className="absolute inset-0"
-              style={{
-                background:
-                  "linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0.15), transparent)",
-              }}
-            />
-            <div className="absolute inset-x-0 top-0 flex flex-wrap items-center gap-2 p-4 sm:p-5">
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#101828] shadow-sm">{marketCategoryLabel}</span>
-              <span className={`rounded-full border px-3 py-1 text-xs font-black shadow-sm ${marketIsActive ? "border-[#12B886]/70 bg-[#047857] text-white" : "border-white/30 bg-black/50 text-white"}`}>{marketIsActive ? "Live" : "Ended"}</span>
-            </div>
-            <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
-              <h1 className="max-w-4xl text-2xl font-black leading-tight tracking-tight text-white drop-shadow-[0_3px_18px_rgba(0,0,0,0.75)] sm:text-3xl lg:text-4xl">{market.question}</h1>
-            </div>
-          </div>
-          <div className="rounded-b-[1.1rem] bg-[#050505] px-4 py-3 text-white sm:px-5 sm:py-4">
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-black text-white sm:text-sm">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 shrink-0 text-white/80" />
-                <span>{market.participants} participants</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 shrink-0 text-white/80" />
-                {market.tradeCount || 0} predictions
-              </div>
-              <div>
-                {formatNaira(market.totalPool)} total predicted
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 shrink-0 text-white/80" />
-                <span>{formatCountdown(tradingCloseTime, market.closesIn)} left</span>
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <section className="mt-7">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-black">Crowd View movement</h2>
-              <p className="text-xs font-bold text-[#6B7280]">Crowd View moves as people back YES or NO.</p>
-            </div>
-            <div className="flex rounded-full border border-[#E5E7EB] bg-[#F8F7F4] p-1">
-              {(["1H", "24H", "7D", "ALL"] as Timeframe[]).map((item) => (
-                <button key={item} onClick={() => setTimeframe(item)} className={`rounded-full px-3 py-1 text-xs font-black ${timeframe === item ? "bg-[#4F46E5] text-white" : "text-[#6B7280]"}`}>
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-          <Chart market={market} timeframe={timeframe} />
-        </section>
-
-        <section className="mt-7 grid gap-8 md:grid-cols-2">
-          <div>
-            <h2 className="text-lg font-black">Crowd View</h2>
-            <p className="mt-1 text-sm text-[#6B7280]">
-              {market.yesPrice >= market.noPrice ? "The crowd currently favors YES." : "The crowd currently favors NO."} This changes as people back each side.
-            </p>
-            <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#E85D5D]/20">
-              <div className="h-full bg-[#12B886]" style={{ width: `${yesSideShare}%` }} />
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-6 text-sm">
-              <div>
-                <div className="text-xs font-black uppercase tracking-[0.12em] text-[#6B7280]">YES</div>
-                <div className="mt-1 text-2xl font-black text-[#12B886]">{formatNairaPrice(market.yesPrice)}</div>
-              </div>
-              <div>
-                <div className="text-xs font-black uppercase tracking-[0.12em] text-[#6B7280]">NO</div>
-                <div className="mt-1 text-2xl font-black text-[#E85D5D]">{formatNairaPrice(market.noPrice)}</div>
-              </div>
-            </div>
-            <p className="mt-3 text-xs font-bold leading-relaxed text-[#6B7280]">
-              If your side is correct, you receive your stake plus a share of the losing side's pool.
-            </p>
-          </div>
-
-          <div>
-            <h2 className="text-lg font-black">Recent predictions</h2>
-            <div className="mt-3 divide-y divide-[#E5E7EB]">
-              {recentTrades.length ? recentTrades.map((trade) => (
-                <div key={`${trade.timestamp}-${trade.side}-${trade.amount}`} className="flex items-center justify-between py-3 text-xs">
-                  <span className={`font-black ${trade.side === "YES" ? "text-[#12B886]" : "text-[#E85D5D]"}`}>Backed {trade.side}</span>
-                  <span className="text-[#6B7280]">{formatNaira(Number(trade.amount || 0))}</span>
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="min-w-0">
+            <section className="rounded-3xl bg-white p-4 shadow-[0_10px_30px_rgba(16,24,40,0.06)] sm:p-5">
+              <div className="flex items-start gap-4">
+                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-[#F3F4F6] sm:h-24 sm:w-24">
+                  {media.type === "video" ? (
+                    <video src={media.src} poster={media.poster} className="h-full w-full object-cover" muted playsInline loop preload="metadata" />
+                  ) : (
+                    <img src={media.src} alt="" className="h-full w-full object-cover" />
+                  )}
                 </div>
-              )) : (
-                <p className="text-sm text-[#6B7280]">Recent predictions appear after people join.</p>
-              )}
-            </div>
-          </div>
-        </section>
+                <div className="min-w-0 flex-1">
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-[#F3F4F6] px-2.5 py-1 text-[11px] font-black text-[#667085]">{marketCategoryLabel}</span>
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${marketIsActive ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#F3F4F6] text-[#667085]"}`}>
+                      {marketIsActive ? "Live" : "Closed"}
+                    </span>
+                  </div>
+                  <h1 className="text-[24px] font-black leading-tight tracking-tight text-[#101828] sm:text-[32px]">
+                    {market.question}
+                  </h1>
+                </div>
+              </div>
 
-        <section className="mt-8 border-t border-[#E5E7EB] pt-6">
-          <h2 className="text-lg font-black">Rules</h2>
-          <p className="mt-2 text-sm leading-6 text-[#6B7280]">{market.rules || market.description || "This market resolves based on the stated outcome and admin review."}</p>
-        </section>
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <CrowdViewBox label="YES" value={market.yesPrice} tone="yes" />
+                <CrowdViewBox label="NO" value={market.noPrice} tone="no" />
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-bold text-[#667085] sm:text-sm">
+                <span className="inline-flex items-center gap-1.5">
+                  <Users className="h-4 w-4" />
+                  {market.participants || 0} participants
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <BarChart3 className="h-4 w-4" />
+                  {market.tradeCount || 0} predictions
+                </span>
+                <span>{formatNaira(market.totalPool || market.totalVolume || 0)} backed</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="h-4 w-4" />
+                  {formatCountdown(tradingCloseTime, market.closesIn)} left
+                </span>
+              </div>
+            </section>
+
+            <section className="mt-7">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-black text-[#101828]">Crowd View movement</h2>
+                  <p className="text-sm font-semibold text-[#667085]">Crowd View moves as people back YES or NO.</p>
+                </div>
+                <div className="flex w-fit rounded-full bg-[#EEF2FF] p-1">
+                  {(["1H", "24H", "7D", "ALL"] as Timeframe[]).map((item) => (
+                    <button key={item} onClick={() => setTimeframe(item)} className={`rounded-full px-3 py-1 text-xs font-black transition ${timeframe === item ? "bg-[#4F46E5] text-white shadow-sm" : "text-[#667085] hover:text-[#101828]"}`}>
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <Chart market={market} timeframe={timeframe} />
+            </section>
+
+            <section className="mt-8 border-t border-[#E5E7EB] pt-6">
+              <h2 className="text-lg font-black text-[#101828]">Rules & timeline</h2>
+              <p className="mt-2 text-sm leading-6 text-[#667085]">{market.rules || market.description || "This market resolves based on the stated outcome and admin review."}</p>
+            </section>
+
+            <section className="mt-8 border-t border-[#E5E7EB] pt-6 lg:hidden">
+              <h2 className="text-lg font-black text-[#101828]">Recent predictions</h2>
+              <RecentTrades trades={recentTrades} />
+            </section>
+          </div>
+
+          <aside className="hidden lg:block">
+            <div className="sticky top-24 space-y-6">
+              <section className="rounded-3xl bg-white p-5 shadow-[0_10px_30px_rgba(16,24,40,0.06)]">
+                <h2 className="text-lg font-black text-[#101828]">Market summary</h2>
+                <p className="mt-1 text-sm leading-6 text-[#667085]">
+                  {market.yesPrice >= market.noPrice ? "The crowd currently favors YES." : "The crowd currently favors NO."} This changes as people back each side.
+                </p>
+                <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-[#E85D5D]/18">
+                  <div className="h-full bg-[#12B886]" style={{ width: `${yesSideShare}%` }} />
+                </div>
+                <div className="mt-4 flex items-center justify-between text-sm font-black">
+                  <span className="text-[#047857]">YES {formatNairaPrice(market.yesPrice)}</span>
+                  <span className="text-[#B42318]">NO {formatNairaPrice(market.noPrice)}</span>
+                </div>
+                <p className="mt-4 text-xs font-semibold leading-relaxed text-[#667085]">
+                  If your side is correct, you receive your stake plus a share of the losing side's pool.
+                </p>
+              </section>
+
+              <section className="rounded-3xl bg-white p-5 shadow-[0_10px_30px_rgba(16,24,40,0.06)]">
+                <h2 className="text-lg font-black text-[#101828]">Recent predictions</h2>
+                <RecentTrades trades={recentTrades} />
+              </section>
+            </div>
+          </aside>
+        </div>
 
         {relatedMarkets.length > 0 && (
           <section className="mt-4">
@@ -640,7 +636,7 @@ const Chart = ({ market, timeframe }: { market: Market; timeframe: Timeframe }) 
         </div>
         <span className="text-xs font-bold text-[#6B7280]">{market.tradeCount || 0} predictions</span>
       </div>
-      <div className="relative overflow-hidden rounded-2xl bg-white p-3 shadow-[0_12px_34px_rgba(16,24,40,0.06)] sm:p-4">
+      <div className="relative overflow-hidden rounded-2xl bg-white/70 p-2 sm:p-3">
         <div className="h-[290px] w-full sm:h-[380px]">
           <Line data={chartData} options={chartOptions} />
         </div>
@@ -687,10 +683,23 @@ const Row = ({ label, value, highlight = false }: { label: string; value: string
   </div>
 );
 
-const Metric = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3">
-    <div className="text-[10px] font-black uppercase tracking-[0.12em] text-[#6B7280]">{label}</div>
-    <div className="mt-1 text-sm font-black text-[#111827]">{value}</div>
+const CrowdViewBox = ({ label, value, tone }: { label: "YES" | "NO"; value: number; tone: "yes" | "no" }) => (
+  <div className={`rounded-2xl px-4 py-3 ${tone === "yes" ? "bg-[#12B886]/10" : "bg-[#E85D5D]/10"}`}>
+    <div className={`text-xs font-black uppercase tracking-[0.12em] ${tone === "yes" ? "text-[#047857]" : "text-[#B42318]"}`}>{label}</div>
+    <div className={`mt-1 text-3xl font-black ${tone === "yes" ? "text-[#12B886]" : "text-[#E85D5D]"}`}>{formatNairaPrice(value)}</div>
+  </div>
+);
+
+const RecentTrades = ({ trades }: { trades: NonNullable<Market["priceHistory"]> }) => (
+  <div className="mt-3 divide-y divide-[#E5E7EB]">
+    {trades.length ? trades.map((trade) => (
+      <div key={`${trade.timestamp}-${trade.side}-${trade.amount}`} className="flex items-center justify-between py-3 text-xs">
+        <span className={`font-black ${trade.side === "YES" ? "text-[#047857]" : "text-[#B42318]"}`}>Backed {trade.side}</span>
+        <span className="font-bold text-[#667085]">{formatNaira(Number(trade.amount || 0))}</span>
+      </div>
+    )) : (
+      <p className="text-sm font-semibold text-[#667085]">Recent predictions appear after people join.</p>
+    )}
   </div>
 );
 
