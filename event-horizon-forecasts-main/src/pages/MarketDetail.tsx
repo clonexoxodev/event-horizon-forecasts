@@ -23,8 +23,7 @@ import { Input } from "@/components/ui/input";
 import apiService, { ApiRequestError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useMarketState } from "@/lib/market-state";
-import { formatCountdown, formatNaira, formatNairaPrice, getMarketCategoryLabel, getMarketMedia, isMarketPredictable, type Market } from "@/lib/markets";
-import { categoryMatches } from "@/lib/categories";
+import { formatCountdown, formatNaira, formatNairaPrice, getMarketCategoryLabel, getMarketMedia, type Market } from "@/lib/markets";
 
 type Timeframe = "1H" | "24H" | "7D" | "ALL";
 
@@ -42,7 +41,6 @@ export default function MarketDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [justPredicted, setJustPredicted] = useState<"YES" | "NO" | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>("24H");
-  const [apiRelatedMarkets, setApiRelatedMarkets] = useState<Market[]>([]);
   const [now, setNow] = useState(Date.now());
   const marketsRef = useRef(markets);
   const marketRef = useRef<Market | null>(null);
@@ -62,8 +60,6 @@ export default function MarketDetail() {
     const loadId = latestLoadRef.current + 1;
     latestLoadRef.current = loadId;
     const readCachedMarket = () => marketsRef.current.find((item) => item.id === id);
-    setApiRelatedMarkets([]);
-
     const loadMarket = async () => {
       if (!marketRef.current || marketRef.current.id !== id) {
         setLoading(true);
@@ -73,10 +69,9 @@ export default function MarketDetail() {
         if (cached && (!marketRef.current || marketRef.current.id !== id)) {
           setMarket(cached);
         }
-        const [response, historyResponse, relatedResponse] = await Promise.all([
+        const [response, historyResponse] = await Promise.all([
           apiService.getMarket(id),
           apiService.getMarketPriceHistory(id).catch(() => null),
-          apiService.getRelatedMarkets(id).catch(() => null),
         ]);
         if (latestLoadRef.current !== loadId) return;
         const enrichedMarket = {
@@ -86,7 +81,6 @@ export default function MarketDetail() {
             : response.market.priceHistory,
         };
         setMarket(enrichedMarket);
-        setApiRelatedMarkets(relatedResponse?.markets || []);
         upsertMarket(enrichedMarket);
       } catch (error: any) {
         if (latestLoadRef.current !== loadId) return;
@@ -116,19 +110,6 @@ export default function MarketDetail() {
   }, []);
 
   const marketCategoryLabel = market ? getMarketCategoryLabel(market) : "Other";
-  const relatedMarkets = useMemo(
-    () =>
-      (apiRelatedMarkets.length ? apiRelatedMarkets : markets)
-        .filter(
-          (item) =>
-            item.id !== market?.id &&
-            categoryMatches(item.category, marketCategoryLabel) &&
-            isMarketPredictable(item, now)
-        )
-        .slice(0, 3),
-    [apiRelatedMarkets, marketCategoryLabel, market?.id, markets, now]
-  );
-
   const handleShare = async () => {
     if (!market) return;
     const media = getMarketMedia(market);
@@ -212,13 +193,6 @@ export default function MarketDetail() {
   const tradingCloseTime = market.tradingCloseTime || market.closeTime;
   const hasTradingClosed = tradingCloseTime ? new Date(tradingCloseTime).getTime() <= now : false;
   const marketIsActive = market.status === "active" && !hasTradingClosed;
-  const totalShares = Number(market.totalYesShares || 0) + Number(market.totalNoShares || 0);
-  const yesSideShare = totalShares > 0 ? (Number(market.totalYesShares || 0) / totalShares) * 100 : 50;
-  const recentTrades = [...(market.priceHistory || [])]
-    .filter((point) => point.side && Number(point.amount || 0) > 0)
-    .slice(-5)
-    .reverse();
-
   return (
     <div className="app-bg min-h-screen pb-[calc(150px+env(safe-area-inset-bottom))] text-[#111827] md:pb-24 xl:pl-64">
       <Header />
@@ -233,9 +207,9 @@ export default function MarketDetail() {
           </div>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="mx-auto max-w-5xl">
           <div className="min-w-0">
-            <section className="rounded-3xl bg-white p-4 shadow-[0_10px_30px_rgba(16,24,40,0.06)] sm:p-5">
+            <section className="border-b border-[#E5E7EB] pb-5">
               <div className="flex items-start gap-4">
                 <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-[#F3F4F6] sm:h-24 sm:w-24">
                   {media.type === "video" ? (
@@ -255,11 +229,6 @@ export default function MarketDetail() {
                     {market.question}
                   </h1>
                 </div>
-              </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <CrowdViewBox label="YES" value={market.yesPrice} tone="yes" />
-                <CrowdViewBox label="NO" value={market.noPrice} tone="no" />
               </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-bold text-[#667085] sm:text-sm">
@@ -301,53 +270,8 @@ export default function MarketDetail() {
               <p className="mt-2 text-sm leading-6 text-[#667085]">{market.rules || market.description || "This market resolves based on the stated outcome and admin review."}</p>
             </section>
 
-            <section className="mt-8 border-t border-[#E5E7EB] pt-6 lg:hidden">
-              <h2 className="text-lg font-black text-[#101828]">Recent predictions</h2>
-              <RecentTrades trades={recentTrades} />
-            </section>
           </div>
-
-          <aside className="hidden lg:block">
-            <div className="sticky top-24 space-y-6">
-              <section className="rounded-3xl bg-white p-5 shadow-[0_10px_30px_rgba(16,24,40,0.06)]">
-                <h2 className="text-lg font-black text-[#101828]">Market summary</h2>
-                <p className="mt-1 text-sm leading-6 text-[#667085]">
-                  {market.yesPrice >= market.noPrice ? "The crowd currently favors YES." : "The crowd currently favors NO."} This changes as people back each side.
-                </p>
-                <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-[#E85D5D]/18">
-                  <div className="h-full bg-[#12B886]" style={{ width: `${yesSideShare}%` }} />
-                </div>
-                <div className="mt-4 flex items-center justify-between text-sm font-black">
-                  <span className="text-[#047857]">YES {formatNairaPrice(market.yesPrice)}</span>
-                  <span className="text-[#B42318]">NO {formatNairaPrice(market.noPrice)}</span>
-                </div>
-                <p className="mt-4 text-xs font-semibold leading-relaxed text-[#667085]">
-                  If your side is correct, you receive your stake plus a share of the losing side's pool.
-                </p>
-              </section>
-
-              <section className="rounded-3xl bg-white p-5 shadow-[0_10px_30px_rgba(16,24,40,0.06)]">
-                <h2 className="text-lg font-black text-[#101828]">Recent predictions</h2>
-                <RecentTrades trades={recentTrades} />
-              </section>
-            </div>
-          </aside>
         </div>
-
-        {relatedMarkets.length > 0 && (
-          <section className="mt-4">
-            <h2 className="mb-3 text-lg font-black">Related markets</h2>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {relatedMarkets.map((item) => (
-                <Link key={item.id} to={`/market/${item.id}`} className="rounded-xl border border-[#E5E7EB] bg-white p-4 transition hover:border-[#4F46E5]/35 hover:bg-[#F8F7F4]">
-                  <div className="text-xs font-black text-[#4F46E5]">{getMarketCategoryLabel(item)}</div>
-                  <div className="mt-1 line-clamp-2 text-sm font-black">{item.question}</div>
-                  <div className="mt-3 text-xs font-black text-slate-500">YES {formatNairaPrice(item.yesPrice)} · NO {formatNairaPrice(item.noPrice)}</div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
       </main>
 
       <div className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-[#E5E7EB] bg-[#F8F7F4]/92 p-2.5 backdrop-blur-xl md:bottom-0 xl:left-64">
@@ -680,26 +604,6 @@ const Row = ({ label, value, highlight = false }: { label: string; value: string
   <div className="flex items-center justify-between border-b border-[#E5E7EB] py-2 last:border-0">
     <span className="text-sm font-bold text-[#6B7280]">{label}</span>
     <span className={`text-sm font-black ${highlight ? "text-[#4F46E5]" : "text-[#111827]"}`}>{value}</span>
-  </div>
-);
-
-const CrowdViewBox = ({ label, value, tone }: { label: "YES" | "NO"; value: number; tone: "yes" | "no" }) => (
-  <div className={`rounded-2xl px-4 py-3 ${tone === "yes" ? "bg-[#12B886]/10" : "bg-[#E85D5D]/10"}`}>
-    <div className={`text-xs font-black uppercase tracking-[0.12em] ${tone === "yes" ? "text-[#047857]" : "text-[#B42318]"}`}>{label}</div>
-    <div className={`mt-1 text-3xl font-black ${tone === "yes" ? "text-[#12B886]" : "text-[#E85D5D]"}`}>{formatNairaPrice(value)}</div>
-  </div>
-);
-
-const RecentTrades = ({ trades }: { trades: NonNullable<Market["priceHistory"]> }) => (
-  <div className="mt-3 divide-y divide-[#E5E7EB]">
-    {trades.length ? trades.map((trade) => (
-      <div key={`${trade.timestamp}-${trade.side}-${trade.amount}`} className="flex items-center justify-between py-3 text-xs">
-        <span className={`font-black ${trade.side === "YES" ? "text-[#047857]" : "text-[#B42318]"}`}>Backed {trade.side}</span>
-        <span className="font-bold text-[#667085]">{formatNaira(Number(trade.amount || 0))}</span>
-      </div>
-    )) : (
-      <p className="text-sm font-semibold text-[#667085]">Recent predictions appear after people join.</p>
-    )}
   </div>
 );
 
