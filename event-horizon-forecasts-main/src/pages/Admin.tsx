@@ -137,6 +137,12 @@ const emptyForm = {
   is_trending: false,
   min_stake: 100,
   max_stake: 100000,
+  protected_market_enabled: true,
+  activation_threshold: 10000,
+  activation_yes_min: 2000,
+  activation_no_min: 2000,
+  activation_min_participants: 5,
+  protected_max_stake: 1000,
 };
 
 const ADMIN_MEDIA_MAX_BYTES = 30 * 1024 * 1024;
@@ -596,6 +602,12 @@ const Admin = () => {
       is_trending: Boolean(market.is_trending),
       min_stake: koboToNaira(market.min_position_smallest_unit || 10000),
       max_stake: koboToNaira(market.max_position_smallest_unit || 10000000),
+      protected_market_enabled: market.protected_market_enabled !== false,
+      activation_threshold: koboToNaira(market.activation_threshold_smallest_unit || 1000000),
+      activation_yes_min: koboToNaira(market.activation_yes_min_smallest_unit || 200000),
+      activation_no_min: koboToNaira(market.activation_no_min_smallest_unit || 200000),
+      activation_min_participants: Number(market.activation_min_participants || 5),
+      protected_max_stake: koboToNaira(market.protected_max_stake_smallest_unit || 100000),
     });
     setView("create");
   };
@@ -668,6 +680,12 @@ const Admin = () => {
       is_trending: Boolean(form.is_trending),
       min_position_smallest_unit: Math.round(Number(form.min_stake) * 100),
       max_position_smallest_unit: Math.round(Number(form.max_stake) * 100),
+      protected_market_enabled: Boolean(form.protected_market_enabled),
+      activation_threshold_smallest_unit: Math.round(Number(form.activation_threshold) * 100),
+      activation_yes_min_smallest_unit: Math.round(Number(form.activation_yes_min) * 100),
+      activation_no_min_smallest_unit: Math.round(Number(form.activation_no_min) * 100),
+      activation_min_participants: Number(form.activation_min_participants),
+      protected_max_stake_smallest_unit: Math.round(Number(form.protected_max_stake) * 100),
       currency: "NGN",
     };
   };
@@ -698,6 +716,13 @@ const Admin = () => {
     if (Number(form.min_stake) <= 0) return "Minimum stake must be above zero.";
     if (Number(form.max_stake) <= Number(form.min_stake))
       return "Maximum stake must be greater than minimum stake.";
+    if (form.protected_market_enabled) {
+      if (Number(form.activation_threshold) <= 0) return "Activation threshold must be above zero.";
+      if (Number(form.activation_yes_min) <= 0 || Number(form.activation_no_min) <= 0)
+        return "YES and NO activation minimums must be above zero.";
+      if (Number(form.activation_min_participants) < 1) return "Minimum participants must be at least 1.";
+      if (Number(form.protected_max_stake) <= 0) return "Protected max stake must be above zero.";
+    }
     return null;
   };
 
@@ -1986,6 +2011,65 @@ const CreateMarketView = ({
               </Field>
             </div>
 
+            <div className="rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] p-4">
+              <label className="flex items-center gap-2 text-sm font-black text-[#101828]">
+                <input
+                  type="checkbox"
+                  checked={form.protected_market_enabled}
+                  onChange={(event) => onChange("protected_market_enabled", event.target.checked)}
+                />
+                Enable refund protection
+              </label>
+              <p className="mt-1 text-xs font-semibold leading-5 text-[#475467]">
+                Users can predict immediately. If the activity target is not reached before closing, eligible stakes can be refunded.
+              </p>
+              {form.protected_market_enabled && (
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <Field label="Activity threshold">
+                    <Input
+                      type="number"
+                      value={form.activation_threshold}
+                      onChange={(event) => onChange("activation_threshold", Number(event.target.value))}
+                      className="border-[#E5E7EB] bg-white text-[#101828]"
+                    />
+                  </Field>
+                  <Field label="Max stake before live">
+                    <Input
+                      type="number"
+                      value={form.protected_max_stake}
+                      onChange={(event) => onChange("protected_max_stake", Number(event.target.value))}
+                      className="border-[#E5E7EB] bg-white text-[#101828]"
+                    />
+                  </Field>
+                  <Field label="YES side minimum">
+                    <Input
+                      type="number"
+                      value={form.activation_yes_min}
+                      onChange={(event) => onChange("activation_yes_min", Number(event.target.value))}
+                      className="border-[#E5E7EB] bg-white text-[#101828]"
+                    />
+                  </Field>
+                  <Field label="NO side minimum">
+                    <Input
+                      type="number"
+                      value={form.activation_no_min}
+                      onChange={(event) => onChange("activation_no_min", Number(event.target.value))}
+                      className="border-[#E5E7EB] bg-white text-[#101828]"
+                    />
+                  </Field>
+                  <Field label="Minimum participants">
+                    <Input
+                      type="number"
+                      min={1}
+                      value={form.activation_min_participants}
+                      onChange={(event) => onChange("activation_min_participants", Number(event.target.value))}
+                      className="border-[#E5E7EB] bg-white text-[#101828]"
+                    />
+                  </Field>
+                </div>
+              )}
+            </div>
+
             <Field label="Media upload" required>
               <label className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-[#E5E7EB] bg-white px-4 py-6 text-sm text-[#667085] transition hover:border-[#4F46E5]/60 hover:text-[#101828]">
                 <Upload className="mr-2 h-4 w-4" />
@@ -2990,7 +3074,7 @@ const DangerConfirmModal = ({
             {state.action === "cancel" &&
               "Cancelling should only happen when the market cannot be fairly resolved."}
             {state.action === "refund" &&
-              "Refund protection returns eligible stakes because the market did not activate before close."}
+              "Refund protection returns eligible stakes because the market did not reach enough activity before close."}
             {state.action === "archive" &&
               "Archiving removes the market from active operations while preserving records."}
             {state.action === "delete" &&

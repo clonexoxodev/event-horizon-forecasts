@@ -77,7 +77,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
             </span>
             <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-black ${isLive ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#F3F4F6] text-[#667085]"}`}>
               {isLive && <span className="h-1.5 w-1.5 rounded-full bg-[#12B886]" />}
-              {isLive ? (activation.isBuilding ? "Building" : "Live") : "Closed"}
+              {isLive ? (activation.isProtected ? "Refund Protected" : "Live") : "Closed"}
             </span>
           </div>
           <h3 className="line-clamp-2 text-[15px] font-black leading-snug text-[#101828] sm:text-[17px]">
@@ -91,17 +91,17 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
         </div>
       </div>
 
-      {activation.isBuilding ? (
-        <div className="mt-3 rounded-xl bg-[#FFF7ED] p-3">
-          <div className="flex items-center justify-between gap-3 text-[11px] font-black text-[#9A3412]">
-            <span>🔥 Market Building</span>
-            <span>🛡 Refund Protection Active</span>
+      {activation.isProtected ? (
+        <div className="mt-3 rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] p-3">
+          <div className="flex items-center justify-between gap-3 text-[11px] font-black text-[#4F46E5]">
+            <span>Refund Protected</span>
+            <span>Protection Active</span>
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
-            <div className="h-full rounded-full bg-[#F97316]" style={{ width: `${activation.progress}%` }} />
+            <div className="h-full rounded-full bg-[#4F46E5]" style={{ width: `${activation.progress}%` }} />
           </div>
-          <div className="mt-1.5 text-[11px] font-bold text-[#9A3412]/80">
-            {activation.progress}% activated
+          <div className="mt-1.5 text-[11px] font-bold text-[#475467]">
+            {formatNaira(activation.totalPool)} / {formatNaira(activation.requirements.totalPool)} activity
           </div>
         </div>
       ) : (
@@ -112,7 +112,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
       )}
 
       <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-[#EEF2F6] pt-2.5 text-[11px] font-bold text-[#667085]">
-        {!activation.isBuilding && <span>{formatNaira(m.totalPool || m.totalVolume || 0)} backed</span>}
+        {!activation.isProtected && <span>{formatNaira(m.totalPool || m.totalVolume || 0)} backed</span>}
         <span className="flex items-center gap-1">
           <Clock className="h-3.5 w-3.5" />
           {formatCountdown(tradingCloseTime, m.closesIn)}

@@ -233,7 +233,7 @@ type PredictionInsight = {
   totalPool: number;
   sidePool: number;
   opposingPool: number;
-  isBuilding: boolean;
+  isProtected: boolean;
   currentValue: number;
   profitLoss: number;
 };
@@ -249,14 +249,14 @@ const getPredictionInsight = (position: ApiPosition): PredictionInsight => {
   const stake = Number(position.stake || 0);
   const currentValue = Number(position.currentValue || position.positionValue || position.projectedPayout || 0);
   const profitLoss = currentValue > 0 ? currentValue - stake : Number(position.projectedProfit || position.estimatedProfit || 0);
-  const isBuilding =
+  const isProtected =
     totalPool < MARKET_ACTIVATION_REQUIREMENTS.totalPool ||
     sidePool < MARKET_ACTIVATION_REQUIREMENTS.yesPool ||
     opposingPool < MARKET_ACTIVATION_REQUIREMENTS.noPool;
   const projectedPayout = Number(position.projectedPayout || position.estimatedPayout || 0);
   const fallbackPayout = opposingPool > 0 && sidePool > 0 && stake > 0 ? stake + (stake / sidePool) * opposingPool : 0;
   const currentPayoutEstimate = projectedPayout > 0 ? projectedPayout : fallbackPayout;
-  const multiplier = !isBuilding && opposingPool > 0 && stake > 0 && currentPayoutEstimate > 0 ? currentPayoutEstimate / stake : null;
+  const multiplier = !isProtected && opposingPool > 0 && stake > 0 && currentPayoutEstimate > 0 ? currentPayoutEstimate / stake : null;
 
   let strength: PredictionInsight["strength"] = "Balanced";
   let strengthTone: PredictionInsight["strengthTone"] = "neutral";
@@ -294,14 +294,14 @@ const getPredictionInsight = (position: ApiPosition): PredictionInsight => {
     strengthDetail,
     strengthTone,
     multiplier,
-    multiplierLabel: multiplier ? `${multiplier.toFixed(2)}x stake` : "Market Building",
+    multiplierLabel: multiplier ? `${multiplier.toFixed(2)}x stake` : "Refund Protected",
     multiplierDetail: multiplier
       ? "This changes as people join either side. Final payout is calculated after resolution."
-      : "Returns become visible after the market activates.",
+      : "Value appears once the market goes live.",
     totalPool,
     sidePool,
     opposingPool,
-    isBuilding,
+    isProtected,
     currentValue,
     profitLoss,
   };
@@ -345,10 +345,10 @@ const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[];
                 <span className="text-sm font-black text-[#111827]">{formatNaira(position.stake)} backed</span>
                 <span className="text-xs font-bold text-[#6B7280]">{formatPositionCountdown(position)} left</span>
               </div>
-              {insight.isBuilding ? (
-                <div className="rounded-xl bg-[#FFF7ED] p-3">
-                  <div className="text-sm font-black text-[#9A3412]">Market Building 🔥</div>
-                  <p className="mt-1 text-xs font-bold text-[#9A3412]/80">🛡 Refund Protection Active</p>
+              {insight.isProtected ? (
+                <div className="rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] p-3">
+                  <div className="text-sm font-black text-[#101828]">Refund Protected</div>
+                  <p className="mt-1 text-xs font-bold text-[#475467]">Value appears once this market goes live.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 border-t border-[#E5E7EB] pt-3">
@@ -430,11 +430,11 @@ const PredictionDetailModal = ({
             </div>
           </div>
 
-          {insight.isBuilding ? (
-            <section className="rounded-2xl bg-[#FFF7ED] p-4">
-              <h4 className="text-base font-black text-[#9A3412]">Market Building 🔥</h4>
-              <p className="mt-2 text-sm font-bold leading-6 text-[#9A3412]">
-                Refund Protection is active. Returns become visible once the market activates.
+          {insight.isProtected ? (
+            <section className="rounded-2xl border border-[#C7D2FE] bg-[#EEF2FF] p-4">
+              <h4 className="text-base font-black text-[#101828]">Refund Protected</h4>
+              <p className="mt-2 text-sm font-bold leading-6 text-[#344054]">
+                Your stake is protected if this market does not reach enough activity before closing. Value appears once this market goes live.
               </p>
             </section>
           ) : (
@@ -551,7 +551,7 @@ const ActivityView = ({ positions, settledCount }: { positions: ApiPosition[]; s
               </div>
               <div className="min-w-0">
                 <div className="truncate text-sm font-black">{position.marketQuestion}</div>
-                <div className="mt-1 text-xs text-[#6B7280]">{getCategoryLabel(position.category)} · {position.side} prediction · {new Date(position.createdAt).toLocaleDateString()}</div>
+                <div className="mt-1 text-xs text-[#6B7280]">{getCategoryLabel(position.category)} Â· {position.side} prediction Â· {new Date(position.createdAt).toLocaleDateString()}</div>
               </div>
             </div>
             <div className="shrink-0 text-right">

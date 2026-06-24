@@ -54,7 +54,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
   });
   const userBalance = user?.balance || 0;
   const insufficientBalance = numAmount > userBalance;
-  const exceedsBuildingLimit = activation.isBuilding && numAmount > activation.requirements.buildingMaxStake;
+  const exceedsProtectedLimit = activation.isProtected && numAmount > activation.requirements.protectedMaxStake;
   const estimatedReturn =
     activation.isLive && numAmount > 0 && selectedStake + numAmount > 0
       ? numAmount + (numAmount / (selectedStake + numAmount)) * oppositeStake
@@ -81,8 +81,8 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
       toast.error("Insufficient balance. Add money to continue.");
       return;
     }
-    if (exceedsBuildingLimit) {
-      toast.error(`Building markets are limited to ${formatNaira(activation.requirements.buildingMaxStake)} per user.`);
+    if (exceedsProtectedLimit) {
+      toast.error(`Protected markets are limited to ${formatNaira(activation.requirements.protectedMaxStake)} per user until they go live.`);
       return;
     }
 
@@ -92,7 +92,8 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
       setSuccess(true);
       toast.success("Prediction locked.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Server error. Please try again.");
+      console.error("Prediction submit failed", error);
+      toast.error(error instanceof Error ? error.message : "Could not place prediction. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -171,16 +172,16 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                   onChange={(event) => setAmount(event.target.value)}
                   disabled={loading}
                   className={`h-14 rounded-xl border-2 bg-[#F8F7F4] pl-14 text-xl font-black text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5] ${
-                    (insufficientBalance || exceedsBuildingLimit) && numAmount > 0 ? "border-[#E85D5D]" : "border-[#E5E7EB]"
+                    (insufficientBalance || exceedsProtectedLimit) && numAmount > 0 ? "border-[#E85D5D]" : "border-[#E5E7EB]"
                   }`}
                 />
               </div>
               {insufficientBalance && numAmount > 0 && (
                 <p className="mt-2 text-xs font-bold text-[#B42318]">Insufficient balance.</p>
               )}
-              {exceedsBuildingLimit && (
+              {exceedsProtectedLimit && (
                 <p className="mt-2 text-xs font-bold text-[#B42318]">
-                  Building markets are limited to {formatNaira(activation.requirements.buildingMaxStake)} per user.
+                  Protected markets are limited to {formatNaira(activation.requirements.protectedMaxStake)} per user until they go live.
                 </p>
               )}
             </div>
@@ -205,8 +206,8 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
             </div>
 
             <div className="border-t border-[#E5E7EB] pt-4">
-              {activation.isBuilding ? (
-                <MarketBuildingState progress={activation.progress} totalPool={activation.totalPool} requiredPool={activation.requirements.totalPool} />
+              {activation.isProtected ? (
+                <RefundProtectionState progress={activation.progress} totalPool={activation.totalPool} requiredPool={activation.requirements.totalPool} />
               ) : numAmount > 0 && !insufficientBalance ? (
                 <div>
                   <div className="grid grid-cols-2 gap-4">
@@ -224,7 +225,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
 
             <Button
               onClick={handleConfirm}
-              disabled={!user || loading || numAmount <= 0 || insufficientBalance || exceedsBuildingLimit}
+              disabled={!user || loading || numAmount <= 0 || insufficientBalance || exceedsProtectedLimit}
               className={`h-13 w-full rounded-xl text-base font-black text-white transition ${
                 isPositiveSide
                   ? "bg-[#12B886] text-[#06100d] hover:bg-[#2dd4a0]"
@@ -237,7 +238,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                   Saving...
                 </>
               ) : (
-                <>Back {selection.side}</>
+                <>Confirm {selection.side}</>
               )}
             </Button>
 
@@ -320,11 +321,11 @@ const SuccessState = ({ selection, amount, onClose }: { selection: ForecastSelec
         <p className="mt-3 text-base font-black text-[#101828]">
           You backed {selection.side} with {formatNaira(amount)}.
         </p>
-        {activation.isBuilding ? (
+        {activation.isProtected ? (
           <div className="mt-4">
-            <MarketBuildingState progress={activation.progress} totalPool={activation.totalPool} requiredPool={activation.requirements.totalPool} compact />
+            <RefundProtectionState progress={activation.progress} totalPool={activation.totalPool} requiredPool={activation.requirements.totalPool} compact />
             <p className="mt-3 text-sm font-semibold leading-6 text-[#475467]">
-              We will notify you when this market becomes active or if a refund is issued.
+              We will notify you when this market goes live or if a refund is issued.
             </p>
           </div>
         ) : (
@@ -346,7 +347,7 @@ const SuccessState = ({ selection, amount, onClose }: { selection: ForecastSelec
   );
 };
 
-const MarketBuildingState = ({
+const RefundProtectionState = ({
   progress,
   totalPool,
   requiredPool,
@@ -357,21 +358,20 @@ const MarketBuildingState = ({
   requiredPool: number;
   compact?: boolean;
 }) => (
-  <div className="rounded-2xl bg-[#FFF7ED] p-4">
+  <div className="rounded-2xl border border-[#C7D2FE] bg-[#EEF2FF] p-4">
     <div className="flex items-center justify-between gap-3">
-      <div className="text-sm font-black text-[#9A3412]">Market Building 🔥</div>
-      <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#9A3412]">🛡 Refund Protection Active</span>
+      <div className="text-sm font-black text-[#101828]">Refund Protected</div>
+      <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#4F46E5]">Protection Active</span>
     </div>
     <div className="mt-4 h-2 overflow-hidden rounded-full bg-white">
-      <div className="h-full rounded-full bg-[#F97316]" style={{ width: `${progress}%` }} />
+      <div className="h-full rounded-full bg-[#4F46E5]" style={{ width: `${progress}%` }} />
     </div>
-    <div className="mt-2 text-sm font-black text-[#9A3412]">{progress}% Activated</div>
-    <p className="mt-1 text-xs font-bold text-[#9A3412]/80">
-      {formatNaira(totalPool)} of {formatNaira(requiredPool)} required
+    <p className="mt-2 text-xs font-bold text-[#475467]">
+      {formatNaira(totalPool)} / {formatNaira(requiredPool)} activity
     </p>
     {!compact && (
-      <p className="mt-3 text-sm font-bold leading-6 text-[#9A3412]">
-        Your stake is protected if the market does not activate before closing.
+      <p className="mt-3 text-sm font-bold leading-6 text-[#344054]">
+        Your stake is protected if this market does not reach enough activity before closing.
       </p>
     )}
   </div>

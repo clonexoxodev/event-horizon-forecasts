@@ -109,6 +109,14 @@ export type ApiMarket = {
   video_url?: string | null;
   isTrending?: boolean;
   is_trending?: boolean;
+  activation_state?: 'protected' | 'building' | 'live' | 'resolved' | 'refunded';
+  protectedMarketEnabled?: boolean;
+  protected_market_enabled?: boolean;
+  activation_threshold_smallest_unit?: number;
+  activation_yes_min_smallest_unit?: number;
+  activation_no_min_smallest_unit?: number;
+  activation_min_participants?: number;
+  protected_max_stake_smallest_unit?: number;
   priceHistory?: Array<{ timestamp: string; yesPrice: number; noPrice: number; yesPool?: number; noPool?: number; volume?: number; tradeCount?: number; side?: 'YES' | 'NO' | null; amount?: number }>;
 };
 
@@ -132,10 +140,16 @@ export type AdminMarket = {
   resolution_instructions?: string | null;
   outcome?: string | null;
   winning_outcome?: string | null;
-  activation_state?: 'building' | 'live' | 'resolved' | 'refunded';
+  activation_state?: 'protected' | 'building' | 'live' | 'resolved' | 'refunded';
   activated_at?: string | null;
   refunded_at?: string | null;
   activation_snapshot?: Record<string, any>;
+  protected_market_enabled?: boolean;
+  activation_threshold_smallest_unit?: number;
+  activation_yes_min_smallest_unit?: number;
+  activation_no_min_smallest_unit?: number;
+  activation_min_participants?: number;
+  protected_max_stake_smallest_unit?: number;
   pool_amount_smallest_unit?: number;
   total_volume_smallest_unit?: number;
   seed_liquidity_yes_smallest_unit?: number;
@@ -187,6 +201,12 @@ export type AdminCreateMarketInput = {
   is_trending?: boolean;
   min_position_smallest_unit?: number;
   max_position_smallest_unit?: number;
+  protected_market_enabled?: boolean;
+  activation_threshold_smallest_unit?: number;
+  activation_yes_min_smallest_unit?: number;
+  activation_no_min_smallest_unit?: number;
+  activation_min_participants?: number;
+  protected_max_stake_smallest_unit?: number;
 };
 
 export type ApiPosition = {

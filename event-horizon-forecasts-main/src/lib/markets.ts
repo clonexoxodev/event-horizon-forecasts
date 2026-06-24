@@ -9,48 +9,70 @@ export const MARKET_ACTIVATION_REQUIREMENTS = {
   yesPool: 2000,
   noPool: 2000,
   participants: 5,
+  protectedMaxStake: 1000,
   buildingMaxStake: 1000,
 };
 
-export type MarketActivationState = "BUILDING" | "LIVE" | "RESOLVED" | "REFUNDED";
+export type MarketActivationState = "PROTECTED" | "LIVE" | "RESOLVED" | "REFUNDED";
+
+const amountFromSmallestUnit = (value: unknown, fallback: number) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric / 100 : fallback;
+};
 
 export const getMarketActivation = (
-  market: Partial<Pick<Market, "status" | "yesPool" | "noPool" | "yesVolume" | "noVolume" | "totalPool" | "totalVolume" | "participants">>,
+  market: Partial<Market> & Record<string, any>,
   requirements = MARKET_ACTIVATION_REQUIREMENTS
 ) => {
   const status = String(market.status || "").toLowerCase();
+  const configuredRequirements = {
+    totalPool: amountFromSmallestUnit(market.activation_threshold_smallest_unit, requirements.totalPool),
+    yesPool: amountFromSmallestUnit(market.activation_yes_min_smallest_unit, requirements.yesPool),
+    noPool: amountFromSmallestUnit(market.activation_no_min_smallest_unit, requirements.noPool),
+    participants: Number(market.activation_min_participants ?? requirements.participants),
+    protectedMaxStake: amountFromSmallestUnit(market.protected_max_stake_smallest_unit, requirements.protectedMaxStake),
+    buildingMaxStake: amountFromSmallestUnit(market.protected_max_stake_smallest_unit, requirements.protectedMaxStake),
+  };
   const yesPool = Number(market.yesPool ?? market.yesVolume ?? 0);
   const noPool = Number(market.noPool ?? market.noVolume ?? 0);
   const totalPool = Number(market.totalPool ?? market.totalVolume ?? yesPool + noPool);
   const participants = Number(market.participants || 0);
+  const protectionDisabled = market.protected_market_enabled === false || market.protectedMarketEnabled === false;
 
   const checks = [
-    totalPool / requirements.totalPool,
-    yesPool / requirements.yesPool,
-    noPool / requirements.noPool,
-    participants / requirements.participants,
+    totalPool / configuredRequirements.totalPool,
+    yesPool / configuredRequirements.yesPool,
+    noPool / configuredRequirements.noPool,
+    participants / configuredRequirements.participants,
   ];
   const progress = Math.max(0, Math.min(100, Math.floor(Math.min(...checks) * 100)));
   const activated =
-    totalPool >= requirements.totalPool &&
-    yesPool >= requirements.yesPool &&
-    noPool >= requirements.noPool &&
-    participants >= requirements.participants;
+    protectionDisabled ||
+    market.activation_state === "live" ||
+    totalPool >= configuredRequirements.totalPool &&
+    yesPool >= configuredRequirements.yesPool &&
+    noPool >= configuredRequirements.noPool &&
+    participants >= configuredRequirements.participants;
 
-  let state: MarketActivationState = activated ? "LIVE" : "BUILDING";
+  let state: MarketActivationState = activated ? "LIVE" : "PROTECTED";
   if (status === "resolved") state = "RESOLVED";
   if (status === "refunded" || status === "cancelled") state = "REFUNDED";
 
   return {
     state,
-    isBuilding: state === "BUILDING",
+    isProtected: state === "PROTECTED",
+    isBuilding: state === "PROTECTED",
     isLive: state === "LIVE",
     progress,
     yesPool,
     noPool,
     totalPool,
     participants,
-    requirements,
+    requirements: {
+      ...configuredRequirements,
+      buildingMaxStake: configuredRequirements.protectedMaxStake,
+      protectedMaxStake: configuredRequirements.protectedMaxStake,
+    },
     activated,
   };
 };

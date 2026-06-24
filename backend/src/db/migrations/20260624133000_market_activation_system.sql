@@ -17,6 +17,7 @@ values (
     'yesPoolSmallestUnit', 200000,
     'noPoolSmallestUnit', 200000,
     'minimumParticipants', 5,
+    'protectedMaxStakeSmallestUnit', 100000,
     'buildingMaxStakeSmallestUnit', 100000
   ),
   'Activation requirements before a market becomes live. Values are in kobo.'
@@ -26,15 +27,25 @@ set value = excluded.value,
     description = excluded.description,
     updated_at = now();
 
-alter table public.markets add column if not exists activation_state text not null default 'building';
+alter table public.markets add column if not exists activation_state text not null default 'protected';
 alter table public.markets add column if not exists activated_at timestamptz;
 alter table public.markets add column if not exists refunded_at timestamptz;
 alter table public.markets add column if not exists activation_snapshot jsonb not null default '{}'::jsonb;
+alter table public.markets add column if not exists protected_market_enabled boolean not null default true;
+alter table public.markets add column if not exists activation_threshold_smallest_unit bigint not null default 1000000;
+alter table public.markets add column if not exists activation_yes_min_smallest_unit bigint not null default 200000;
+alter table public.markets add column if not exists activation_no_min_smallest_unit bigint not null default 200000;
+alter table public.markets add column if not exists activation_min_participants integer not null default 5;
+alter table public.markets add column if not exists protected_max_stake_smallest_unit bigint not null default 100000;
+
+update public.markets
+set activation_state = 'protected'
+where activation_state = 'building';
 
 alter table public.markets drop constraint if exists markets_activation_state_check;
 alter table public.markets
   add constraint markets_activation_state_check
-  check (activation_state in ('building', 'live', 'resolved', 'refunded'));
+  check (activation_state in ('protected', 'building', 'live', 'resolved', 'refunded'));
 
 alter table public.markets drop constraint if exists markets_status_check;
 alter table public.markets drop constraint if exists status_enum;
