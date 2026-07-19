@@ -44,7 +44,12 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
+app.use(express.json({
+  verify: (req, _res, buf) => {
+    // Capture raw body for webhook signature verification
+    (req as any).rawBody = buf;
+  },
+}));
 app.use(cookieParser());
 
 // Routes

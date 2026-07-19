@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import crypto from 'node:crypto';
 import { walletService } from '../services/wallet.service.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { supabase } from '../db/supabase-client.js';
@@ -130,6 +131,122 @@ const serializeTransaction = (tx: any) => ({
 
 // All wallet routes require authentication
 router.use(authMiddleware.authenticate);
+
+// Payment provider webhook — must be mounted BEFORE auth middleware (no user session)
+// but we mount it here on a separate sub-router to keep it unauthenticated.
+const webhookRouter = Router();
+
+// Paystack signature: HMAC-SHA256 of the raw body using the secret key, sent in `x-paystack-signature`.
+const verifyPaystackSignature = (req: Request): boolean => {
+  const secret = process.env.PAYSTACK_SECRET_KEY;
+  if (!secret) return false;
+  const signature = req.headers['x-paystack-signature'];
+  if (typeof signature !== 'string' || !signature) return false;
+  const hmac = crypto.createHmac('sha256', secret).update(req.rawBody || '').digest('hex');
+  return crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(signature));
+};
+const verifyFlutterwaveSignature = (req: Request): boolean => {
+  const secretHash = process.env.FLUTTERWAVE_SECRET_HASH;
+  if (!secretHash) return false;
+  const signature = req.headers['verif-hash'];
+  return typeof signature === 'string' && signature === secretHash;
+};
+
+// Monnify signature: HMAC-SHA256 of the raw body using MONNIFY_SECRET_KEY, sent in `monnify-signature` header.
+const verifyMonnifySignature = (req: Request): boolean => {
+  const secret = process.env.MONNIFY_SECRET_KEY;
+  if (!secret) return false;
+  const signature = req.headers['monnify-signature'];
+  if (typeof signature !== 'string' || !signature) return false;
+  const hmac = crypto.createHmac('sha256', secret).update(req.rawBody || '').digest('hex');
+  return crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(signature));
+};
+
+const verifyWebhookSignature = (provider: string, req: Request): boolean => {
+  if (provider === 'paystack') return verifyPaystackSignature(req);
+  if (provider === 'flutterwave') return verifyFlutterwaveSignature(req);
+  if (provider === 'monnify') return verifyMonnifySignature(req);
+  return false;
+};
+
+webhookRouter.post('/payment/callback', async (req: Request, res: Response) => {
+  try {
+    const provider = String(req.query.provider || req.body?.provider || 'paystack').toLowerCase() as PaymentProvider;
+    if (!supportedProviders.includes(provider)) {
+      return res.status(400).json({ error: { code: 'UNSUPPORTED_PROVIDER', message: 'Unknown payment provider.', timestamp: new Date().toISOString() } });
+    }
+
+    if (!verifyWebhookSignature(provider, req)) {
+      console.warn(`Webhook signature verification failed for provider=${provider}`);
+      return res.status(401).json({ error: { code: 'INVALID_SIGNATURE', message: 'Webhook signature verification failed.', timestamp: new Date().toISOString() } });
+    }
+
+    const reference = String(req.body?.reference || req.body?.data?.reference || req.body?.responseBody?.paymentReference || '');
+    if (!reference) {
+      return res.status(400).json({ error: { code: 'MISSING_REFERENCE', message: 'No payment reference in webhook payload.', timestamp: new Date().toISOString() } });
+    }
+
+    const { data: transaction } = await supabase.from('transactions').select('id, user_id, wallet_id, amount_smallest_unit, status').eq('reference', reference).maybeSingle();
+    if (!transaction) {
+      return res.status(404).json({ error: { code: 'TRANSACTION_NOT_FOUND', message: 'No transaction matches this reference.', timestamp: new Date().toISOString() } });
+    }
+    if (transaction.status === 'completed') {
+      return res.status(200).json({ message: 'Transaction already processed.' });
+    }
+
+    const amountSmallestUnit = Number(transaction.amount_smallest_unit || 0);
+
+    // Read current wallet, then credit atomically (idempotent — transaction.status already checked above)
+    const { data: currentWallet } = await supabase.from('wallets')
+      .select('id, balance_ngn_kobo, available_ngn_kobo, total_deposited_ngn_kobo')
+      .eq('id', transaction.wallet_id)
+      .maybeSingle();
+
+    const { data: wallet, error: walletError } = await supabase.from('wallets')
+      .update({
+        balance_ngn_kobo: (Number(currentWallet?.balance_ngn_kobo || 0)) + amountSmallestUnit,
+        available_ngn_kobo: (Number(currentWallet?.available_ngn_kobo || 0)) + amountSmallestUnit,
+        total_deposited_ngn_kobo: (Number(currentWallet?.total_deposited_ngn_kobo || 0)) + amountSmallestUnit,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', transaction.wallet_id)
+      .select()
+      .maybeSingle();
+
+    if (walletError || !wallet) {
+      throw new Error('Could not credit wallet after webhook verification.');
+    }
+
+    await supabase.from('transactions').update({
+      status: 'completed',
+      type: 'deposit_approved',
+      updated_at: new Date().toISOString(),
+    }).eq('id', transaction.id);
+
+    await supabase.from('deposit_requests').update({
+      status: 'completed',
+      updated_at: new Date().toISOString(),
+    }).eq('transaction_id', transaction.id);
+
+    await notifyUser({
+      user_id: transaction.user_id,
+      type: 'deposit_approved',
+      title: 'Deposit confirmed',
+      message: `Your wallet has been credited with ₦${toAmount(amountSmallestUnit).toLocaleString()}.`,
+      reference_id: transaction.id,
+      reference_type: 'transaction',
+      metadata: { reference, provider },
+    });
+
+    return res.status(200).json({ message: 'Webhook processed.' });
+  } catch (error: any) {
+    console.error('Payment webhook error:', error);
+    return res.status(500).json({ error: { code: 'WEBHOOK_FAILED', message: 'Could not process webhook.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// Mount webhook router without auth
+router.use(webhookRouter);
 
 /**
  * GET /api/wallet

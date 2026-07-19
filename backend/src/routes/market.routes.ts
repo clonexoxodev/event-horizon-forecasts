@@ -191,16 +191,28 @@ const isPastTradingClose = (market: any) => {
   return tradingCloseTime ? new Date(tradingCloseTime).getTime() <= Date.now() : false;
 };
 
+// Read-only normalization: returns the market with the status it SHOULD have if expired.
+// Does NOT write to the database. Use POST /markets/:id/close-expired for actual closure.
+const normalizeMarketStatus = (market: any) => {
+  const status = market.status || market.state || 'active';
+  if (['active', 'open'].includes(status) && isPastClose(market)) {
+    return { ...market, status: 'pending_resolution', state: 'closed' };
+  }
+  return market;
+};
+
 const autoCloseExpiredMarket = async (market: any) => {
   const status = market.status || market.state || 'active';
   if (!['active', 'open'].includes(status) || !isPastClose(market)) return market;
 
+  // Atomic claim: only transition if still active/open (prevents races with admin resolution)
   const { data, error } = await supabase
     .from('markets')
     .update({ status: 'pending_resolution', state: 'closed', updated_at: new Date().toISOString() })
     .eq('id', market.id)
+    .in('status', ['active', 'open'])
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.warn('Failed to auto-close expired market:', error.message);
@@ -474,7 +486,7 @@ router.get('/', async (req: Request, res: Response) => {
       throw new Error('Failed to fetch markets: ' + error.message);
     }
 
-    const normalizedRawMarkets = await Promise.all((rawMarkets || []).map(autoCloseExpiredMarket));
+    const normalizedRawMarkets = (rawMarkets || []).map(normalizeMarketStatus);
     const markets = normalizedRawMarkets.filter((market) => {
       const status = market.status || market.state || 'active';
       return (status === 'active' || status === 'open') && !isPastClose(market);
@@ -551,7 +563,7 @@ router.get('/:id/related', async (req: Request, res: Response) => {
       throw new Error('Failed to fetch related markets: ' + error.message);
     }
 
-    const normalizedRawMarkets = await Promise.all((rawMarkets || []).map(autoCloseExpiredMarket));
+    const normalizedRawMarkets = (rawMarkets || []).map(normalizeMarketStatus);
     const relatedMarkets = normalizedRawMarkets
       .filter((market) => normalizeMarketCategory(market.category) === currentCategory)
       .filter((market) => {
@@ -614,6 +626,37 @@ router.get('/popular', async (req: Request, res: Response) => {
         message: 'Failed to fetch popular markets. Please try again.',
         timestamp: new Date().toISOString()
       }
+    });
+  }
+});
+
+/**
+ * POST /api/markets/close-expired
+ * Explicitly close all expired active markets. Idempotent and safe to call on a schedule.
+ */
+router.post('/close-expired', authMiddleware.authenticate, async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        error: { code: 'UNAUTHORIZED', message: 'User not authenticated', timestamp: new Date().toISOString() }
+      });
+    }
+
+    const { data: activeMarkets, error } = await supabase
+      .from('markets')
+      .select('*')
+      .in('status', ['active', 'open']);
+
+    if (error) throw error;
+
+    const expired = (activeMarkets || []).filter(isPastClose);
+    const closed = await Promise.all(expired.map(autoCloseExpiredMarket));
+
+    res.json({ closed: closed.length, markets: closed.map((m) => m.id) });
+  } catch (error: any) {
+    console.error('Close expired markets error:', error);
+    res.status(500).json({
+      error: { code: 'CLOSE_EXPIRED_FAILED', message: 'Failed to close expired markets.', timestamp: new Date().toISOString() }
     });
   }
 });

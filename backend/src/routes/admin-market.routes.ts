@@ -240,9 +240,24 @@ const resolveMarketPoolPayouts = async (market: any, outcome: 'YES' | 'NO', admi
     throw new Error('Market must be ended or pending resolution before settlement.');
   }
 
+  const now = new Date().toISOString();
+
+  // Atomic claim: set payout_status to 'processing' so concurrent resolve calls abort.
+  // Only proceeds if payout_status is not already processing/completed.
+  const { data: claimedMarket, error: claimError } = await supabase
+    .from('markets')
+    .update({ payout_status: 'processing', updated_at: now })
+    .eq('id', market.id)
+    .not('payout_status', 'in', '("processing","completed")')
+    .select()
+    .maybeSingle();
+
+  if (claimError || !claimedMarket) {
+    throw new Error('Market payouts are already being processed or have been completed.');
+  }
+
   const positions = await loadMarketPositions(market.id);
   const preview = buildSettlementPreview(market, outcome, positions);
-  const now = new Date().toISOString();
 
   for (const result of preview.positions) {
     const position = positions.find((candidate) => candidate.id === result.id);
@@ -367,6 +382,7 @@ const resolveMarketPoolPayouts = async (market: any, outcome: 'YES' | 'NO', admi
       resolved_outcome: outcome,
       resolved_at: now,
       resolved_by: adminUserId,
+      payout_status: 'completed',
       updated_at: now
     })
     .eq('id', market.id)
@@ -384,6 +400,7 @@ const resolveMarketPoolPayouts = async (market: any, outcome: 'YES' | 'NO', admi
         winning_outcome: outcome,
         resolved_outcome: outcome,
         resolved_at: now,
+        payout_status: 'completed',
         updated_at: now
       })
       .eq('id', market.id)

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Camera, Save, Loader2 } from "lucide-react";
+import { Camera, Save, Loader as Loader2 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { DelayedFlippeLoader } from "@/components/FlippeBrand";
 import { MobileNav } from "@/components/MobileNav";
