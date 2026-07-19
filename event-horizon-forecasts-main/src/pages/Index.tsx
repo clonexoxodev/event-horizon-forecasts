@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, Sparkles, Wallet } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
-import { FlippeSymbol } from "@/components/FlippeBrand";
 import { MobileNav } from "@/components/MobileNav";
 import { MarketCard } from "@/components/MarketCard";
-import { getTrendingScore, formatNaira } from "@/lib/markets";
+import { getTrendingScore } from "@/lib/markets";
 import { useMarketState } from "@/lib/market-state";
 import { useAuth } from "@/lib/auth";
-import { NotificationBell } from "@/components/NotificationBell";
 import { categoryMatches, HOME_MARKET_FILTERS, type HomeMarketFilter, normalizeCategory } from "@/lib/categories";
 
 const isLiveMarket = (market: { status?: string; closeTime?: string; tradingCloseTime?: string }) => {
@@ -111,24 +109,6 @@ const Index = () => {
     <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-[1320px] px-4 py-5 sm:px-6 lg:py-6">
-
-        {/* ── Mobile Top Bar ── */}
-        <section className="mb-5 flex items-center justify-between gap-3 md:hidden">
-          <Link to="/" className="flex items-center gap-2">
-            <FlippeSymbol size="sm" />
-            <span className="text-base font-extrabold tracking-[0.04em] text-[#111827]">FLIPPE</span>
-          </Link>
-          <div className="flex items-center gap-1.5">
-            <Link
-              to="/wallet"
-              className="flex items-center gap-1 rounded-full border border-[#E5E7EB] bg-white px-2.5 py-1 text-[11px] font-bold text-[#111827] shadow-sm"
-            >
-              <Wallet className="h-3 w-3 text-[#4F46E5]" />
-              {formatNaira(user?.balance || 0)}
-            </Link>
-            <NotificationBell />
-          </div>
-        </section>
 
         {/* ── Hero ── */}
         {!isSearching && category === "Trending" && (

@@ -20,6 +20,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  Info,
   Loader2,
   Share2,
   Shield,
@@ -613,15 +614,22 @@ export default function MarketDetail() {
                     value={`YES ${formatNairaPrice(market.yesPrice)} / NO ${formatNairaPrice(market.noPrice)}`}
                   />
                   {activation.isProtected && (
-                    <div className="mt-2.5 rounded-lg border border-[#C7D2FE] bg-[#EEF2FF] p-3">
-                      <div className="flex items-center gap-1.5">
-                        <Shield className="h-3.5 w-3.5 text-[#4F46E5]" />
-                        <span className="text-xs font-bold text-[#4F46E5]">Refund Protected</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowProtectedInfo(true)}
+                      className="mt-2.5 w-full rounded-lg border border-[#C7D2FE] bg-[#EEF2FF] p-3 text-left transition hover:bg-[#E0E7FF]"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Shield className="h-3.5 w-3.5 text-[#4F46E5]" />
+                          <span className="text-xs font-bold text-[#4F46E5]">Refund Protected</span>
+                        </div>
+                        <Info className="h-3.5 w-3.5 text-[#4F46E5]/60" />
                       </div>
                       <p className="mt-1.5 text-[10px] font-bold leading-relaxed text-[#344054]">
                         Stake is protected if market doesn&apos;t reach enough activity.
                       </p>
-                    </div>
+                    </button>
                   )}
                   {exceedsProtectedLimit && (
                     <p className="mt-2 text-[10px] font-bold text-[#B42318]">

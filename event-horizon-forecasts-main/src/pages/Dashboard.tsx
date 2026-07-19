@@ -10,6 +10,7 @@ import {
   ChevronUp,
   Clock,
   Flame,
+  Info,
   LineChart,
   Loader2,
   Medal,
@@ -22,6 +23,7 @@ import {
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
+import { ProtectedMarketInfo } from "@/components/ProtectedMarketInfo";
 import { useAuth } from "@/lib/auth";
 import apiService, { type ApiPosition, type ApiProfileStats } from "@/lib/api";
 import { formatCountdown, formatNaira, formatNairaPrice, MARKET_ACTIVATION_REQUIREMENTS } from "@/lib/markets";
@@ -82,6 +84,7 @@ const Dashboard = () => {
   const [now, setNow] = useState(Date.now());
   const [showActivity, setShowActivity] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
+  const [showProtectedInfo, setShowProtectedInfo] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -333,6 +336,7 @@ const Dashboard = () => {
                   position={position}
                   now={now}
                   onClick={() => setSelectedPosition(position)}
+                  onLearnProtected={() => setShowProtectedInfo(true)}
                 />
               ))}
             </div>
@@ -398,6 +402,13 @@ const Dashboard = () => {
             setSelectedPosition(null);
             if (marketId) navigate(`/market/${marketId}`);
           }}
+          onLearnProtected={() => setShowProtectedInfo(true)}
+        />
+      )}
+      {showProtectedInfo && (
+        <ProtectedMarketInfo
+          isOpen={showProtectedInfo}
+          onClose={() => setShowProtectedInfo(false)}
         />
       )}
       <MobileNav />
@@ -434,10 +445,12 @@ const PositionCard = ({
   position,
   now,
   onClick,
+  onLearnProtected,
 }: {
   position: ApiPosition;
   now: number;
   onClick: () => void;
+  onLearnProtected?: () => void;
 }) => {
   const insight = getPredictionInsight(position);
   const displayStatus = getPredictionDisplayStatus(position, now);
@@ -459,8 +472,14 @@ const PositionCard = ({
       </h3>
 
       {insight.isProtected ? (
-        <div className="mt-3 rounded-lg border border-[#C7D2FE] bg-[#EEF2FF] p-2.5">
-          <div className="text-xs font-bold text-[#101828]">Refund Protected</div>
+        <div
+          className={`mt-3 rounded-lg border border-[#C7D2FE] bg-[#EEF2FF] p-2.5 ${onLearnProtected ? "cursor-pointer transition hover:bg-[#E0E7FF]" : ""}`}
+          onClick={onLearnProtected ? (e) => { e.stopPropagation(); onLearnProtected(); } : undefined}
+        >
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-bold text-[#101828]">Refund Protected</div>
+            {onLearnProtected && <Info className="h-3.5 w-3.5 text-[#4F46E5]/60" />}
+          </div>
           <p className="mt-0.5 text-[10px] font-bold text-[#475467]">
             Value appears once market goes live.
           </p>
@@ -831,11 +850,13 @@ const PredictionDetailModal = ({
   now,
   onClose,
   onViewMarket,
+  onLearnProtected,
 }: {
   position: ApiPosition;
   now: number;
   onClose: () => void;
   onViewMarket: () => void;
+  onLearnProtected?: () => void;
 }) => {
   const shares = Number(position.sharesOwned ?? position.sharesReceived ?? 0);
   const rules = (position as ApiPosition & { rules?: string }).rules;
@@ -905,12 +926,19 @@ const PredictionDetailModal = ({
           </div>
 
           {insight.isProtected ? (
-            <section className="rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] p-3">
-              <h4 className="text-sm font-bold text-[#101828]">Refund Protected</h4>
+            <button
+              type="button"
+              onClick={() => { onClose(); onLearnProtected?.(); }}
+              className="w-full rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] p-3 text-left transition hover:bg-[#E0E7FF]"
+            >
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-bold text-[#101828]">Refund Protected</h4>
+                <Info className="h-3.5 w-3.5 text-[#4F46E5]/60" />
+              </div>
               <p className="mt-1 text-xs font-bold leading-relaxed text-[#344054]">
                 Your stake is protected. Value appears once market goes live.
               </p>
-            </section>
+            </button>
           ) : (
             <section className="grid grid-cols-2 gap-3 border-t border-[#E5E7EB] pt-3">
               <Metric label="Current Value" value={formatNaira(insight.currentValue)} large />
