@@ -853,6 +853,43 @@ class ApiService {
     return this.request<{ transactions: ApiTransaction[] }>(`/api/admin/finance/transactions${suffix}`);
   }
 
+  async getAdminAuditLog(params: { action?: string; limit?: number; offset?: number } = {}) {
+    const query = new URLSearchParams();
+    if (params.action) query.set('action', params.action);
+    if (params.limit) query.set('limit', String(params.limit));
+    if (params.offset) query.set('offset', String(params.offset));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.request<{ entries: any[]; total?: number }>(`/api/admin/audit-log${suffix}`);
+  }
+
+  async getAdminUserDetail(userId: string) {
+    return this.request<{ user: any; positions?: ApiPosition[]; transactions?: ApiTransaction[] }>(`/api/admin/users/${encodeURIComponent(userId)}`);
+  }
+
+  async suspendAdminUser(userId: string, reason: string) {
+    return this.request(`/api/admin/users/${encodeURIComponent(userId)}/suspend`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  async activateAdminUser(userId: string) {
+    return this.request(`/api/admin/users/${encodeURIComponent(userId)}/activate`, {
+      method: 'POST',
+    });
+  }
+
+  async getAdminDashboardStats() {
+    return this.request<{ stats: any }>('/api/admin/dashboard/stats');
+  }
+
+  async refundAdminMarket(marketId: string, reason?: string) {
+    return this.request<{ success: boolean; market: AdminMarket; summary?: any }>(`/api/admin/markets/${encodeURIComponent(marketId)}/refund`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
   async healthCheck() {
     return this.request('/api/health');
   }

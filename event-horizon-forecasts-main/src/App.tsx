@@ -25,7 +25,6 @@ import Support from "./pages/Support.tsx";
 import EditProfile from "./pages/EditProfile.tsx";
 import More from "./pages/More.tsx";
 import Admin from "./pages/Admin.tsx";
-import SuperAdminDashboard from "./pages/SuperAdminDashboard.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import About from "./pages/About.tsx";
 import HowItWorks from "./pages/HowItWorks.tsx";
@@ -158,7 +157,7 @@ const App = () => (
                     path="/super-admin"
                     element={
                       <ProtectedRoute requiredRole="super_admin">
-                        <SuperAdminDashboard />
+                        <Admin />
                       </ProtectedRoute>
                     }
                   />

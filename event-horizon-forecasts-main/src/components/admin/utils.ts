@@ -1,179 +1,124 @@
-import type { AdminMarket, ApiTransaction } from "@/lib/api";
-import { getCategoryLabel, normalizeCategory } from "@/lib/categories";
+export const koboToNaira = (kobo: number) => Math.round(Number(kobo || 0) / 100);
 
-import type { AdminRecord, AdminListResponse, FinanceTransaction, MarketKind } from "./types";
+export const formatNaira = (n: number) =>
+  new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n || 0);
 
-export const koboToNaira = (value?: number | null) => Number(value || 0) / 100;
-
-export const marketVolume = (market: AdminMarket) =>
-  koboToNaira(
-    market.total_volume_smallest_unit ??
-      market.pool_amount_smallest_unit ??
-      market.total_pool_smallest_unit ??
-      0
-  );
-
-export const formatDate = (value?: string | null) => {
-  if (!value) return "Not set";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not set";
-  return date.toLocaleString([], {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+export const formatDate = (date?: string | null) => {
+  if (!date) return "—";
+  try {
+    return new Date(date).toLocaleDateString("en-NG", { year: "numeric", month: "short", day: "numeric" });
+  } catch {
+    return "—";
+  }
 };
 
-export const formatShortDate = (value?: string | null) => {
-  if (!value) return "Not tracked";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not tracked";
-  return date.toLocaleDateString([], {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+export const formatDateTime = (date?: string | null) => {
+  if (!date) return "—";
+  try {
+    return new Date(date).toLocaleString("en-NG", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "—";
+  }
 };
 
-export const statusText = (status?: string | null) => {
-  if (!status) return "Draft";
-  return status
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
+export const formatRelativeTime = (date?: string | null) => {
+  if (!date) return "—";
+  try {
+    const d = new Date(date);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) return "just now";
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    if (diffDay < 7) return `${diffDay}d ago`;
+    return formatDate(date);
+  } catch {
+    return "—";
+  }
 };
 
-export const statusClasses = (status?: string | null) => {
+export const formatCountdown = (closeTime?: string) => {
+  if (!closeTime) return "—";
+  try {
+    const diff = new Date(closeTime).getTime() - Date.now();
+    if (diff <= 0) return "Ended";
+    const hrs = Math.floor(diff / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    if (hrs >= 24) return `${Math.floor(hrs / 24)}d ${hrs % 24}h`;
+    if (hrs > 0) return `${hrs}h ${mins}m`;
+    return `${mins}m`;
+  } catch {
+    return "—";
+  }
+};
+
+export const statusLabel = (status: string) =>
+  status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+export const statusColor = (status: string): string => {
   switch (status) {
-    case "active":
-      return "border-[#C7D2FE] bg-[#EEF2FF] text-[#4F46E5]";
-    case "pending_resolution":
-    case "closed":
-      return "border-amber-500/30 bg-amber-500/10 text-[#B7791F]";
-    case "resolved":
-      return "border-sky-500/30 bg-sky-500/10 text-[#2563EB]";
-    case "refunded":
-      return "border-indigo-500/30 bg-indigo-500/10 text-[#4F46E5]";
-    case "cancelled":
-    case "archived":
-      return "border-zinc-500/30 bg-zinc-500/10 text-zinc-300";
-    default:
-      return "border-slate-500/30 bg-slate-500/10 text-slate-300";
+    case "draft": return "bg-gray-100 text-gray-600";
+    case "active": return "bg-emerald-50 text-emerald-700";
+    case "closed": return "bg-amber-50 text-amber-700";
+    case "pending_resolution": return "bg-orange-50 text-orange-700";
+    case "resolved": return "bg-indigo-50 text-indigo-700";
+    case "refunded": return "bg-purple-50 text-purple-700";
+    case "cancelled": return "bg-red-50 text-red-700";
+    case "archived": return "bg-gray-100 text-gray-500";
+    case "pending": return "bg-amber-50 text-amber-700";
+    case "completed": case "approved": return "bg-emerald-50 text-emerald-700";
+    case "failed": case "rejected": return "bg-red-50 text-red-700";
+    default: return "bg-gray-100 text-gray-600";
   }
 };
 
-export const getErrorMessage = (error: unknown) => {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "string") return error;
-  if (error && typeof error === "object" && "message" in error) {
-    return String((error as { message?: unknown }).message || "Unknown error");
-  }
-  return "Unknown error";
+export const marketVolume = (m: { total_volume_smallest_unit?: number; pool_amount_smallest_unit?: number; totalVolume?: number; pool?: number; total_pool?: number }) =>
+  koboToNaira(m.total_volume_smallest_unit || m.pool_amount_smallest_unit || m.totalVolume || m.pool || m.total_pool || 0);
+
+export const isEndingSoon = (m: { close_date?: string; trading_close_at?: string; closeTime?: string; tradingCloseTime?: string }) => {
+  const close = m.trading_close_at || m.tradingCloseTime || m.close_date || m.closeTime;
+  if (!close) return false;
+  const diff = new Date(close).getTime() - Date.now();
+  return diff > 0 && diff < 3600000;
 };
 
-export const normalizeAdminList = (payload: AdminListResponse | unknown): AdminRecord[] => {
-  if (Array.isArray(payload)) return payload;
-  if (payload && typeof payload === "object" && "admins" in payload) {
-    const admins = (payload as { admins?: unknown }).admins;
-    return Array.isArray(admins) ? admins : [];
-  }
+export const normalizeAdminList = (response: any): any[] => {
+  if (Array.isArray(response)) return response;
+  if (response?.admins && Array.isArray(response.admins)) return response.admins;
+  if (response?.users && Array.isArray(response.users)) return response.users;
   return [];
 };
 
-export const categoryLabel = (category?: string | null) =>
-  getCategoryLabel(normalizeCategory(category || "Other"));
-
-export const isEndingSoon = (market: AdminMarket) => {
-  const closeDate = new Date(market.close_date || market.closes_at || "");
-  if (Number.isNaN(closeDate.getTime())) return false;
-  const diff = closeDate.getTime() - Date.now();
-  return diff > 0 && diff <= 24 * 60 * 60 * 1000;
-};
-
-export const marketKindFromLabels = (yes?: string | null, no?: string | null): MarketKind => {
-  const y = (yes || "").toLowerCase();
-  const n = (no || "").toLowerCase();
-  if (y === "up" || n === "down") return "UP/DOWN";
-  if (y === "bigger" || n === "smaller") return "Bigger/Smaller";
-  return "YES/NO";
-};
-
-export const labelsForKind = (kind: MarketKind) => {
-  if (kind === "UP/DOWN") return { yes: "UP", no: "DOWN" };
-  if (kind === "Bigger/Smaller") return { yes: "BIGGER", no: "SMALLER" };
-  return { yes: "YES", no: "NO" };
-};
-
-export const toDateTimeLocal = (value?: string | null) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const offset = date.getTimezoneOffset();
-  const local = new Date(date.getTime() - offset * 60_000);
-  return local.toISOString().slice(0, 16);
-};
-
-export const dateTimeLocalToIso = (value?: string | null) => {
-  if (!value) return "";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
-};
-
-export const isValidDateTimeLocal = (value?: string | null) =>
-  Boolean(value && dateTimeLocalToIso(value));
-
-export const getDateTimeLocalMin = () => {
-  const now = new Date(Date.now() + 60_000);
-  const offset = now.getTimezoneOffset();
-  return new Date(now.getTime() - offset * 60_000).toISOString().slice(0, 16);
-};
-
-export const metricValue = (value: number | undefined | null) =>
-  Number.isFinite(Number(value)) ? Number(value) : 0;
-
-export const isToday = (value?: string | null) => {
-  if (!value) return false;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return false;
-  const now = new Date();
-  return (
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate()
-  );
-};
-
-export const classNames = (...classes: Array<string | false | null | undefined>) =>
+export const classNames = (...classes: (string | false | null | undefined)[]) =>
   classes.filter(Boolean).join(" ");
 
-export const requestUserLabel = (item: { user?: { email?: string; username?: string } | null; userId?: string }) =>
-  item.user?.email ||
-  item.user?.username ||
-  item.userId ||
-  "Unknown user";
+export const toDateTimeLocal = (iso?: string | null) => {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return "";
+  }
+};
 
-export const txDate = (tx: ApiTransaction | FinanceTransaction) =>
-  (tx as any).createdAt || (tx as any).created_at || "";
+export const dateTimeLocalToIso = (local: string) => (local ? `${local}:00Z` : "");
 
-export const txUserLabel = (tx: ApiTransaction | FinanceTransaction) =>
-  (tx as any).userEmail ||
-  (tx as any).userUsername ||
-  (tx as any).user_email ||
-  (tx as any).user?.email ||
-  (tx as any).userId ||
-  (tx as any).user_id ||
-  "Unknown";
+export const getErrorMessage = (err: unknown): string => {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  return "An unexpected error occurred.";
+};
 
-export const txReference = (tx: ApiTransaction | FinanceTransaction) =>
-  (tx as any).reference || (tx as any).referenceId || (tx as any).reference_id || "-";
+export const txUserLabel = (tx: { metadata?: Record<string, unknown>; userId?: string }) => {
+  const m = tx.metadata || {};
+  return (m.username as string) || (m.user_email as string) || tx.userId?.slice(0, 8) || "—";
+};
 
-export const txMarketLabel = (tx: ApiTransaction | FinanceTransaction) =>
-  (tx as any).marketQuestion ||
-  (tx as any).market_question ||
-  (tx as any).metadata?.marketQuestion ||
-  (tx as any).metadata?.market_question ||
-  (tx as any).marketId ||
-  (tx as any).market_id ||
-  "-";
+export const txMarketLabel = (tx: { metadata?: Record<string, unknown> }) =>
+  (tx.metadata?.marketQuestion as string) || (tx.metadata?.market_question as string) || "—";

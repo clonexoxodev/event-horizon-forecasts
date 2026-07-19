@@ -1,179 +1,341 @@
 import type { ReactNode } from "react";
-import { FileText } from "lucide-react";
 import { classNames } from "./utils";
 
-export const ShellCard = ({
+export const Card = ({
   children,
-  className,
+  className = "",
+  padding = true,
 }: {
   children: ReactNode;
   className?: string;
+  padding?: boolean;
 }) => (
-  <section
+  <div
     className={classNames(
-      "rounded-2xl border border-[#E5E7EB] bg-white shadow-sm",
+      "rounded-2xl border border-gray-200 bg-white",
+      padding && "p-5",
       className
     )}
   >
     {children}
-  </section>
-);
-
-export const SectionHeader = ({
-  eyebrow,
-  title,
-  description,
-  action,
-}: {
-  eyebrow?: string;
-  title: string;
-  description?: string;
-  action?: ReactNode;
-}) => (
-  <div className="flex flex-col gap-3 border-b border-[#E5E7EB] px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
-    <div>
-      {eyebrow && (
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#4F46E5]">
-          {eyebrow}
-        </p>
-      )}
-      <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-      {description && <p className="mt-1 text-sm text-[#667085]">{description}</p>}
-    </div>
-    {action}
   </div>
 );
 
 export const MetricCard = ({
+  icon,
   label,
   value,
-  hint,
+  sub,
   tone = "neutral",
-  icon: Icon,
 }: {
+  icon?: ReactNode;
   label: string;
   value: string | number;
-  hint?: string;
-  tone?: "neutral" | "green" | "amber" | "red" | "blue";
-  icon: React.ComponentType<{ className?: string }>;
+  sub?: string;
+  tone?: "neutral" | "green" | "amber" | "red" | "blue" | "indigo";
 }) => {
-  const tones = {
-    neutral: "bg-[#F3F4F6] text-[#667085]",
-    green: "bg-[#EEF2FF] text-[#4F46E5]",
-    amber: "bg-amber-500/10 text-[#B7791F]",
-    red: "bg-red-500/10 text-[#B42318]",
-    blue: "bg-sky-500/10 text-[#2563EB]",
+  const toneMap: Record<string, string> = {
+    neutral: "bg-gray-100 text-gray-600",
+    green: "bg-emerald-50 text-emerald-600",
+    amber: "bg-amber-50 text-amber-600",
+    red: "bg-red-50 text-red-600",
+    blue: "bg-blue-50 text-blue-600",
+    indigo: "bg-indigo-50 text-indigo-600",
   };
-
   return (
-    <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm text-[#667085]">{label}</p>
-          <p className="mt-2 text-2xl font-semibold tracking-tight">{value}</p>
-        </div>
-        <div className={classNames("rounded-xl p-2.5", tones[tone])}>
-          <Icon className="h-5 w-5" />
+    <div className="rounded-xl border border-gray-200 bg-white p-4">
+      <div className="flex items-center gap-3">
+        {icon && (
+          <div className={classNames("grid h-9 w-9 shrink-0 place-items-center rounded-lg", toneMap[tone])}>
+            {icon}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-semibold text-gray-500">{label}</div>
+          <div className="mt-0.5 text-xl font-black text-gray-900">{value}</div>
+          {sub && <div className="mt-0.5 text-[11px] font-medium text-gray-400">{sub}</div>}
         </div>
       </div>
-      {hint && <p className="mt-3 text-xs text-[#667085]">{hint}</p>}
     </div>
   );
 };
 
 export const Badge = ({
   children,
-  tone = "neutral",
+  variant = "default",
 }: {
   children: ReactNode;
-  tone?: "neutral" | "green" | "amber" | "red" | "blue";
-}) => (
-  <span
-    className={classNames(
-      "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold",
-      tone === "green" && "border-[#C7D2FE] bg-[#EEF2FF] text-[#4F46E5]",
-      tone === "amber" && "border-amber-500/30 bg-amber-500/10 text-[#B7791F]",
-      tone === "red" && "border-red-500/30 bg-red-500/10 text-[#B42318]",
-      tone === "blue" && "border-sky-500/30 bg-sky-500/10 text-[#2563EB]",
-      tone === "neutral" && "border-[#E5E7EB] bg-[#F3F4F6] text-[#667085]"
-    )}
-  >
-    {children}
-  </span>
-);
+  variant?: "default" | "success" | "warning" | "danger" | "info" | "muted";
+}) => {
+  const variantMap: Record<string, string> = {
+    default: "bg-gray-100 text-gray-600",
+    success: "bg-emerald-50 text-emerald-700",
+    warning: "bg-amber-50 text-amber-700",
+    danger: "bg-red-50 text-red-700",
+    info: "bg-blue-50 text-blue-700",
+    muted: "bg-gray-50 text-gray-500",
+  };
+  return (
+    <span className={classNames("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold", variantMap[variant])}>
+      {children}
+    </span>
+  );
+};
 
-export const Stat = ({
-  label,
-  value,
+export const SectionHeader = ({
+  title,
+  description,
+  action,
 }: {
-  label: string;
-  value: ReactNode;
+  title: string;
+  description?: string;
+  action?: ReactNode;
 }) => (
-  <div className="rounded-xl border border-[#E5E7EB] bg-white p-3.5">
-    <p className="text-xs text-[#667085]">{label}</p>
-    <p className="mt-1 font-semibold">{value}</p>
+  <div className="mb-4 flex items-start justify-between gap-4">
+    <div>
+      <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+      {description && <p className="mt-0.5 text-sm text-gray-500">{description}</p>}
+    </div>
+    {action}
   </div>
 );
 
 export const EmptyState = ({
+  icon,
   title,
   body,
-  icon: Icon,
+  action,
 }: {
+  icon?: ReactNode;
+  title: string;
+  body?: string;
+  action?: ReactNode;
+}) => (
+  <div className="grid min-h-[200px] place-items-center rounded-2xl border border-dashed border-gray-300 bg-gray-50/50 p-8 text-center">
+    <div>
+      {icon && (
+        <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-xl bg-indigo-50 text-indigo-500">
+          {icon}
+        </div>
+      )}
+      <div className="text-sm font-bold text-gray-900">{title}</div>
+      {body && <p className="mt-1 text-xs text-gray-500">{body}</p>}
+      {action && <div className="mt-3">{action}</div>}
+    </div>
+  </div>
+);
+
+export const SkeletonRow = ({ cols = 4 }: { cols?: number }) => (
+  <div className="flex gap-4 animate-pulse">
+    {Array.from({ length: cols }).map((_, i) => (
+      <div key={i} className="h-4 flex-1 rounded bg-gray-200" />
+    ))}
+  </div>
+);
+
+export const SkeletonCard = () => (
+  <div className="rounded-xl border border-gray-200 bg-white p-4 animate-pulse space-y-3">
+    <div className="h-4 w-1/3 rounded bg-gray-200" />
+    <div className="h-7 w-1/2 rounded bg-gray-200" />
+    <div className="h-3 w-2/3 rounded bg-gray-100" />
+  </div>
+);
+
+export const ConfirmDialog = ({
+  open,
+  title,
+  body,
+  confirmLabel = "Confirm",
+  confirmVariant = "danger",
+  onConfirm,
+  onCancel,
+  loading = false,
+}: {
+  open: boolean;
   title: string;
   body: string;
-  icon?: React.ComponentType<{ className?: string }>;
-}) => (
-  <div className="px-8 py-12 text-center">
-    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#667085]">
-      {Icon ? <Icon className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+  confirmLabel?: string;
+  confirmVariant?: "danger" | "warning" | "primary";
+  onConfirm: () => void;
+  onCancel: () => void;
+  loading?: boolean;
+}) => {
+  if (!open) return null;
+  const btnMap: Record<string, string> = {
+    danger: "bg-red-600 hover:bg-red-700 text-white",
+    warning: "bg-amber-600 hover:bg-amber-700 text-white",
+    primary: "bg-indigo-600 hover:bg-indigo-700 text-white",
+  };
+  return (
+    <div className="fixed inset-0 z-[60] grid place-items-center bg-black/50 p-4 backdrop-blur-sm" onClick={onCancel}>
+      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-lg font-bold text-gray-900">{title}</h3>
+        <p className="mt-2 text-sm text-gray-600">{body}</p>
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className={classNames("rounded-xl px-4 py-2 text-sm font-bold transition active:scale-[0.98] disabled:opacity-50", btnMap[confirmVariant])}
+          >
+            {loading ? "Processing..." : confirmLabel}
+          </button>
+        </div>
+      </div>
     </div>
-    <p className="font-semibold">{title}</p>
-    <p className="mt-1 text-sm text-[#667085]">{body}</p>
-  </div>
-);
+  );
+};
 
-export const Field = ({
+export const InputField = ({
   label,
-  required,
-  children,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+  required = false,
+  disabled = false,
   hint,
+  error,
+  rows,
 }: {
   label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  placeholder?: string;
   required?: boolean;
-  children: ReactNode;
+  disabled?: boolean;
   hint?: string;
+  error?: string;
+  rows?: number;
 }) => (
-  <label className="block">
-    <span className="mb-2 block text-sm font-medium text-[#344054]">
-      {label}
-      {required && <span className="ml-1 text-[#E85D5D]">*</span>}
-    </span>
-    {children}
-    {hint && <p className="mt-1.5 text-xs text-[#667085]">{hint}</p>}
-  </label>
+  <div>
+    <label className="block text-xs font-bold text-gray-700">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    {rows ? (
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        rows={rows}
+        className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 disabled:opacity-50"
+      />
+    ) : (
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 disabled:opacity-50"
+      />
+    )}
+    {hint && !error && <p className="mt-1 text-[11px] text-gray-400">{hint}</p>}
+    {error && <p className="mt-1 text-[11px] font-semibold text-red-600">{error}</p>}
+  </div>
 );
 
-export const ChecklistItem = ({
-  ok,
-  children,
+export const SelectField = ({
+  label,
+  value,
+  onChange,
+  options,
+  required = false,
 }: {
-  ok: boolean;
-  children: ReactNode;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  required?: boolean;
 }) => (
-  <div className="flex items-center gap-2.5 py-1">
-    <span
-      className={classNames(
-        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
-        ok
-          ? "bg-[#12B886] text-white"
-          : "border border-[#E5E7EB] bg-white text-[#667085]"
-      )}
+  <div>
+    <label className="block text-xs font-bold text-gray-700">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
     >
-      {ok ? "\u2713" : ""}
-    </span>
-    <span className={ok ? "text-sm text-[#101828]" : "text-sm text-[#667085]"}>
-      {children}
-    </span>
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>{o.label}</option>
+      ))}
+    </select>
   </div>
+);
+
+export const TabBar = ({
+  tabs,
+  active,
+  onChange,
+}: {
+  tabs: { value: string; label: string; count?: number }[];
+  active: string;
+  onChange: (v: string) => void;
+}) => (
+  <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none">
+    {tabs.map((tab) => (
+      <button
+        key={tab.value}
+        onClick={() => onChange(tab.value)}
+        className={classNames(
+          "shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold transition-all",
+          active === tab.value
+            ? "bg-indigo-600 text-white shadow-sm"
+            : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+        )}
+      >
+        {tab.label}
+        {tab.count !== undefined && (
+          <span className={classNames("ml-1.5", active === tab.value ? "text-white/70" : "text-gray-400")}>
+            {tab.count}
+          </span>
+        )}
+      </button>
+    ))}
+  </div>
+);
+
+export const DataTable = ({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) => (
+  <div className={classNames("overflow-x-auto rounded-2xl border border-gray-200 bg-white", className)}>
+    <table className="w-full text-left text-sm">{children}</table>
+  </div>
+);
+
+export const Th = ({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) => (
+  <th className={classNames("border-b border-gray-100 bg-gray-50/80 px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-500", className)}>
+    {children}
+  </th>
+);
+
+export const Td = ({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) => (
+  <td className={classNames("border-b border-gray-50 px-4 py-3 text-sm text-gray-700 last:border-b-0", className)}>
+    {children}
+  </td>
 );

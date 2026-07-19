@@ -1,209 +1,214 @@
-import { type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { useState, type ReactNode } from "react";
 import {
   BarChart3,
-  CheckCircle,
-  ChevronRight,
-  FileText,
+  ChevronLeft,
+  ClipboardList,
+  CreditCard,
   LayoutDashboard,
-  Plus,
-  ReceiptText,
-  RefreshCcw,
-  Settings as SettingsIcon,
-  ShieldPlus,
+  LogOut,
+  Menu,
+  Shield,
+  TrendingUp,
   Users,
-  Wallet,
+  X,
 } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/lib/auth";
 import { FlippeSymbol } from "@/components/FlippeBrand";
 import type { AdminView } from "./types";
 import { classNames } from "./utils";
 
-const navItems: Array<{
-  id: AdminView;
-  label: string;
-  hint: string;
-  icon: typeof LayoutDashboard;
-}> = [
+const NAV_SECTIONS: { label: string; items: { view: AdminView; icon: typeof LayoutDashboard; label: string; superAdminOnly?: boolean }[] }[] = [
   {
-    id: "dashboard",
-    label: "Dashboard",
-    hint: "Platform health",
-    icon: LayoutDashboard,
+    label: "Overview",
+    items: [{ view: "dashboard", icon: LayoutDashboard, label: "Dashboard" }],
   },
-  { id: "markets", label: "Markets", hint: "Operate markets", icon: BarChart3 },
-  { id: "create", label: "Create Market", hint: "Publish safely", icon: Plus },
   {
-    id: "resolution",
-    label: "Resolution",
-    hint: "Settle outcomes",
-    icon: CheckCircle,
+    label: "Operations",
+    items: [
+      { view: "markets", icon: TrendingUp, label: "Markets" },
+      { view: "withdrawals", icon: CreditCard, label: "Withdrawals" },
+      { view: "finance", icon: BarChart3, label: "Finance" },
+      { view: "users", icon: Users, label: "Users" },
+    ],
   },
-  { id: "finance", label: "Finance", hint: "Deposits & withdrawals", icon: Wallet },
   {
-    id: "transactions",
-    label: "Transactions",
-    hint: "Ledger search",
-    icon: ReceiptText,
+    label: "Administration",
+    items: [
+      { view: "admins", icon: Shield, label: "Admins", superAdminOnly: true },
+      { view: "audit-log", icon: ClipboardList, label: "Audit Log" },
+    ],
   },
-  { id: "users", label: "Users", hint: "Account visibility", icon: Users },
-  { id: "add-admin", label: "Admin Roles", hint: "Access control", icon: ShieldPlus },
-  { id: "reports", label: "Reports", hint: "Operational reports", icon: FileText },
-  { id: "settings", label: "Settings", hint: "Platform controls", icon: SettingsIcon },
 ];
 
-export { navItems };
-
-const AdminSidebar = ({
-  view,
-  setView,
-  isSuperAdmin,
-}: {
-  view: AdminView;
-  setView: (v: AdminView) => void;
-  isSuperAdmin: boolean;
-}) => (
-  <aside className="fixed left-0 top-0 z-30 hidden h-screen w-72 border-r border-[#E5E7EB] bg-white px-5 py-6 xl:block">
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-8 flex shrink-0 items-center gap-3">
-        <FlippeSymbol size="lg" />
-        <div>
-          <p className="text-lg font-semibold tracking-[0.04em]">FLIPPE Admin</p>
-          <p className="text-sm text-[#667085]">
-            {isSuperAdmin ? "Super admin console" : "Admin console"}
-          </p>
-        </div>
-      </div>
-
-      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1 [scrollbar-color:#263241_transparent]">
-        {navItems
-          .filter((item) => isSuperAdmin || item.id !== "add-admin")
-          .map((item) => {
-            const Icon = item.icon;
-            const active = view === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setView(item.id)}
-                className={classNames(
-                  "group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition",
-                  active
-                    ? "bg-[#EEF2FF] text-[#4F46E5] shadow-[inset_3px_0_0_#4F46E5]"
-                    : "text-[#667085] hover:bg-[#F3F4F6] hover:text-[#101828]"
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                <span className="flex-1">
-                  <span className="block text-sm font-semibold">{item.label}</span>
-                  <span className="block text-xs text-[#667085]">{item.hint}</span>
-                </span>
-                {active && <ChevronRight className="h-4 w-4 text-[#4F46E5]" />}
-              </button>
-            );
-          })}
-      </nav>
-    </div>
-  </aside>
-);
-
-const AdminHeader = ({
-  view,
-  isSuperAdmin,
-  onRefresh,
-  onCreateMarket,
-}: {
-  view: AdminView;
-  isSuperAdmin: boolean;
-  onRefresh: () => void;
-  onCreateMarket: () => void;
-}) => (
-  <header className="sticky top-0 z-20 border-b border-[#E5E7EB] bg-[#F8F7F4]/95 px-4 py-4 backdrop-blur sm:px-6 lg:px-8">
-    <div className="mx-auto flex max-w-[1500px] flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#4F46E5]">
-          Operations
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          {navItems.find((item) => item.id === view)?.label || "Dashboard"}
-        </h1>
-        <p className="mt-1 text-sm text-[#667085]">
-          Real platform controls for markets, users, finance, and risk.
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          className="border-[#E5E7EB] bg-white text-[#344054] hover:bg-[#F3F4F6]"
-          onClick={onRefresh}
-        >
-          <RefreshCcw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
-        <Button
-          className="bg-[#4F46E5] text-[#FFFFFF] hover:bg-[#4338CA]"
-          onClick={onCreateMarket}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Create Market
-        </Button>
-      </div>
-    </div>
-
-    <div className="mt-4 flex gap-2 overflow-x-auto xl:hidden">
-      {navItems
-        .filter((item) => isSuperAdmin || item.id !== "add-admin")
-        .map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setView(item.id)}
-            className={classNames(
-              "whitespace-nowrap rounded-full border px-4 py-2 text-sm",
-              view === item.id
-                ? "border-[#4F46E5] bg-[#4F46E5] text-[#FFFFFF]"
-                : "border-[#E5E7EB] bg-white text-[#667085]"
-            )}
-          >
-            {item.label}
-          </button>
-        ))}
-    </div>
-  </header>
-);
+const VIEW_TITLES: Record<AdminView, string> = {
+  dashboard: "Dashboard",
+  markets: "Markets",
+  "market-detail": "Market Detail",
+  "create-market": "Create Market",
+  finance: "Finance",
+  withdrawals: "Withdrawal Queue",
+  users: "Users",
+  admins: "Admin Management",
+  "audit-log": "Audit Log",
+};
 
 export const AdminLayout = ({
   view,
   setView,
-  isSuperAdmin,
-  loading,
-  authLoading,
-  onRefresh,
-  onCreateMarket,
+  setSelectedMarketId,
   children,
 }: {
   view: AdminView;
   setView: (v: AdminView) => void;
-  isSuperAdmin: boolean;
-  loading: boolean;
-  authLoading: boolean;
-  onRefresh: () => void;
-  onCreateMarket: () => void;
+  setSelectedMarketId?: (id: string | null) => void;
   children: ReactNode;
-}) => (
-  <div className="min-h-screen bg-[#F8F7F4] text-[#101828]">
-    <AdminSidebar view={view} setView={setView} isSuperAdmin={isSuperAdmin} />
+}) => {
+  const { user, logout, isSuperAdmin } = useAuth();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-    <div className="xl:pl-72">
-      <AdminHeader
-        view={view}
-        isSuperAdmin={isSuperAdmin}
-        onRefresh={onRefresh}
-        onCreateMarket={onCreateMarket}
-      />
+  const navigateTo = (v: AdminView) => {
+    setView(v);
+    setMobileOpen(false);
+    if (v !== "market-detail") setSelectedMarketId?.(null);
+  };
 
-      <main className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
-        {children}
+  const renderNav = () => (
+    <nav className="flex flex-1 flex-col gap-6 px-3 py-6">
+      {NAV_SECTIONS.map((section) => {
+        const visible = section.items.filter((item) => !item.superAdminOnly || isSuperAdmin());
+        if (visible.length === 0) return null;
+        return (
+          <div key={section.label}>
+            <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+              {section.label}
+            </div>
+            <div className="space-y-0.5">
+              {visible.map((item) => (
+                <button
+                  key={item.view}
+                  onClick={() => navigateTo(item.view)}
+                  className={classNames(
+                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all",
+                    view === item.view
+                      ? "bg-indigo-50 text-indigo-700"
+                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                  )}
+                >
+                  <item.icon className="h-4 w-4 shrink-0" strokeWidth={2} />
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </nav>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50/50 text-gray-900">
+      {/* Desktop sidebar */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-gray-200 bg-white xl:flex xl:flex-col">
+        <div className="flex items-center gap-3 px-5 py-5">
+          <Link to="/" className="flex items-center gap-2.5" aria-label="Back to Flippe">
+            <FlippeSymbol size="sm" />
+            <span className="text-sm font-extrabold tracking-wide text-gray-900">FLIPPE</span>
+          </Link>
+          <span className="rounded-md bg-indigo-50 px-1.5 py-0.5 text-[9px] font-bold text-indigo-600">Admin</span>
+        </div>
+        {renderNav()}
+        <div className="border-t border-gray-100 px-3 py-4">
+          <div className="flex items-center gap-3 px-2">
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gray-100 text-xs font-bold text-gray-600">
+              {user?.username?.charAt(0).toUpperCase() || "?"}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-bold text-gray-900">{user?.username}</div>
+              <div className="truncate text-[10px] text-gray-400">{user?.role === "super_admin" ? "Super Admin" : "Admin"}</div>
+            </div>
+          </div>
+          <div className="mt-3 flex gap-1">
+            <Link
+              to="/"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50"
+            >
+              App
+            </Link>
+            <button
+              onClick={() => logout()}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50"
+            >
+              <LogOut className="h-3 w-3" /> Sign out
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Mobile header */}
+      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/90 backdrop-blur-xl xl:hidden">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="grid h-9 w-9 place-items-center rounded-lg border border-gray-200 text-gray-600 transition hover:bg-gray-50"
+            >
+              <Menu className="h-4 w-4" />
+            </button>
+            <div>
+              <div className="text-sm font-bold text-gray-900">{VIEW_TITLES[view]}</div>
+            </div>
+          </div>
+          <Link to="/" className="flex items-center gap-1.5">
+            <FlippeSymbol size="sm" />
+          </Link>
+        </div>
+      </header>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-[60] xl:hidden">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <div className="absolute inset-y-0 left-0 w-72 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+              <div className="flex items-center gap-2">
+                <FlippeSymbol size="sm" />
+                <span className="text-sm font-extrabold">Admin</span>
+              </div>
+              <button onClick={() => setMobileOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:text-gray-600">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {renderNav()}
+            <div className="absolute bottom-0 left-0 right-0 border-t border-gray-100 px-3 py-4">
+              <div className="flex items-center gap-3 px-2">
+                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gray-100 text-xs font-bold text-gray-600">
+                  {user?.username?.charAt(0).toUpperCase() || "?"}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xs font-bold">{user?.username}</div>
+                  <div className="truncate text-[10px] text-gray-400">{user?.role === "super_admin" ? "Super Admin" : "Admin"}</div>
+                </div>
+              </div>
+              <div className="mt-3 flex gap-1">
+                <Link to="/" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-600 hover:bg-gray-50">
+                  App
+                </Link>
+                <button onClick={() => logout()} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-600 hover:bg-gray-50">
+                  <LogOut className="h-3 w-3" /> Sign out
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Content */}
+      <main className="pb-24 xl:ml-60 xl:pb-8">
+        <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">
+          {children}
+        </div>
       </main>
     </div>
-  </div>
-);
+  );
+};

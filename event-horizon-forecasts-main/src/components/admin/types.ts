@@ -1,143 +1,154 @@
-import type { AdminMarket, ApiTransaction, UserRole } from "@/lib/api";
+import type { AdminMarket, ApiTransaction, WithdrawalRequest, DepositRequest } from "@/lib/api";
 
 export type AdminView =
   | "dashboard"
   | "markets"
-  | "create"
-  | "resolution"
+  | "market-detail"
+  | "create-market"
   | "finance"
-  | "transactions"
+  | "withdrawals"
   | "users"
-  | "add-admin"
-  | "reports"
-  | "settings";
-
-export type MarketKind = "YES/NO" | "UP/DOWN" | "Bigger/Smaller";
+  | "admins"
+  | "audit-log";
 
 export type MarketStatusFilter =
   | "all"
+  | "draft"
   | "active"
-  | "ending_soon"
+  | "closed"
   | "pending_resolution"
   | "resolved"
   | "refunded"
   | "cancelled"
   | "archived";
 
-export type AdminUser = {
+export type AdminUserRecord = {
   id: string;
   email: string;
   username: string;
-  role: UserRole;
+  role: "user" | "admin" | "super_admin";
+  balance?: number;
+  createdAt?: string;
   created_at?: string;
+  lastLoginAt?: string;
   last_login_at?: string;
-  last_active_at?: string;
+  totalPredictions?: number;
+  totalStaked?: number;
   status?: string;
-  wallet_balance?: number;
-  active_positions?: number;
-  total_predictions?: number;
-  total_volume?: number;
 };
 
-export type AdminRecord = AdminUser & {
-  isPrimary?: boolean;
-  added_by?: string;
-  added_at?: string;
+export type AdminListResponse = {
+  admins?: AdminUserRecord[];
+  users?: AdminUserRecord[];
 };
 
-export type AdminListResponse = AdminRecord[] | { admins?: AdminRecord[] };
-
-export type Analytics = Awaited<ReturnType<typeof import("@/lib/api").apiService.getAnalytics>>;
-
-export type FinanceOverview = Record<string, number>;
-
-export type FinanceTransaction = ApiTransaction;
-
-export type ResolutionPreview = Awaited<
-  ReturnType<typeof import("@/lib/api").apiService.previewAdminMarketResolution>
->["preview"];
-
-export type ResolutionState = {
-  market: AdminMarket;
-  outcome: "YES" | "NO";
-  preview: ResolutionPreview | null;
+export type FinanceOverview = {
+  totalDeposits?: number;
+  totalWithdrawals?: number;
+  pendingWithdrawals?: number;
+  pendingDeposits?: number;
+  completedWithdrawals?: number;
+  failedWithdrawals?: number;
+  totalRefunds?: number;
+  platformRevenue?: number;
+  walletLiability?: number;
+  lockedFunds?: number;
+  activeExposure?: number;
+  todayDeposits?: number;
+  todayWithdrawals?: number;
+  todayPredictionVolume?: number;
+  totalUsers?: number;
+  activeMarkets?: number;
+  totalVolume?: number;
 };
 
-export type DangerAction = "close" | "cancel" | "refund" | "archive" | "delete";
-
-export type DangerState = {
-  market: AdminMarket;
-  action: DangerAction;
+export type AdminAnalytics = {
+  totalUsers?: number;
+  newUsersToday?: number;
+  activeUsers?: number;
+  totalMarkets?: number;
+  activeMarkets?: number;
+  pendingResolutions?: number;
+  predictionsToday?: number;
+  todayVolume?: number;
+  totalVolume?: number;
+  totalDeposits?: number;
+  totalWithdrawals?: number;
+  pendingWithdrawals?: number;
+  totalRefunds?: number;
+  dailyActiveUsers?: Array<{ date: string; count: number }>;
+  dailyVolume?: Array<{ date: string; volume: number }>;
+  dailyNewUsers?: Array<{ date: string; count: number }>;
+  categoryDistribution?: Array<{ category: string; count: number }>;
+  recentActivity?: AuditLogEntry[];
 };
 
-export type MarketForm = {
-  question: string;
-  category: string;
-  market_type: string;
-  yes_label: string;
-  no_label: string;
-  yes_price: number;
-  no_price: number;
-  close_date: string;
-  trading_close_at: string;
-  resolution_source: string;
-  rules: string;
-  image_url: string;
-  video_url: string;
-  status: string;
-  is_trending: boolean;
-  min_stake: number;
-  max_stake: number;
-  protected_market_enabled: boolean;
-  activation_threshold: number;
-  activation_yes_min: number;
-  activation_no_min: number;
-  activation_min_participants: number;
-  protected_max_stake: number;
+export type AuditLogEntry = {
+  id: string;
+  action: string;
+  actorId?: string;
+  actorEmail?: string;
+  actorRole?: string;
+  targetType?: string;
+  targetId?: string;
+  targetLabel?: string;
+  details?: Record<string, unknown>;
+  createdAt: string;
+  created_at?: string;
 };
 
-export const emptyForm: MarketForm = {
-  question: "",
-  category: "Sports",
-  market_type: "YES/NO",
-  yes_label: "YES",
-  no_label: "NO",
-  yes_price: 50,
-  no_price: 50,
-  close_date: "",
-  trading_close_at: "",
-  resolution_source: "",
-  rules: "",
-  image_url: "",
-  video_url: "",
-  status: "active",
-  is_trending: false,
-  min_stake: 100,
-  max_stake: 100000,
-  protected_market_enabled: true,
-  activation_threshold: 10000,
-  activation_yes_min: 2000,
-  activation_no_min: 2000,
-  activation_min_participants: 5,
-  protected_max_stake: 1000,
+export type ResolutionPreview = {
+  success: boolean;
+  preview: {
+    totalWinners?: number;
+    totalLosers?: number;
+    totalPayout?: number;
+    totalRefunded?: number;
+    yesPool?: number;
+    noPool?: number;
+    totalPool?: number;
+    eligibleForRefund?: boolean;
+    refundReason?: string;
+    winners?: Array<{
+      userId: string;
+      username?: string;
+      side: string;
+      stake: number;
+      payout: number;
+    }>;
+  };
 };
 
-export const ADMIN_MEDIA_MAX_BYTES = 30 * 1024 * 1024;
-export const ADMIN_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-export const ADMIN_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
-export const ADMIN_MEDIA_TYPES = [...ADMIN_IMAGE_TYPES, ...ADMIN_VIDEO_TYPES];
+export const MARKET_STATUS_OPTIONS: { value: MarketStatusFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "draft", label: "Drafts" },
+  { value: "active", label: "Live" },
+  { value: "closed", label: "Closed" },
+  { value: "pending_resolution", label: "Pending" },
+  { value: "resolved", label: "Resolved" },
+  { value: "refunded", label: "Refunded" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "archived", label: "Archived" },
+];
 
-export type DashboardMetrics = {
-  liveMarkets: number;
-  pendingResolution: number;
-  resolvedMarkets: number;
-  totalUsers: number;
-  activeUsersToday: number;
-  newUsersToday: number;
-  usersWithPredictions: number;
-  todayPredictions: number;
-  todayVolume: number;
-  pendingPayouts: number;
-  totalWalletBalance: number;
-  activeMarketMoney: number;
+export const AUDIT_ACTION_LABELS: Record<string, string> = {
+  market_created: "Market Created",
+  market_updated: "Market Updated",
+  market_deleted: "Market Deleted",
+  market_resolved: "Market Resolved",
+  market_refunded: "Market Refunded",
+  market_published: "Market Published",
+  withdrawal_approved: "Withdrawal Approved",
+  withdrawal_rejected: "Withdrawal Rejected",
+  deposit_approved: "Deposit Approved",
+  deposit_rejected: "Deposit Rejected",
+  admin_added: "Admin Added",
+  admin_removed: "Admin Removed",
+  user_suspended: "User Suspended",
+  user_activated: "User Activated",
+  admin_login: "Admin Login",
+  permission_changed: "Permission Changed",
 };
+
+export const ADMIN_MEDIA_ACCEPT = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm";
+export const ADMIN_MEDIA_MAX_MB = 30;
