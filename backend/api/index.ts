@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'node:crypto';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -66,8 +67,99 @@ app.use(cors({
   exposedHeaders: ['Set-Cookie']
 }));
 
-app.use(express.json());
+// Capture raw body for webhook signature verification before JSON parsing
+app.use(express.json({
+  verify: (req: any, _res: any, buf: any) => {
+    (req as any).rawBody = buf;
+  },
+}));
 app.use(cookieParser());
+
+// ============================================================================
+// RATE LIMITER (in-memory sliding window)
+// ============================================================================
+interface RateLimitConfig { maxRequests: number; windowMs: number; }
+interface RateLimitEntry { timestamps: number[]; }
+const rateLimitStore = new Map<string, RateLimitEntry>();
+let rateLimitSweep = Date.now();
+
+const sweepRateLimits = (now: number) => {
+  if (now - rateLimitSweep < 60_000) return;
+  rateLimitSweep = now;
+  for (const [key, entry] of rateLimitStore) {
+    entry.timestamps = entry.timestamps.filter((t) => now - t < 3_600_000);
+    if (entry.timestamps.length === 0) rateLimitStore.delete(key);
+  }
+};
+
+const checkRateLimit = (key: string, config: RateLimitConfig): { allowed: boolean; remaining: number; retryAfterMs: number } => {
+  const now = Date.now();
+  sweepRateLimits(now);
+  let entry = rateLimitStore.get(key);
+  if (!entry) { entry = { timestamps: [] }; rateLimitStore.set(key, entry); }
+  entry.timestamps = entry.timestamps.filter((t) => now - t < config.windowMs);
+  if (entry.timestamps.length >= config.maxRequests) {
+    const oldest = entry.timestamps[0];
+    const retryAfterMs = config.windowMs - (now - (oldest ?? now));
+    return { allowed: false, remaining: 0, retryAfterMs: Math.max(retryAfterMs, 1_000) };
+  }
+  entry.timestamps.push(now);
+  return { allowed: true, remaining: config.maxRequests - entry.timestamps.length, retryAfterMs: 0 };
+};
+
+const DEPOSIT_RATE: RateLimitConfig = { maxRequests: 5, windowMs: 60_000 };
+const WITHDRAWAL_RATE: RateLimitConfig = { maxRequests: 3, windowMs: 60_000 };
+const CALLBACK_RATE: RateLimitConfig = { maxRequests: 10, windowMs: 60_000 };
+
+const rateLimitMiddleware = (config: RateLimitConfig) => (req: Request, res: Response, next: NextFunction) => {
+  const userId = (req as any).user?.userId || (req as any).user?.id || '';
+  const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+  const key = userId ? `pay:${userId}` : `pay:${ip}`;
+  const result = checkRateLimit(key, config);
+  res.setHeader('X-RateLimit-Limit', String(config.maxRequests));
+  res.setHeader('X-RateLimit-Remaining', String(result.remaining));
+  if (!result.allowed) {
+    res.setHeader('Retry-After', String(Math.ceil(result.retryAfterMs / 1000)));
+    return res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many requests. Please try again later.', retryAfterMs: result.retryAfterMs, timestamp: new Date().toISOString() } });
+  }
+  next();
+};
+
+// ============================================================================
+// WEBHOOK SIGNATURE VERIFICATION
+// ============================================================================
+type PaymentProvider = 'paystack' | 'flutterwave' | 'monnify';
+const SUPPORTED_PAYMENT_PROVIDERS: PaymentProvider[] = ['paystack', 'flutterwave', 'monnify'];
+
+const verifyPaystackSignature = (rawBody: Buffer | string, signature: unknown): boolean => {
+  const secret = process.env.PAYSTACK_SECRET_KEY;
+  if (!secret || typeof signature !== 'string' || !signature) return false;
+  const hmac = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+  try { return crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(signature)); } catch { return false; }
+};
+
+const verifyFlutterwaveSignature = (signature: unknown): boolean => {
+  const secretHash = process.env.FLUTTERWAVE_SECRET_HASH;
+  if (!secretHash || typeof signature !== 'string' || !signature) return false;
+  try { return crypto.timingSafeEqual(Buffer.from(secretHash), Buffer.from(signature)); } catch { return false; }
+};
+
+const verifyMonnifySignature = (rawBody: Buffer | string, signature: unknown): boolean => {
+  const secret = process.env.MONNIFY_SECRET_KEY;
+  if (!secret || typeof signature !== 'string' || !signature) return false;
+  const hmac = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+  try { return crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(signature)); } catch { return false; }
+};
+
+const verifyWebhookSignature = (provider: PaymentProvider, req: Request): boolean => {
+  const rawBody = (req as any).rawBody || '';
+  switch (provider) {
+    case 'paystack': return verifyPaystackSignature(rawBody, req.headers['x-paystack-signature']);
+    case 'flutterwave': return verifyFlutterwaveSignature(req.headers['verif-hash']);
+    case 'monnify': return verifyMonnifySignature(rawBody, req.headers['monnify-signature']);
+    default: return false;
+  }
+};
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -796,8 +888,6 @@ const MAX_DAILY_WITHDRAWAL_KOBO = 250000 * 100;
 const makeWalletReference = (prefix: 'DEP' | 'WDR') => `FLP-${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 90000 + 10000)}`;
 const depositInstruction = (amountSmallestUnit: number, reference: string) =>
   `Transfer exactly ₦${toAmount(amountSmallestUnit).toLocaleString()} and use ${reference} as your payment reference. Your wallet will be credited after admin confirmation.`;
-type PaymentProvider = 'paystack' | 'flutterwave' | 'monnify';
-const SUPPORTED_PAYMENT_PROVIDERS: PaymentProvider[] = ['paystack', 'flutterwave', 'monnify'];
 const getPaymentProvider = (requested?: unknown): PaymentProvider => {
   const provider = String(requested || process.env.PAYMENT_PROVIDER || 'paystack').toLowerCase();
   return SUPPORTED_PAYMENT_PROVIDERS.includes(provider as PaymentProvider) ? provider as PaymentProvider : 'paystack';
@@ -975,38 +1065,107 @@ const verifyProviderPayment = async (provider: PaymentProvider, reference: strin
   return response.ok && payload?.requestSuccessful && payload?.responseBody?.paymentStatus === 'PAID';
 };
 
+/**
+ * Idempotent deposit credit — safe against concurrent webhook delivery.
+ *
+ * The function uses an atomic conditional update on the deposit_requests table
+ * (`.eq('status', 'pending')`) as the single point of truth. If two concurrent
+ * calls race, only one will succeed in flipping the status to 'completed' — the
+ * other finds zero rows updated and returns early.
+ *
+ * The wallet balance update is NOT conditional (Supabase doesn't support
+ * increment operators), but it is only reached after the deposit_requests
+ * status flip succeeds, so double-crediting is prevented.
+ */
 const creditVerifiedDeposit = async (reference: string) => {
-  const { data: request, error: requestError } = await supabase.from('deposit_requests').select('*').eq('reference', reference).single();
+  const { data: request, error: requestError } = await supabase
+    .from('deposit_requests')
+    .select('*')
+    .eq('reference', reference)
+    .single();
   if (requestError || !request) throw requestError || new Error('Deposit request not found.');
+
+  // Already credited — idempotent return
   if (request.status === 'completed') return { alreadyCredited: true, request };
+
+  // Not pending — some other state (failed, rejected). Don't touch it.
   if (request.status !== 'pending') throw new Error('Deposit request is not pending.');
-  const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('id', request.wallet_id).single();
-  if (walletError || !wallet) throw walletError || new Error('Wallet not found.');
+
   const creditedAt = new Date().toISOString();
-  const { data: updatedWallet, error: updateError } = await supabase.from('wallets').update({
-    balance_ngn_kobo: Number(wallet.balance_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
-    available_ngn_kobo: Number(wallet.available_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
-    total_deposited_ngn_kobo: Number(wallet.total_deposited_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
-    updated_at: creditedAt,
-  }).eq('id', wallet.id).select().single();
+
+  // ATOMIC STEP 1: Flip deposit_requests status from 'pending' → 'completed'.
+  // The .eq('status', 'pending') condition ensures only one caller wins the race.
+  const { data: flippedRequest, error: flipError } = await supabase
+    .from('deposit_requests')
+    .update({ status: 'completed', approved_at: creditedAt, updated_at: creditedAt })
+    .eq('id', request.id)
+    .eq('status', 'pending')
+    .select('id')
+    .maybeSingle();
+
+  if (flipError || !flippedRequest) {
+    // Another concurrent request already flipped this — idempotent return
+    return { alreadyCredited: true, request };
+  }
+
+  // ATOMIC STEP 2: Credit wallet (safe — we hold the 'pending'→'completed' lock)
+  const { data: wallet, error: walletError } = await supabase
+    .from('wallets')
+    .select('*')
+    .eq('id', request.wallet_id)
+    .single();
+  if (walletError || !wallet) throw walletError || new Error('Wallet not found.');
+
+  const amount = Number(request.amount_smallest_unit || 0);
+  const { data: updatedWallet, error: updateError } = await supabase
+    .from('wallets')
+    .update({
+      balance_ngn_kobo: Number(wallet.balance_ngn_kobo || 0) + amount,
+      available_ngn_kobo: Number(wallet.available_ngn_kobo || 0) + amount,
+      total_deposited_ngn_kobo: Number(wallet.total_deposited_ngn_kobo || 0) + amount,
+      updated_at: creditedAt,
+    })
+    .eq('id', wallet.id)
+    .select()
+    .single();
   if (updateError || !updatedWallet) throw updateError || new Error('Wallet credit failed.');
-  await supabase.from('deposit_requests').update({ status: 'completed', approved_at: creditedAt, updated_at: creditedAt }).eq('id', request.id).eq('status', 'pending');
-  await supabase.from('transactions').update({ status: 'completed', updated_at: creditedAt }).eq('id', request.transaction_id);
-  const { data: transaction } = await supabase.from('transactions').insert({
+
+  // Update the original deposit_request transaction status
+  await supabase
+    .from('transactions')
+    .update({ status: 'completed', updated_at: creditedAt })
+    .eq('id', request.transaction_id);
+
+  // Create the deposit_approved transaction record
+  const { data: transaction } = await supabase
+    .from('transactions')
+    .insert({
+      user_id: request.user_id,
+      wallet_id: request.wallet_id,
+      type: 'deposit_approved',
+      direction: 'IN',
+      amount_smallest_unit: amount,
+      currency: 'NGN',
+      status: 'completed',
+      reference: request.reference,
+      reference_id: request.id,
+      reference_type: 'deposit_request',
+      description: `Deposit successful ${request.reference}`,
+      metadata: { provider: request.provider, reference: request.reference }
+    })
+    .select()
+    .single();
+
+  await insertNotificationSafely({
     user_id: request.user_id,
-    wallet_id: request.wallet_id,
     type: 'deposit_approved',
-    direction: 'IN',
-    amount_smallest_unit: request.amount_smallest_unit,
-    currency: 'NGN',
-    status: 'completed',
-    reference: request.reference,
+    title: 'Deposit successful',
+    message: `₦${toAmount(amount).toLocaleString()} has been added to your wallet.`,
     reference_id: request.id,
     reference_type: 'deposit_request',
-    description: `Deposit successful ${request.reference}`,
-    metadata: { provider: request.provider, reference: request.reference }
-  }).select().single();
-  await insertNotificationSafely({ user_id: request.user_id, type: 'deposit_approved', title: 'Deposit successful', message: `₦${toAmount(request.amount_smallest_unit).toLocaleString()} has been added to your wallet.`, reference_id: request.id, reference_type: 'deposit_request', metadata: { reference: request.reference } }, 'Deposit successful notification');
+    metadata: { reference: request.reference }
+  }, 'Deposit successful notification');
+
   return { alreadyCredited: false, request, wallet: updatedWallet, transaction };
 };
 
@@ -1863,7 +2022,7 @@ app.get('/api/wallet', authenticate, async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/wallet/deposit-session', authenticate, async (req: Request, res: Response) => {
+app.post('/api/wallet/deposit-session', authenticate, rateLimitMiddleware(DEPOSIT_RATE), async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const provider = getPaymentProvider(req.body.provider);
@@ -1937,7 +2096,7 @@ app.post('/api/wallet/deposit-session', authenticate, async (req: Request, res: 
   }
 });
 
-app.get('/api/wallet/payment/callback', async (req: Request, res: Response) => {
+app.get('/api/wallet/payment/callback', rateLimitMiddleware(CALLBACK_RATE), async (req: Request, res: Response) => {
   const provider = getPaymentProvider(req.query.provider);
   const reference = String(req.query.reference || req.query.tx_ref || req.query.paymentReference || '');
   const transactionId = String(req.query.transaction_id || req.query.transactionId || '');
@@ -1957,7 +2116,80 @@ app.get('/api/wallet/payment/callback', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/wallet/deposit-request', authenticate, async (req: Request, res: Response) => {
+/**
+ * POST /api/wallet/payment/webhook — Server-to-server payment notifications.
+ * 
+ * This is the primary, secure endpoint for payment provider callbacks.
+ * The GET /api/wallet/payment/callback is a fallback for redirect flows.
+ * 
+ * Security:
+ * - Rate limited
+ * - Raw body preserved for signature verification
+ * - Signature verified per-provider before any DB operations
+ * - Idempotent credit (safe against duplicate webhook delivery)
+ */
+app.post('/api/wallet/payment/webhook', rateLimitMiddleware(CALLBACK_RATE), async (req: Request, res: Response) => {
+  try {
+    const provider = getPaymentProvider(req.body?.provider || req.query?.provider);
+
+    // Step 1: Verify webhook signature
+    const signatureValid = verifyWebhookSignature(provider, req);
+    if (!signatureValid) {
+      console.error(`Webhook signature verification failed for provider: ${provider}`);
+      return res.status(401).json({ error: { code: 'INVALID_SIGNATURE', message: 'Webhook signature verification failed.' } });
+    }
+
+    // Step 2: Extract reference from provider-specific payload
+    let reference = '';
+    let transactionId = '';
+
+    if (provider === 'paystack') {
+      const event = req.body?.event;
+      if (event !== 'charge.success') {
+        // Acknowledge non-successful events to prevent retries
+        return res.status(200).json({ status: 'ignored', event });
+      }
+      reference = req.body?.data?.reference || '';
+      transactionId = String(req.body?.data?.id || '');
+    } else if (provider === 'flutterwave') {
+      const status = req.body?.data?.status;
+      if (status !== 'successful') {
+        return res.status(200).json({ status: 'ignored', event: status });
+      }
+      reference = req.body?.data?.tx_ref || req.body?.data?.reference || '';
+      transactionId = String(req.body?.data?.id || '');
+    } else if (provider === 'monnify') {
+      const eventType = req.body?.eventType;
+      if (eventType !== 'SUCCESSFUL') {
+        return res.status(200).json({ status: 'ignored', event: eventType });
+      }
+      reference = req.body?.data?.reference || req.body?.data?.paymentReference || '';
+      transactionId = String(req.body?.data?.transactionReference || '');
+    }
+
+    if (!reference) {
+      return res.status(400).json({ error: { code: 'MISSING_REFERENCE', message: 'No payment reference found in webhook payload.' } });
+    }
+
+    // Step 3: Verify with provider API (belt and suspenders — don't just trust the payload)
+    const verified = await verifyProviderPayment(provider, reference, transactionId || undefined);
+    if (!verified) {
+      console.error(`Webhook provider verification failed for reference: ${reference}`);
+      return res.status(400).json({ error: { code: 'VERIFICATION_FAILED', message: 'Provider verification failed.' } });
+    }
+
+    // Step 4: Credit deposit (idempotent — safe for duplicate webhooks)
+    const result = await creditVerifiedDeposit(reference);
+    console.log(`Webhook processed: ${reference}, alreadyCredited: ${result.alreadyCredited}`);
+
+    return res.status(200).json({ status: 'success', alreadyCredited: result.alreadyCredited, reference });
+  } catch (error: any) {
+    console.error('Webhook processing error:', error?.message || error);
+    return res.status(500).json({ error: { code: 'WEBHOOK_ERROR', message: 'Internal error processing webhook.' } });
+  }
+});
+
+app.post('/api/wallet/deposit-request', authenticate, rateLimitMiddleware(DEPOSIT_RATE), async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const amountSmallestUnit = Number(req.body.amount_smallest_unit || req.body.amountSmallestUnit || Math.round(Number(req.body.amount || 0) * 100));
@@ -2021,7 +2253,7 @@ app.post('/api/wallet/deposit-request', authenticate, async (req: Request, res: 
  * POST /api/wallet/deposit
  * Deposit funds
  */
-app.post('/api/wallet/deposit', authenticate, async (req: Request, res: Response) => {
+app.post('/api/wallet/deposit', authenticate, rateLimitMiddleware(DEPOSIT_RATE), async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const { amount, currency } = req.body;
@@ -2129,7 +2361,7 @@ app.post('/api/wallet/deposit', authenticate, async (req: Request, res: Response
   }
 });
 
-app.post('/api/wallet/withdrawal-request', authenticate, async (req: Request, res: Response) => {
+app.post('/api/wallet/withdrawal-request', authenticate, rateLimitMiddleware(WITHDRAWAL_RATE), async (req: Request, res: Response) => {
   let rollbackWallet: { id: string; available: number; locked: number } | null = null;
   let createdTransactionId: string | null = null;
   try {
@@ -2251,7 +2483,7 @@ app.post('/api/wallet/withdrawal-request', authenticate, async (req: Request, re
  * POST /api/wallet/withdraw
  * Withdraw funds
  */
-app.post('/api/wallet/withdraw', authenticate, async (req: Request, res: Response) => {
+app.post('/api/wallet/withdraw', authenticate, rateLimitMiddleware(WITHDRAWAL_RATE), async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const { amount, currency } = req.body;
