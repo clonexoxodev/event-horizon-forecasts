@@ -161,6 +161,18 @@ const verifyWebhookSignature = (provider: PaymentProvider, req: Request): boolea
   }
 };
 
+/**
+ * Detect payment provider from webhook signature headers.
+ * Each provider sends a unique header — this is more reliable than
+ * relying on request body fields which may not exist.
+ */
+const detectWebhookProvider = (req: Request): PaymentProvider | null => {
+  if (req.headers['x-paystack-signature']) return 'paystack';
+  if (req.headers['verif-hash']) return 'flutterwave';
+  if (req.headers['monnify-signature']) return 'monnify';
+  return null;
+};
+
 const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (_req, file, cb) => {
@@ -2130,7 +2142,11 @@ app.get('/api/wallet/payment/callback', rateLimitMiddleware(CALLBACK_RATE), asyn
  */
 app.post('/api/wallet/payment/webhook', rateLimitMiddleware(CALLBACK_RATE), async (req: Request, res: Response) => {
   try {
-    const provider = getPaymentProvider(req.body?.provider || req.query?.provider);
+    // Detect provider from signature headers — more reliable than body fields
+    const provider = detectWebhookProvider(req);
+    if (!provider) {
+      return res.status(400).json({ error: { code: 'UNKNOWN_PROVIDER', message: 'Could not identify payment provider from webhook headers.' } });
+    }
 
     // Step 1: Verify webhook signature
     const signatureValid = verifyWebhookSignature(provider, req);

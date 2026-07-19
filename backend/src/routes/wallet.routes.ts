@@ -149,7 +149,12 @@ const verifyFlutterwaveSignature = (req: Request): boolean => {
   const secretHash = process.env.FLUTTERWAVE_SECRET_HASH;
   if (!secretHash) return false;
   const signature = req.headers['verif-hash'];
-  return typeof signature === 'string' && signature === secretHash;
+  if (typeof signature !== 'string' || !signature) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(secretHash), Buffer.from(signature));
+  } catch {
+    return false;
+  }
 };
 
 // Monnify signature: HMAC-SHA256 of the raw body using MONNIFY_SECRET_KEY, sent in `monnify-signature` header.
@@ -169,11 +174,19 @@ const verifyWebhookSignature = (provider: string, req: Request): boolean => {
   return false;
 };
 
+/** Detect provider from webhook signature headers. */
+const detectWebhookProvider = (req: Request): PaymentProvider | null => {
+  if (req.headers['x-paystack-signature']) return 'paystack';
+  if (req.headers['verif-hash']) return 'flutterwave';
+  if (req.headers['monnify-signature']) return 'monnify';
+  return null;
+};
+
 webhookRouter.post('/payment/callback', async (req: Request, res: Response) => {
   try {
-    const provider = String(req.query.provider || req.body?.provider || 'paystack').toLowerCase() as PaymentProvider;
-    if (!supportedProviders.includes(provider)) {
-      return res.status(400).json({ error: { code: 'UNSUPPORTED_PROVIDER', message: 'Unknown payment provider.', timestamp: new Date().toISOString() } });
+    const provider = detectWebhookProvider(req);
+    if (!provider) {
+      return res.status(400).json({ error: { code: 'UNKNOWN_PROVIDER', message: 'Could not identify payment provider from webhook headers.', timestamp: new Date().toISOString() } });
     }
 
     if (!verifyWebhookSignature(provider, req)) {
@@ -181,7 +194,12 @@ webhookRouter.post('/payment/callback', async (req: Request, res: Response) => {
       return res.status(401).json({ error: { code: 'INVALID_SIGNATURE', message: 'Webhook signature verification failed.', timestamp: new Date().toISOString() } });
     }
 
-    const reference = String(req.body?.reference || req.body?.data?.reference || req.body?.responseBody?.paymentReference || '');
+    // Flutterwave uses data.tx_ref, Paystack uses data.reference, Monnify uses responseBody.paymentReference
+    const reference = String(
+      req.body?.data?.tx_ref || req.body?.tx_ref ||
+      req.body?.reference || req.body?.data?.reference ||
+      req.body?.responseBody?.paymentReference || ''
+    );
     if (!reference) {
       return res.status(400).json({ error: { code: 'MISSING_REFERENCE', message: 'No payment reference in webhook payload.', timestamp: new Date().toISOString() } });
     }
