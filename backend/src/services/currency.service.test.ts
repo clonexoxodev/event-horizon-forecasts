@@ -68,12 +68,11 @@ describe('CurrencyService', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1); // No additional API call
     });
 
-    it('should use fallback rate when API fails and no cache', async () => {
+    it('should throw error when API fails and no cache', async () => {
       mockFetch.mockRejectedValueOnce(new Error('API Error'));
 
-      const rate = await currencyService.getExchangeRate('NGN', 'USD');
-      
-      expect(rate).toBe(0.0013); // Fallback rate
+      await expect(currencyService.getExchangeRate('NGN', 'USD'))
+        .rejects.toThrow('Exchange rate API unavailable');
     });
 
     it('should use expired cache when API fails', async () => {
@@ -105,19 +104,18 @@ describe('CurrencyService', () => {
       Date.now = originalNow;
     });
 
-    it('should handle API response errors', async () => {
+    it('should throw error when API returns error status', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
         statusText: 'Internal Server Error'
       });
 
-      const rate = await currencyService.getExchangeRate('NGN', 'USD');
-      
-      expect(rate).toBe(0.0013); // Should use fallback
+      await expect(currencyService.getExchangeRate('NGN', 'USD'))
+        .rejects.toThrow('Exchange rate API unavailable');
     });
 
-    it('should handle invalid API response format', async () => {
+    it('should throw error for invalid API response format', async () => {
       const mockResponse = {
         success: false,
         rates: {}
@@ -128,9 +126,8 @@ describe('CurrencyService', () => {
         json: () => Promise.resolve(mockResponse)
       });
 
-      const rate = await currencyService.getExchangeRate('NGN', 'USD');
-      
-      expect(rate).toBe(0.0013); // Should use fallback
+      await expect(currencyService.getExchangeRate('NGN', 'USD'))
+        .rejects.toThrow('Exchange rate API unavailable');
     });
   });
 
@@ -256,19 +253,18 @@ describe('CurrencyService', () => {
     it('should throw error for unsupported currency pair', async () => {
       mockFetch.mockRejectedValueOnce(new Error('API Error'));
 
-      // Test with unsupported pair (no fallback defined)
       await expect(currencyService.getExchangeRate('USD', 'EUR' as any))
         .rejects.toThrow('No fallback rate available');
     });
 
-    it('should use correct fallback rates', async () => {
+    it('should throw error instead of using stale fallback rates', async () => {
       mockFetch.mockRejectedValue(new Error('API Error'));
 
-      const ngnToUsd = await currencyService.getExchangeRate('NGN', 'USD');
-      expect(ngnToUsd).toBe(0.0013);
+      await expect(currencyService.getExchangeRate('NGN', 'USD'))
+        .rejects.toThrow('Exchange rate API unavailable');
 
-      const usdToNgn = await currencyService.getExchangeRate('USD', 'NGN');
-      expect(usdToNgn).toBe(770);
+      await expect(currencyService.getExchangeRate('USD', 'NGN'))
+        .rejects.toThrow('Exchange rate API unavailable');
     });
   });
 });

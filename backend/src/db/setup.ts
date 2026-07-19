@@ -142,103 +142,10 @@ async function verifyCompleteSchema(): Promise<void> {
 }
 
 /**
- * Create sample data for development and testing
+ * NOTE: Sample data creation has been removed.
+ * All wallet balances start at ₦0 and can only be funded
+ * through real verified payment transactions.
  */
-export async function createSampleData(): Promise<void> {
-  try {
-    console.log('Creating sample data for development...');
-
-    // Check if sample data already exists
-    const userCount = await pool.query('SELECT COUNT(*) FROM users');
-    if (parseInt(userCount.rows[0].count) > 0) {
-      console.log('Sample data already exists. Skipping creation.');
-      return;
-    }
-
-    // Create sample users
-    const sampleUsers = [
-      {
-        username: 'alice_predictor',
-        email: 'alice@example.com',
-        password_hash: '$2b$10$example.hash.for.development.only'
-      },
-      {
-        username: 'bob_trader',
-        email: 'bob@example.com',
-        password_hash: '$2b$10$example.hash.for.development.only'
-      },
-      {
-        username: 'charlie_analyst',
-        email: 'charlie@example.com',
-        password_hash: '$2b$10$example.hash.for.development.only'
-      }
-    ];
-
-    for (const user of sampleUsers) {
-      const userResult = await pool.query(
-        'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id',
-        [user.username, user.email, user.password_hash]
-      );
-
-      const userId = userResult.rows[0].id;
-
-      // Create wallet for user (starts at zero as per requirements)
-      await pool.query(
-        'INSERT INTO wallets (user_id) VALUES ($1)',
-        [userId]
-      );
-
-      // Add some sample balance for development
-      await pool.query(`
-        UPDATE wallets 
-        SET balance_ngn_kobo = 100000, available_ngn_kobo = 100000,
-            balance_usd_cents = 10000, available_usd_cents = 10000
-        WHERE user_id = $1
-      `, [userId]);
-    }
-
-    // Create sample markets
-    const sampleMarkets = [
-      {
-        question: 'Will Bitcoin reach $100,000 by end of 2024?',
-        description: 'Prediction market for Bitcoin price reaching $100,000 USD',
-        currency: 'USD',
-        min_position: 100, // $1.00
-        closes_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
-      },
-      {
-        question: 'Will Nigeria win the next AFCON tournament?',
-        description: 'Prediction market for Nigeria winning the African Cup of Nations',
-        currency: 'NGN',
-        min_position: 10000, // ₦100.00
-        closes_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) // 60 days from now
-      },
-      {
-        question: 'Will it rain in Lagos tomorrow?',
-        description: 'Weather prediction market for Lagos rainfall',
-        currency: 'NGN',
-        min_position: 5000, // ₦50.00
-        closes_at: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
-      }
-    ];
-
-    for (const market of sampleMarkets) {
-      await pool.query(`
-        INSERT INTO markets (question, description, currency, min_position_smallest_unit, closes_at, state)
-        VALUES ($1, $2, $3, $4, $5, 'active')
-      `, [market.question, market.description, market.currency, market.min_position, market.closes_at]);
-    }
-
-    console.log('✓ Sample data created successfully');
-    console.log('  - 3 sample users with wallets');
-    console.log('  - 3 sample markets');
-    console.log('  - Initial wallet balances for development');
-
-  } catch (error) {
-    console.error('Failed to create sample data:', error);
-    throw error;
-  }
-}
 
 // Run setup if this script is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -248,20 +155,15 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     try {
       switch (command) {
         case 'full':
-          await setupDatabase();
-          await createSampleData();
-          break;
         case 'schema':
           await setupDatabase();
           break;
-        case 'sample':
-          await createSampleData();
-          break;
         default:
           console.log('Usage:');
-          console.log('  npm run db:setup:full   - Complete setup with sample data');
+          console.log('  npm run db:setup:full   - Complete database setup');
           console.log('  npm run db:setup:schema - Schema setup only');
-          console.log('  npm run db:setup:sample - Create sample data only');
+          console.log('  NOTE: Sample data creation has been removed.');
+          console.log('  All wallet balances start at ₦0.');
       }
     } catch (error) {
       console.error('Setup failed:', error);

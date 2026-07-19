@@ -126,21 +126,13 @@ export class CurrencyService {
    * Get fallback exchange rates when API is unavailable
    */
   private getFallbackRate(from: 'NGN' | 'USD', to: 'NGN' | 'USD'): number {
-    // These are approximate fallback rates - in production, these should be
-    // updated periodically or fetched from a backup source
-    const fallbackRates: Record<string, number> = {
-      'NGN_USD': 0.0013, // 1 NGN = 0.0013 USD (approx 770 NGN per USD)
-      'USD_NGN': 770,    // 1 USD = 770 NGN
-    };
-
-    const key = `${from}_${to}`;
-    const rate = fallbackRates[key];
-    
-    if (!rate) {
-      throw new Error(`No fallback rate available for ${from} to ${to}`);
-    }
-
-    return rate;
+    // No hardcoded fallback rates. In production, stale rates can cause
+    // significant financial loss. Always require live API rates.
+    throw new Error(
+      `Exchange rate API unavailable for ${from} to ${to}. ` +
+      `Set EXCHANGE_API_URL environment variable or check API status. ` +
+      `No fallback rates are used to prevent financial loss from stale data.`
+    );
   }
 
   /**

@@ -306,8 +306,8 @@ const requireRole = (requiredRole: string) => {
   };
 };
 
-// Primary super admin email
-const PRIMARY_SUPER_ADMIN_EMAIL = 'fehintoluwaolu@gmail.com';
+// Primary super admin email from environment variable
+const PRIMARY_SUPER_ADMIN_EMAIL = (process.env.PRIMARY_SUPER_ADMIN_EMAIL || '').trim().toLowerCase();
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 const normalizeUsername = (username: string) => username.trim();
@@ -335,69 +335,7 @@ const setAuthCookie = (res: Response, token: string) => {
   res.cookie('auth_token', token, authCookieOptions);
 };
 
-const SUPER_ADMIN_TEST_CREDIT_KOBO = 1_000_000;
-const SUPER_ADMIN_TEST_CREDIT_KEY = 'super_admin_seed_10000_v1';
 
-const ensureSuperAdminTestCredit = async (user: any) => {
-  if (process.env.ENABLE_SUPER_ADMIN_TEST_CREDIT === 'false') return 0;
-  if (normalizeEmail(user.email || '') !== PRIMARY_SUPER_ADMIN_EMAIL) return 0;
-
-  const { data: wallet, error: walletError } = await supabase
-    .from('wallets')
-    .select('*')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (walletError || !wallet) return 0;
-
-  const balance = Number(wallet.balance_ngn_kobo || 0);
-  const available = Number(wallet.available_ngn_kobo || 0);
-  if (balance > 0 || available > 0) return available / 100;
-
-  const { data: existingCredit } = await supabase
-    .from('transactions')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('type', 'deposit')
-    .eq('metadata->>testCredit', SUPER_ADMIN_TEST_CREDIT_KEY)
-    .maybeSingle();
-
-  if (existingCredit) return 0;
-
-  const { data: updatedWallet, error: updateError } = await supabase
-    .from('wallets')
-    .update({
-      balance_ngn_kobo: SUPER_ADMIN_TEST_CREDIT_KOBO,
-      available_ngn_kobo: SUPER_ADMIN_TEST_CREDIT_KOBO,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', wallet.id)
-    .select('*')
-    .single();
-
-  if (updateError || !updatedWallet) {
-    console.warn('Failed to apply super admin test credit:', updateError?.message);
-    return 0;
-  }
-
-  await supabase
-    .from('transactions')
-    .insert({
-      user_id: user.id,
-      wallet_id: wallet.id,
-      type: 'deposit',
-      amount_smallest_unit: SUPER_ADMIN_TEST_CREDIT_KOBO,
-      currency: 'NGN',
-      direction: 'IN',
-      status: 'completed',
-      metadata: {
-        testCredit: SUPER_ADMIN_TEST_CREDIT_KEY,
-        note: 'Development/test setup credit for primary super admin wallet only.'
-      }
-    });
-
-  return Number(updatedWallet.available_ngn_kobo || 0) / 100;
-};
 
 /**
  * POST /api/auth/signup
@@ -562,11 +500,9 @@ app.post('/api/auth/signup', async (req: Request, res: Response) => {
     // Set cookie
     setAuthCookie(res, token);
 
-    const initialBalance = await ensureSuperAdminTestCredit(newUser);
-
     // Return success
     res.status(201).json({
-      user: toAuthUser(newUser, initialBalance),
+      user: toAuthUser(newUser, 0),
       token,
       message: 'User registered successfully'
     });
@@ -674,11 +610,9 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
     // Set cookie
     setAuthCookie(res, token);
 
-    const balance = await ensureSuperAdminTestCredit(user);
-
     // Return success
     res.json({
-      user: toAuthUser(user, balance),
+      user: toAuthUser(user, 0),
       token,
       message: 'Login successful'
     });
@@ -721,8 +655,7 @@ app.get('/api/auth/me', authenticate, async (req: Request, res: Response) => {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    const testCreditBalance = await ensureSuperAdminTestCredit(user);
-    const balance = testCreditBalance || (wallet?.balance_ngn_kobo ? wallet.balance_ngn_kobo / 100 : 0);
+    const balance = (wallet?.balance_ngn_kobo ? wallet.balance_ngn_kobo / 100 : 0);
 
     res.json({
       user: toAuthUser(user, balance)
@@ -2545,19 +2478,17 @@ app.get('/api/wallet/convert', authenticate, async (req: Request, res: Response)
       });
     }
 
-    // Simple conversion rate (NGN to USD)
-    const NGN_TO_USD_RATE = 0.0013; // 1 NGN = 0.0013 USD (approximate)
-    const USD_TO_NGN_RATE = 1 / NGN_TO_USD_RATE;
-
+    // Use live exchange rate service
+    const { currencyService } = await import('../src/services/currency.service.js');
     let rate = 1;
     let convertedAmount = amount;
 
     if (from === 'NGN' && to === 'USD') {
-      rate = NGN_TO_USD_RATE;
-      convertedAmount = amount * NGN_TO_USD_RATE;
+      rate = await currencyService.getExchangeRate('NGN', 'USD');
+      convertedAmount = amount * rate;
     } else if (from === 'USD' && to === 'NGN') {
-      rate = USD_TO_NGN_RATE;
-      convertedAmount = amount * USD_TO_NGN_RATE;
+      rate = await currencyService.getExchangeRate('USD', 'NGN');
+      convertedAmount = amount * rate;
     }
 
     res.json({
