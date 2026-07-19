@@ -1,4 +1,3 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,6 +6,7 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { ForecastSlipProvider, useForecastSlip } from "@/lib/forecast-slip";
 import { MarketStateProvider, useMarketState } from "@/lib/market-state";
 import { NotificationProvider, useNotificationHelpers } from "@/lib/notification-context";
+import { AuthModal } from "@/components/AuthModal";
 import { ForecastSlip } from "@/components/ForecastSlip";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import apiService from "@/lib/api";
@@ -35,15 +35,13 @@ import Terms from "./pages/Terms.tsx";
 import Privacy from "./pages/Privacy.tsx";
 import RiskDisclaimer from "./pages/RiskDisclaimer.tsx";
 
-const queryClient = new QueryClient();
-
 const ForecastSlipContainer = () => {
   const { selection, closeForecastSlip } = useForecastSlip();
   const { upsertMarket } = useMarketState();
   const { user, refreshUser } = useAuth();
   const { notifyForecastConfirmed, notifyWalletLow } = useNotificationHelpers();
 
-  const handleConfirm = async (selection: any, amount: number) => {
+  const handleConfirm = async (selection: { marketId: string; marketQuestion: string; side: "YES" | "NO"; marketIcon?: string }, amount: number) => {
     if (!user) {
       throw new Error("User not authenticated");
     }
@@ -83,20 +81,20 @@ const ForecastSlipContainer = () => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <NotificationProvider>
-          <MarketStateProvider>
-            <ForecastSlipProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter
-                future={{
-                  v7_startTransition: true,
-                  v7_relativeSplatPath: true,
-                }}
-              >
+  <TooltipProvider>
+    <AuthProvider>
+      <NotificationProvider>
+        <MarketStateProvider>
+          <ForecastSlipProvider>
+            <Toaster />
+            <Sonner />
+            <AuthModal />
+            <BrowserRouter
+              future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true,
+              }}
+            >
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/login" element={<Login />} />
@@ -149,7 +147,6 @@ const App = () => (
         </NotificationProvider>
       </AuthProvider>
     </TooltipProvider>
-  </QueryClientProvider>
 );
 
 export default App;

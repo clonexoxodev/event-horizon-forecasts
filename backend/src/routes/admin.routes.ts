@@ -5,8 +5,8 @@ import { supabase } from '../db/supabase-client.js';
 
 const router = Router();
 
-// Primary super admin email
-const PRIMARY_SUPER_ADMIN_EMAIL = 'fehintoluwaolu@gmail.com';
+// Primary super admin email (configure via env; empty string means no primary super-admin protection)
+const PRIMARY_SUPER_ADMIN_EMAIL = (process.env.PRIMARY_SUPER_ADMIN_EMAIL || '').toLowerCase();
 const toAmount = (smallestUnit: number) => Number(smallestUnit || 0) / 100;
 const nowIso = () => new Date().toISOString();
 

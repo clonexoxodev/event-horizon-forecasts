@@ -33,7 +33,7 @@ const ROLE_HIERARCHY: Record<UserRole, number> = {
   super_admin: 2,
 };
 
-const PRIMARY_SUPER_ADMIN_EMAIL = "fehintoluwaolu@gmail.com";
+const PRIMARY_SUPER_ADMIN_EMAIL = (import.meta.env.VITE_PRIMARY_SUPER_ADMIN_EMAIL || "").toLowerCase();
 const AUTH_USER_CACHE_KEY = "flippe_auth_user";
 
 const Ctx = createContext<AuthCtx | null>(null);

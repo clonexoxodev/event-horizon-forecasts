@@ -885,11 +885,22 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
         updated_at: new Date().toISOString()
       })
       .eq('id', wallet.id)
+      .gte(balanceField, amountSmallestUnit)
       .select()
-      .single();
+      .maybeSingle();
 
-    if (updateWalletError || !updatedWallet) {
-      throw new Error(`Failed to update wallet: ${updateWalletError?.message || 'No data returned'}`);
+    if (updateWalletError) {
+      throw new Error(`Failed to update wallet: ${updateWalletError.message}`);
+    }
+    if (!updatedWallet) {
+      // .gte guard rejected the update — another concurrent prediction drained the balance
+      return res.status(409).json({
+        error: {
+          code: 'INSUFFICIENT_BALANCE',
+          message: 'Insufficient balance to place this prediction.',
+          timestamp: new Date().toISOString(),
+        },
+      });
     }
 
     const { data: updatedMarket, error: updateMarketError } = await supabase
@@ -1089,7 +1100,7 @@ router.get('/:id/positions', authMiddleware.authenticate, async (req: Request, r
       });
     }
 
-    // Get all positions for this market
+    // Get only the requesting user's positions for this market (IDOR fix)
     const { data: positions, error } = await supabase
       .from('positions')
       .select(`
@@ -1106,16 +1117,24 @@ router.get('/:id/positions', authMiddleware.authenticate, async (req: Request, r
         resolved_at
       `)
       .eq('market_id', id)
+      .eq('user_id', req.user.userId)
       .order('created_at', { ascending: false });
 
     if (error) {
       throw new Error('Failed to fetch positions: ' + error.message);
     }
 
+    // Public aggregate counts (no per-user exposure)
+    const { count: totalParticipants } = await supabase
+      .from('positions')
+      .select('id', { count: 'exact', head: true })
+      .eq('market_id', id);
+
     res.json({
       positions: positions || [],
       count: positions?.length || 0,
-      marketId: id
+      marketId: id,
+      totalParticipants: totalParticipants || 0,
     });
   } catch (error) {
     console.error('Get market positions error:', error);

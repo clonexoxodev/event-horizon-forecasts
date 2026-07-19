@@ -611,9 +611,10 @@ class ApiService {
   }
 
   async deposit(amount: number, currency: 'NGN' | 'USD' = 'NGN', method: string = 'bank_transfer') {
-    void currency;
-    void method;
-    return this.createPaymentSession(amount);
+    if (currency === 'NGN' && method === 'card') {
+      return this.createPaymentSession(amount);
+    }
+    return this.createDepositRequest(amount, method);
   }
 
   async createPaymentSession(amount: number, provider?: PaymentProvider): Promise<PaymentSessionResponse> {
@@ -642,10 +643,15 @@ class ApiService {
     });
   }
 
-  async withdraw(amount: number, currency: 'NGN' | 'USD' = 'NGN', destination: string = 'bank_account') {
-    void currency;
-    void destination;
-    return this.createWithdrawalRequest(amount, { bankName: 'Bank account', accountNumber: '0000000000', accountName: 'Account holder' });
+  async withdraw(amount: number, bankDetails: { bankName: string; accountNumber: string; accountName: string; saveBankDetails?: boolean }) {
+    return this.createWithdrawalRequest(amount, bankDetails);
+  }
+
+  async updateProfile(data: { name?: string; username?: string }) {
+    return this.request<{ success: boolean; user: AuthUserResponse }>('/api/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
   }
 
   async createWithdrawalRequest(amount: number, bankDetails: { bankName: string; accountNumber: string; accountName: string; saveBankDetails?: boolean }) {

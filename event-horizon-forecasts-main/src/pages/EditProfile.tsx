@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Camera, Save } from "lucide-react";
+import { Camera, Save, Loader2 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { DelayedFlippeLoader } from "@/components/FlippeBrand";
 import { MobileNav } from "@/components/MobileNav";
@@ -12,6 +12,9 @@ import { toast } from "sonner";
 export default function EditProfile() {
   const { user, refreshUser, isLoading: authLoading } = useAuth();
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [name, setName] = useState(user?.name || user?.username || "");
+  const [username, setUsername] = useState(user?.username || "");
 
   const handleImage = async (file?: File) => {
     if (!file) return;
@@ -20,10 +23,26 @@ export default function EditProfile() {
       await apiService.uploadProfilePicture(file);
       await refreshUser();
       toast.success("Profile picture updated.");
-    } catch (error: any) {
-      toast.error(error.message || "Could not save profile picture.");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Could not save profile picture.";
+      toast.error(message);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await apiService.updateProfile({ name, username });
+      await refreshUser();
+      toast.success("Profile saved.");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Could not save profile.";
+      toast.error(message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -70,12 +89,16 @@ export default function EditProfile() {
             </label>
           </div>
           <div className="space-y-4">
-            <Field label="Display name" value={user?.name || ""} />
-            <Field label="Username" value={user?.username || ""} />
+            <Field label="Display name" value={name} onChange={setName} id="display-name" />
+            <Field label="Username" value={username} onChange={setUsername} id="username" />
           </div>
-          <Button onClick={() => toast.success("Profile saved.")} className="mt-6 h-12 w-full rounded-xl bg-[#12B886] font-black text-[#06100d] hover:bg-[#2dd4a0]">
-            <Save className="mr-2 h-4 w-4" />
-            Save profile
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="mt-6 h-12 w-full rounded-xl bg-[#12B886] font-black text-[#06100d] hover:bg-[#2dd4a0] disabled:opacity-60"
+          >
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            {saving ? "Saving..." : "Save profile"}
           </Button>
         </section>
       </main>
@@ -84,9 +107,24 @@ export default function EditProfile() {
   );
 }
 
-const Field = ({ label, value }: { label: string; value: string }) => (
-  <label className="block">
+const Field = ({
+  label,
+  value,
+  onChange,
+  id,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  id: string;
+}) => (
+  <label htmlFor={id} className="block">
     <span className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#667085]">{label}</span>
-    <Input defaultValue={value} className="h-12 rounded-xl border-[#E5E7EB] bg-[#F3F4F6] text-[#101828] placeholder:text-[#9CA3AF]" />
+    <Input
+      id={id}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-12 rounded-xl border-[#E5E7EB] bg-[#F3F4F6] text-[#101828] placeholder:text-[#9CA3AF]"
+    />
   </label>
 );

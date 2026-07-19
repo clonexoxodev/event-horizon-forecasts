@@ -8,8 +8,8 @@ const ROLE_HIERARCHY = {
   super_admin: 2
 };
 
-// Primary super admin email (hardcoded for security)
-const PRIMARY_SUPER_ADMIN_EMAIL = 'fehintoluwaolu@gmail.com';
+// Primary super admin email (configure via env; empty string means no primary super-admin protection)
+const PRIMARY_SUPER_ADMIN_EMAIL = (process.env.PRIMARY_SUPER_ADMIN_EMAIL || '').toLowerCase();
 
 /**
  * Middleware to require a specific role or higher
