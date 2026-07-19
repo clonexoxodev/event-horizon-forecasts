@@ -114,17 +114,17 @@ export default function Signup() {
   return (
     <AuthLayout>
       <div className="w-full max-w-md mx-auto">
-        <div className="rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_24px_90px_rgba(16,24,40,0.12)]">
+        <div className="rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_24px_90px_rgba(16,24,40,0.10)]">
           <div className="flex flex-col items-center px-6 pt-10 pb-8 sm:px-10">
-            <Link to="/" className="mb-8 inline-flex items-center">
+            <Link to="/" className="mb-6 inline-flex items-center">
               <FlippeWordmark size="xl" />
             </Link>
 
-            <p className="mb-2 text-center text-sm text-[#6B7280]">
+            <p className="mb-1 text-center text-sm text-[#9CA3AF]">
               Join thousands of forecasters
             </p>
 
-            <h1 className="mb-8 text-center text-2xl font-black tracking-tight text-[#111827]">
+            <h1 className="mb-7 text-center text-xl font-black tracking-tight text-[#111827]">
               Create your account
             </h1>
 

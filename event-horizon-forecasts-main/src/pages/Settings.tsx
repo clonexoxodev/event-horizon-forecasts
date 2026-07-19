@@ -45,10 +45,9 @@ export default function Settings() {
     <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:py-8">
-        <div className="mb-8">
-          <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#4F46E5]">Settings</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Account settings</h1>
-          <p className="mt-2 text-sm text-[#6B7280]">Manage your account, notifications, and preferences.</p>
+        <div className="mb-6">
+          <h1 className="text-2xl font-black tracking-tight">Settings</h1>
+          <p className="mt-1 text-sm text-[#9CA3AF]">Manage your account and preferences.</p>
         </div>
 
         <div className="space-y-5">

@@ -184,16 +184,16 @@ const Dashboard = () => {
         <Header />
         <main className="mx-auto grid min-h-[70vh] max-w-3xl place-items-center px-4 text-center">
           <div>
-            <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl border border-[#E5E7EB] bg-white text-[#4F46E5]">
-              <LineChart className="h-8 w-8" />
+            <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl bg-[#4F46E5]/10 text-[#4F46E5]">
+              <LineChart className="h-6 w-6" />
             </div>
-            <h1 className="text-3xl font-black tracking-tight">Track your predictions</h1>
-            <p className="mt-3 text-sm text-[#6B7280]">
+            <h1 className="text-2xl font-black tracking-tight">Track your predictions</h1>
+            <p className="mt-2 text-sm text-[#9CA3AF]">
               Log in to see open predictions, resolved results, and wallet-linked history.
             </p>
             <Link
               to="/login"
-              className="mt-6 inline-flex h-12 items-center rounded-xl bg-[#4F46E5] px-6 text-sm font-bold text-white hover:bg-[#4338CA]"
+              className="mt-5 inline-flex h-11 items-center rounded-xl bg-[#4F46E5] px-5 text-sm font-bold text-white hover:bg-[#4338CA]"
             >
               Log in
             </Link>
@@ -212,96 +212,61 @@ const Dashboard = () => {
         <section className="mb-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-medium text-[#6B7280]">{getGreeting()},</p>
-              <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#9CA3AF]">{getGreeting()}</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">
                 {user.name || user.username || "Forecaster"}
               </h1>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2.5 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-2.5 shadow-sm">
-                <div className="grid h-7 w-7 place-items-center rounded-lg bg-[#4F46E5]/10">
-                  <LevelIcon className="h-4 w-4 text-[#4F46E5]" />
-                </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 shadow-sm">
+                <LevelIcon className="h-4 w-4 text-[#4F46E5]" />
                 <span className="text-sm font-bold text-[#111827]">{level}</span>
               </div>
-              <div className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] px-4 py-2.5 text-white shadow-lg shadow-[#4F46E5]/25">
-                <Zap className="h-4 w-4" />
+              <div className="flex items-center gap-1.5 rounded-lg bg-[#4F46E5] px-3 py-2 text-white shadow-sm">
+                <Zap className="h-3.5 w-3.5" />
                 <AnimatedNumber value={totalScore} className="text-sm font-bold" />
-                <span className="text-xs font-bold opacity-80">pts</span>
+                <span className="text-[10px] font-bold opacity-80">pts</span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ── Stats Grid ── */}
-        <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard
-            icon={Target}
-            label="Total Predictions"
-            value={stats.totalPredictions}
-            bgGradient="from-[#EEF2FF] to-[#F5F3FF]"
-            iconBg="bg-[#4F46E5]/10"
-            iconColor="text-[#4F46E5]"
-          />
-          <StatCard
-            icon={Zap}
-            label="Active"
-            value={activePositions.length}
-            bgGradient="from-[#FEF3C7] to-[#FFFBEB]"
-            iconBg="bg-[#D97706]/10"
-            iconColor="text-[#D97706]"
-          />
-          <StatCard
-            icon={Trophy}
-            label="Won"
-            value={wonPositions.length}
-            bgGradient="from-[#D1FAE5] to-[#ECFDF5]"
-            iconBg="bg-[#059669]/10"
-            iconColor="text-[#059669]"
-          />
-          <StatCard
-            icon={TrendingUp}
-            label="Win Rate"
-            value={winRate}
-            suffix="%"
-            bgGradient="from-[#EDE9FE] to-[#F5F3FF]"
-            iconBg="bg-[#7C3AED]/10"
-            iconColor="text-[#7C3AED]"
-          />
+        {/* ── Stats Row ── */}
+        <section className="mb-6 grid grid-cols-4 gap-3">
+          <StatCard label="Predictions" value={stats.totalPredictions} />
+          <StatCard label="Active" value={activePositions.length} />
+          <StatCard label="Won" value={wonPositions.length} />
+          <StatCard label="Win Rate" value={winRate} suffix="%" />
         </section>
 
         {/* ── Level Progress ── */}
-        <section className="mb-6 rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm">
+        <section className="mb-6 rounded-xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#4F46E5]/10 text-[#4F46E5]">
-                <LevelIcon className="h-5 w-5" />
+            <div className="flex items-center gap-2.5">
+              <div className="grid h-8 w-8 place-items-center rounded-lg bg-[#4F46E5]/10 text-[#4F46E5]">
+                <LevelIcon className="h-4 w-4" />
               </div>
               <div>
                 <div className="text-sm font-bold text-[#111827]">{level}</div>
-                <div className="text-xs text-[#6B7280]">
-                  {level === nextLevel
-                    ? "Top level reached!"
-                    : `${pointsToNext} pts to ${nextLevel}`}
+                <div className="text-xs text-[#9CA3AF]">
+                  {level === nextLevel ? "Top level" : `${pointsToNext} pts to ${nextLevel}`}
                 </div>
               </div>
             </div>
             <div className="text-right">
-              <div className="flex items-center justify-end gap-1">
-                <AnimatedNumber value={totalScore} className="text-2xl font-black text-[#4F46E5]" />
-              </div>
-              <div className="text-xs font-bold text-[#6B7280]">total points</div>
+              <AnimatedNumber value={totalScore} className="text-lg font-black text-[#4F46E5]" />
+              <div className="text-[10px] font-bold text-[#9CA3AF]">points</div>
             </div>
           </div>
-          <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#E5E7EB]">
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#F3F4F6]">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] transition-all duration-700"
+              className="h-full rounded-full bg-[#4F46E5] transition-all duration-700"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="mt-2 flex items-center justify-between text-xs font-bold text-[#6B7280]">
+          <div className="mt-1.5 flex items-center justify-between text-[10px] font-bold text-[#9CA3AF]">
             <span>{progress}%</span>
-            <span>{level === nextLevel ? "Max level" : `Next: ${nextLevel}`}</span>
+            <span>{level === nextLevel ? "Max" : `Next: ${nextLevel}`}</span>
           </div>
         </section>
 
@@ -309,7 +274,7 @@ const Dashboard = () => {
         <section className="mb-5">
           <div
             role="tablist"
-            className="flex gap-1 rounded-xl border border-[#E5E7EB] bg-white p-1 shadow-sm"
+            className="flex gap-1 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-1"
           >
             {(["active", "resolved", "all"] as PositionFilterTab[]).map((item) => {
               const count =
@@ -330,10 +295,10 @@ const Dashboard = () => {
                   aria-controls={panelId}
                   tabIndex={isActive ? 0 : -1}
                   onClick={() => setPositionTab(item)}
-                  className={`flex-1 rounded-lg py-2.5 text-sm font-bold capitalize transition-all duration-200 ${
+                  className={`flex-1 rounded-lg py-2 text-sm font-bold transition-all duration-150 ${
                     isActive
-                      ? "bg-[#4F46E5] text-white shadow-md shadow-[#4F46E5]/25"
-                      : "text-[#6B7280] hover:bg-[#F8F7F4] hover:text-[#111827]"
+                      ? "bg-white text-[#111827] shadow-sm"
+                      : "text-[#9CA3AF] hover:text-[#6B7280]"
                   }`}
                 >
                   <span className="hidden sm:inline">{item === "active" ? "Active" : item === "resolved" ? "Resolved" : "All"}</span>
@@ -341,8 +306,8 @@ const Dashboard = () => {
                   <span
                     className={`ml-1.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[10px] ${
                       isActive
-                        ? "bg-white/20 text-white"
-                        : "bg-[#F3F4F6] text-[#6B7280]"
+                        ? "bg-[#4F46E5]/10 text-[#4F46E5]"
+                        : "bg-[#E5E7EB] text-[#9CA3AF]"
                     }`}
                   >
                     {count}
@@ -450,31 +415,18 @@ const Dashboard = () => {
    ═══════════════════════════════════════════════════════════════ */
 
 const StatCard = ({
-  icon: Icon,
   label,
   value,
   suffix = "",
-  bgGradient,
-  iconBg,
-  iconColor,
 }: {
-  icon: any;
   label: string;
   value: number;
   suffix?: string;
-  bgGradient: string;
-  iconBg: string;
-  iconColor: string;
 }) => (
-  <div
-    className={`group min-h-[130px] rounded-2xl border border-[#E5E7EB] bg-gradient-to-br ${bgGradient} p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md`}
-  >
-    <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl ${iconBg} transition-colors duration-200 group-hover:scale-105`}>
-      <Icon className={`h-[18px] w-[18px] ${iconColor}`} />
-    </div>
-    <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6B7280]">{label}</div>
+  <div className="rounded-xl border border-[#E5E7EB] bg-white p-3.5 shadow-sm">
+    <div className="text-[11px] font-bold uppercase tracking-wider text-[#9CA3AF]">{label}</div>
     <div className="mt-1">
-      <AnimatedNumber value={value} className="text-2xl font-black text-[#111827]" suffix={suffix} />
+      <AnimatedNumber value={value} className="text-xl font-black text-[#111827]" suffix={suffix} />
     </div>
   </div>
 );
@@ -624,15 +576,15 @@ const ActivityFeed = ({
   if (activities.length === 0) return null;
 
   return (
-    <section className="mt-6 mb-2 rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-[#111827]">Recent Activity</h2>
-        <span className="rounded-full border border-[#E5E7EB] bg-[#F8F7F4] px-3 py-1 text-xs font-bold text-[#6B7280]">
+    <section className="mt-6 rounded-xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-base font-bold text-[#111827]">Recent Activity</h2>
+        <span className="text-xs font-bold text-[#9CA3AF]">
           {settledCount} settled
         </span>
       </div>
       <div className="relative">
-        <div className="absolute left-[19px] top-2 bottom-2 w-px bg-[#E5E7EB]" />
+        <div className="absolute left-[19px] top-2 bottom-2 w-px bg-[#F3F4F6]" />
         <div className="space-y-0">
           {activities.map((position, index) => (
             <ActivityItem
@@ -762,10 +714,10 @@ const AchievementsSection = ({
   });
 
   return (
-    <section className="mt-6 rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-center gap-2">
-        <Medal className="h-5 w-5 text-[#4F46E5]" />
-        <h2 className="text-lg font-bold">Achievements</h2>
+    <section className="mt-6 rounded-xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center gap-2">
+        <Medal className="h-4 w-4 text-[#4F46E5]" />
+        <h2 className="text-base font-bold">Achievements</h2>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
         {achievements.map((achievement) => (
@@ -794,30 +746,27 @@ const AchievementCard = ({
   unlocked,
 }: Achievement) => (
   <div
-    className={`rounded-xl border p-3 transition ${
+    className={`rounded-lg border p-3 transition ${
       unlocked
-        ? "border-[#4F46E5]/30 bg-[#EEF2FF]"
+        ? "border-[#4F46E5]/20 bg-[#4F46E5]/[0.04]"
         : "border-[#E5E7EB] bg-[#F8F7F4]"
     }`}
   >
     <div
-      className={`mb-2 grid h-8 w-8 place-items-center rounded-lg ${
-        unlocked ? "bg-[#4F46E5] text-white" : "bg-white text-[#6B7280]"
+      className={`mb-1.5 grid h-7 w-7 place-items-center rounded-md ${
+        unlocked ? "bg-[#4F46E5] text-white" : "bg-white text-[#9CA3AF]"
       }`}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-3.5 w-3.5" />
     </div>
     <div className="text-xs font-bold leading-tight">{title}</div>
     <div
-      className={`mt-1 text-[11px] font-bold ${
-        unlocked ? "text-[#4F46E5]" : "text-[#6B7280]"
+      className={`mt-0.5 text-[10px] font-bold ${
+        unlocked ? "text-[#4F46E5]" : "text-[#9CA3AF]"
       }`}
     >
       {unlocked ? "Unlocked" : "Locked"}
     </div>
-    <p className="mt-1 hidden text-[11px] font-bold leading-relaxed text-[#6B7280] sm:block">
-      {description}
-    </p>
   </div>
 );
 
@@ -836,14 +785,14 @@ const EmptyState = ({
   body: string;
   action?: React.ReactNode;
 }) => (
-  <div className="grid min-h-[300px] place-items-center rounded-2xl border border-dashed border-[#E5E7EB] bg-white/70 p-6 text-center">
+  <div className="grid min-h-[260px] place-items-center rounded-2xl border border-dashed border-[#E5E7EB] bg-white/60 p-6 text-center">
     <div>
-      <div className="mx-auto mb-4 grid h-20 w-20 place-items-center rounded-2xl border border-[#E5E7EB] bg-[#EEF2FF]/80 text-[#4F46E5] shadow-sm">
-        <Icon className="h-10 w-10" strokeWidth={1.5} />
+      <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl bg-[#4F46E5]/8 text-[#4F46E5]">
+        <Icon className="h-6 w-6" strokeWidth={1.5} />
       </div>
-      <div className="text-xl font-bold">{title}</div>
-      <p className="mx-auto mt-2 max-w-sm text-sm text-[#6B7280]">{body}</p>
-      {action && <div className="mt-6">{action}</div>}
+      <div className="text-base font-bold">{title}</div>
+      <p className="mx-auto mt-1.5 max-w-xs text-sm text-[#9CA3AF]">{body}</p>
+      {action && <div className="mt-4">{action}</div>}
     </div>
   </div>
 );

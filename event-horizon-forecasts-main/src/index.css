@@ -454,75 +454,32 @@
 }
 
 @layer utilities {
-  /* Dark-to-light overrides: The codebase was originally built with a dark theme
-     using hardcoded hex values for backgrounds, text, and borders. These overrides
-     remap those dark values to light equivalents so the app renders correctly in
-     light mode. New components should use CSS custom properties instead. */
-  .app-bg.text-white,
-  .bg-\[\#101720\].text-white,
-  .bg-\[\#151E28\].text-white,
-  .bg-\[\#080C10\].text-white,
-  .bg-\[\#0B1118\].text-white,
-  .bg-\[\#0D131A\].text-white {
-    color: #101828 !important;
+  /* Staggered entrance animations for lists/grids */
+  .stagger-1 { animation-delay: 50ms; }
+  .stagger-2 { animation-delay: 100ms; }
+  .stagger-3 { animation-delay: 150ms; }
+  .stagger-4 { animation-delay: 200ms; }
+  .stagger-5 { animation-delay: 250ms; }
+  .stagger-6 { animation-delay: 300ms; }
+
+  /* Focus ring utility */
+  .focus-ring {
+    @apply outline-none;
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #4F46E5;
+  }
+  .focus-ring:focus-visible {
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #4F46E5;
   }
 
-  .bg-\[\#101720\],
-  .bg-\[\#101720\]\/44,
-  .bg-\[\#080C10\],
-  .bg-\[\#080C10\]\/95,
-  .bg-\[\#0B1118\],
-  .bg-\[\#0D131A\],
-  .bg-\[\#080c10\] {
-    background-color: #ffffff !important;
+  /* Smooth height transitions */
+  .h-auto-transition {
+    transition: height 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease;
   }
 
-  .bg-\[\#151E28\],
-  .bg-\[\#1B2633\] {
-    background-color: #f3f4f6 !important;
-  }
-
-  .border-\[\#263241\],
-  .border-white\/10,
-  .divide-\[\#263241\] > :not([hidden]) ~ :not([hidden]) {
-    border-color: #e5e7eb !important;
-  }
-
-  .text-\[\#8B98A8\],
-  .text-\[\#64748B\] {
-    color: #667085 !important;
-  }
-
-  .text-\[\#D5DEE8\],
-  .text-\[\#F5F7FA\] {
-    color: #344054 !important;
-  }
-
-  .bg-\[\#101720\] .text-white,
-  .bg-\[\#151E28\] .text-white,
-  .bg-\[\#080C10\] .text-white,
-  .bg-\[\#0B1118\] .text-white,
-  .bg-\[\#0D131A\] .text-white {
-    color: #101828 !important;
-  }
-
-  .bg-\[\#4F46E5\].text-white,
-  .bg-red-600.text-white,
-  .bg-\[\#E85D5D\].text-white {
-    color: #ffffff !important;
-  }
-
-  .bg-white\/\[0\.04\],
-  .bg-white\/5 {
-    background-color: #ffffff !important;
-  }
-
-  .bg-gradient-soft,
-  .bg-gradient-card {
-    background: #ffffff !important;
-  }
-
-  .bg-gradient-hero {
-    background: linear-gradient(135deg, #4f46e5, #6366f1) !important;
+  /* Reduced motion fallbacks */
+  @media (prefers-reduced-motion: reduce) {
+    .stagger-1, .stagger-2, .stagger-3, .stagger-4, .stagger-5, .stagger-6 {
+      animation-delay: 0ms;
+    }
   }
 }

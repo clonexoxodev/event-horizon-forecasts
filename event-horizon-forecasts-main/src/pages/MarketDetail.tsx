@@ -373,137 +373,101 @@ export default function MarketDetail() {
           <div className="min-w-0">
             <section className="border-b border-[#E5E7EB] pb-6">
               <div className="flex items-start gap-4 sm:gap-5">
-                <div className="relative shrink-0">
-                  <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-br from-[#12B886] via-[#4F46E5] to-[#E85D5D] opacity-60" />
-                  <div className="relative h-20 w-20 overflow-hidden rounded-[14px] bg-[#F3F4F6] sm:h-24 sm:w-24">
-                    {media.type === "video" ? (
-                      <video
-                        src={media.src}
-                        poster={media.poster}
-                        className="h-full w-full object-cover"
-                        muted
-                        playsInline
-                        loop
-                        preload="metadata"
-                      />
-                    ) : (
-                      <img
-                        src={media.src}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    )}
-                  </div>
+                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-[#F3F4F6] sm:h-24 sm:w-24">
+                  {media.type === "video" ? (
+                    <video
+                      src={media.src}
+                      poster={media.poster}
+                      className="h-full w-full object-cover"
+                      muted
+                      playsInline
+                      loop
+                      preload="metadata"
+                    />
+                  ) : (
+                    <img
+                      src={media.src}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="mb-2.5 flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-[#F3F4F6] px-2.5 py-1 text-[11px] font-bold text-[#667085]">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#9CA3AF]">
                       {marketCategoryLabel}
                     </span>
                     <span
-                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${marketIsActive
+                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${marketIsActive
                         ? activation.isProtected
-                          ? "bg-[#EEF2FF] text-[#4F46E5]"
+                          ? "bg-[#4F46E5]/10 text-[#4F46E5]"
                           : "bg-[#12B886]/10 text-[#047857]"
-                        : "bg-[#F3F4F6] text-[#667085]"
+                        : "bg-[#F3F4F6] text-[#9CA3AF]"
                       }`}
                     >
                       {marketIsActive
                         ? activation.isProtected
-                          ? "Refund Protected"
+                          ? "Protected"
                           : "Live"
                         : "Closed"}
                     </span>
                   </div>
-                  <h1 className="text-3xl font-black leading-tight tracking-tight text-[#101828] sm:text-4xl">
+                  <h1 className="text-2xl font-black leading-tight tracking-tight text-[#101828] sm:text-3xl">
                     {market.question}
                   </h1>
                 </div>
               </div>
 
-              <div className="mt-5 flex flex-wrap items-center gap-2">
+              <div className="mt-4 flex flex-wrap items-center gap-2">
                 {!activation.isProtected && (
                   <>
                     <StatChip icon={Users} value={market.participants || 0} label="participants" />
                     <StatChip icon={BarChart3} value={market.tradeCount || 0} label="predictions" />
                   </>
                 )}
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F3F4F6] px-3 py-1.5 text-xs font-bold text-[#667085]">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F3F4F6] px-3 py-1 text-xs font-bold text-[#9CA3AF]">
                   <Clock className="h-3.5 w-3.5" />
                   {formatCountdown(tradingCloseTime, market.closesIn)} left
                 </span>
               </div>
 
               {activation.isProtected && (
-                <div className="mt-5 overflow-hidden rounded-2xl border border-[#C7D2FE] bg-gradient-to-br from-[#EEF2FF] to-[#E0E7FF]">
-                  <div className="p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#4F46E5] text-white">
-                          <Shield className="h-4.5 w-4.5" />
-                        </div>
-                        <div className="text-sm font-bold text-[#101828]">
-                          Protected Market
-                        </div>
-                      </div>
-                      <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-[#4F46E5] shadow-sm">
-                        Refund Protected
-                      </span>
+                <div className="mt-4 rounded-xl border border-[#C7D2FE] bg-[#EEF2FF]/60 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-[#4F46E5]" />
+                      <span className="text-sm font-bold text-[#4F46E5]">Refund Protected</span>
                     </div>
-
-                    <div className="mt-4">
-                      <div className="flex items-center justify-between text-xs font-bold text-[#475467]">
-                        <span>Progress</span>
-                        <span className="font-bold text-[#4F46E5]">
-                          {Math.round(activation.progress)}%
-                        </span>
-                      </div>
-                      <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] transition-all duration-500"
-                          style={{ width: `${activation.progress}%` }}
-                        />
-                      </div>
-                      <p className="mt-1.5 text-xs font-bold text-[#475467]">
-                        {formatNaira(activation.totalPool)} /{" "}
-                        {formatNaira(activation.requirements.totalPool)} activity
-                      </p>
-                    </div>
-
-                    <p className="mt-3 text-sm font-bold leading-6 text-[#344054]">
-                      You can predict now. If this market does not reach enough
-                      activity before closing, your stake is refunded.
-                      <span className="group/ml relative ml-1.5 inline-flex items-center">
-                        <HelpCircle className="inline h-3.5 w-3.5 cursor-help text-[#4F46E5]" />
-                        <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-60 -translate-x-1/2 rounded-xl border border-[#C7D2FE] bg-white p-3 text-xs font-bold leading-relaxed text-[#475467] opacity-0 shadow-lg transition-opacity duration-200 group-hover/ml:opacity-100 focus-within/ml:opacity-100">
-                          A Protected Market guarantees your stake is refunded if total activity stays below the required threshold before closing.
-                        </span>
-                      </span>
-                    </p>
+                    <span className="text-xs font-bold text-[#4F46E5]">
+                      {Math.round(activation.progress)}%
+                    </span>
                   </div>
-
+                  <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white">
+                    <div
+                      className="h-full rounded-full bg-[#4F46E5] transition-all duration-500"
+                      style={{ width: `${activation.progress}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs font-bold text-[#475467]">
+                    {formatNaira(activation.totalPool)} / {formatNaira(activation.requirements.totalPool)} activity
+                  </p>
                 </div>
               )}
             </section>
 
             <section className="mt-8">
-              <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="text-xl font-bold text-[#101828]">
-                    Crowd View movement
-                  </h2>
-                  <p className="mt-0.5 text-sm font-semibold text-[#667085]">
-                    Crowd View moves as people back YES or NO.
-                  </p>
-                </div>
-                <div className="flex w-fit rounded-full bg-[#F3F4F6] p-1">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="text-lg font-bold text-[#101828]">
+                  Crowd View
+                </h2>
+                <div className="flex w-fit rounded-lg bg-[#F3F4F6] p-0.5">
                   {(["1H", "24H", "7D", "ALL"] as Timeframe[]).map((item) => (
                     <button
                       key={item}
                       onClick={() => setTimeframe(item)}
-                      className={`rounded-full px-4 py-1.5 text-xs font-bold transition-all duration-200 ${timeframe === item
+                      className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all duration-150 ${timeframe === item
                         ? "bg-white text-[#111827] shadow-sm"
-                        : "text-[#667085] hover:text-[#101828]"
+                        : "text-[#9CA3AF] hover:text-[#6B7280]"
                       }`}
                     >
                       {item}
@@ -552,15 +516,15 @@ export default function MarketDetail() {
         </div>
       </main>
 
-      <div className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-[#E5E7EB]/80 bg-[#F8F7F4]/80 p-2.5 backdrop-blur-xl md:bottom-0 md:border-t md:bg-[#F8F7F4]/90 xl:left-64">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-3">
+      <div className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-[#E5E7EB]/60 bg-white/80 p-2.5 backdrop-blur-xl md:bottom-0 md:border-t md:bg-white/90 xl:left-64">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-2.5">
           <button
             disabled={!marketIsActive}
             aria-label={`Back YES at ${formatNairaPrice(market.yesPrice)}`}
             onClick={() => setSheetSide("YES")}
-            className="group relative h-12 overflow-hidden rounded-xl bg-gradient-to-r from-[#12B886] to-[#10B981] text-sm font-bold text-white shadow-lg shadow-[#12B886]/25 transition-all duration-200 hover:shadow-xl hover:shadow-[#12B886]/30 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#12B886] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-500 disabled:shadow-none"
+            className="group h-11 rounded-xl bg-[#12B886] text-sm font-bold text-white transition-all duration-150 hover:bg-[#0ea371] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#D1D5DB] disabled:text-[#9CA3AF]"
           >
-            <span className="relative z-10 flex items-center justify-center gap-2">
+            <span className="flex items-center justify-center gap-2">
               Back YES {formatNairaPrice(market.yesPrice)}
             </span>
           </button>
@@ -568,9 +532,9 @@ export default function MarketDetail() {
             disabled={!marketIsActive}
             aria-label={`Back NO at ${formatNairaPrice(market.noPrice)}`}
             onClick={() => setSheetSide("NO")}
-            className="group relative h-12 overflow-hidden rounded-xl bg-gradient-to-r from-[#E85D5D] to-[#DC4444] text-sm font-bold text-white shadow-lg shadow-[#E85D5D]/25 transition-all duration-200 hover:shadow-xl hover:shadow-[#E85D5D]/30 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E85D5D] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-500 disabled:shadow-none"
+            className="group h-11 rounded-xl bg-[#E85D5D] text-sm font-bold text-white transition-all duration-150 hover:bg-[#d94c4c] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#D1D5DB] disabled:text-[#9CA3AF]"
           >
-            <span className="relative z-10 flex items-center justify-center gap-2">
+            <span className="flex items-center justify-center gap-2">
               Back NO {formatNairaPrice(market.noPrice)}
             </span>
           </button>
@@ -1157,9 +1121,9 @@ const StatChip = ({
   value: number;
   label: string;
 }) => (
-  <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#667085] shadow-sm border border-[#E5E7EB]">
+  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F3F4F6] px-3 py-1 text-xs font-bold text-[#9CA3AF]">
     <Icon className="h-3.5 w-3.5" />
-    <span className="font-black text-[#111827]">{value.toLocaleString()}</span>
+    <span className="font-bold text-[#111827]">{value.toLocaleString()}</span>
     {label}
   </span>
 );

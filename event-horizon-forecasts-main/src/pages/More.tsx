@@ -47,27 +47,27 @@ export default function More() {
       <Header />
       <main className="mx-auto max-w-3xl px-4 py-5 sm:px-6 lg:py-8">
         {/* Header Card */}
-        <section className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#4F46E5]">More</p>
-          <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Account & help</h1>
-              <p className="mt-2 max-w-xl text-sm text-[#6B7280]">
-                Manage your account, get support, and review platform rules.
-              </p>
+        <section className="rounded-xl border border-[#E5E7EB] bg-white p-4">
+          <div className="flex items-center gap-4">
+            <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full border border-[#E5E7EB] bg-[#F3F4F6] text-sm font-bold text-[#111827]">
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                user?.username?.charAt(0).toUpperCase() || "?"
+              )}
             </div>
-            <div className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3 text-sm">
+            <div className="min-w-0 flex-1">
               {isLoading ? (
                 <Loader2 className="h-5 w-5 animate-spin text-[#4F46E5]" />
               ) : user ? (
                 <>
-                  <div className="font-bold text-[#111827]">@{user.username}</div>
-                  <div className="mt-1 text-xs text-[#6B7280]">{formatNaira(user.balance)} available</div>
+                  <div className="text-sm font-bold text-[#111827]">@{user.username}</div>
+                  <div className="text-xs text-[#9CA3AF]">{formatNaira(user.balance)} available</div>
                 </>
               ) : (
                 <>
-                  <div className="font-bold text-[#111827]">Browsing as guest</div>
-                  <div className="mt-1 text-xs text-[#6B7280]">Sign in to predict or use wallet features.</div>
+                  <div className="text-sm font-bold text-[#111827]">Guest</div>
+                  <div className="text-xs text-[#9CA3AF]">Sign in to start</div>
                 </>
               )}
             </div>
@@ -75,7 +75,7 @@ export default function More() {
         </section>
 
         {/* Navigation Groups */}
-        <div className="mt-5 space-y-5">
+        <div className="mt-4 space-y-4">
           <Group title="Account">
             <Item to="/profile" icon={User} label="Profile" subtitle="View and edit your profile" />
             <Item to="/settings" icon={Shield} label="Settings" subtitle="Notifications, privacy, and security" />
@@ -109,7 +109,7 @@ export default function More() {
           <>
             <button
               onClick={() => setShowLogoutDialog(true)}
-              className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 text-sm font-bold text-red-600 transition hover:bg-red-100"
+              className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#E5E7EB] bg-white text-sm font-bold text-[#E85D5D] transition hover:bg-[#FEF2F2]"
             >
               <LogOut className="h-4 w-4" />
               Log out
@@ -143,8 +143,8 @@ export default function More() {
 
 const Group = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section>
-    <h2 className="mb-2.5 text-xs font-bold uppercase tracking-[0.16em] text-[#6B7280]">{title}</h2>
-    <nav role="navigation" aria-label={title} className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
+    <h2 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[#9CA3AF]">{title}</h2>
+    <nav role="navigation" aria-label={title} className="overflow-hidden rounded-xl border border-[#E5E7EB] bg-white">
       {children}
     </nav>
   </section>
@@ -163,15 +163,15 @@ const Item = ({
 }) => (
   <Link
     to={to}
-    className="group flex items-center gap-3 border-b border-[#E5E7EB] px-4 py-3.5 transition last:border-b-0 hover:bg-[#F3F4F6]"
+    className="group flex items-center gap-3 border-b border-[#F3F4F6] px-3.5 py-3 transition last:border-b-0 hover:bg-[#F8F7F4]"
   >
-    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#EEF2FF] text-[#4F46E5]">
+    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F3F4F6] text-[#6B7280] group-hover:bg-[#EEF2FF] group-hover:text-[#4F46E5] transition-colors">
       <Icon className="h-4 w-4" />
     </div>
     <div className="min-w-0 flex-1">
       <div className="text-sm font-bold text-[#111827]">{label}</div>
-      <div className="mt-0.5 text-xs text-[#6B7280]">{subtitle}</div>
+      <div className="text-[11px] text-[#9CA3AF]">{subtitle}</div>
     </div>
-    <ChevronRight className="h-4 w-4 shrink-0 text-[#D1D5DB] transition group-hover:translate-x-0.5 group-hover:text-[#111827]" />
+    <ChevronRight className="h-4 w-4 shrink-0 text-[#D1D5DB] transition group-hover:translate-x-0.5 group-hover:text-[#6B7280]" />
   </Link>
 );
