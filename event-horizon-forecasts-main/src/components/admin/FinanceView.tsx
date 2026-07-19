@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowDownLeft,
@@ -64,6 +64,18 @@ export const FinanceView = () => {
   const [txLoading, setTxLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [search]);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,7 +108,7 @@ export const FinanceView = () => {
       try {
         const params: { type?: string; search?: string } = {};
         if (typeFilter !== "all") params.type = typeFilter;
-        if (search.trim()) params.search = search.trim();
+        if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
         const res = await apiService.listAdminFinanceTransactions(params);
         if (!cancelled) setTransactions(res.transactions || []);
       } catch {
@@ -106,7 +118,7 @@ export const FinanceView = () => {
       }
     })();
     return () => { cancelled = true; };
-  }, [typeFilter, search]);
+  }, [typeFilter, debouncedSearch]);
 
   const o = overview;
   const totalDeposits = o.total_deposits ?? o.totalDeposits ?? 0;

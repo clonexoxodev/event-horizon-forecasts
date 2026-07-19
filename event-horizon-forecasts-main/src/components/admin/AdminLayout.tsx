@@ -46,6 +46,7 @@ const VIEW_TITLES: Record<AdminView, string> = {
   markets: "Markets",
   "market-detail": "Market Detail",
   "create-market": "Create Market",
+  "edit-market": "Edit Market",
   finance: "Finance",
   withdrawals: "Withdrawal Queue",
   users: "Users",
@@ -70,7 +71,7 @@ export const AdminLayout = ({
   const navigateTo = (v: AdminView) => {
     setView(v);
     setMobileOpen(false);
-    if (v !== "market-detail") setSelectedMarketId?.(null);
+    if (v !== "market-detail" && v !== "edit-market") setSelectedMarketId?.(null);
   };
 
   const renderNav = () => (

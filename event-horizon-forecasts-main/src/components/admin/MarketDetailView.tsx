@@ -4,10 +4,12 @@ import {
   ArrowLeft,
   CheckCircle,
   Clock,
+  Edit3,
   FileText,
   Gavel,
   Hash,
   Loader2,
+  Pencil,
   RefreshCcw,
   ShieldCheck,
   Users,
@@ -66,9 +68,11 @@ const InfoRow = ({
 export const MarketDetailView = ({
   marketId,
   onBack,
+  onEdit,
 }: {
   marketId: string;
   onBack: () => void;
+  onEdit?: (marketId: string) => void;
 }) => {
   const [market, setMarket] = useState<AdminMarket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -91,12 +95,11 @@ export const MarketDetailView = ({
     setLoading(true);
     setError(null);
     try {
-      const response = await apiService.listAdminMarkets({});
-      const found = response.markets?.find((m) => m.id === marketId);
-      if (!found) {
+      const response = await apiService.getAdminMarket(marketId);
+      if (!response.market) {
         setError("Market not found.");
       } else {
-        setMarket(found);
+        setMarket(response.market);
       }
     } catch (err: unknown) {
       setError(getErrorMessage(err));
@@ -661,6 +664,15 @@ export const MarketDetailView = ({
           <Card>
             <SectionHeader title="Manage" />
             <div className="space-y-4">
+              {onEdit && !isProtected && (
+                <button
+                  onClick={() => onEdit(marketId)}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:bg-gray-50 active:scale-[0.98]"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit Market Details
+                </button>
+              )}
               <SelectField
                 label="Market Status"
                 value={market.status}

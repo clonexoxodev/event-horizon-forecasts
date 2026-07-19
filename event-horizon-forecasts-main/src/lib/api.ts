@@ -720,11 +720,11 @@ class ApiService {
   }
 
   async listAdmins() {
-    return this.request<any>('/api/admin/list-admins');
+    return this.request<{ admins: Array<{ id: string; email: string; username?: string; name?: string; role: UserRole; created_at?: string; added_at?: string }> }>('/api/admin/list-admins');
   }
 
   async getAnalytics() {
-    return this.request<any>('/api/admin/analytics');
+    return this.request<{ success: boolean; data: { totalUsers?: number; newUsersToday?: number; activeMarkets?: number; pendingResolutions?: number; todayVolume?: number; totalVolume?: number; dailyActiveUsers?: Array<{ date: string; count: number }>; dailyVolume?: Array<{ date: string; volume: number }>; categoryDistribution?: Array<{ category: string; count: number }>; recentActivity?: Array<{ id: string; action: string; targetLabel?: string; createdAt?: string }> } }>('/api/admin/analytics');
   }
 
   async listAdminMarkets(params: { status?: string; search?: string } = {}) {
@@ -799,8 +799,12 @@ class ApiService {
     });
   }
 
+  async getAdminMarket(marketId: string) {
+    return this.request<{ success: boolean; market: AdminMarket }>(`/api/admin/markets/${encodeURIComponent(marketId)}`);
+  }
+
   async listAdminUsers() {
-    return this.request<{ users: Array<{ id: string; email: string; username: string; role: UserRole; created_at?: string }> }>('/api/admin/users');
+    return this.request<{ users: Array<{ id: string; email: string; username: string; name?: string; role: UserRole; created_at?: string; account_status?: string; suspended_at?: string; suspension_reason?: string }> }>('/api/admin/users');
   }
 
   async listAdminTransactions() {
@@ -859,7 +863,7 @@ class ApiService {
     if (params.limit) query.set('limit', String(params.limit));
     if (params.offset) query.set('offset', String(params.offset));
     const suffix = query.toString() ? `?${query.toString()}` : '';
-    return this.request<{ entries: any[]; total?: number }>(`/api/admin/audit-log${suffix}`);
+    return this.request<{ entries: Array<{ id: string; action: string; actorId?: string; actorEmail?: string; actorRole?: string; targetType?: string; targetId?: string; targetLabel?: string; details?: Record<string, unknown>; createdAt?: string; created_at?: string }>; total?: number }>(`/api/admin/audit-log${suffix}`);
   }
 
   async getAdminUserDetail(userId: string) {

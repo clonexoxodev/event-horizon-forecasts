@@ -5,6 +5,7 @@ export type AdminView =
   | "markets"
   | "market-detail"
   | "create-market"
+  | "edit-market"
   | "finance"
   | "withdrawals"
   | "users"

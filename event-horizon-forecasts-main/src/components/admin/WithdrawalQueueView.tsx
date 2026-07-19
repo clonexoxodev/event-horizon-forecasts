@@ -70,7 +70,11 @@ export const WithdrawalQueueView = () => {
       setWithdrawals(result.withdrawals || []);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to load withdrawals.";
-      toast.error(msg);
+      if (msg.includes("404") || msg.includes("not found") || msg.includes("does not exist")) {
+        toast.warning("Withdrawal management is not yet available. The backend endpoint may need to be deployed.");
+      } else {
+        toast.error(msg);
+      }
       setWithdrawals([]);
     } finally {
       setLoading(false);

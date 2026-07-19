@@ -4,6 +4,7 @@ import { DashboardView } from "@/components/admin/DashboardView";
 import { MarketsView } from "@/components/admin/MarketsView";
 import { MarketDetailView } from "@/components/admin/MarketDetailView";
 import { CreateMarketView } from "@/components/admin/CreateMarketView";
+import { EditMarketView } from "@/components/admin/EditMarketView";
 import { WithdrawalQueueView } from "@/components/admin/WithdrawalQueueView";
 import { FinanceView } from "@/components/admin/FinanceView";
 import { UsersView } from "@/components/admin/UsersView";
@@ -20,7 +21,7 @@ const Admin = () => {
 
   const handleViewChange = useCallback((v: AdminView) => {
     setView(v);
-    if (v !== "market-detail") setSelectedMarketId(null);
+    if (v !== "market-detail" && v !== "edit-market") setSelectedMarketId(null);
   }, []);
 
   const handleMarketSelect = useCallback((id: string) => {
@@ -31,6 +32,11 @@ const Admin = () => {
   const handleMarketCreated = useCallback((id: string) => {
     setSelectedMarketId(id);
     setView("market-detail");
+  }, []);
+
+  const handleMarketEdit = useCallback((id: string) => {
+    setSelectedMarketId(id);
+    setView("edit-market");
   }, []);
 
   if (authLoading) {
@@ -60,12 +66,26 @@ const Admin = () => {
         return <MarketsView setView={handleViewChange} setSelectedMarketId={handleMarketSelect} />;
       case "market-detail":
         return selectedMarketId ? (
-          <MarketDetailView marketId={selectedMarketId} onBack={() => handleViewChange("markets")} />
+          <MarketDetailView
+            marketId={selectedMarketId}
+            onBack={() => handleViewChange("markets")}
+            onEdit={handleMarketEdit}
+          />
         ) : (
           <DashboardView setView={handleViewChange} setSelectedMarketId={handleMarketSelect} />
         );
       case "create-market":
         return <CreateMarketView onBack={() => handleViewChange("markets")} onCreated={handleMarketCreated} />;
+      case "edit-market":
+        return selectedMarketId ? (
+          <EditMarketView
+            marketId={selectedMarketId}
+            onBack={() => handleViewChange("markets")}
+            onSaved={handleMarketCreated}
+          />
+        ) : (
+          <MarketsView setView={handleViewChange} setSelectedMarketId={handleMarketSelect} />
+        );
       case "withdrawals":
         return <WithdrawalQueueView />;
       case "finance":

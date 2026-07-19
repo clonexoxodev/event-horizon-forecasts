@@ -54,7 +54,7 @@ export const DashboardView = ({
         if (cancelled) return;
 
         if (statsRes.status === "fulfilled") setStats(statsRes.value.stats);
-        if (analyticsRes.status === "fulfilled") setAnalytics(analyticsRes.value);
+        if (analyticsRes.status === "fulfilled") setAnalytics(analyticsRes.value.data || analyticsRes.value);
         if (marketsRes.status === "fulfilled") setPendingMarkets(marketsRes.value.markets || []);
         if (withdrawalsRes.status === "fulfilled") setPendingWithdrawals(withdrawalsRes.value.withdrawals || []);
       } catch {

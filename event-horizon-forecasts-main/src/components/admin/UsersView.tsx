@@ -11,7 +11,7 @@ import {
   Th,
   Td,
   SkeletonCard,
-  ConfirmDialog,
+  InputField,
 } from "./ui";
 import { formatDate, statusLabel } from "./utils";
 
@@ -19,9 +19,12 @@ type AdminUserRecord = {
   id: string;
   email: string;
   username: string;
+  name?: string;
   role: string;
   created_at?: string;
-  status?: string;
+  account_status?: string;
+  suspended_at?: string;
+  suspension_reason?: string;
 };
 
 export const UsersView = () => {
@@ -55,7 +58,7 @@ export const UsersView = () => {
   const filtered = users.filter((u) => {
     const term = search.trim().toLowerCase();
     if (!term) return true;
-    return [u.username, u.email, u.role]
+    return [u.username, u.email, u.role, u.name]
       .filter(Boolean)
       .join(" ")
       .toLowerCase()
@@ -83,6 +86,9 @@ export const UsersView = () => {
     }
   };
 
+  const userStatus = (u: AdminUserRecord): string =>
+    u.account_status || "active";
+
   const roleBadge = (role: string) => {
     switch (role) {
       case "super_admin":
@@ -91,6 +97,17 @@ export const UsersView = () => {
         return <Badge variant="default">{statusLabel(role)}</Badge>;
       default:
         return <Badge variant="muted">{statusLabel(role)}</Badge>;
+    }
+  };
+
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case "suspended":
+        return <Badge variant="danger">{statusLabel(status)}</Badge>;
+      case "closed":
+        return <Badge variant="warning">{statusLabel(status)}</Badge>;
+      default:
+        return <Badge variant="success">Active</Badge>;
     }
   };
 
@@ -133,49 +150,55 @@ export const UsersView = () => {
                 <Th>Username</Th>
                 <Th>Email</Th>
                 <Th>Role</Th>
+                <Th>Status</Th>
                 <Th>Joined</Th>
                 <Th className="text-right">Actions</Th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((u) => (
-                <tr key={u.id} className="transition hover:bg-gray-50">
-                  <Td>
-                    <span className="font-semibold text-gray-900">{u.username || "—"}</span>
-                  </Td>
-                  <Td className="text-gray-500">{u.email}</Td>
-                  <Td>{roleBadge(u.role)}</Td>
-                  <Td className="text-xs text-gray-500">{formatDate(u.created_at)}</Td>
-                  <Td className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => setSelectedUser(u)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-50"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        Details
-                      </button>
-                      {u.status === "suspended" ? (
+              {filtered.map((u) => {
+                const status = userStatus(u);
+                const isSuspended = status === "suspended";
+                return (
+                  <tr key={u.id} className="transition hover:bg-gray-50">
+                    <Td>
+                      <span className="font-semibold text-gray-900">{u.username || "—"}</span>
+                    </Td>
+                    <Td className="text-gray-500">{u.email}</Td>
+                    <Td>{roleBadge(u.role)}</Td>
+                    <Td>{statusBadge(status)}</Td>
+                    <Td className="text-xs text-gray-500">{formatDate(u.created_at)}</Td>
+                    <Td className="text-right">
+                      <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => setConfirmAction({ type: "activate", user: u })}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                          onClick={() => setSelectedUser(u)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-50"
                         >
-                          <ShieldCheck className="h-3.5 w-3.5" />
-                          Activate
+                          <Eye className="h-3.5 w-3.5" />
+                          Details
                         </button>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmAction({ type: "suspend", user: u })}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
-                        >
-                          <UserX className="h-3.5 w-3.5" />
-                          Suspend
-                        </button>
-                      )}
-                    </div>
-                  </Td>
-                </tr>
-              ))}
+                        {isSuspended ? (
+                          <button
+                            onClick={() => setConfirmAction({ type: "activate", user: u })}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            Activate
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmAction({ type: "suspend", user: u })}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                          >
+                            <UserX className="h-3.5 w-3.5" />
+                            Suspend
+                          </button>
+                        )}
+                      </div>
+                    </Td>
+                  </tr>
+                );
+              })}
             </tbody>
           </DataTable>
         </Card>
@@ -206,10 +229,20 @@ export const UsersView = () => {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Status</span>
-                <Badge variant={selectedUser.status === "suspended" ? "danger" : "success"}>
-                  {selectedUser.status || "Active"}
-                </Badge>
+                {statusBadge(userStatus(selectedUser))}
               </div>
+              {selectedUser.suspended_at && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Suspended</span>
+                  <span className="text-gray-900">{formatDate(selectedUser.suspended_at)}</span>
+                </div>
+              )}
+              {selectedUser.suspension_reason && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Reason</span>
+                  <span className="max-w-[200px] text-right text-gray-900">{selectedUser.suspension_reason}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Joined</span>
                 <span className="text-gray-900">{formatDate(selectedUser.created_at)}</span>
@@ -232,43 +265,40 @@ export const UsersView = () => {
       )}
 
       {confirmAction && (
-        <ConfirmDialog
-          open
-          title={confirmAction.type === "suspend" ? "Suspend User" : "Activate User"}
-          body={
-            confirmAction.type === "suspend"
-              ? `Are you sure you want to suspend ${confirmAction.user.username}? They will lose access to the platform.`
-              : `Are you sure you want to reactivate ${confirmAction.user.username}?`
-          }
-          confirmLabel={confirmAction.type === "suspend" ? "Suspend" : "Activate"}
-          confirmVariant={confirmAction.type === "suspend" ? "danger" : "primary"}
-          loading={acting}
-          onConfirm={handleConfirm}
-          onCancel={() => {
-            setConfirmAction(null);
-            setReason("");
+        <div
+          className="fixed inset-0 z-[60] grid place-items-center bg-black/50 p-4 backdrop-blur-sm"
+          onClick={() => {
+            if (!acting) {
+              setConfirmAction(null);
+              setReason("");
+            }
           }}
-        />
-      )}
-
-      {confirmAction?.type === "suspend" && (
-        <div className="fixed inset-0 z-[70] grid place-items-center bg-black/50 p-4 backdrop-blur-sm">
+        >
           <div
             className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-bold text-gray-900">Suspend User</h3>
+            <h3 className="text-lg font-bold text-gray-900">
+              {confirmAction.type === "suspend" ? "Suspend User" : "Activate User"}
+            </h3>
             <p className="mt-2 text-sm text-gray-600">
-              Provide a reason for suspending <strong>{confirmAction.user.username}</strong>.
+              {confirmAction.type === "suspend"
+                ? `Are you sure you want to suspend ${confirmAction.user.username}? They will lose access to the platform.`
+                : `Are you sure you want to reactivate ${confirmAction.user.username}?`}
             </p>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={3}
-              placeholder="Reason for suspension..."
-              className="mt-4 w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
-            />
-            <div className="mt-4 flex justify-end gap-3">
+            {confirmAction.type === "suspend" && (
+              <div className="mt-4">
+                <InputField
+                  label="Reason for Suspension"
+                  value={reason}
+                  onChange={setReason}
+                  placeholder="e.g. Violation of terms..."
+                  rows={3}
+                  required
+                />
+              </div>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
               <button
                 onClick={() => {
                   setConfirmAction(null);
@@ -281,11 +311,15 @@ export const UsersView = () => {
               </button>
               <button
                 onClick={handleConfirm}
-                disabled={acting || !reason.trim()}
-                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-50 active:scale-[0.98]"
+                disabled={acting || (confirmAction.type === "suspend" && !reason.trim())}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50 ${
+                  confirmAction.type === "suspend"
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-indigo-600 hover:bg-indigo-700"
+                }`}
               >
                 {acting && <Loader2 className="h-4 w-4 animate-spin" />}
-                Suspend User
+                {confirmAction.type === "suspend" ? "Suspend User" : "Activate User"}
               </button>
             </div>
           </div>

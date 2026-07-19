@@ -36,7 +36,7 @@ export const AdminsView = () => {
     try {
       const res = await apiService.listAdmins();
       const list = Array.isArray(res) ? res : res?.admins || res?.users || [];
-      setAdmins(list);
+      setAdmins(list as AdminRecord[]);
     } catch {
       setAdmins([]);
     } finally {

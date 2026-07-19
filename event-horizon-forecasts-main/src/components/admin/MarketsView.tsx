@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, Loader2, Plus, Search } from "lucide-react";
+import { Eye, Loader2, Pencil, Plus, Search } from "lucide-react";
 import apiService, { type AdminMarket } from "@/lib/api";
 import type { AdminView, MarketStatusFilter } from "./types";
 import { MARKET_STATUS_OPTIONS } from "./types";
@@ -209,17 +209,32 @@ export const MarketsView = ({
                       </span>
                     </Td>
                     <Td className="text-right">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedMarketId(m.id);
-                          setView("market-detail");
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        View
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedMarketId(m.id);
+                            setView("market-detail");
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          View
+                        </button>
+                        {m.status !== "resolved" && m.status !== "refunded" && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedMarketId(m.id);
+                              setView("edit-market");
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            Edit
+                          </button>
+                        )}
+                      </div>
                     </Td>
                   </tr>
                 );
