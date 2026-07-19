@@ -62,22 +62,34 @@ const ForecastSlipContainer = () => {
       currency: "NGN",
     });
 
-    if (result?.market) {
-      upsertMarket(result.market);
+    try {
+      if (result?.market) {
+        upsertMarket(result.market);
+      }
+    } catch (err) {
+      console.warn("Market upsert after prediction failed", err);
     }
 
-    refreshUser().catch((error) => console.warn("User refresh after prediction failed", error));
+    try {
+      await refreshUser();
+    } catch (err) {
+      console.warn("User refresh after prediction failed", err);
+    }
 
-    notifyForecastConfirmed(
-      selection.marketId,
-      selection.marketQuestion,
-      selection.side,
-      amount
-    );
+    try {
+      notifyForecastConfirmed(
+        selection.marketId,
+        selection.marketQuestion,
+        selection.side,
+        amount
+      );
 
-    const newBalance = user.balance - amount;
-    if (newBalance < 5000) {
-      notifyWalletLow(newBalance);
+      const newBalance = user.balance - amount;
+      if (newBalance < 5000) {
+        notifyWalletLow(newBalance);
+      }
+    } catch (err) {
+      console.warn("Notification after prediction failed", err);
     }
   };
 

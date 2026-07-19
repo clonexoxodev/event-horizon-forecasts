@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { CheckCircle, Loader2, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { CheckCircle, Loader2, X, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
@@ -31,22 +30,39 @@ type ForecastSlipProps = {
 export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProps) => {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [phase, setPhase] = useState<"form" | "submitting" | "success" | "error">("form");
+  const [errorMessage, setErrorMessage] = useState("");
   const { user, setAuthOpen } = useAuth();
+  const slipRef = useRef<HTMLDivElement>(null);
+  const successTimerRef = useRef<number | null>(null);
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (event.key === "Escape" && !loading) {
-        onClose();
+        handleClose();
       }
     },
-    [loading, onClose]
+    [loading]
   );
 
   useEffect(() => {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) {
+        window.clearTimeout(successTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (phase === "form") {
+      setErrorMessage("");
+    }
+  }, [phase]);
 
   if (!selection) return null;
 
@@ -90,10 +106,23 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
       !selectionMissingData
   );
 
+  function handleClose() {
+    if (loading) return;
+    if (successTimerRef.current) {
+      window.clearTimeout(successTimerRef.current);
+      successTimerRef.current = null;
+    }
+    setAmount("");
+    setPhase("form");
+    setErrorMessage("");
+    onClose();
+  }
+
   const handleConfirm = async () => {
     if (loading) return;
     if (selectionMissingData) {
-      toast.error("Market not available. Please go back and try again.");
+      setErrorMessage("Market not available. Please go back and try again.");
+      setPhase("error");
       return;
     }
     if (numAmount <= 0) {
@@ -110,29 +139,44 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
     }
 
     setLoading(true);
+    setPhase("submitting");
+    setErrorMessage("");
     try {
       await onConfirm(selection, numAmount);
-      setSuccess(true);
-      toast.success("Prediction locked.");
+      setPhase("success");
+      toast.success("Prediction placed successfully.");
+      successTimerRef.current = window.setTimeout(() => {
+        handleClose();
+      }, 4000);
     } catch (error) {
-      console.error("Prediction submit failed", error);
-      toast.error(error instanceof Error ? error.message : "Could not place prediction. Please try again.");
+      const msg = error instanceof Error ? error.message : "Could not place prediction. Please try again.";
+      setErrorMessage(msg);
+      setPhase("error");
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleClear = () => {
-    setAmount("");
-    setSuccess(false);
-    onClose();
+  const handleRetry = () => {
+    setPhase("form");
+    setErrorMessage("");
+  };
+
+  const handleSuccessDismiss = () => {
+    handleClose();
   };
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-[#111827]/35 backdrop-blur-sm" onClick={() => !loading && onClose()} />
+      <div
+        className="fixed inset-0 z-40 bg-[#111827]/35 backdrop-blur-sm"
+        onClick={() => handleClose()}
+        aria-hidden="true"
+      />
 
       <div
+        ref={slipRef}
         role="dialog"
         aria-modal="true"
         aria-label="Prediction slip"
@@ -142,13 +186,22 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
           <div className="h-1 w-10 rounded-full bg-[#E5E7EB]" />
         </div>
 
-        {success ? (
-          <SuccessState selection={selection} amount={numAmount} onClose={handleClear} />
+        {phase === "success" ? (
+          <SuccessState selection={selection} amount={numAmount} onClose={handleSuccessDismiss} />
+        ) : phase === "error" ? (
+          <ErrorState
+            message={errorMessage}
+            selection={selection}
+            amount={numAmount}
+            onRetry={handleRetry}
+            onClose={handleClose}
+            loading={loading}
+          />
         ) : selectionMissingData ? (
-          <UnavailableState loading={loading} onClose={handleClear} />
+          <UnavailableState loading={loading} onClose={handleClose} />
         ) : (
           <div className="space-y-5 p-5 sm:p-6">
-            <SlipHeader onClose={handleClear} loading={loading} />
+            <SlipHeader onClose={handleClose} loading={loading} />
 
             <div className={`rounded-2xl p-4 ${isPositiveSide ? "bg-[#12B886]/8" : "bg-[#E85D5D]/8"}`}>
               <div className="flex items-start gap-3">
@@ -179,7 +232,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
               <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
                 <div className="font-black text-[#111827]">Login to place this prediction</div>
                 <p className="mt-1 text-sm text-[#6B7280]">You can browse markets freely. Sign in only when you are ready to predict.</p>
-                <button onClick={() => { onClose(); setAuthOpen(true); }} aria-label="Log in to place prediction" className="mt-4 flex h-11 w-full items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-black text-white hover:bg-[#4338CA]">
+                <button onClick={() => { handleClose(); setAuthOpen(true); }} aria-label="Log in to place prediction" className="mt-4 flex h-11 w-full items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-black text-white hover:bg-[#4338CA]">
                   Continue
                 </button>
               </div>
@@ -263,7 +316,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                   : "bg-[#E85D5D] hover:bg-[#f07575]"
               } disabled:opacity-50`}
             >
-              {loading ? (
+              {phase === "submitting" ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   Saving...
@@ -274,7 +327,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
             </Button>
 
             <button
-              onClick={handleClear}
+              onClick={handleClose}
               disabled={loading}
               className="w-full text-sm font-bold text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
             >
@@ -350,8 +403,8 @@ const SuccessState = ({ selection, amount, onClose }: { selection: ForecastSelec
         <div className={`mx-auto mb-6 grid h-20 w-20 place-items-center rounded-full text-white shadow-[0_18px_44px_rgba(16,24,40,0.16)] ${isPositiveSide ? "bg-[#12B886]" : "bg-[#E85D5D]"}`}>
           <CheckCircle className="h-11 w-11" />
         </div>
-        <h3 className="text-3xl font-black text-[#101828]">Prediction Locked</h3>
-        <p className="mt-3 text-base font-black text-[#101828]">
+        <h3 className="text-3xl font-black text-[#101828]">Prediction Placed</h3>
+        <p className="mt-3 text-base font-bold text-[#101828]">
           You backed {selection.side} with {formatNaira(amount)}.
         </p>
         {activation.isProtected ? (
@@ -367,18 +420,82 @@ const SuccessState = ({ selection, amount, onClose }: { selection: ForecastSelec
             <InfoCard label="Estimated profit" value={formatNaira(estimatedProfit)} />
           </div>
         )}
-        <div className="mt-7 grid gap-3">
-          <Link to="/portfolio" onClick={onClose} className="flex h-12 items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-black text-white transition hover:bg-[#4338CA]">
-            View Prediction
-          </Link>
-          <Link to="/" onClick={onClose} className="flex h-12 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-sm font-black text-[#344054] transition hover:bg-[#F3F4F6]">
-            Back Home
-          </Link>
+        <div className="mt-7">
+          <button
+            onClick={onClose}
+            className="flex h-12 w-full items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-bold text-white transition hover:bg-[#4338CA]"
+          >
+            Continue Trading
+          </button>
         </div>
       </div>
     </div>
   );
 };
+
+const ErrorState = ({
+  message,
+  selection,
+  amount,
+  onRetry,
+  onClose,
+  loading,
+}: {
+  message: string;
+  selection: ForecastSelection;
+  amount: number;
+  onRetry: () => void;
+  onClose: () => void;
+  loading: boolean;
+}) => (
+  <div className="space-y-5 p-5 sm:p-6">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#B42318]">Prediction slip</p>
+        <h2 className="mt-1 text-2xl font-black text-[#111827]">Something went wrong</h2>
+      </div>
+      <button
+        onClick={onClose}
+        disabled={loading}
+        aria-label="Close prediction slip"
+        className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
+      >
+        <X className="h-5 w-5" aria-hidden="true" />
+      </button>
+    </div>
+    <div className="rounded-xl border border-[#E85D5D]/30 bg-[#E85D5D]/10 p-4 text-sm font-bold leading-relaxed text-[#B42318]">
+      {message}
+    </div>
+    <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+      <div className="flex items-start gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-xl shadow-sm">
+          {selection.marketIcon}
+        </div>
+        <div className="min-w-0">
+          <div className="line-clamp-2 text-sm font-bold text-[#111827]">{selection.marketQuestion}</div>
+          <div className="mt-1 text-xs font-bold text-[#6B7280]">{selection.side} &middot; {formatNaira(amount)}</div>
+        </div>
+      </div>
+    </div>
+    <div className="grid gap-3">
+      <button
+        onClick={onRetry}
+        disabled={loading}
+        className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[#4F46E5] text-sm font-bold text-white transition hover:bg-[#4338CA] disabled:opacity-50"
+      >
+        <RefreshCw className="h-4 w-4" />
+        Try Again
+      </button>
+      <button
+        onClick={onClose}
+        disabled={loading}
+        className="w-full text-sm font-bold text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+);
 
 const RefundProtectionState = ({
   progress,
