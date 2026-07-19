@@ -20,7 +20,6 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
-  HelpCircle,
   Loader2,
   Share2,
   Shield,
@@ -33,6 +32,7 @@ import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ProtectedMarketInfo, ProtectedMarketTooltip } from "@/components/ProtectedMarketInfo";
 import apiService, { ApiRequestError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useMarketState } from "@/lib/market-state";
@@ -74,6 +74,7 @@ export default function MarketDetail() {
   const [rulesExpanded, setRulesExpanded] = useState(false);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showProtectedInfo, setShowProtectedInfo] = useState(false);
   const marketsRef = useRef(markets);
   const marketRef = useRef<Market | null>(null);
   const latestLoadRef = useRef(0);
@@ -270,54 +271,15 @@ export default function MarketDetail() {
     return (
       <div className="app-bg min-h-screen text-[#111827] xl:pl-64">
         <Header />
-        <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:py-6">
+        <main className="mx-auto max-w-5xl px-4 py-4 sm:px-6 lg:py-6">
           <div className="mb-6 flex items-center justify-between">
-            <div className="h-10 w-24 animate-pulse rounded-xl bg-[#E5E7EB]" />
-            <div className="h-10 w-10 animate-pulse rounded-xl bg-[#E5E7EB]" />
+            <div className="h-9 w-20 animate-pulse rounded-xl bg-[#E5E7EB]" />
+            <div className="h-9 w-9 animate-pulse rounded-xl bg-[#E5E7EB]" />
           </div>
-          <div className="mx-auto max-w-5xl">
-            <div className="min-w-0">
-              <section className="border-b border-[#E5E7EB] pb-6">
-                <div className="flex items-start gap-4 sm:gap-5">
-                  <div className="h-20 w-20 shrink-0 animate-pulse rounded-2xl bg-[#E5E7EB] sm:h-24 sm:w-24" />
-                  <div className="flex-1 space-y-3">
-                    <div className="flex gap-2">
-                      <div className="h-6 w-16 animate-pulse rounded-full bg-[#E5E7EB]" />
-                      <div className="h-6 w-20 animate-pulse rounded-full bg-[#E5E7EB]" />
-                    </div>
-                    <div className="h-8 w-3/4 animate-pulse rounded-lg bg-[#E5E7EB]" />
-                    <div className="h-8 w-1/2 animate-pulse rounded-lg bg-[#E5E7EB]" />
-                  </div>
-                </div>
-                <div className="mt-5 flex gap-2">
-                  <div className="h-8 w-28 animate-pulse rounded-full bg-[#E5E7EB]" />
-                  <div className="h-8 w-28 animate-pulse rounded-full bg-[#E5E7EB]" />
-                  <div className="h-8 w-32 animate-pulse rounded-full bg-[#E5E7EB]" />
-                </div>
-              </section>
-              <section className="mt-8">
-                <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-2">
-                    <div className="h-6 w-48 animate-pulse rounded-lg bg-[#E5E7EB]" />
-                    <div className="h-4 w-64 animate-pulse rounded-lg bg-[#E5E7EB]" />
-                  </div>
-                  <div className="h-8 w-56 animate-pulse rounded-full bg-[#E5E7EB]" />
-                </div>
-                <div className="relative overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-4">
-                  <div className="mb-3 flex justify-between">
-                    <div className="space-y-1.5">
-                      <div className="h-3 w-24 animate-pulse rounded bg-[#E5E7EB]" />
-                      <div className="h-7 w-20 animate-pulse rounded bg-[#E5E7EB]" />
-                    </div>
-                    <div className="space-y-1.5 text-right">
-                      <div className="h-3 w-24 animate-pulse rounded bg-[#E5E7EB]" />
-                      <div className="h-7 w-20 animate-pulse rounded bg-[#E5E7EB]" />
-                    </div>
-                  </div>
-                  <div className="h-[290px] w-full animate-pulse rounded-xl bg-[#F3F4F6] sm:h-[380px]" />
-                </div>
-              </section>
-            </div>
+          <div className="space-y-4">
+            <div className="h-48 w-full animate-pulse rounded-2xl bg-[#E5E7EB]" />
+            <div className="h-8 w-3/4 animate-pulse rounded-lg bg-[#E5E7EB]" />
+            <div className="h-8 w-1/2 animate-pulse rounded-lg bg-[#E5E7EB]" />
           </div>
         </main>
         <MobileNav />
@@ -350,182 +312,186 @@ export default function MarketDetail() {
   const estimatedProfit = estimatedReturn - numericAmount;
 
   return (
-    <div className="app-bg min-h-screen pb-[calc(150px+env(safe-area-inset-bottom))] text-[#111827] md:pb-24 xl:pl-64">
+    <div className="app-bg min-h-screen pb-[calc(140px+env(safe-area-inset-bottom))] text-[#111827] md:pb-24 xl:pl-64">
       <Header />
-      <main
-        className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:py-6"
-
-      >
-        <div className="mb-6 flex items-center justify-between">
+      <main className="mx-auto max-w-5xl px-4 py-4 sm:px-6 lg:py-6">
+        {/* ── Back + Share ── */}
+        <div className="mb-4 flex items-center justify-between">
           <Link
             to="/"
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm font-bold text-[#6B7280] transition hover:text-[#111827]"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 text-xs font-bold text-[#6B7280] transition hover:text-[#111827]"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-3.5 w-3.5" />
             Home
           </Link>
-          <div className="flex gap-2">
-            <IconButton onClick={handleShare} icon={Share2} label="Share" />
-          </div>
+          <IconButton onClick={handleShare} icon={Share2} label="Share" />
         </div>
 
-        <div className="mx-auto max-w-5xl">
-          <div className="min-w-0">
-            <section className="border-b border-[#E5E7EB] pb-6">
-              <div className="flex items-start gap-4 sm:gap-5">
-                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-[#F3F4F6] sm:h-24 sm:w-24">
-                  {media.type === "video" ? (
-                    <video
-                      src={media.src}
-                      poster={media.poster}
-                      className="h-full w-full object-cover"
-                      muted
-                      playsInline
-                      loop
-                      preload="metadata"
-                    />
-                  ) : (
-                    <img
-                      src={media.src}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="mb-2.5 flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#9CA3AF]">
-                      {marketCategoryLabel}
-                    </span>
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${marketIsActive
-                        ? activation.isProtected
-                          ? "bg-[#4F46E5]/10 text-[#4F46E5]"
-                          : "bg-[#12B886]/10 text-[#047857]"
-                        : "bg-[#F3F4F6] text-[#9CA3AF]"
-                      }`}
-                    >
-                      {marketIsActive
-                        ? activation.isProtected
-                          ? "Protected"
-                          : "Live"
-                        : "Closed"}
-                    </span>
-                  </div>
-                  <h1 className="text-2xl font-black leading-tight tracking-tight text-[#101828] sm:text-3xl">
-                    {market.question}
-                  </h1>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                {!activation.isProtected && (
-                  <>
-                    <StatChip icon={Users} value={market.participants || 0} label="participants" />
-                    <StatChip icon={BarChart3} value={market.tradeCount || 0} label="predictions" />
-                  </>
+        {/* ── Market Header ── */}
+        <section className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex items-start gap-4">
+            {media.src && (
+              <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[#F3F4F6] sm:h-20 sm:w-20">
+                {media.type === "video" ? (
+                  <video
+                    src={media.src}
+                    poster={media.poster}
+                    className="h-full w-full object-cover"
+                    muted
+                    playsInline
+                    loop
+                    preload="metadata"
+                  />
+                ) : (
+                  <img
+                    src={media.src}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
                 )}
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F3F4F6] px-3 py-1 text-xs font-bold text-[#9CA3AF]">
-                  <Clock className="h-3.5 w-3.5" />
-                  {formatCountdown(tradingCloseTime, market.closesIn)} left
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
+                  {marketCategoryLabel}
+                </span>
+                {marketIsActive && activation.isProtected ? (
+                  <ProtectedMarketTooltip onClick={() => setShowProtectedInfo(true)} />
+                ) : marketIsActive ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#12B886]/10 px-2 py-0.5 text-[10px] font-bold text-[#047857]">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#12B886] opacity-75" />
+                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#12B886]" />
+                    </span>
+                    Live
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[10px] font-bold text-[#9CA3AF]">
+                    Closed
+                  </span>
+                )}
+              </div>
+              <h1 className="text-xl font-black leading-tight tracking-tight text-[#101828] sm:text-2xl">
+                {market.question}
+              </h1>
+            </div>
+          </div>
+
+          {/* Stats row */}
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            {!activation.isProtected && (
+              <>
+                <StatChip icon={Users} value={market.participants || 0} label="backers" />
+                <StatChip icon={BarChart3} value={market.tradeCount || 0} label="predictions" />
+              </>
+            )}
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#F3F4F6] px-2.5 py-1 text-[10px] font-bold text-[#9CA3AF]">
+              <Clock className="h-3 w-3" />
+              {formatCountdown(tradingCloseTime, market.closesIn)}
+            </span>
+          </div>
+
+          {/* Protected market progress */}
+          {activation.isProtected && (
+            <div className="mt-3 rounded-xl border border-[#C7D2FE] bg-[#EEF2FF]/60 p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Shield className="h-3.5 w-3.5 text-[#4F46E5]" />
+                  <span className="text-xs font-bold text-[#4F46E5]">Refund Protected</span>
+                </div>
+                <span className="text-[10px] font-bold text-[#4F46E5]">
+                  {Math.round(activation.progress)}%
                 </span>
               </div>
-
-              {activation.isProtected && (
-                <div className="mt-4 rounded-xl border border-[#C7D2FE] bg-[#EEF2FF]/60 p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-[#4F46E5]" />
-                      <span className="text-sm font-bold text-[#4F46E5]">Refund Protected</span>
-                    </div>
-                    <span className="text-xs font-bold text-[#4F46E5]">
-                      {Math.round(activation.progress)}%
-                    </span>
-                  </div>
-                  <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white">
-                    <div
-                      className="h-full rounded-full bg-[#4F46E5] transition-all duration-500"
-                      style={{ width: `${activation.progress}%` }}
-                    />
-                  </div>
-                  <p className="mt-2 text-xs font-bold text-[#475467]">
-                    {formatNaira(activation.totalPool)} / {formatNaira(activation.requirements.totalPool)} activity
-                  </p>
-                </div>
-              )}
-            </section>
-
-            <section className="mt-8">
-              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="text-lg font-bold text-[#101828]">
-                  Crowd View
-                </h2>
-                <div className="flex w-fit rounded-lg bg-[#F3F4F6] p-0.5">
-                  {(["1H", "24H", "7D", "ALL"] as Timeframe[]).map((item) => (
-                    <button
-                      key={item}
-                      onClick={() => setTimeframe(item)}
-                      className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all duration-150 ${timeframe === item
-                        ? "bg-white text-[#111827] shadow-sm"
-                        : "text-[#9CA3AF] hover:text-[#6B7280]"
-                      }`}
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
+              <div className="mt-2 h-1 overflow-hidden rounded-full bg-white">
+                <div
+                  className="h-full rounded-full bg-[#4F46E5] transition-all duration-500"
+                  style={{ width: `${activation.progress}%` }}
+                />
               </div>
-              <Chart market={market} timeframe={timeframe} />
-            </section>
+              <p className="mt-1.5 text-[10px] font-bold text-[#475467]">
+                {formatNaira(activation.totalPool)} / {formatNaira(activation.requirements.totalPool)}
+              </p>
+            </div>
+          )}
+        </section>
 
-            <section className="mt-8 border-t border-[#E5E7EB] pt-6">
-              <button
-                onClick={() => setRulesExpanded(!rulesExpanded)}
-                className="flex w-full items-center justify-between text-left"
-              >
-                <h2 className="text-lg font-bold text-[#101828]">
-                  Rules & timeline
-                </h2>
-                <div className="grid h-8 w-8 place-items-center rounded-lg bg-[#F3F4F6] text-[#667085]">
-                  {rulesExpanded ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
-                </div>
-              </button>
-              <div
-                className={`overflow-hidden transition-all duration-300 ${rulesExpanded ? "mt-3 max-h-[500px]" : "max-h-0"
-                }`}
-              >
-                <p className="text-sm leading-7 text-[#667085]">
-                  {market.rules ||
-                    market.description ||
-                    "This market resolves based on the stated outcome and admin review."}
-                </p>
-              </div>
-              {!rulesExpanded && (
-                <p className="mt-2 line-clamp-2 text-sm leading-7 text-[#667085]">
-                  {market.rules ||
-                    market.description ||
-                    "This market resolves based on the stated outcome and admin review."}
-                </p>
-              )}
-            </section>
+        {/* ── Price History / Crowd View ── */}
+        <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
+          <div className="mb-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-base font-bold text-[#101828]">Crowd View</h2>
+            <div className="flex w-fit rounded-lg bg-[#F3F4F6] p-0.5">
+              {(["1H", "24H", "7D", "ALL"] as Timeframe[]).map((item) => (
+                <button
+                  key={item}
+                  onClick={() => setTimeframe(item)}
+                  className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition-all duration-150 ${
+                    timeframe === item
+                      ? "bg-white text-[#111827] shadow-sm"
+                      : "text-[#9CA3AF] hover:text-[#6B7280]"
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+          <Chart market={market} timeframe={timeframe} />
+        </section>
+
+        {/* ── Rules & Resolution ── */}
+        <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
+          <button
+            onClick={() => setRulesExpanded(!rulesExpanded)}
+            className="flex w-full items-center justify-between text-left"
+          >
+            <h2 className="text-base font-bold text-[#101828]">Rules & Resolution</h2>
+            <div className="grid h-7 w-7 place-items-center rounded-lg bg-[#F3F4F6] text-[#667085]">
+              {rulesExpanded ? (
+                <ChevronUp className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5" />
+              )}
+            </div>
+          </button>
+          {!rulesExpanded && (
+            <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#667085]">
+              {market.rules ||
+                market.description ||
+                "This market resolves based on the stated outcome and admin review."}
+            </p>
+          )}
+          <div
+            className={`overflow-hidden transition-all duration-300 ${
+              rulesExpanded ? "mt-2.5 max-h-[600px]" : "max-h-0"
+            }`}
+          >
+            <p className="text-sm leading-6 text-[#667085]">
+              {market.rules ||
+                market.description ||
+                "This market resolves based on the stated outcome and admin review."}
+            </p>
+            {(market as any).resolutionSource && (
+              <p className="mt-3 text-xs font-bold text-[#9CA3AF]">
+                Resolution source: {(market as any).resolutionSource}
+              </p>
+            )}
+          </div>
+        </section>
       </main>
 
-      <div className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-[#E5E7EB]/60 bg-white/80 p-2.5 backdrop-blur-xl md:bottom-0 md:border-t md:bg-white/90 xl:left-64">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-2.5">
+      {/* ── Sticky Action Bar ── */}
+      <div className="fixed bottom-[calc(68px+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-[#E5E7EB]/60 bg-white/90 p-2.5 backdrop-blur-xl md:bottom-0 md:border-t md:bg-white/95 xl:left-64">
+        <div className="mx-auto grid max-w-5xl grid-cols-2 gap-2">
           <button
             disabled={!marketIsActive}
             aria-label={`Back YES at ${formatNairaPrice(market.yesPrice)}`}
             onClick={() => setSheetSide("YES")}
             className="group h-11 rounded-xl bg-[#12B886] text-sm font-bold text-white transition-all duration-150 hover:bg-[#0ea371] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#D1D5DB] disabled:text-[#9CA3AF]"
           >
-            <span className="flex items-center justify-center gap-2">
-              Back YES {formatNairaPrice(market.yesPrice)}
+            <span className="flex items-center justify-center gap-1.5">
+              YES {formatNairaPrice(market.yesPrice)}
             </span>
           </button>
           <button
@@ -534,16 +500,18 @@ export default function MarketDetail() {
             onClick={() => setSheetSide("NO")}
             className="group h-11 rounded-xl bg-[#E85D5D] text-sm font-bold text-white transition-all duration-150 hover:bg-[#d94c4c] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#D1D5DB] disabled:text-[#9CA3AF]"
           >
-            <span className="flex items-center justify-center gap-2">
-              Back NO {formatNairaPrice(market.noPrice)}
+            <span className="flex items-center justify-center gap-1.5">
+              NO {formatNairaPrice(market.noPrice)}
             </span>
           </button>
         </div>
       </div>
 
+      {/* ── Prediction Sheet ── */}
       {sheetSide && (
         <div
-          className={`fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${sheetVisible ? "opacity-100" : "opacity-0"
+          className={`fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
+            sheetVisible ? "opacity-100" : "opacity-0"
           }`}
           onClick={() => !submitting && closeSheet()}
         >
@@ -552,23 +520,21 @@ export default function MarketDetail() {
             role="dialog"
             aria-modal="true"
             aria-label="Place your prediction"
-            className={`absolute bottom-0 left-0 right-0 max-h-[88vh] overflow-y-auto rounded-t-3xl border border-[#E5E7EB] bg-white p-5 pb-[calc(90px+env(safe-area-inset-bottom))] text-[#111827] shadow-[0_-24px_80px_rgba(17,24,39,0.18)] transition-transform duration-300 ease-out md:left-auto md:right-6 md:top-24 md:h-fit md:w-[380px] md:rounded-2xl md:pb-5 ${sheetVisible
-              ? "translate-y-0"
-              : "translate-y-full"
+            className={`absolute bottom-0 left-0 right-0 max-h-[88vh] overflow-y-auto rounded-t-3xl border border-[#E5E7EB] bg-white p-5 pb-[calc(90px+env(safe-area-inset-bottom))] text-[#111827] shadow-[0_-24px_80px_rgba(17,24,39,0.18)] transition-transform duration-300 ease-out md:left-auto md:right-6 md:top-24 md:h-fit md:w-[380px] md:rounded-2xl md:pb-5 ${
+              sheetVisible ? "translate-y-0" : "translate-y-full"
             }`}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="mb-5 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-between">
               <div>
                 <p
-                  className={`text-xs font-bold uppercase tracking-[0.16em] ${sheetSide === "YES"
-                    ? "text-[#12B886]"
-                    : "text-[#E85D5D]"
+                  className={`text-[10px] font-bold uppercase tracking-[0.16em] ${
+                    sheetSide === "YES" ? "text-[#12B886]" : "text-[#E85D5D]"
                   }`}
                 >
                   Prediction slip
                 </p>
-                <h2 className="mt-1 text-2xl font-bold">
+                <h2 className="mt-0.5 text-xl font-bold">
                   You picked {sheetSide}
                 </h2>
               </div>
@@ -576,7 +542,7 @@ export default function MarketDetail() {
                 onClick={closeSheet}
                 aria-label="Close prediction sheet"
                 disabled={submitting}
-                className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] transition hover:bg-[#F3F4F6] disabled:cursor-not-allowed disabled:opacity-50"
+                className="grid h-9 w-9 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] transition hover:bg-[#F3F4F6] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -587,11 +553,11 @@ export default function MarketDetail() {
               </div>
             ) : (
               <>
-                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-[#6B7280]">
+                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">
                   Amount
                 </label>
                 <div className="relative">
-                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-[#6B7280]">
+                  <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-[#6B7280]">
                     NGN
                   </span>
                   <Input
@@ -600,18 +566,19 @@ export default function MarketDetail() {
                     onChange={(event) => setAmount(event.target.value)}
                     disabled={submitting}
                     placeholder="0"
-                    className="h-14 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-12 text-lg font-bold text-[#111827] placeholder:text-[#D1D5DB] focus:border-[#4F46E5] focus:ring-[#4F46E5]/20"
+                    className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-lg font-bold text-[#111827] placeholder:text-[#D1D5DB] focus:border-[#4F46E5] focus:ring-[#4F46E5]/20"
                   />
                 </div>
-                <div className="mt-3 grid grid-cols-4 gap-2">
+                <div className="mt-2.5 grid grid-cols-4 gap-1.5">
                   {[100, 500, 1000, 2000].map((value) => (
                     <button
                       key={value}
                       onClick={() => setAmount(value.toString())}
                       disabled={submitting}
-                      className={`rounded-xl border py-2.5 text-xs font-bold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${amount === value.toString()
-                        ? "border-[#4F46E5] bg-[#EEF2FF] text-[#4F46E5]"
-                        : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:border-[#D1D5DB] hover:bg-white"
+                      className={`rounded-lg border py-2 text-[11px] font-bold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${
+                        amount === value.toString()
+                          ? "border-[#4F46E5] bg-[#EEF2FF] text-[#4F46E5]"
+                          : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:border-[#D1D5DB] hover:bg-white"
                       }`}
                     >
                       {formatNaira(value)}
@@ -620,19 +587,15 @@ export default function MarketDetail() {
                 </div>
 
                 {numericAmount > 0 && selectedPrice && (
-                  <div className="mt-4 rounded-xl border border-[#E5E7EB] bg-gradient-to-br from-[#F8F7F4] to-white p-4">
+                  <div className="mt-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#6B7280]">
-                        Estimated return
-                      </span>
+                      <span className="text-xs font-bold text-[#6B7280]">Est. return</span>
                       <span className="text-sm font-bold text-[#101828]">
                         {formatNaira(estimatedReturn)}
                       </span>
                     </div>
-                    <div className="mt-1.5 flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#6B7280]">
-                        Estimated profit
-                      </span>
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#6B7280]">Est. profit</span>
                       <span className="text-sm font-bold text-[#12B886]">
                         +{formatNaira(estimatedProfit)}
                       </span>
@@ -640,63 +603,39 @@ export default function MarketDetail() {
                   </div>
                 )}
 
-                <div className="mt-4 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+                <div className="mt-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3">
                   <Row
-                    label="Wallet balance"
-                    value={
-                      user ? formatNaira(user.balance || 0) : "Login required"
-                    }
+                    label="Balance"
+                    value={user ? formatNaira(user.balance || 0) : "Login required"}
                   />
                   <Row
                     label="Crowd View"
                     value={`YES ${formatNairaPrice(market.yesPrice)} / NO ${formatNairaPrice(market.noPrice)}`}
                   />
                   {activation.isProtected && (
-                    <div className="mt-4 rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] p-4">
-                      <div className="flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-[#4F46E5]" />
-                        <div className="text-sm font-bold text-[#101828]">
-                          Refund Protected
-                        </div>
+                    <div className="mt-2.5 rounded-lg border border-[#C7D2FE] bg-[#EEF2FF] p-3">
+                      <div className="flex items-center gap-1.5">
+                        <Shield className="h-3.5 w-3.5 text-[#4F46E5]" />
+                        <span className="text-xs font-bold text-[#4F46E5]">Refund Protected</span>
                       </div>
-                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
-                        <div
-                          className="h-full rounded-full bg-[#4F46E5]"
-                          style={{ width: `${activation.progress}%` }}
-                        />
-                      </div>
-                      <p className="mt-2 text-xs font-bold text-[#475467]">
-                        {formatNaira(activation.totalPool)} /{" "}
-                        {formatNaira(activation.requirements.totalPool)}{" "}
-                        activity
-                      </p>
-                      <p className="mt-2 text-xs font-bold leading-relaxed text-[#344054]">
-                        Your stake is protected if this market does not reach
-                        enough activity before closing.
+                      <p className="mt-1.5 text-[10px] font-bold leading-relaxed text-[#344054]">
+                        Stake is protected if market doesn&apos;t reach enough activity.
                       </p>
                     </div>
                   )}
-                  {activation.isProtected === false && (
-                    <p className="mt-3 text-xs font-bold leading-relaxed text-[#6B7280]">
-                      Returns may change as market activity changes.
-                    </p>
-                  )}
                   {exceedsProtectedLimit && (
-                    <p className="mt-3 text-xs font-bold text-[#B42318]">
-                      Protected markets are limited to{" "}
-                      {formatNaira(activation.requirements.protectedMaxStake)}{" "}
-                      per user until they go live.
+                    <p className="mt-2 text-[10px] font-bold text-[#B42318]">
+                      Max {formatNaira(activation.requirements.protectedMaxStake)} per user.
                     </p>
                   )}
                 </div>
                 <Button
                   onClick={confirmPrediction}
-                  disabled={
-                    submitting || numericAmount <= 0 || exceedsProtectedLimit
-                  }
-                  className={`mt-5 h-12 w-full rounded-xl text-base font-bold shadow-lg transition-all duration-200 hover:shadow-xl active:scale-[0.98] disabled:shadow-none ${sheetSide === "YES"
-                    ? "bg-gradient-to-r from-[#12B886] to-[#10B981] text-white shadow-[#12B886]/25 hover:shadow-[#12B886]/35"
-                    : "bg-gradient-to-r from-[#E85D5D] to-[#DC4444] text-white shadow-[#E85D5D]/25 hover:shadow-[#E85D5D]/35"
+                  disabled={submitting || numericAmount <= 0 || exceedsProtectedLimit}
+                  className={`mt-4 h-11 w-full rounded-xl text-sm font-bold shadow-lg transition-all duration-200 hover:shadow-xl active:scale-[0.98] disabled:shadow-none ${
+                    sheetSide === "YES"
+                      ? "bg-[#12B886] text-white shadow-[#12B886]/20 hover:bg-[#0ea371]"
+                      : "bg-[#E85D5D] text-white shadow-[#E85D5D]/20 hover:bg-[#d94c4c]"
                   }`}
                 >
                   {submitting ? (
@@ -712,6 +651,7 @@ export default function MarketDetail() {
         </div>
       )}
 
+      {/* ── Prediction Success ── */}
       {justPredicted && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-black/35 p-4 backdrop-blur-[2px]">
           {showConfetti && (
@@ -738,38 +678,40 @@ export default function MarketDetail() {
               ))}
             </div>
           )}
-          <div role="alert" aria-live="assertive" className="animate-fade-up relative w-full max-w-sm overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-8 text-center shadow-[0_24px_90px_rgba(17,24,39,0.22)]">
+          <div role="alert" aria-live="assertive" className="animate-fade-up relative w-full max-w-sm overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-7 text-center shadow-[0_24px_90px_rgba(17,24,39,0.22)]">
             <div
-              className={`absolute inset-x-0 top-0 h-1 ${justPredicted === "YES"
-                ? "bg-gradient-to-r from-[#12B886] to-[#10B981]"
-                : "bg-gradient-to-r from-[#E85D5D] to-[#DC4444]"
+              className={`absolute inset-x-0 top-0 h-1 ${
+                justPredicted === "YES"
+                  ? "bg-[#12B886]"
+                  : "bg-[#E85D5D]"
               }`}
             />
             <div
-              className={`mx-auto mb-5 grid h-20 w-20 place-items-center rounded-full text-white shadow-lg ${justPredicted === "YES"
-                ? "bg-gradient-to-br from-[#12B886] to-[#10B981] shadow-[#12B886]/30"
-                : "bg-gradient-to-br from-[#E85D5D] to-[#DC4444] shadow-[#E85D5D]/30"
+              className={`mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full text-white shadow-lg ${
+                justPredicted === "YES"
+                  ? "bg-[#12B886] shadow-[#12B886]/25"
+                  : "bg-[#E85D5D] shadow-[#E85D5D]/25"
               }`}
             >
-              <CheckCircle className="h-11 w-11" />
+              <CheckCircle className="h-8 w-8" />
             </div>
-            <h3 className="text-3xl font-black text-[#101828]">
+            <h3 className="text-2xl font-black text-[#101828]">
               Prediction Locked
             </h3>
-            <p className="mt-3 text-base font-bold text-[#101828]">
+            <p className="mt-2 text-sm font-bold text-[#101828]">
               You backed {justPredicted}
             </p>
-            <p className="mt-2 text-sm font-semibold leading-6 text-[#475467]">
-              Track this prediction in My Predictions.
+            <p className="mt-1 text-xs text-[#9CA3AF]">
+              Track in My Predictions
             </p>
-            <div className="mt-7 grid gap-3">
+            <div className="mt-5 grid gap-2">
               <Link
                 to="/portfolio"
                 onClick={() => {
                   setJustPredicted(null);
                   setShowConfetti(false);
                 }}
-                className="flex h-12 items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-bold text-white shadow-lg shadow-[#4F46E5]/25 transition hover:bg-[#4338CA] hover:shadow-xl"
+                className="flex h-11 items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-bold text-white shadow-lg shadow-[#4F46E5]/20 transition hover:bg-[#4338CA]"
               >
                 View Prediction
               </Link>
@@ -778,7 +720,7 @@ export default function MarketDetail() {
                   setJustPredicted(null);
                   setShowConfetti(false);
                 }}
-                className="h-12 rounded-xl border border-[#E5E7EB] bg-white text-sm font-bold text-[#344054] transition hover:bg-[#F3F4F6]"
+                className="h-11 rounded-xl border border-[#E5E7EB] bg-white text-sm font-bold text-[#344054] transition hover:bg-[#F3F4F6]"
               >
                 Continue Browsing
               </button>
@@ -787,25 +729,34 @@ export default function MarketDetail() {
         </div>
       )}
 
+      {/* Protected Market Info Sheet */}
+      {showProtectedInfo && (
+        <ProtectedMarketInfo
+          isOpen={showProtectedInfo}
+          onClose={() => setShowProtectedInfo(false)}
+          activation={{
+            progress: activation.progress,
+            totalPool: activation.totalPool,
+            requirements: activation.requirements,
+          }}
+        />
+      )}
+
       <MobileNav />
 
-      {/* Inline style required: Tailwind does not support @keyframes with
-          randomized inline animation-delay/transform values on confetti particles */}
       <style>{`
         @keyframes confetti-fall {
-          0% {
-            transform: translateY(0) rotate(0deg);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(100vh) rotate(720deg);
-            opacity: 0;
-          }
+          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
         }
       `}</style>
     </div>
   );
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Chart Component
+   ═══════════════════════════════════════════════════════════════ */
 
 const Chart = ({
   market,
@@ -879,12 +830,12 @@ const Chart = ({
             gradient.addColorStop(1, "rgba(18,184,134,0.0)");
             return gradient;
           },
-          borderWidth: 3,
+          borderWidth: 2.5,
           pointRadius: filteredHistory.length === 1 ? 4 : 0,
-          pointHoverRadius: 6,
+          pointHoverRadius: 5,
           pointHoverBackgroundColor: "#12B886",
           pointHoverBorderColor: "#ffffff",
-          pointHoverBorderWidth: 3,
+          pointHoverBorderWidth: 2,
           pointBackgroundColor: "#12B886",
           pointBorderColor: "#ffffff",
           pointBorderWidth: 2,
@@ -896,12 +847,12 @@ const Chart = ({
           data: filteredHistory.map((point) => point.noPrice),
           borderColor: "#E85D5D",
           backgroundColor: "rgba(232,93,93,0.04)",
-          borderWidth: 2.4,
+          borderWidth: 2,
           pointRadius: filteredHistory.length === 1 ? 4 : 0,
-          pointHoverRadius: 6,
+          pointHoverRadius: 5,
           pointHoverBackgroundColor: "#E85D5D",
           pointHoverBorderColor: "#ffffff",
-          pointHoverBorderWidth: 3,
+          pointHoverBorderWidth: 2,
           pointBackgroundColor: "#E85D5D",
           pointBorderColor: "#ffffff",
           pointBorderWidth: 2,
@@ -917,14 +868,8 @@ const Chart = ({
     () => ({
       responsive: true,
       maintainAspectRatio: false,
-      animation: {
-        duration: 600,
-        easing: "easeOutQuart",
-      },
-      interaction: {
-        mode: "nearest",
-        intersect: false,
-      },
+      animation: { duration: 600, easing: "easeOutQuart" },
+      interaction: { mode: "nearest", intersect: false },
       onHover: (_event, elements) => {
         const canvas = _event.native?.target as HTMLCanvasElement | null;
         if (canvas) {
@@ -932,85 +877,59 @@ const Chart = ({
         }
       },
       plugins: {
-        legend: {
-          display: false,
-        },
+        legend: { display: false },
         tooltip: {
           enabled: true,
           displayColors: true,
           backgroundColor: "rgba(17, 24, 39, 0.9)",
           cornerRadius: 8,
-          padding: 10,
-          titleFont: { weight: "600" },
+          padding: 8,
+          titleFont: { weight: "600", size: 11 },
           titleColor: "#F9FAFB",
           bodyColor: "#D1D5DB",
-          footerColor: "#9CA3AF",
-          boxPadding: 6,
           bodyFont: { size: 11, weight: 600 },
-          footerFont: { size: 10, weight: 600 },
+          boxPadding: 4,
           callbacks: {
             title: (items) => {
-              const point =
-                filteredHistory[items[0]?.dataIndex ?? 0];
+              const point = filteredHistory[items[0]?.dataIndex ?? 0];
               return point ? formatChartTime(point.timestamp) : "";
             },
             label: (item) =>
               `${item.dataset.label}: ${formatNairaPrice(Number(item.raw || 0))}`,
             afterBody: (items) => {
-              const point =
-                filteredHistory[items[0]?.dataIndex ?? 0];
+              const point = filteredHistory[items[0]?.dataIndex ?? 0];
               if (!point) return [];
-              const rows = [
-                `Total pool: ${formatNaira(point.volume || 0)}`,
+              return [
+                `Pool: ${formatNaira(point.volume || 0)}`,
                 `Predictions: ${point.tradeCount || 0}`,
               ];
-              if (point.side && Number(point.amount || 0) > 0) {
-                rows.push(
-                  `Last: ${point.side} ${formatNaira(point.amount || 0)}`
-                );
-              }
-              return rows;
             },
           },
         },
       },
       scales: {
         x: {
-          grid: {
-            display: false,
-          },
-          border: {
-            display: false,
-          },
+          grid: { display: false },
+          border: { display: false },
           ticks: {
             color: "rgba(139,152,168,0.82)",
             maxRotation: 0,
             autoSkip: true,
             maxTicksLimit: 5,
-            font: {
-              size: 10,
-              weight: 700,
-            },
+            font: { size: 10, weight: 700 },
           },
         },
         y: {
           min: 0,
           max: 100,
           position: "right",
-          grid: {
-            color: "rgba(148,163,184,0.08)",
-          },
-          border: {
-            display: false,
-          },
+          grid: { color: "rgba(148,163,184,0.08)" },
+          border: { display: false },
           ticks: {
             stepSize: 25,
             color: "rgba(139,152,168,0.82)",
             callback: (value) => `${value}`,
-            font: {
-              size: 10,
-              weight: 800,
-            },
+            font: { size: 10, weight: 800 },
           },
         },
       },
@@ -1019,39 +938,35 @@ const Chart = ({
   );
 
   const emptyHistory = savedHistory.length === 0;
-  const hasOnePoint = savedHistory.length === 1;
-  const hasMovement = savedHistory.length > 1;
   const currentYes = clampCrowdValue(Number(market.yesPrice || 50));
   const currentNo = clampCrowdValue(100 - currentYes);
 
   if (emptyHistory) {
     return (
-      <div className="bg-transparent">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#12B886]/10 px-3 py-1.5 text-xs font-bold text-[#12B886]">
-              <span className="h-2 w-2 rounded-full bg-[#12B886]" />
+      <div>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#12B886]/10 px-2.5 py-1 text-[10px] font-bold text-[#12B886]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#12B886]" />
               YES {formatNairaPrice(currentYes)}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E85D5D]/10 px-3 py-1.5 text-xs font-bold text-[#E85D5D]">
-              <span className="h-2 w-2 rounded-full bg-[#E85D5D]" />
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#E85D5D]/10 px-2.5 py-1 text-[10px] font-bold text-[#E85D5D]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#E85D5D]" />
               NO {formatNairaPrice(currentNo)}
             </span>
           </div>
-          <span className="rounded-full bg-[#F3F4F6] px-3 py-1.5 text-xs font-bold text-[#6B7280]">
+          <span className="rounded-full bg-[#F3F4F6] px-2.5 py-1 text-[10px] font-bold text-[#6B7280]">
             {market.tradeCount || 0} predictions
           </span>
         </div>
-        <div className="grid h-[260px] place-items-center rounded-2xl border border-dashed border-[#D1D5DB] bg-white p-6 text-center sm:h-[320px]">
+        <div className="grid h-[220px] place-items-center rounded-xl border border-dashed border-[#D1D5DB] bg-[#F8F7F4]/60 p-4 text-center sm:h-[280px]">
           <div>
-            <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-[#F3F4F6]">
-              <TrendingUp className="h-5 w-5 text-[#9CA3AF]" />
+            <div className="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-xl bg-[#F3F4F6]">
+              <TrendingUp className="h-4 w-4 text-[#9CA3AF]" />
             </div>
-            <p className="text-sm font-bold text-[#111827]">
-              No movement yet.
-            </p>
-            <p className="mt-1.5 max-w-sm text-sm font-bold leading-relaxed text-[#6B7280]">
-              Crowd View updates when people back YES or NO.
+            <p className="text-sm font-bold text-[#111827]">No movement yet</p>
+            <p className="mt-1 text-xs text-[#9CA3AF]">
+              Updates when people back YES or NO
             </p>
           </div>
         </div>
@@ -1060,57 +975,48 @@ const Chart = ({
   }
 
   return (
-    <div className="bg-transparent">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#12B886]/10 px-3 py-1.5 text-xs font-bold text-[#12B886]">
-            <span className="h-2 w-2 rounded-full bg-[#12B886]" />
+    <div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#12B886]/10 px-2.5 py-1 text-[10px] font-bold text-[#12B886]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#12B886]" />
             YES {formatNairaPrice(market.yesPrice)}
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E85D5D]/10 px-3 py-1.5 text-xs font-bold text-[#E85D5D]">
-            <span className="h-2 w-2 rounded-full bg-[#E85D5D]" />
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#E85D5D]/10 px-2.5 py-1 text-[10px] font-bold text-[#E85D5D]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#E85D5D]" />
             NO {formatNairaPrice(market.noPrice)}
           </span>
         </div>
-        <span className="rounded-full bg-[#F3F4F6] px-3 py-1.5 text-xs font-bold text-[#6B7280]">
+        <span className="rounded-full bg-[#F3F4F6] px-2.5 py-1 text-[10px] font-bold text-[#6B7280]">
           {market.tradeCount || 0} predictions
         </span>
       </div>
-      <div className="relative overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-3 shadow-sm sm:p-4">
-        <div className="mb-3 flex items-center justify-between">
+      <div className="relative overflow-hidden rounded-xl border border-[#E5E7EB] bg-white p-3">
+        <div className="mb-2 flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-[#667085]">Current YES price</p>
-            <p className="text-2xl font-bold text-[#101828]">
+            <p className="text-[10px] font-bold text-[#667085]">YES price</p>
+            <p className="text-lg font-bold text-[#101828]">
               {formatNairaPrice(market.yesPrice)}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs font-bold text-[#667085]">Current NO price</p>
-            <p className="text-2xl font-bold text-[#101828]">
+            <p className="text-[10px] font-bold text-[#667085]">NO price</p>
+            <p className="text-lg font-bold text-[#101828]">
               {formatNairaPrice(market.noPrice)}
             </p>
           </div>
         </div>
-        <div className="h-[290px] w-full sm:h-[380px]">
+        <div className="h-[220px] w-full sm:h-[300px]">
           <Line data={chartData} options={chartOptions} />
         </div>
-      </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-[#6B7280]">
-        <span>
-          {hasMovement
-            ? "Crowd View history from saved predictions."
-            : hasOnePoint
-              ? "One saved prediction so far."
-              : "Crowd View updates when people back YES or NO."}
-        </span>
-        <span>
-          YES {formatNairaPrice(market.yesPrice)} / NO{" "}
-          {formatNairaPrice(market.noPrice)}
-        </span>
       </div>
     </div>
   );
 };
+
+/* ═══════════════════════════════════════════════════════════════
+   Small Components
+   ═══════════════════════════════════════════════════════════════ */
 
 const StatChip = ({
   icon: Icon,
@@ -1121,12 +1027,54 @@ const StatChip = ({
   value: number;
   label: string;
 }) => (
-  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F3F4F6] px-3 py-1 text-xs font-bold text-[#9CA3AF]">
-    <Icon className="h-3.5 w-3.5" />
+  <span className="inline-flex items-center gap-1 rounded-full bg-[#F3F4F6] px-2.5 py-1 text-[10px] font-bold text-[#9CA3AF]">
+    <Icon className="h-3 w-3" />
     <span className="font-bold text-[#111827]">{value.toLocaleString()}</span>
     {label}
   </span>
 );
+
+const Row = ({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) => (
+  <div className="flex items-center justify-between border-b border-[#E5E7EB] py-2 last:border-0">
+    <span className="text-xs font-bold text-[#6B7280]">{label}</span>
+    <span
+      className={`text-xs font-bold ${highlight ? "text-[#4F46E5]" : "text-[#111827]"}`}
+    >
+      {value}
+    </span>
+  </div>
+);
+
+const IconButton = ({
+  icon: Icon,
+  onClick,
+  label,
+}: {
+  icon: any;
+  onClick: () => void;
+  label: string;
+}) => (
+  <button
+    onClick={onClick}
+    aria-label={label}
+    title={label}
+    className="grid h-9 w-9 place-items-center rounded-xl border border-[#E5E7EB] bg-white text-[#111827] transition hover:bg-[#F8F7F4]"
+  >
+    <Icon className="h-4 w-4" />
+  </button>
+);
+
+/* ═══════════════════════════════════════════════════════════════
+   Helpers
+   ═══════════════════════════════════════════════════════════════ */
 
 const getTimeframeCutoff = (timeframe: Timeframe) => {
   const now = Date.now();
@@ -1159,46 +1107,3 @@ const formatAxisTime = (timestamp: number, timeframe: Timeframe) => {
   }
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
-
-const Row = ({
-  label,
-  value,
-  highlight = false,
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) => (
-  <div className="flex items-center justify-between border-b border-[#E5E7EB] py-2.5 last:border-0">
-    <span className="text-sm font-bold text-[#6B7280]">{label}</span>
-    <span
-      className={`text-sm font-bold ${highlight ? "text-[#4F46E5]" : "text-[#111827]"}`}
-    >
-      {value}
-    </span>
-  </div>
-);
-
-const IconButton = ({
-  icon: Icon,
-  onClick,
-  active = false,
-  label,
-}: {
-  icon: any;
-  onClick: () => void;
-  active?: boolean;
-  label: string;
-}) => (
-  <button
-    onClick={onClick}
-    aria-label={label}
-    title={label}
-    className={`grid h-10 w-10 place-items-center rounded-xl border transition ${active
-      ? "border-[#4F46E5]/40 bg-[#EEF2FF] text-[#4F46E5]"
-      : "border-[#E5E7EB] bg-white text-[#111827] hover:bg-[#F8F7F4]"
-    }`}
-  >
-    <Icon className={`h-4 w-4 ${active ? "fill-current" : ""}`} />
-  </button>
-);

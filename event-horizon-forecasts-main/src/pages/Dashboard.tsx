@@ -5,7 +5,9 @@ import {
   Award,
   BarChart3,
   CheckCircle,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Clock,
   Flame,
   LineChart,
@@ -30,7 +32,6 @@ import {
   getBestWinStreak,
   getScore,
   getForecasterLevel,
-  getNextLevel,
   getLevelProgress,
   LEVELS,
 } from "@/lib/levels";
@@ -59,20 +60,13 @@ const getGreeting = () => {
 
 const getLevelIcon = (levelName: string) => {
   switch (levelName) {
-    case "Rookie":
-      return Shield;
-    case "Sharp Thinker":
-      return Zap;
-    case "Analyst":
-      return BarChart3;
-    case "Expert":
-      return Award;
-    case "Elite Forecaster":
-      return Medal;
-    case "Market Master":
-      return Trophy;
-    default:
-      return Shield;
+    case "Rookie": return Shield;
+    case "Sharp Thinker": return Zap;
+    case "Analyst": return BarChart3;
+    case "Expert": return Award;
+    case "Elite Forecaster": return Medal;
+    case "Market Master": return Trophy;
+    default: return Shield;
   }
 };
 
@@ -86,20 +80,16 @@ const Dashboard = () => {
   const [positionTab, setPositionTab] = useState<PositionFilterTab>("active");
   const [selectedPosition, setSelectedPosition] = useState<ApiPosition | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [showActivity, setShowActivity] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
-
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
+    if (!userId) { setLoading(false); return; }
 
     let mounted = true;
     const loadPortfolio = async ({ silent = false } = {}) => {
-      if (!silent) {
-        setLoading(true);
-      }
+      if (!silent) setLoading(true);
       try {
         const [positionResponse, statsResponse] = await Promise.all([
           apiService.getPositions(),
@@ -112,11 +102,7 @@ const Dashboard = () => {
         if (!mounted) return;
         console.warn("My Predictions request failed", error);
       } finally {
-        if (mounted) {
-          if (!silent) {
-            setLoading(false);
-          }
-        }
+        if (mounted && !silent) setLoading(false);
       }
     };
 
@@ -124,10 +110,7 @@ const Dashboard = () => {
     const refresh = window.setInterval(() => {
       if (document.visibilityState === "visible") loadPortfolio({ silent: true });
     }, 30000);
-    return () => {
-      mounted = false;
-      window.clearInterval(refresh);
-    };
+    return () => { mounted = false; window.clearInterval(refresh); };
   }, [authLoading, userId]);
 
   useEffect(() => {
@@ -184,16 +167,16 @@ const Dashboard = () => {
         <Header />
         <main className="mx-auto grid min-h-[70vh] max-w-3xl place-items-center px-4 text-center">
           <div>
-            <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl bg-[#4F46E5]/10 text-[#4F46E5]">
-              <LineChart className="h-6 w-6" />
+            <div className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-xl bg-[#4F46E5]/10 text-[#4F46E5]">
+              <LineChart className="h-5 w-5" />
             </div>
-            <h1 className="text-2xl font-black tracking-tight">Track your predictions</h1>
-            <p className="mt-2 text-sm text-[#9CA3AF]">
+            <h1 className="text-xl font-black tracking-tight">Track your predictions</h1>
+            <p className="mt-1.5 text-sm text-[#9CA3AF]">
               Log in to see open predictions, resolved results, and wallet-linked history.
             </p>
             <Link
               to="/login"
-              className="mt-5 inline-flex h-11 items-center rounded-xl bg-[#4F46E5] px-5 text-sm font-bold text-white hover:bg-[#4338CA]"
+              className="mt-4 inline-flex h-10 items-center rounded-xl bg-[#4F46E5] px-5 text-sm font-bold text-white hover:bg-[#4338CA]"
             >
               Log in
             </Link>
@@ -207,107 +190,90 @@ const Dashboard = () => {
   return (
     <div className="app-bg min-h-screen overflow-x-hidden pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
-      <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:py-8">
-        {/* ── Header Section ── */}
-        <section className="mb-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:py-6">
+        {/* ── Header ── */}
+        <section className="mb-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-[#9CA3AF]">{getGreeting()}</p>
-              <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">{getGreeting()}</p>
+              <h1 className="mt-0.5 text-xl font-black tracking-tight sm:text-2xl">
                 {user.name || user.username || "Forecaster"}
               </h1>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 shadow-sm">
-                <LevelIcon className="h-4 w-4 text-[#4F46E5]" />
-                <span className="text-sm font-bold text-[#111827]">{level}</span>
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1.5 shadow-sm">
+                <LevelIcon className="h-3.5 w-3.5 text-[#4F46E5]" />
+                <span className="text-xs font-bold text-[#111827]">{level}</span>
               </div>
-              <div className="flex items-center gap-1.5 rounded-lg bg-[#4F46E5] px-3 py-2 text-white shadow-sm">
-                <Zap className="h-3.5 w-3.5" />
-                <AnimatedNumber value={totalScore} className="text-sm font-bold" />
-                <span className="text-[10px] font-bold opacity-80">pts</span>
+              <div className="flex items-center gap-1 rounded-lg bg-[#4F46E5] px-2.5 py-1.5 text-white shadow-sm">
+                <Zap className="h-3 w-3" />
+                <AnimatedNumber value={totalScore} className="text-xs font-bold" />
+                <span className="text-[9px] font-bold opacity-80">pts</span>
               </div>
             </div>
           </div>
         </section>
 
         {/* ── Stats Row ── */}
-        <section className="mb-6 grid grid-cols-4 gap-3">
-          <StatCard label="Predictions" value={stats.totalPredictions} />
+        <section className="mb-4 grid grid-cols-4 gap-2">
+          <StatCard label="Total" value={stats.totalPredictions} />
           <StatCard label="Active" value={activePositions.length} />
           <StatCard label="Won" value={wonPositions.length} />
           <StatCard label="Win Rate" value={winRate} suffix="%" />
         </section>
 
         {/* ── Level Progress ── */}
-        <section className="mb-6 rounded-xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
+        <section className="mb-4 rounded-xl border border-[#E5E7EB] bg-white p-3.5 shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="grid h-8 w-8 place-items-center rounded-lg bg-[#4F46E5]/10 text-[#4F46E5]">
-                <LevelIcon className="h-4 w-4" />
+            <div className="flex items-center gap-2">
+              <div className="grid h-7 w-7 place-items-center rounded-lg bg-[#4F46E5]/10 text-[#4F46E5]">
+                <LevelIcon className="h-3.5 w-3.5" />
               </div>
               <div>
-                <div className="text-sm font-bold text-[#111827]">{level}</div>
-                <div className="text-xs text-[#9CA3AF]">
+                <div className="text-xs font-bold text-[#111827]">{level}</div>
+                <div className="text-[10px] text-[#9CA3AF]">
                   {level === nextLevel ? "Top level" : `${pointsToNext} pts to ${nextLevel}`}
                 </div>
               </div>
             </div>
-            <div className="text-right">
-              <AnimatedNumber value={totalScore} className="text-lg font-black text-[#4F46E5]" />
-              <div className="text-[10px] font-bold text-[#9CA3AF]">points</div>
-            </div>
+            <AnimatedNumber value={totalScore} className="text-base font-black text-[#4F46E5]" />
           </div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#F3F4F6]">
+          <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-[#F3F4F6]">
             <div
               className="h-full rounded-full bg-[#4F46E5] transition-all duration-700"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="mt-1.5 flex items-center justify-between text-[10px] font-bold text-[#9CA3AF]">
-            <span>{progress}%</span>
-            <span>{level === nextLevel ? "Max" : `Next: ${nextLevel}`}</span>
-          </div>
         </section>
 
         {/* ── Tab Navigation ── */}
-        <section className="mb-5">
+        <section className="mb-4">
           <div
             role="tablist"
-            className="flex gap-1 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-1"
+            className="flex gap-1 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-0.5"
           >
             {(["active", "resolved", "all"] as PositionFilterTab[]).map((item) => {
               const count =
-                item === "active"
-                  ? activePositions.length
-                  : item === "resolved"
-                    ? settledPositions.length
+                item === "active" ? activePositions.length
+                  : item === "resolved" ? settledPositions.length
                     : positions.length;
               const isActive = positionTab === item;
-              const tabId = `position-tab-${item}`;
-              const panelId = `position-panel-${item}`;
               return (
                 <button
                   key={item}
                   role="tab"
-                  id={tabId}
                   aria-selected={isActive}
-                  aria-controls={panelId}
-                  tabIndex={isActive ? 0 : -1}
                   onClick={() => setPositionTab(item)}
-                  className={`flex-1 rounded-lg py-2 text-sm font-bold transition-all duration-150 ${
+                  className={`flex-1 rounded-lg py-2 text-xs font-bold transition-all duration-150 ${
                     isActive
                       ? "bg-white text-[#111827] shadow-sm"
                       : "text-[#9CA3AF] hover:text-[#6B7280]"
                   }`}
                 >
-                  <span className="hidden sm:inline">{item === "active" ? "Active" : item === "resolved" ? "Resolved" : "All"}</span>
-                  <span className="sm:hidden">{item === "active" ? "Active" : item === "resolved" ? "Done" : "All"}</span>
+                  {item === "active" ? "Active" : item === "resolved" ? "Done" : "All"}
                   <span
-                    className={`ml-1.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[10px] ${
-                      isActive
-                        ? "bg-[#4F46E5]/10 text-[#4F46E5]"
-                        : "bg-[#E5E7EB] text-[#9CA3AF]"
+                    className={`ml-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] ${
+                      isActive ? "bg-[#4F46E5]/10 text-[#4F46E5]" : "bg-[#E5E7EB] text-[#9CA3AF]"
                     }`}
                   >
                     {count}
@@ -319,41 +285,31 @@ const Dashboard = () => {
         </section>
 
         {/* ── Position Cards ── */}
-        <div
-          role="tabpanel"
-          id={`position-panel-${positionTab}`}
-          aria-labelledby={`position-tab-${positionTab}`}
-        >
+        <div role="tabpanel">
           {loading ? (
-            <div className="grid min-h-[360px] place-items-center">
-              <Loader2 className="h-8 w-8 animate-spin text-[#4F46E5]" />
+            <div className="grid min-h-[300px] place-items-center">
+              <Loader2 className="h-7 w-7 animate-spin text-[#4F46E5]" />
             </div>
           ) : filteredPositions.length === 0 ? (
             positionTab === "active" ? (
               <EmptyState
                 icon={Target}
                 title="No active predictions"
-                body="Your open positions will appear here. Pick a market and back your instinct."
+                body="Your open positions will appear here."
                 action={
-                  <Link
-                    to="/"
-                    className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#4F46E5] px-5 text-sm font-bold text-white hover:bg-[#4338CA]"
-                  >
-                    Explore markets <ArrowRight className="h-4 w-4" />
+                  <Link to="/" className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#4F46E5] px-4 text-sm font-bold text-white hover:bg-[#4338CA]">
+                    Explore markets <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 }
               />
             ) : positionTab === "resolved" ? (
               <EmptyState
                 icon={CheckCircle}
-                title="No resolved predictions yet"
-                body="Won, lost, and refunded predictions will show here once markets resolve."
+                title="No resolved predictions"
+                body="Won, lost, and refunded predictions will show here."
                 action={
-                  <Link
-                    to="/"
-                    className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-5 text-sm font-bold text-[#111827] transition hover:-translate-y-0.5 hover:shadow-md"
-                  >
-                    Explore markets <ArrowRight className="h-4 w-4" />
+                  <Link to="/" className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm font-bold text-[#111827] transition hover:shadow-md">
+                    Explore markets <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 }
               />
@@ -361,19 +317,16 @@ const Dashboard = () => {
               <EmptyState
                 icon={LineChart}
                 title="No predictions yet"
-                body="Start forecasting to build your prediction portfolio and track your performance."
+                body="Start forecasting to build your portfolio."
                 action={
-                  <Link
-                    to="/"
-                    className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#4F46E5] px-5 text-sm font-bold text-white hover:bg-[#4338CA]"
-                  >
-                    Make your first prediction <ArrowRight className="h-4 w-4" />
+                  <Link to="/" className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#4F46E5] px-4 text-sm font-bold text-white hover:bg-[#4338CA]">
+                    Make your first prediction <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 }
               />
             )
           ) : (
-            <div className="grid gap-3 lg:grid-cols-2">
+            <div className="grid gap-2.5 lg:grid-cols-2">
               {filteredPositions.map((position) => (
                 <PositionCard
                   key={position.id}
@@ -386,11 +339,53 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* ── Activity Feed ── */}
-        <ActivityFeed positions={positions} settledCount={settledPositions.length} />
+        {/* ── Activity Feed (Collapsible) ── */}
+        {positions.some((p) => p.resolvedAt || p.marketStatus !== "active") && (
+          <section className="mt-4">
+            <button
+              onClick={() => setShowActivity(!showActivity)}
+              className="flex w-full items-center justify-between rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 shadow-sm"
+            >
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-[#9CA3AF]" />
+                <span className="text-sm font-bold text-[#111827]">Recent Activity</span>
+              </div>
+              {showActivity ? (
+                <ChevronUp className="h-4 w-4 text-[#9CA3AF]" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-[#9CA3AF]" />
+              )}
+            </button>
+            {showActivity && (
+              <div className="mt-2 rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm">
+                <ActivityFeed positions={positions} settledCount={settledPositions.length} />
+              </div>
+            )}
+          </section>
+        )}
 
-        {/* ── Achievements ── */}
-        <AchievementsSection positions={positions} stats={stats} />
+        {/* ── Achievements (Collapsible) ── */}
+        <section className="mt-4">
+          <button
+            onClick={() => setShowAchievements(!showAchievements)}
+            className="flex w-full items-center justify-between rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 shadow-sm"
+          >
+            <div className="flex items-center gap-2">
+              <Medal className="h-4 w-4 text-[#4F46E5]" />
+              <span className="text-sm font-bold text-[#111827]">Achievements</span>
+            </div>
+            {showAchievements ? (
+              <ChevronUp className="h-4 w-4 text-[#9CA3AF]" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-[#9CA3AF]" />
+            )}
+          </button>
+          {showAchievements && (
+            <div className="mt-2 rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm">
+              <AchievementsSection positions={positions} stats={stats} />
+            </div>
+          )}
+        </section>
       </main>
 
       {selectedPosition && (
@@ -423,10 +418,10 @@ const StatCard = ({
   value: number;
   suffix?: string;
 }) => (
-  <div className="rounded-xl border border-[#E5E7EB] bg-white p-3.5 shadow-sm">
-    <div className="text-[11px] font-bold uppercase tracking-wider text-[#9CA3AF]">{label}</div>
-    <div className="mt-1">
-      <AnimatedNumber value={value} className="text-xl font-black text-[#111827]" suffix={suffix} />
+  <div className="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm">
+    <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">{label}</div>
+    <div className="mt-0.5">
+      <AnimatedNumber value={value} className="text-lg font-black text-[#111827]" suffix={suffix} />
     </div>
   </div>
 );
@@ -452,55 +447,47 @@ const PositionCard = ({
   return (
     <button
       onClick={onClick}
-
-      className="group rounded-2xl border border-[#E5E7EB] bg-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#4F46E5]/30 hover:shadow-md active:scale-[0.99]"
+      className="group rounded-2xl border border-[#E5E7EB] bg-white p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-px hover:border-[#4F46E5]/20 hover:shadow-[0_4px_16px_rgba(17,24,39,0.06)] active:scale-[0.99]"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <StatusBadge status={displayStatus} />
-        </div>
+      <div className="flex items-start justify-between gap-2">
+        <StatusBadge status={displayStatus} />
         <SideBadge side={position.side} />
       </div>
 
-      <h3 className="mt-3 line-clamp-2 text-base font-bold leading-tight text-[#111827]">
+      <h3 className="mt-2.5 line-clamp-2 text-[14px] font-bold leading-snug text-[#111827]">
         {position.marketQuestion}
       </h3>
 
       {insight.isProtected ? (
-        <div className="mt-4 rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] p-3">
-          <div className="text-sm font-bold text-[#101828]">Refund Protected</div>
-          <p className="mt-1 text-xs font-bold text-[#475467]">
-            Value appears once this market goes live.
+        <div className="mt-3 rounded-lg border border-[#C7D2FE] bg-[#EEF2FF] p-2.5">
+          <div className="text-xs font-bold text-[#101828]">Refund Protected</div>
+          <p className="mt-0.5 text-[10px] font-bold text-[#475467]">
+            Value appears once market goes live.
           </p>
         </div>
       ) : (
-        <div className="mt-4 grid grid-cols-3 gap-3 border-t border-[#F3F4F6] pt-4">
+        <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[#F3F4F6] pt-3">
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#9CA3AF]">Stake</div>
-            <div className="mt-1 text-sm font-bold text-[#111827]">{formatNaira(position.stake)}</div>
+            <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Stake</div>
+            <div className="mt-0.5 text-xs font-bold text-[#111827]">{formatNaira(position.stake)}</div>
           </div>
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#9CA3AF]">Value</div>
-            <div className="mt-1 text-sm font-bold text-[#111827]">{formatNaira(insight.currentValue)}</div>
+            <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Value</div>
+            <div className="mt-0.5 text-xs font-bold text-[#111827]">{formatNaira(insight.currentValue)}</div>
           </div>
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#9CA3AF]">P/L</div>
-            <div
-              className={`mt-1 text-sm font-bold ${
-                profitPositive ? "text-[#12B886]" : "text-[#E85D5D]"
-              }`}
-            >
-              {profitPositive ? "+" : ""}
-              {formatNaira(insight.profitLoss)}
+            <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">P/L</div>
+            <div className={`mt-0.5 text-xs font-bold ${profitPositive ? "text-[#12B886]" : "text-[#E85D5D]"}`}>
+              {profitPositive ? "+" : ""}{formatNaira(insight.profitLoss)}
             </div>
           </div>
         </div>
       )}
 
-      <div className="mt-4 flex items-center justify-between">
-        <span className="text-xs font-bold text-[#9CA3AF]">{timeLeft} left</span>
-        <span className="inline-flex items-center gap-0.5 text-xs font-bold text-[#6B7280] transition group-hover:text-[#4F46E5]">
-          View Market <ChevronRight className="h-3.5 w-3.5" />
+      <div className="mt-3 flex items-center justify-between">
+        <span className="text-[10px] font-bold text-[#9CA3AF]">{timeLeft} left</span>
+        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-[#6B7280] transition group-hover:text-[#4F46E5]">
+          View <ChevronRight className="h-3 w-3" />
         </span>
       </div>
     </button>
@@ -508,7 +495,7 @@ const PositionCard = ({
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   Status Badge
+   Status & Side Badges
    ═══════════════════════════════════════════════════════════════ */
 
 const StatusBadge = ({ status }: { status: { isOpen: boolean; label: string } }) => {
@@ -530,27 +517,17 @@ const StatusBadge = ({ status }: { status: { isOpen: boolean; label: string } })
   }
 
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${colorClasses}`}
-    >
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${colorClasses}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
       {status.label.charAt(0).toUpperCase() + status.label.slice(1)}
     </span>
   );
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   Side Badge
-   ═══════════════════════════════════════════════════════════════ */
-
 const SideBadge = ({ side }: { side?: string }) => (
-  <span
-    className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
-      side === "YES"
-        ? "bg-[#12B886]/10 text-[#047857]"
-        : "bg-[#E85D5D]/10 text-[#B42318]"
-    }`}
-  >
+  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+    side === "YES" ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#E85D5D]/10 text-[#B42318]"
+  }`}>
     {side || "N/A"}
   </span>
 );
@@ -570,32 +547,24 @@ const ActivityFeed = ({
     return positions
       .filter((p) => p.resolvedAt || p.marketStatus !== "active")
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 8);
+      .slice(0, 5);
   }, [positions]);
 
   if (activities.length === 0) return null;
 
   return (
-    <section className="mt-6 rounded-xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-base font-bold text-[#111827]">Recent Activity</h2>
-        <span className="text-xs font-bold text-[#9CA3AF]">
-          {settledCount} settled
-        </span>
+    <div className="relative">
+      <div className="absolute left-[15px] top-2 bottom-2 w-px bg-[#F3F4F6]" />
+      <div className="space-y-0">
+        {activities.map((position, index) => (
+          <ActivityItem
+            key={position.id}
+            position={position}
+            isLast={index === activities.length - 1}
+          />
+        ))}
       </div>
-      <div className="relative">
-        <div className="absolute left-[19px] top-2 bottom-2 w-px bg-[#F3F4F6]" />
-        <div className="space-y-0">
-          {activities.map((position, index) => (
-            <ActivityItem
-              key={position.id}
-              position={position}
-              isLast={index === activities.length - 1}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
+    </div>
   );
 };
 
@@ -608,76 +577,44 @@ const ActivityItem = ({
 }) => {
   const isWon = position.resolvedAt && position.isWinner;
   const isLost = position.resolvedAt && !position.isWinner;
-  const isRefunded =
-    position.status === "refunded" || position.marketStatus === "refunded";
-  const isPending = !position.resolvedAt;
+  const isRefunded = position.status === "refunded" || position.marketStatus === "refunded";
 
   let iconBg = "bg-[#F3F4F6] text-[#6B7280]";
   let Icon = Clock;
   let amountColor = "text-[#6B7280]";
-  let label = "Prediction placed";
+  let label = "Placed";
 
-  if (isWon) {
-    iconBg = "bg-[#D1FAE5] text-[#059669]";
-    Icon = Trophy;
-    amountColor = "text-[#12B886]";
-    label = "Won";
-  } else if (isLost) {
-    iconBg = "bg-[#FEE2E2] text-[#DC2626]";
-    Icon = X;
-    amountColor = "text-[#E85D5D]";
-    label = "Lost";
-  } else if (isRefunded) {
-    iconBg = "bg-[#EDE9FE] text-[#7C3AED]";
-    Icon = Shield;
-    amountColor = "text-[#4F46E5]";
-    label = "Refunded";
-  } else if (isPending) {
-    iconBg = "bg-[#FEF3C7] text-[#D97706]";
-    Icon = Clock;
-    label = "Pending";
-  }
+  if (isWon) { iconBg = "bg-[#D1FAE5] text-[#059669]"; Icon = Trophy; amountColor = "text-[#12B886]"; label = "Won"; }
+  else if (isLost) { iconBg = "bg-[#FEE2E2] text-[#DC2626]"; Icon = X; amountColor = "text-[#E85D5D]"; label = "Lost"; }
+  else if (isRefunded) { iconBg = "bg-[#EDE9FE] text-[#7C3AED]"; Icon = Shield; amountColor = "text-[#4F46E5]"; label = "Refunded"; }
 
-  const amount = position.resolvedAt
-    ? position.isWinner
-      ? position.payout || 0
-      : position.stake || 0
-    : position.stake || 0;
-
-  const dateStr = position.resolvedAt
-    ? new Date(position.resolvedAt).toLocaleDateString()
-    : new Date(position.createdAt).toLocaleDateString();
+  const amount = position.resolvedAt ? (position.isWinner ? position.payout || 0 : position.stake || 0) : position.stake || 0;
+  const dateStr = position.resolvedAt ? new Date(position.resolvedAt).toLocaleDateString() : new Date(position.createdAt).toLocaleDateString();
 
   return (
     <Link
       to={`/market/${position.marketId}`}
-      aria-label={`${label}: ${position.marketQuestion}, ${position.side}, ${formatNaira(amount)}`}
-      className="relative flex items-start gap-3 py-3 pl-0 transition hover:bg-[#F8F7F4]"
+      className="relative flex items-start gap-2.5 py-2.5 pl-0 transition hover:bg-[#F8F7F4] rounded-lg"
     >
-      <div
-        className={`relative z-10 grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl ${iconBg}`}
-      >
-        <Icon className="h-[16px] w-[16px]" />
+      <div className={`relative z-10 grid h-8 w-8 shrink-0 place-items-center rounded-lg ${iconBg}`}>
+        <Icon className="h-3.5 w-3.5" />
       </div>
       <div className="min-w-0 flex-1 pt-0.5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="truncate text-sm font-bold text-[#111827]">
+            <div className="truncate text-xs font-bold text-[#111827]">
               {position.marketQuestion}
             </div>
-            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-[#9CA3AF]">
+            <div className="mt-0.5 flex items-center gap-1 text-[10px] text-[#9CA3AF]">
               <span className="font-bold">{label}</span>
-              <span>·</span>
+              <span>&middot;</span>
               <span>{position.side}</span>
-              <span>·</span>
+              <span>&middot;</span>
               <span>{dateStr}</span>
             </div>
           </div>
-          <div className="shrink-0 text-right">
-            <div className={`text-sm font-bold ${amountColor}`}>
-              {isWon ? "+" : ""}
-              {formatNaira(amount)}
-            </div>
+          <div className={`shrink-0 text-xs font-bold ${amountColor}`}>
+            {isWon ? "+" : ""}{formatNaira(amount)}
           </div>
         </div>
       </div>
@@ -714,17 +651,11 @@ const AchievementsSection = ({
   });
 
   return (
-    <section className="mt-6 rounded-xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <Medal className="h-4 w-4 text-[#4F46E5]" />
-        <h2 className="text-base font-bold">Achievements</h2>
-      </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
-        {achievements.map((achievement) => (
-          <AchievementCard key={achievement.title} {...achievement} />
-        ))}
-      </div>
-    </section>
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+      {achievements.map((achievement) => (
+        <AchievementCard key={achievement.title} {...achievement} />
+      ))}
+    </div>
   );
 };
 
@@ -742,29 +673,18 @@ type Achievement = {
 const AchievementCard = ({
   icon: Icon,
   title,
-  description,
   unlocked,
 }: Achievement) => (
-  <div
-    className={`rounded-lg border p-3 transition ${
-      unlocked
-        ? "border-[#4F46E5]/20 bg-[#4F46E5]/[0.04]"
-        : "border-[#E5E7EB] bg-[#F8F7F4]"
-    }`}
-  >
-    <div
-      className={`mb-1.5 grid h-7 w-7 place-items-center rounded-md ${
-        unlocked ? "bg-[#4F46E5] text-white" : "bg-white text-[#9CA3AF]"
-      }`}
-    >
-      <Icon className="h-3.5 w-3.5" />
+  <div className={`rounded-lg border p-2.5 transition ${
+    unlocked ? "border-[#4F46E5]/20 bg-[#4F46E5]/[0.04]" : "border-[#E5E7EB] bg-[#F8F7F4]"
+  }`}>
+    <div className={`mb-1 grid h-6 w-6 place-items-center rounded-md ${
+      unlocked ? "bg-[#4F46E5] text-white" : "bg-white text-[#9CA3AF]"
+    }`}>
+      <Icon className="h-3 w-3" />
     </div>
-    <div className="text-xs font-bold leading-tight">{title}</div>
-    <div
-      className={`mt-0.5 text-[10px] font-bold ${
-        unlocked ? "text-[#4F46E5]" : "text-[#9CA3AF]"
-      }`}
-    >
+    <div className="text-[10px] font-bold leading-tight">{title}</div>
+    <div className={`mt-0.5 text-[9px] font-bold ${unlocked ? "text-[#4F46E5]" : "text-[#9CA3AF]"}`}>
       {unlocked ? "Unlocked" : "Locked"}
     </div>
   </div>
@@ -785,14 +705,14 @@ const EmptyState = ({
   body: string;
   action?: React.ReactNode;
 }) => (
-  <div className="grid min-h-[260px] place-items-center rounded-2xl border border-dashed border-[#E5E7EB] bg-white/60 p-6 text-center">
+  <div className="grid min-h-[220px] place-items-center rounded-2xl border border-dashed border-[#E5E7EB] bg-white/60 p-6 text-center">
     <div>
-      <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl bg-[#4F46E5]/8 text-[#4F46E5]">
-        <Icon className="h-6 w-6" strokeWidth={1.5} />
+      <div className="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-xl bg-[#4F46E5]/8 text-[#4F46E5]">
+        <Icon className="h-5 w-5" strokeWidth={1.5} />
       </div>
-      <div className="text-base font-bold">{title}</div>
-      <p className="mx-auto mt-1.5 max-w-xs text-sm text-[#9CA3AF]">{body}</p>
-      {action && <div className="mt-4">{action}</div>}
+      <div className="text-sm font-bold">{title}</div>
+      <p className="mx-auto mt-1 max-w-xs text-xs text-[#9CA3AF]">{body}</p>
+      {action && <div className="mt-3">{action}</div>}
     </div>
   </div>
 );
@@ -810,8 +730,7 @@ const getPredictionDisplayStatus = (position: ApiPosition, now = Date.now()) => 
   const closeMs = closeTime ? new Date(closeTime).getTime() : NaN;
   const hasEnded = Number.isFinite(closeMs) && closeMs <= now;
   const unresolvedClosed = hasEnded && ["active", "open", "closed"].includes(status);
-  const isOpen =
-    !hasEnded && position.marketStatus === "active" && ["active", "open"].includes(status);
+  const isOpen = !hasEnded && position.marketStatus === "active" && ["active", "open"].includes(status);
 
   return {
     isOpen,
@@ -823,9 +742,9 @@ const getPredictionDisplayStatus = (position: ApiPosition, now = Date.now()) => 
 const formatPositionCountdown = (position: ApiPosition) =>
   formatCountdown(getPredictionCloseTime(position));
 
-const formatMovement = (movement: number) => {
-  if (Math.abs(movement) < 0.5) return "0";
-  return `${movement > 0 ? "+" : ""}${movement.toFixed(0)}`;
+const getNextLevel = (current: string) => {
+  const idx = LEVELS.findIndex((l) => l.name === current);
+  return idx >= 0 && idx < LEVELS.length - 1 ? LEVELS[idx + 1].name : current;
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -837,13 +756,7 @@ type PredictionInsight = {
   currentCrowdView: number;
   movement: number;
   direction: "toward" | "against" | "unchanged";
-  directionLabel: string;
-  strength: "Excellent" | "Strong" | "Balanced" | "Weak" | "At Risk";
-  strengthDetail: string;
-  strengthTone: "green" | "neutral" | "red" | "yellow";
   multiplier: number | null;
-  multiplierLabel: string;
-  multiplierDetail: string;
   totalPool: number;
   sidePool: number;
   opposingPool: number;
@@ -861,68 +774,20 @@ const getPredictionInsight = (position: ApiPosition): PredictionInsight => {
   const sidePool = Number(position.sidePool || 0);
   const opposingPool = Number(position.opposingPool || 0);
   const stake = Number(position.stake || 0);
-  const currentValue = Number(
-    position.currentValue || position.positionValue || position.projectedPayout || 0
-  );
-  const profitLoss =
-    currentValue > 0
-      ? currentValue - stake
-      : Number(position.projectedProfit || position.estimatedProfit || 0);
-  const isProtected =
-    totalPool < MARKET_ACTIVATION_REQUIREMENTS.totalPool ||
-    sidePool < MARKET_ACTIVATION_REQUIREMENTS.yesPool ||
-    opposingPool < MARKET_ACTIVATION_REQUIREMENTS.noPool;
+  const currentValue = Number(position.currentValue || position.positionValue || position.projectedPayout || 0);
+  const profitLoss = currentValue > 0 ? currentValue - stake : Number(position.projectedProfit || position.estimatedProfit || 0);
+  const isProtected = totalPool < MARKET_ACTIVATION_REQUIREMENTS.totalPool || sidePool < MARKET_ACTIVATION_REQUIREMENTS.yesPool || opposingPool < MARKET_ACTIVATION_REQUIREMENTS.noPool;
   const projectedPayout = Number(position.projectedPayout || position.estimatedPayout || 0);
-  const fallbackPayout =
-    opposingPool > 0 && sidePool > 0 && stake > 0
-      ? stake + (stake / sidePool) * opposingPool
-      : 0;
+  const fallbackPayout = opposingPool > 0 && sidePool > 0 && stake > 0 ? stake + (stake / sidePool) * opposingPool : 0;
   const currentPayoutEstimate = projectedPayout > 0 ? projectedPayout : fallbackPayout;
-  const multiplier =
-    !isProtected && opposingPool > 0 && stake > 0 && currentPayoutEstimate > 0
-      ? currentPayoutEstimate / stake
-      : null;
-
-  let strength: PredictionInsight["strength"] = "Balanced";
-  let strengthTone: PredictionInsight["strengthTone"] = "neutral";
-  let strengthDetail = "The crowd view is close to where you entered.";
-  if (movement >= 15) {
-    strength = "Excellent";
-    strengthTone = "green";
-    strengthDetail = "The crowd has moved sharply toward your side.";
-  } else if (movement >= 5) {
-    strength = "Strong";
-    strengthTone = "green";
-    strengthDetail = "The crowd is moving toward your opinion.";
-  } else if (movement <= -15) {
-    strength = "At Risk";
-    strengthTone = "red";
-    strengthDetail = "The crowd has moved sharply away from your side.";
-  } else if (movement <= -5) {
-    strength = "Weak";
-    strengthTone = "yellow";
-    strengthDetail = "The crowd is moving against your opinion.";
-  }
+  const multiplier = !isProtected && opposingPool > 0 && stake > 0 && currentPayoutEstimate > 0 ? currentPayoutEstimate / stake : null;
 
   return {
     entryCrowdView,
     currentCrowdView,
     movement,
     direction,
-    directionLabel:
-      direction === "toward"
-        ? "Crowd moved toward you"
-        : direction === "against"
-          ? "Crowd moved against you"
-          : "Crowd unchanged",
-    strength,
-    strengthDetail,
-    strengthTone,
     multiplier,
-    multiplierLabel: multiplier ? `${multiplier.toFixed(2)}x stake` : "Refund Protected",
-    multiplierDetail: multiplier
-      ? "This changes as people join either side. Final payout is calculated after resolution."
-      : "Value appears once the market goes live.",
     totalPool,
     sidePool,
     opposingPool,
@@ -930,24 +795,6 @@ const getPredictionInsight = (position: ApiPosition): PredictionInsight => {
     currentValue,
     profitLoss,
   };
-};
-
-/* ═══════════════════════════════════════════════════════════════
-   Movement Pill
-   ═══════════════════════════════════════════════════════════════ */
-
-const MovementPill = ({ movement }: { movement?: number }) => {
-  if (!movement || Math.abs(movement) < 0.5) return null;
-  const positive = movement > 0;
-  return (
-    <span
-      className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-        positive ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#E85D5D]/10 text-[#B42318]"
-      }`}
-    >
-      {formatMovement(movement)}
-    </span>
-  );
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -959,29 +806,18 @@ const Metric = ({
   value,
   large = false,
   tone = "neutral",
-  movement,
 }: {
   label: string;
   value: string;
   large?: boolean;
   tone?: "neutral" | "green" | "red";
-  movement?: number;
 }) => (
-  <div className="min-w-0 transition-colors duration-300">
-    <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6B7280]">{label}</div>
-    <div
-      className={`mt-2 flex items-center font-bold transition-all duration-300 ${
-        large ? "text-2xl" : "text-sm"
-      } ${
-        tone === "green"
-          ? "text-[#12B886]"
-          : tone === "red"
-            ? "text-[#E85D5D]"
-            : "text-[#111827]"
-      }`}
-    >
+  <div className="min-w-0">
+    <div className="text-[9px] font-bold uppercase tracking-wider text-[#6B7280]">{label}</div>
+    <div className={`mt-1 font-bold ${large ? "text-xl" : "text-sm"} ${
+      tone === "green" ? "text-[#12B886]" : tone === "red" ? "text-[#E85D5D]" : "text-[#111827]"
+    }`}>
       {value}
-      <MovementPill movement={movement} />
     </div>
   </div>
 );
@@ -1012,21 +848,9 @@ const PredictionDetailModal = ({
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
-  const optionalPoolMetrics = [
-    insight.totalPool > 0 ? { label: "Total Pool", value: formatNaira(insight.totalPool) } : null,
-    insight.sidePool > 0 ? { label: "Your Side Pool", value: formatNaira(insight.sidePool) } : null,
-    insight.opposingPool > 0
-      ? { label: "Opposing Pool", value: formatNaira(insight.opposingPool) }
-      : null,
-    shares > 0 ? { label: "Units", value: shares.toFixed(2) } : null,
-    { label: "Status", value: displayStatus },
-  ].filter(Boolean) as Array<{ label: string; value: string }>;
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onCloseRef.current();
-      }
+      if (e.key === "Escape") onCloseRef.current();
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
@@ -1047,51 +871,48 @@ const PredictionDetailModal = ({
       role="dialog"
       aria-modal="true"
       aria-label="Prediction details"
-      className="fixed inset-0 z-[70] flex animate-in fade-in duration-200 items-end justify-center bg-black/70 px-3 pb-[calc(84px+env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-6"
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 px-3 pb-[calc(84px+env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-6"
     >
-      <section className="max-h-[88vh] w-full max-w-2xl animate-in slide-in-from-bottom-4 duration-300 overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_24px_90px_rgba(17,24,39,0.18)] sm:zoom-in-95">
+      <section className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_24px_90px_rgba(17,24,39,0.18)]">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#E5E7EB] bg-white/95 p-4 backdrop-blur">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#6B7280]">
-              Prediction detail
-            </p>
-            <h2 className="mt-1 text-lg font-bold text-[#111827]">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">Prediction detail</p>
+            <h2 className="mt-0.5 text-base font-bold text-[#111827]">
               Your {position.side || "selected"} prediction
             </h2>
           </div>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827]"
+            className="grid h-9 w-9 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827]"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="space-y-4 p-4 sm:p-5">
+        <div className="space-y-3 p-4">
           <div>
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <h3 className="text-xl font-bold leading-tight">{marketQuestion}</h3>
+            <div className="mb-2.5 flex items-start justify-between gap-2">
+              <h3 className="text-lg font-bold leading-tight">{marketQuestion}</h3>
               <SideBadge side={position.side} />
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[#E5E7EB] pt-4 sm:grid-cols-4">
-              <Metric label="Amount backed" value={formatNaira(position.stake)} />
-              <Metric label="Your pick" value={position.side || "N/A"} />
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-[#E5E7EB] pt-3">
+              <Metric label="Amount" value={formatNaira(position.stake)} />
+              <Metric label="Side" value={position.side || "N/A"} />
               <Metric label="Time left" value={timeLeft} />
               <Metric label="Status" value={displayStatus} />
             </div>
           </div>
 
           {insight.isProtected ? (
-            <section className="rounded-2xl border border-[#C7D2FE] bg-[#EEF2FF] p-4">
-              <h4 className="text-base font-bold text-[#101828]">Refund Protected</h4>
-              <p className="mt-2 text-sm font-bold leading-6 text-[#344054]">
-                Your stake is protected if this market does not reach enough activity before closing.
-                Value appears once this market goes live.
+            <section className="rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] p-3">
+              <h4 className="text-sm font-bold text-[#101828]">Refund Protected</h4>
+              <p className="mt-1 text-xs font-bold leading-relaxed text-[#344054]">
+                Your stake is protected. Value appears once market goes live.
               </p>
             </section>
           ) : (
-            <section className="grid grid-cols-2 gap-4 border-t border-[#E5E7EB] pt-4">
+            <section className="grid grid-cols-2 gap-3 border-t border-[#E5E7EB] pt-3">
               <Metric label="Current Value" value={formatNaira(insight.currentValue)} large />
               <Metric
                 label="Profit/Loss"
@@ -1102,86 +923,32 @@ const PredictionDetailModal = ({
             </section>
           )}
 
-          <details className="group border-t border-[#E5E7EB] pt-4">
+          <details className="group border-t border-[#E5E7EB] pt-3">
             <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-bold text-[#111827]">
               More Details
               <span className="text-xs font-bold text-[#6B7280] group-open:hidden">Show</span>
               <span className="hidden text-xs font-bold text-[#6B7280] group-open:inline">Hide</span>
             </summary>
-            <div className="mt-4 space-y-5">
-              <section>
-                <h4 className="text-sm font-bold">Market View</h4>
-                <div className="mt-3 grid gap-x-4 gap-y-3 sm:grid-cols-3">
-                  <Metric
-                    label="Entry market view"
-                    value={
-                      insight.entryCrowdView ? formatNairaPrice(insight.entryCrowdView) : "-"
-                    }
-                  />
-                  <Metric
-                    label="Current market view"
-                    value={
-                      insight.currentCrowdView ? formatNairaPrice(insight.currentCrowdView) : "-"
-                    }
-                    movement={insight.movement}
-                  />
-                  <Metric
-                    label="Movement"
-                    value={formatMovement(insight.movement)}
-                    tone={
-                      insight.direction === "toward"
-                        ? "green"
-                        : insight.direction === "against"
-                          ? "red"
-                          : "neutral"
-                    }
-                  />
-                </div>
-              </section>
-
-              {optionalPoolMetrics.length > 0 && (
-                <section>
-                  <h4 className="text-sm font-bold">Pool Snapshot</h4>
-                  <div className="mt-3 grid gap-x-4 gap-y-3 sm:grid-cols-2">
-                    {optionalPoolMetrics.map((metric) => (
-                      <Metric key={metric.label} label={metric.label} value={metric.value} />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              <section>
-                <h4 className="text-sm font-bold">Prediction history</h4>
-                <div className="mt-2 text-sm font-bold text-[#6B7280]">
-                  You predicted {position.side} with {formatNaira(position.stake)} on{" "}
-                  {new Date(position.createdAt).toLocaleString()}.
-                </div>
-              </section>
-
-              <section>
-                <h4 className="text-sm font-bold">Rules and resolution</h4>
-                <p className="mt-2 text-sm leading-relaxed text-[#6B7280]">
-                  {rules || "Open the market to review the full rules and resolution criteria."}
-                </p>
-                <p className="mt-3 text-xs font-bold text-[#6B7280]">
-                  Resolution source:{" "}
-                  {resolutionSource || "Shown on the market page when available."}
-                </p>
-                {getPredictionCloseTime(position) && (
-                  <p className="mt-2 text-xs font-bold text-[#6B7280]">
-                    Trading close time:{" "}
-                    {new Date(getPredictionCloseTime(position)).toLocaleString()}
-                  </p>
-                )}
-              </section>
+            <div className="mt-3 space-y-3">
+              <div className="grid gap-x-3 gap-y-2 sm:grid-cols-3">
+                <Metric label="Entry price" value={insight.entryCrowdView ? formatNairaPrice(insight.entryCrowdView) : "-"} />
+                <Metric label="Current price" value={insight.currentCrowdView ? formatNairaPrice(insight.currentCrowdView) : "-"} />
+                <Metric label="Movement" value={`${insight.movement > 0 ? "+" : ""}${insight.movement.toFixed(0)}`} tone={insight.direction === "toward" ? "green" : insight.direction === "against" ? "red" : "neutral"} />
+              </div>
+              {shares > 0 && <Metric label="Units" value={shares.toFixed(2)} />}
+              <div className="text-xs font-bold text-[#6B7280]">
+                Predicted {position.side} with {formatNaira(position.stake)} on {new Date(position.createdAt).toLocaleString()}.
+              </div>
+              {rules && <p className="text-xs leading-relaxed text-[#6B7280]">{rules}</p>}
+              {resolutionSource && <p className="text-[10px] font-bold text-[#9CA3AF]">Source: {resolutionSource}</p>}
             </div>
           </details>
 
           <button
             onClick={onViewMarket}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#4F46E5] text-sm font-bold text-white transition hover:bg-[#4338CA]"
+            className="flex h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-[#4F46E5] text-sm font-bold text-white transition hover:bg-[#4338CA]"
           >
-            View Market <ArrowRight className="h-4 w-4" />
+            View Market <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>
       </section>
@@ -1210,72 +977,17 @@ const getAchievements = ({
   level: string;
   rank: number | null;
 }): Achievement[] => [
-  {
-    icon: Target,
-    title: "First Prediction",
-    description: "Lock your first prediction.",
-    unlocked: totalPredictions >= 1,
-  },
-  {
-    icon: Trophy,
-    title: "First Win",
-    description: "Resolve a market correctly.",
-    unlocked: wins >= 1,
-  },
-  {
-    icon: Flame,
-    title: "3 Win Streak",
-    description: "Win three resolved markets in a row.",
-    unlocked: currentStreak >= 3 || bestStreak >= 3,
-  },
-  {
-    icon: Flame,
-    title: "5 Win Streak",
-    description: "Build a five-win streak.",
-    unlocked: currentStreak >= 5 || bestStreak >= 5,
-  },
-  {
-    icon: CheckCircle,
-    title: "10 Predictions",
-    description: "Join ten markets.",
-    unlocked: totalPredictions >= 10,
-  },
-  {
-    icon: CheckCircle,
-    title: "50 Predictions",
-    description: "Join fifty markets.",
-    unlocked: totalPredictions >= 50,
-  },
-  {
-    icon: Award,
-    title: "60% Accuracy",
-    description: "Reach 60% accuracy from resolved predictions.",
-    unlocked: accuracy >= 60,
-  },
-  {
-    icon: Award,
-    title: "70% Accuracy",
-    description: "Reach 70% accuracy from resolved predictions.",
-    unlocked: accuracy >= 70,
-  },
-  {
-    icon: Medal,
-    title: "Top 100 Forecaster",
-    description: "Reach the top 100 on the real leaderboard.",
-    unlocked: Boolean(rank && rank <= 100),
-  },
-  {
-    icon: Trophy,
-    title: "Top 10 Forecaster",
-    description: "Reach the top 10 on the real leaderboard.",
-    unlocked: Boolean(rank && rank <= 10),
-  },
-  {
-    icon: Medal,
-    title: "Elite Forecaster",
-    description: "Reach the Elite Forecaster level.",
-    unlocked: ["Elite Forecaster", "Market Master"].includes(level),
-  },
+  { icon: Target, title: "First Prediction", description: "", unlocked: totalPredictions >= 1 },
+  { icon: Trophy, title: "First Win", description: "", unlocked: wins >= 1 },
+  { icon: Flame, title: "3 Win Streak", description: "", unlocked: currentStreak >= 3 || bestStreak >= 3 },
+  { icon: Flame, title: "5 Win Streak", description: "", unlocked: currentStreak >= 5 || bestStreak >= 5 },
+  { icon: CheckCircle, title: "10 Predictions", description: "", unlocked: totalPredictions >= 10 },
+  { icon: CheckCircle, title: "50 Predictions", description: "", unlocked: totalPredictions >= 50 },
+  { icon: Award, title: "60% Accuracy", description: "", unlocked: accuracy >= 60 },
+  { icon: Award, title: "70% Accuracy", description: "", unlocked: accuracy >= 70 },
+  { icon: Medal, title: "Top 100", description: "", unlocked: Boolean(rank && rank <= 100) },
+  { icon: Trophy, title: "Top 10", description: "", unlocked: Boolean(rank && rank <= 10) },
+  { icon: Medal, title: "Elite Forecaster", description: "", unlocked: ["Elite Forecaster", "Market Master"].includes(level) },
 ];
 
 /* ═══════════════════════════════════════════════════════════════

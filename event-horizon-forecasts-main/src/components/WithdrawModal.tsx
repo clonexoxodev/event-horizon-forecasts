@@ -147,7 +147,7 @@ export const WithdrawModal = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent aria-label="Withdraw funds" className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-0 text-[#111827] shadow-modal sm:max-w-md">
+      <DialogContent aria-label="Withdraw funds" className="max-h-[90vh] overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white p-0 text-[#111827] shadow-modal sm:max-w-md">
         <div className="h-1 w-full bg-[#E85D5D]" />
         {success ? (
           <div className="p-8 text-center">
@@ -361,7 +361,7 @@ export const WithdrawModal = ({
                 belowMinimum ||
                 missingBankDetails
               }
-              className="h-12 w-full rounded-xl bg-[#E85D5D] text-sm font-black text-white transition hover:bg-[#f07575] hover:shadow-[0_4px_14px_rgba(232,93,93,0.35)] disabled:opacity-50"
+              className="sticky bottom-0 h-12 w-full rounded-xl bg-[#E85D5D] text-sm font-black text-white shadow-lg transition hover:bg-[#f07575] hover:shadow-[0_4px_14px_rgba(232,93,93,0.35)] disabled:opacity-50"
             >
               {loading ? (
                 <span className="flex items-center gap-2">

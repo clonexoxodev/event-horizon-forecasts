@@ -61,7 +61,7 @@ export const DepositModal = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent aria-label="Deposit funds" className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-0 text-[#111827] shadow-modal sm:max-w-md">
+      <DialogContent aria-label="Deposit funds" className="max-h-[90vh] overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white p-0 text-[#111827] shadow-modal sm:max-w-md">
         <div className="h-1 w-full bg-[#4F46E5]" />
         <div className="p-6">
           <div className="mb-6 flex items-start justify-between">
@@ -145,7 +145,7 @@ export const DepositModal = ({
           <Button
             onClick={handleContinue}
             disabled={loading || numAmount <= 0}
-            className="h-12 w-full rounded-xl bg-[#4F46E5] text-sm font-black text-white transition hover:bg-[#4338CA] hover:shadow-[0_4px_14px_rgba(79,70,229,0.4)] disabled:opacity-50"
+            className="sticky bottom-0 h-12 w-full rounded-xl bg-[#4F46E5] text-sm font-black text-white shadow-lg transition hover:bg-[#4338CA] hover:shadow-[0_4px_14px_rgba(79,70,229,0.4)] disabled:opacity-50"
           >
             {loading ? (
               <span className="flex items-center gap-2">

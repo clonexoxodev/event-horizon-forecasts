@@ -110,20 +110,20 @@ const Index = () => {
   return (
     <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
-      <main className="mx-auto max-w-[1320px] px-4 py-6 sm:px-6 lg:py-8">
+      <main className="mx-auto max-w-[1320px] px-4 py-5 sm:px-6 lg:py-6">
 
-        {/* ── Mobile Header ── */}
-        <section className="mb-6 flex items-center justify-between gap-3 md:hidden">
-          <Link to="/" className="flex items-center gap-2.5">
+        {/* ── Mobile Top Bar ── */}
+        <section className="mb-5 flex items-center justify-between gap-3 md:hidden">
+          <Link to="/" className="flex items-center gap-2">
             <FlippeSymbol size="sm" />
-            <span className="text-lg font-extrabold tracking-[0.04em] text-[#111827]">FLIPPE</span>
+            <span className="text-base font-extrabold tracking-[0.04em] text-[#111827]">FLIPPE</span>
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Link
               to="/wallet"
-              className="flex items-center gap-1.5 rounded-full border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-bold text-[#111827] shadow-sm"
+              className="flex items-center gap-1 rounded-full border border-[#E5E7EB] bg-white px-2.5 py-1 text-[11px] font-bold text-[#111827] shadow-sm"
             >
-              <Wallet className="h-3.5 w-3.5 text-[#4F46E5]" />
+              <Wallet className="h-3 w-3 text-[#4F46E5]" />
               {formatNaira(user?.balance || 0)}
             </Link>
             <NotificationBell />
@@ -132,43 +132,39 @@ const Index = () => {
 
         {/* ── Hero ── */}
         {!isSearching && category === "Trending" && (
-          <section className="mb-8">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h1 className="text-3xl font-black tracking-tight text-[#111827] sm:text-4xl">
-                  {heroGreeting}
-                </h1>
-                <p className="mt-2 text-sm font-medium text-[#6B7280]">
-                  {liveCount > 0 ? `${liveCount} live markets` : "Loading markets..."}
-                </p>
-              </div>
-            </div>
+          <section className="mb-6">
+            <h1 className="text-2xl font-black tracking-tight text-[#111827] sm:text-3xl">
+              {heroGreeting}
+            </h1>
+            <p className="mt-1 text-sm font-medium text-[#9CA3AF]">
+              {liveCount > 0 ? `${liveCount} live markets` : "Loading markets..."}
+            </p>
           </section>
         )}
 
         {/* ── Search Bar ── */}
-        <section className="mb-5">
+        <section className="mb-4">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#9CA3AF]" />
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
             <input
               ref={searchInputRef}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search markets"
+              placeholder="Search markets..."
               aria-label="Search markets"
               role="searchbox"
-              className="h-12 w-full rounded-2xl border border-[#E5E7EB] bg-white pl-11 pr-20 text-[15px] font-bold text-[#111827] shadow-sm outline-none placeholder:text-[#9CA3AF] focus:border-[#4F46E5]/60 focus:ring-4 focus:ring-[#4F46E5]/10 transition-all"
+              className="h-11 w-full rounded-xl border border-[#E5E7EB] bg-white pl-10 pr-16 text-[14px] font-medium text-[#111827] shadow-sm outline-none placeholder:text-[#9CA3AF] focus:border-[#4F46E5]/50 focus:ring-2 focus:ring-[#4F46E5]/10 transition-all"
             />
-            <kbd className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-lg border border-[#E5E7EB] bg-[#F3F4F6] px-2 py-0.5 text-[11px] font-bold text-[#9CA3AF] shadow-sm">
+            <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-md border border-[#E5E7EB] bg-[#F3F4F6] px-1.5 py-0.5 text-[10px] font-bold text-[#9CA3AF]">
               Ctrl K
             </kbd>
           </div>
         </section>
 
         {/* ── Category Pills ── */}
-        <section className="mb-6">
+        <section className="mb-5">
           <div
-            className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
+            className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none"
             style={{ WebkitOverflowScrolling: "touch", scrollBehavior: "smooth" }}
             role="tablist"
           >
@@ -180,13 +176,16 @@ const Index = () => {
                   onClick={() => setCategory(chip)}
                   role="tab"
                   aria-selected={category === chip}
-                  className={`relative shrink-0 rounded-full px-4 py-2 text-sm font-bold transition-all duration-200 ${
+                  className={`relative shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-all duration-200 ${
                     category === chip
                       ? "bg-[#4F46E5] text-white shadow-[0_2px_8px_rgba(79,70,229,0.25)]"
                       : "border border-[#E5E7EB] bg-white text-[#667085] hover:border-[#C7D2FE] hover:text-[#111827]"
                   }`}
                 >
                   {chip}
+                  {count > 0 && category !== chip && (
+                    <span className="ml-1 text-[10px] opacity-60">{count}</span>
+                  )}
                 </button>
               );
             })}
@@ -195,14 +194,14 @@ const Index = () => {
 
         {/* ── Market Grid ── */}
         <section>
-          <div className="mb-5">
-            <h2 className="text-xl font-black tracking-tight">{sectionTitle}</h2>
+          <div className="mb-4">
+            <h2 className="text-lg font-black tracking-tight">{sectionTitle}</h2>
           </div>
 
           {isLoadingMarkets && markets.length === 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
               {[1, 2, 3, 4, 5, 6].map((item) => (
-                <div key={item} className="h-64 rounded-2xl border border-[#E5E7EB] soft-shimmer" />
+                <div key={item} className="h-56 rounded-2xl border border-[#E5E7EB] soft-shimmer" />
               ))}
             </div>
           ) : marketError && filtered.length === 0 ? (
@@ -217,7 +216,7 @@ const Index = () => {
               </button>
             </div>
           ) : filtered.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3" role="list">
+            <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3" role="list">
               {filtered.map((market, index) => (
                 <div
                   key={market.id}
@@ -231,15 +230,15 @@ const Index = () => {
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-[#D1D5DB] bg-white/60 p-12 text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#4F46E5]/8">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[#4F46E5]/8">
                 {isSearching ? (
-                  <Search className="h-6 w-6 text-[#4F46E5]" />
+                  <Search className="h-5 w-5 text-[#4F46E5]" />
                 ) : (
-                  <Sparkles className="h-6 w-6 text-[#4F46E5]" />
+                  <Sparkles className="h-5 w-5 text-[#4F46E5]" />
                 )}
               </div>
-              <h3 className="text-lg font-bold">{emptyTitle}</h3>
-              <p className="mt-2 max-w-sm mx-auto text-sm text-[#6B7280]">
+              <h3 className="text-base font-bold">{emptyTitle}</h3>
+              <p className="mt-1.5 max-w-sm mx-auto text-sm text-[#9CA3AF]">
                 {emptyBody}
               </p>
             </div>
