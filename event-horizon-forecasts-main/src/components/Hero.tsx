@@ -8,7 +8,7 @@ export const Hero = () => {
       <div className="pointer-events-none absolute -bottom-16 -left-16 h-72 w-72 rounded-full bg-[#4F46E5]/6 blur-3xl" aria-hidden="true" />
 
       <div className="container relative mx-auto max-w-5xl px-4 py-16 text-center md:py-24">
-        <span className="inline-flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-[#667085]">
+        <span className="inline-flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-white px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-[#667085]">
           <span className="h-1.5 w-1.5 rounded-full bg-[#12B886]" />
           Prediction markets for Africa
         </span>
@@ -21,14 +21,14 @@ export const Hero = () => {
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
             to="/markets"
-            className="inline-flex h-12 items-center justify-center rounded-xl bg-[#12B886] px-6 text-sm font-black text-[#06100d] shadow-sm transition hover:bg-[#2dd4a0] hover:shadow-md active:scale-[0.98]"
+            className="inline-flex h-12 items-center justify-center rounded-xl bg-[#12B886] px-6 text-sm font-bold text-[#06100d] shadow-sm transition hover:bg-[#2dd4a0] hover:shadow-md active:scale-[0.98]"
           >
             <TrendingUp className="mr-2 h-4 w-4" />
             Explore markets
           </Link>
           <Link
             to="/how-it-works"
-            className="inline-flex h-12 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-6 text-sm font-black text-[#344054] transition hover:bg-[#F3F4F6] active:scale-[0.98]"
+            className="inline-flex h-12 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-6 text-sm font-bold text-[#344054] transition hover:bg-[#F3F4F6] active:scale-[0.98]"
           >
             How it works
           </Link>
@@ -47,7 +47,7 @@ export const Hero = () => {
 const Feature = ({ icon, title, body, ariaLabel }: { icon: React.ReactNode; title: string; body: string; ariaLabel?: string }) => (
   <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5 text-left shadow-sm" aria-label={ariaLabel}>
     <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#F3F4F6] text-[#12B886]">{icon}</div>
-    <h3 className="mt-3 text-sm font-black text-[#101828]">{title}</h3>
+    <h3 className="mt-3 text-sm font-bold text-[#101828]">{title}</h3>
     <p className="mt-1 text-xs font-medium leading-5 text-[#667085]">{body}</p>
   </div>
 );

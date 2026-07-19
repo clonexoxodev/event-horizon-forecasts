@@ -257,7 +257,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
               onClick={handleConfirm}
               disabled={!isFormValid}
               aria-disabled={!isFormValid}
-              className={`h-13 w-full rounded-xl text-base font-black text-white transition ${
+              className={`h-12 w-full rounded-xl text-base font-bold text-white transition ${
                 isPositiveSide
                   ? "bg-[#12B886] text-[#06100d] hover:bg-[#2dd4a0]"
                   : "bg-[#E85D5D] hover:bg-[#f07575]"

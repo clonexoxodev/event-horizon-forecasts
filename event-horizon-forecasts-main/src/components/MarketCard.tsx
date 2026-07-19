@@ -96,16 +96,16 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
 
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex flex-wrap items-center gap-1.5">
-            <span className="rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[10px] font-black text-[#667085]">
+            <span className="rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[10px] font-bold text-[#667085]">
               {categoryLabel}
             </span>
             {isLive && activation.isProtected ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#C7D2FE] bg-[#EEF2FF] px-2 py-0.5 text-[10px] font-black text-[#4F46E5]">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#C7D2FE] bg-[#EEF2FF] px-2 py-0.5 text-[10px] font-bold text-[#4F46E5]">
                 <Shield className="h-3 w-3" aria-hidden="true" />
                 <span>{activation.progress}% Protected</span>
               </span>
             ) : isLive ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#12B886]/10 px-2 py-0.5 text-[10px] font-black text-[#047857]">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#12B886]/10 px-2 py-0.5 text-[10px] font-bold text-[#047857]">
                 <span className="relative flex h-1.5 w-1.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#12B886] opacity-75" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#12B886]" />
@@ -113,7 +113,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
                 <span>Live</span>
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[10px] font-black text-[#667085]">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[10px] font-bold text-[#667085]">
                 Closed
               </span>
             )}
@@ -164,7 +164,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
           </div>
         </div>
       ) : (
-        <div className="mt-3 flex items-center gap-3 text-[11px] font-black">
+        <div className="mt-3 flex items-center gap-3 text-[11px] font-bold">
           <span className="text-[#047857]">YES {formatNairaPrice(m.yesPrice)}</span>
           <span className="text-[#B42318]">NO {formatNairaPrice(m.noPrice)}</span>
         </div>
@@ -179,7 +179,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
           {formatCountdown(tradingCloseTime, m.closesIn)}
         </span>
         <span
-          className={`ml-auto shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${
+          className={`ml-auto shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
             isLive ? "bg-[#EEF2FF] text-[#4F46E5]" : "bg-[#F3F4F6] text-[#667085]"
           }`}
         >
@@ -216,8 +216,8 @@ const PriceButton = ({
         : "border-[#E85D5D]/25 bg-[#E85D5D]/10 text-[#B42318] hover:border-[#E85D5D]/40 hover:bg-[#E85D5D]/20"
     }`}
   >
-    <span className="block text-[10px] font-black uppercase text-[#6B7280]">{label}</span>
-    <span className="mt-0.5 block text-[15px] font-black">
+    <span className="block text-[10px] font-bold uppercase text-[#6B7280]">{label}</span>
+    <span className="mt-0.5 block text-[15px] font-bold">
       <AnimatedNumber value={value} prefix={nairaSymbol} />
     </span>
   </button>

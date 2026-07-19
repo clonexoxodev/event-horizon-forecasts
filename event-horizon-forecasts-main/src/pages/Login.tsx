@@ -136,7 +136,7 @@ export default function Login() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="group h-12 w-full rounded-xl bg-[#4F46E5] text-sm font-black text-white transition hover:bg-[#4338CA] hover:shadow-[0_4px_14px_rgba(79,70,229,0.4)] disabled:opacity-50"
+                className="group h-12 w-full rounded-xl bg-[#4F46E5] text-sm font-bold text-white transition hover:bg-[#4338CA] hover:shadow-[0_4px_14px_rgba(79,70,229,0.4)] disabled:opacity-50"
               >
                 {loading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -153,7 +153,7 @@ export default function Login() {
               Don't have an account?{" "}
               <Link
                 to="/signup"
-                className="font-black text-[#4F46E5] transition hover:text-[#6366F1]"
+                className="font-bold text-[#4F46E5] transition hover:text-[#6366F1]"
               >
                 Sign up
               </Link>

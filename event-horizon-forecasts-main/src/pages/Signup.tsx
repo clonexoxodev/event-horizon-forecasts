@@ -133,7 +133,7 @@ export default function Signup() {
                 <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-[#12B886]/10 text-[#047857]">
                   <CheckCircle className="h-8 w-8" />
                 </div>
-                <h3 className="mb-2 text-lg font-black text-[#111827]">
+                <h3 className="mb-2 text-lg font-bold text-[#111827]">
                   Account created
                 </h3>
                 <p className="text-sm text-[#6B7280]">
@@ -302,7 +302,7 @@ export default function Signup() {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="group h-12 w-full rounded-xl bg-[#4F46E5] text-sm font-black text-white transition hover:bg-[#4338CA] hover:shadow-[0_4px_14px_rgba(79,70,229,0.4)] disabled:opacity-50"
+                    className="group h-12 w-full rounded-xl bg-[#4F46E5] text-sm font-bold text-white transition hover:bg-[#4338CA] hover:shadow-[0_4px_14px_rgba(79,70,229,0.4)] disabled:opacity-50"
                   >
                     {loading ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
@@ -324,7 +324,7 @@ export default function Signup() {
                   Already have an account?{" "}
                   <Link
                     to="/login"
-                    className="font-black text-[#4F46E5] transition hover:text-[#6366F1]"
+                    className="font-bold text-[#4F46E5] transition hover:text-[#6366F1]"
                   >
                     Log in
                   </Link>

@@ -354,12 +354,12 @@ export default function MarketDetail() {
       <Header />
       <main
         className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:py-6"
-        data-now={now}
+
       >
         <div className="mb-6 flex items-center justify-between">
           <Link
             to="/"
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm font-black text-[#6B7280] transition hover:text-[#111827]"
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm font-bold text-[#6B7280] transition hover:text-[#111827]"
           >
             <ArrowLeft className="h-4 w-4" />
             Home
@@ -397,11 +397,11 @@ export default function MarketDetail() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="mb-2.5 flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-[#F3F4F6] px-2.5 py-1 text-[11px] font-black text-[#667085]">
+                    <span className="rounded-full bg-[#F3F4F6] px-2.5 py-1 text-[11px] font-bold text-[#667085]">
                       {marketCategoryLabel}
                     </span>
                     <span
-                      className={`rounded-full px-2.5 py-1 text-[11px] font-black ${marketIsActive
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${marketIsActive
                         ? activation.isProtected
                           ? "bg-[#EEF2FF] text-[#4F46E5]"
                           : "bg-[#12B886]/10 text-[#047857]"
@@ -442,11 +442,11 @@ export default function MarketDetail() {
                         <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#4F46E5] text-white">
                           <Shield className="h-4.5 w-4.5" />
                         </div>
-                        <div className="text-sm font-black text-[#101828]">
+                        <div className="text-sm font-bold text-[#101828]">
                           Protected Market
                         </div>
                       </div>
-                      <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#4F46E5] shadow-sm">
+                      <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-[#4F46E5] shadow-sm">
                         Refund Protected
                       </span>
                     </div>
@@ -454,7 +454,7 @@ export default function MarketDetail() {
                     <div className="mt-4">
                       <div className="flex items-center justify-between text-xs font-bold text-[#475467]">
                         <span>Progress</span>
-                        <span className="font-black text-[#4F46E5]">
+                        <span className="font-bold text-[#4F46E5]">
                           {Math.round(activation.progress)}%
                         </span>
                       </div>
@@ -489,7 +489,7 @@ export default function MarketDetail() {
             <section className="mt-8">
               <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="text-xl font-black text-[#101828]">
+                  <h2 className="text-xl font-bold text-[#101828]">
                     Crowd View movement
                   </h2>
                   <p className="mt-0.5 text-sm font-semibold text-[#667085]">
@@ -501,7 +501,7 @@ export default function MarketDetail() {
                     <button
                       key={item}
                       onClick={() => setTimeframe(item)}
-                      className={`rounded-full px-4 py-1.5 text-xs font-black transition-all duration-200 ${timeframe === item
+                      className={`rounded-full px-4 py-1.5 text-xs font-bold transition-all duration-200 ${timeframe === item
                         ? "bg-white text-[#111827] shadow-sm"
                         : "text-[#667085] hover:text-[#101828]"
                       }`}
@@ -519,7 +519,7 @@ export default function MarketDetail() {
                 onClick={() => setRulesExpanded(!rulesExpanded)}
                 className="flex w-full items-center justify-between text-left"
               >
-                <h2 className="text-lg font-black text-[#101828]">
+                <h2 className="text-lg font-bold text-[#101828]">
                   Rules & timeline
                 </h2>
                 <div className="grid h-8 w-8 place-items-center rounded-lg bg-[#F3F4F6] text-[#667085]">
@@ -558,7 +558,7 @@ export default function MarketDetail() {
             disabled={!marketIsActive}
             aria-label={`Back YES at ${formatNairaPrice(market.yesPrice)}`}
             onClick={() => setSheetSide("YES")}
-            className="group relative h-12 overflow-hidden rounded-xl bg-gradient-to-r from-[#12B886] to-[#10B981] text-sm font-black text-white shadow-lg shadow-[#12B886]/25 transition-all duration-200 hover:shadow-xl hover:shadow-[#12B886]/30 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#12B886] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-500 disabled:shadow-none"
+            className="group relative h-12 overflow-hidden rounded-xl bg-gradient-to-r from-[#12B886] to-[#10B981] text-sm font-bold text-white shadow-lg shadow-[#12B886]/25 transition-all duration-200 hover:shadow-xl hover:shadow-[#12B886]/30 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#12B886] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-500 disabled:shadow-none"
           >
             <span className="relative z-10 flex items-center justify-center gap-2">
               Back YES {formatNairaPrice(market.yesPrice)}
@@ -568,7 +568,7 @@ export default function MarketDetail() {
             disabled={!marketIsActive}
             aria-label={`Back NO at ${formatNairaPrice(market.noPrice)}`}
             onClick={() => setSheetSide("NO")}
-            className="group relative h-12 overflow-hidden rounded-xl bg-gradient-to-r from-[#E85D5D] to-[#DC4444] text-sm font-black text-white shadow-lg shadow-[#E85D5D]/25 transition-all duration-200 hover:shadow-xl hover:shadow-[#E85D5D]/30 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E85D5D] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-500 disabled:shadow-none"
+            className="group relative h-12 overflow-hidden rounded-xl bg-gradient-to-r from-[#E85D5D] to-[#DC4444] text-sm font-bold text-white shadow-lg shadow-[#E85D5D]/25 transition-all duration-200 hover:shadow-xl hover:shadow-[#E85D5D]/30 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E85D5D] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-500 disabled:shadow-none"
           >
             <span className="relative z-10 flex items-center justify-center gap-2">
               Back NO {formatNairaPrice(market.noPrice)}
@@ -597,14 +597,14 @@ export default function MarketDetail() {
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <p
-                  className={`text-xs font-black uppercase tracking-[0.16em] ${sheetSide === "YES"
+                  className={`text-xs font-bold uppercase tracking-[0.16em] ${sheetSide === "YES"
                     ? "text-[#12B886]"
                     : "text-[#E85D5D]"
                   }`}
                 >
                   Prediction slip
                 </p>
-                <h2 className="mt-1 text-2xl font-black">
+                <h2 className="mt-1 text-2xl font-bold">
                   You picked {sheetSide}
                 </h2>
               </div>
@@ -623,11 +623,11 @@ export default function MarketDetail() {
               </div>
             ) : (
               <>
-                <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">
+                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-[#6B7280]">
                   Amount
                 </label>
                 <div className="relative">
-                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-[#6B7280]">
+                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-[#6B7280]">
                     NGN
                   </span>
                   <Input
@@ -636,7 +636,7 @@ export default function MarketDetail() {
                     onChange={(event) => setAmount(event.target.value)}
                     disabled={submitting}
                     placeholder="0"
-                    className="h-14 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-12 text-lg font-black text-[#111827] placeholder:text-[#D1D5DB] focus:border-[#4F46E5] focus:ring-[#4F46E5]/20"
+                    className="h-14 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-12 text-lg font-bold text-[#111827] placeholder:text-[#D1D5DB] focus:border-[#4F46E5] focus:ring-[#4F46E5]/20"
                   />
                 </div>
                 <div className="mt-3 grid grid-cols-4 gap-2">
@@ -645,7 +645,7 @@ export default function MarketDetail() {
                       key={value}
                       onClick={() => setAmount(value.toString())}
                       disabled={submitting}
-                      className={`rounded-xl border py-2.5 text-xs font-black transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${amount === value.toString()
+                      className={`rounded-xl border py-2.5 text-xs font-bold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${amount === value.toString()
                         ? "border-[#4F46E5] bg-[#EEF2FF] text-[#4F46E5]"
                         : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:border-[#D1D5DB] hover:bg-white"
                       }`}
@@ -661,7 +661,7 @@ export default function MarketDetail() {
                       <span className="text-xs font-bold text-[#6B7280]">
                         Estimated return
                       </span>
-                      <span className="text-sm font-black text-[#101828]">
+                      <span className="text-sm font-bold text-[#101828]">
                         {formatNaira(estimatedReturn)}
                       </span>
                     </div>
@@ -669,7 +669,7 @@ export default function MarketDetail() {
                       <span className="text-xs font-bold text-[#6B7280]">
                         Estimated profit
                       </span>
-                      <span className="text-sm font-black text-[#12B886]">
+                      <span className="text-sm font-bold text-[#12B886]">
                         +{formatNaira(estimatedProfit)}
                       </span>
                     </div>
@@ -691,7 +691,7 @@ export default function MarketDetail() {
                     <div className="mt-4 rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] p-4">
                       <div className="flex items-center gap-2">
                         <Shield className="h-4 w-4 text-[#4F46E5]" />
-                        <div className="text-sm font-black text-[#101828]">
+                        <div className="text-sm font-bold text-[#101828]">
                           Refund Protected
                         </div>
                       </div>
@@ -730,7 +730,7 @@ export default function MarketDetail() {
                   disabled={
                     submitting || numericAmount <= 0 || exceedsProtectedLimit
                   }
-                  className={`mt-5 h-12 w-full rounded-xl text-base font-black shadow-lg transition-all duration-200 hover:shadow-xl active:scale-[0.98] disabled:shadow-none ${sheetSide === "YES"
+                  className={`mt-5 h-12 w-full rounded-xl text-base font-bold shadow-lg transition-all duration-200 hover:shadow-xl active:scale-[0.98] disabled:shadow-none ${sheetSide === "YES"
                     ? "bg-gradient-to-r from-[#12B886] to-[#10B981] text-white shadow-[#12B886]/25 hover:shadow-[#12B886]/35"
                     : "bg-gradient-to-r from-[#E85D5D] to-[#DC4444] text-white shadow-[#E85D5D]/25 hover:shadow-[#E85D5D]/35"
                   }`}
@@ -792,7 +792,7 @@ export default function MarketDetail() {
             <h3 className="text-3xl font-black text-[#101828]">
               Prediction Locked
             </h3>
-            <p className="mt-3 text-base font-black text-[#101828]">
+            <p className="mt-3 text-base font-bold text-[#101828]">
               You backed {justPredicted}
             </p>
             <p className="mt-2 text-sm font-semibold leading-6 text-[#475467]">
@@ -805,7 +805,7 @@ export default function MarketDetail() {
                   setJustPredicted(null);
                   setShowConfetti(false);
                 }}
-                className="flex h-12 items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-black text-white shadow-lg shadow-[#4F46E5]/25 transition hover:bg-[#4338CA] hover:shadow-xl"
+                className="flex h-12 items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-bold text-white shadow-lg shadow-[#4F46E5]/25 transition hover:bg-[#4338CA] hover:shadow-xl"
               >
                 View Prediction
               </Link>
@@ -814,7 +814,7 @@ export default function MarketDetail() {
                   setJustPredicted(null);
                   setShowConfetti(false);
                 }}
-                className="h-12 rounded-xl border border-[#E5E7EB] bg-white text-sm font-black text-[#344054] transition hover:bg-[#F3F4F6]"
+                className="h-12 rounded-xl border border-[#E5E7EB] bg-white text-sm font-bold text-[#344054] transition hover:bg-[#F3F4F6]"
               >
                 Continue Browsing
               </button>
@@ -1065,11 +1065,11 @@ const Chart = ({
       <div className="bg-transparent">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#12B886]/10 px-3 py-1.5 text-xs font-black text-[#12B886]">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#12B886]/10 px-3 py-1.5 text-xs font-bold text-[#12B886]">
               <span className="h-2 w-2 rounded-full bg-[#12B886]" />
               YES {formatNairaPrice(currentYes)}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E85D5D]/10 px-3 py-1.5 text-xs font-black text-[#E85D5D]">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E85D5D]/10 px-3 py-1.5 text-xs font-bold text-[#E85D5D]">
               <span className="h-2 w-2 rounded-full bg-[#E85D5D]" />
               NO {formatNairaPrice(currentNo)}
             </span>
@@ -1083,7 +1083,7 @@ const Chart = ({
             <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-[#F3F4F6]">
               <TrendingUp className="h-5 w-5 text-[#9CA3AF]" />
             </div>
-            <p className="text-sm font-black text-[#111827]">
+            <p className="text-sm font-bold text-[#111827]">
               No movement yet.
             </p>
             <p className="mt-1.5 max-w-sm text-sm font-bold leading-relaxed text-[#6B7280]">
@@ -1099,11 +1099,11 @@ const Chart = ({
     <div className="bg-transparent">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#12B886]/10 px-3 py-1.5 text-xs font-black text-[#12B886]">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#12B886]/10 px-3 py-1.5 text-xs font-bold text-[#12B886]">
             <span className="h-2 w-2 rounded-full bg-[#12B886]" />
             YES {formatNairaPrice(market.yesPrice)}
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E85D5D]/10 px-3 py-1.5 text-xs font-black text-[#E85D5D]">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E85D5D]/10 px-3 py-1.5 text-xs font-bold text-[#E85D5D]">
             <span className="h-2 w-2 rounded-full bg-[#E85D5D]" />
             NO {formatNairaPrice(market.noPrice)}
           </span>
@@ -1116,13 +1116,13 @@ const Chart = ({
         <div className="mb-3 flex items-center justify-between">
           <div>
             <p className="text-xs font-bold text-[#667085]">Current YES price</p>
-            <p className="text-2xl font-black text-[#101828]">
+            <p className="text-2xl font-bold text-[#101828]">
               {formatNairaPrice(market.yesPrice)}
             </p>
           </div>
           <div className="text-right">
             <p className="text-xs font-bold text-[#667085]">Current NO price</p>
-            <p className="text-2xl font-black text-[#101828]">
+            <p className="text-2xl font-bold text-[#101828]">
               {formatNairaPrice(market.noPrice)}
             </p>
           </div>
@@ -1208,7 +1208,7 @@ const Row = ({
   <div className="flex items-center justify-between border-b border-[#E5E7EB] py-2.5 last:border-0">
     <span className="text-sm font-bold text-[#6B7280]">{label}</span>
     <span
-      className={`text-sm font-black ${highlight ? "text-[#4F46E5]" : "text-[#111827]"}`}
+      className={`text-sm font-bold ${highlight ? "text-[#4F46E5]" : "text-[#111827]"}`}
     >
       {value}
     </span>

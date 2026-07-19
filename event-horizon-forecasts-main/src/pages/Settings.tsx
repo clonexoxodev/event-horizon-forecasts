@@ -173,7 +173,7 @@ const CardHeader = ({ icon: Icon, title }: { icon: any; title: string }) => (
     <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#EEF2FF] text-[#4F46E5]">
       <Icon className="h-4 w-4" />
     </div>
-    <h2 className="text-lg font-black">{title}</h2>
+    <h2 className="text-lg font-bold">{title}</h2>
   </div>
 );
 

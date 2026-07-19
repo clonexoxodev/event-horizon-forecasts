@@ -3,7 +3,6 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Clock,
-  CreditCard,
   Gift,
   History,
   RefreshCw,
@@ -12,7 +11,6 @@ import {
   TrendingUp,
   Wallet as WalletIcon,
   X,
-  Landmark,
   BarChart3,
 } from "lucide-react";
 import { Header } from "@/components/Header";
@@ -131,7 +129,7 @@ export default function Wallet() {
       <div className="app-bg min-h-screen text-[#111827] xl:pl-64">
         <Header />
         <main className="mx-auto max-w-3xl px-4 py-20 text-center">
-          <h2 className="text-2xl font-black">Log in to see your wallet</h2>
+            <h2 className="text-2xl font-bold">Log in to see your wallet</h2>
           <p className="mt-2 text-sm text-[#6B7280]">
             Your balance and history will show here.
           </p>
@@ -209,17 +207,22 @@ export default function Wallet() {
                 </div>
               )}
 
-              <div className="mt-8 grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-2 text-xs text-white/50">
+                <Clock className="h-3 w-3" />
+                <span>Updated just now</span>
+              </div>
+
+              <div className="mt-6 grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setDepositModalOpen(true)}
-                  className="flex h-12 items-center justify-center gap-2 rounded-xl bg-white text-sm font-black text-[#4F46E5] shadow-elevated transition hover:bg-white/95 hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)]"
+                  className="flex h-12 items-center justify-center gap-2 rounded-xl bg-white text-sm font-bold text-[#4F46E5] shadow-elevated transition hover:bg-white/95 hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)]"
                 >
                   <ArrowDownRight className="h-4 w-4" />
                   Add Money
                 </button>
                 <button
                   onClick={() => setWithdrawModalOpen(true)}
-                  className="flex h-12 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 text-sm font-black text-white backdrop-blur-sm transition hover:bg-white/20"
+                  className="flex h-12 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/20"
                 >
                   <ArrowUpRight className="h-4 w-4" />
                   Withdraw
@@ -230,30 +233,10 @@ export default function Wallet() {
         </section>
 
         <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-          <button
-            onClick={() => setDepositModalOpen(true)}
-            className="group flex items-center gap-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-elevated transition hover:border-[#4F46E5]/30 hover:shadow-[0_22px_60px_rgba(79,70,229,0.12)] sm:p-5"
-          >
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#EEF2FF] text-[#4F46E5] transition group-hover:bg-[#4F46E5] group-hover:text-white">
-              <CreditCard className="h-5 w-5" />
-            </div>
-            <div className="text-left">
-              <div className="text-sm font-black text-[#111827]">Deposit</div>
-              <div className="text-xs text-[#6B7280]">Add funds</div>
-            </div>
-          </button>
-          <button
-            onClick={() => setWithdrawModalOpen(true)}
-            className="group flex items-center gap-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-elevated transition hover:border-[#E85D5D]/30 hover:shadow-[0_22px_60px_rgba(232,93,93,0.12)] sm:p-5"
-          >
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#FEF2F2] text-[#E85D5D] transition group-hover:bg-[#E85D5D] group-hover:text-white">
-              <Landmark className="h-5 w-5" />
-            </div>
-            <div className="text-left">
-              <div className="text-sm font-black text-[#111827]">Withdraw</div>
-              <div className="text-xs text-[#6B7280]">Cash out</div>
-            </div>
-          </button>
+          <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-xs text-[#6B7280] sm:col-span-2">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-[#4F46E5]" />
+            <span>Secured by Flutterwave &middot; 256-bit encryption &middot; All transactions are verified server-side</span>
+          </div>
         </section>
 
         <section className="mt-6 rounded-2xl border border-[#E5E7EB] bg-white p-4 sm:p-5">
@@ -263,7 +246,7 @@ export default function Wallet() {
                 <History className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-lg font-black">Transaction History</h2>
+                <h2 className="text-lg font-bold">Transaction History</h2>
                 <p className="text-xs text-[#6B7280]">
                   Deposits, withdrawals, predictions, and winnings.
                 </p>
@@ -279,7 +262,7 @@ export default function Wallet() {
               <div className="mx-auto mb-5 grid h-20 w-20 place-items-center rounded-2xl bg-[#EEF2FF] text-[#4F46E5]">
                 <BarChart3 className="h-10 w-10" />
               </div>
-              <h3 className="text-lg font-black text-[#111827]">
+              <h3 className="text-lg font-bold text-[#111827]">
                 No transactions yet
               </h3>
               <p className="mt-2 text-sm text-[#6B7280]">
@@ -288,7 +271,7 @@ export default function Wallet() {
               </p>
               <button
                 onClick={() => setDepositModalOpen(true)}
-                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#4F46E5] px-5 py-2.5 text-sm font-black text-white transition hover:bg-[#4338CA]"
+                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#4F46E5] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#4338CA]"
               >
                 <ArrowDownRight className="h-4 w-4" />
                 Add Money
@@ -315,7 +298,7 @@ export default function Wallet() {
                         <TransactionTypeIcon type={tx.type} positive={tx.amount >= 0} />
                       </div>
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-black text-[#111827]">
+                        <div className="truncate text-sm font-bold text-[#111827]">
                           {tx.label}
                         </div>
                         <div className="mt-1 flex items-center gap-1 text-xs text-[#6B7280]">
@@ -326,7 +309,7 @@ export default function Wallet() {
                     </div>
                     <div className="shrink-0 text-right">
                       <div
-                        className={`text-sm font-black ${
+                        className={`text-sm font-bold ${
                           tx.amount >= 0 ? "text-[#12B886]" : "text-[#E85D5D]"
                         }`}
                       >
@@ -477,10 +460,10 @@ const TransactionDetailModal = ({
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#667085]">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#667085]">
               Transaction details
             </p>
-            <h3 className="mt-1 text-2xl font-black">
+            <h3 className="mt-1 text-2xl font-bold">
               {labelForTransaction(transaction)}
             </h3>
             <p className="mt-1 text-sm text-[#667085]">
@@ -548,7 +531,7 @@ const TransactionDetailModal = ({
 
 const DetailRow = ({ label, value }: { label: string; value: string }) => (
   <div className="rounded-xl bg-[#F8F7F4] px-4 py-3">
-    <div className="text-xs font-black uppercase tracking-[0.14em] text-[#667085]">
+    <div className="text-xs font-bold uppercase tracking-[0.14em] text-[#667085]">
       {label}
     </div>
     <div className="mt-1 break-words text-sm font-bold text-[#111827]">

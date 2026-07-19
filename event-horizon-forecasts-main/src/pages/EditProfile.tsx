@@ -82,7 +82,7 @@ export default function EditProfile() {
             <div className="grid h-20 w-20 overflow-hidden rounded-full border border-[#E5E7EB] bg-[#F3F4F6] text-3xl font-black">
               {user?.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" /> : <div className="grid h-full w-full place-items-center">{user?.username?.charAt(0).toUpperCase() || "U"}</div>}
             </div>
-            <label className="flex h-11 cursor-pointer items-center gap-2 rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] px-4 text-sm font-black text-[#101828]">
+            <label className="flex h-11 cursor-pointer items-center gap-2 rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] px-4 text-sm font-bold text-[#101828]">
               <Camera className="h-4 w-4 text-[#12B886]" />
               {uploading ? "Saving..." : "Change photo"}
               <input type="file" accept="image/*" disabled={uploading} onChange={(event) => handleImage(event.target.files?.[0])} className="hidden" />
@@ -119,7 +119,7 @@ const Field = ({
   id: string;
 }) => (
   <label htmlFor={id} className="block">
-    <span className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#667085]">{label}</span>
+    <span className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-[#667085]">{label}</span>
     <Input
       id={id}
       value={value}

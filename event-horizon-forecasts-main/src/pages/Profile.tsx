@@ -234,7 +234,7 @@ export default function Profile() {
         <section className="mt-5 rounded-2xl border border-[#E5E7EB] bg-white p-5">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-black">Recent predictions</h2>
+              <h2 className="text-lg font-bold">Recent predictions</h2>
               <p className="text-xs text-[#6B7280]">{loading ? "Loading..." : "Your latest market positions"}</p>
             </div>
             <span className="rounded-full bg-[#EEF2FF] px-3 py-1 text-xs font-bold text-[#4F46E5]">

@@ -69,7 +69,7 @@ export default function Support() {
               <Field label="Evidence/source link">
                 <input value={dispute.evidence} onChange={(event) => setDispute((prev) => ({ ...prev, evidence: event.target.value }))} placeholder="Official source, article, result page, transaction reference..." className={fieldClass} />
               </Field>
-              <button className="h-12 rounded-2xl bg-[#4F46E5] text-sm font-black text-white transition hover:bg-[#4338CA]">
+              <button className="h-12 rounded-2xl bg-[#4F46E5] text-sm font-bold text-white transition hover:bg-[#4338CA]">
                 Save dispute details
               </button>
             </div>

@@ -274,12 +274,12 @@ const Index = () => {
         <section className="mb-5 flex items-center justify-between gap-3 md:hidden">
           <Link to="/" className="flex items-center gap-2.5">
             <FlippeSymbol size="sm" />
-            <span className="text-lg font-black tracking-[0.04em] text-[#111827]">FLIPPE</span>
+            <span className="text-lg font-extrabold tracking-[0.04em] text-[#111827]">FLIPPE</span>
           </Link>
           <div className="flex items-center gap-2">
             <Link
               to="/wallet"
-              className="flex items-center gap-1.5 rounded-full border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-black text-[#111827] shadow-sm"
+              className="flex items-center gap-1.5 rounded-full border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-bold text-[#111827] shadow-sm"
             >
               <Wallet className="h-3.5 w-3.5 text-[#4F46E5]" />
               {formatNaira(user?.balance || 0)}
@@ -304,14 +304,14 @@ const Index = () => {
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#12B886] opacity-75" />
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-[#12B886]" />
                   </span>
-                  <span className="text-sm font-black text-[#111827]">{liveCount}</span>
-                  <span className="text-xs font-bold text-[#6B7280]">live markets</span>
+                    <span className="text-sm font-bold text-[#111827]">{liveCount}</span>
+                  <span className="text-xs font-medium text-[#6B7280]">live markets</span>
                 </div>
                 {totalVolume > 0 && (
                   <div className="flex items-center gap-1.5 rounded-xl bg-[#F3F4F6] px-3.5 py-2">
                     <TrendingUp className="h-3.5 w-3.5 text-[#4F46E5]" />
-                    <span className="text-sm font-black text-[#111827]">{formatNaira(totalVolume)}</span>
-                    <span className="text-xs font-bold text-[#6B7280]">volume</span>
+                    <span className="text-sm font-bold text-[#111827]">{formatNaira(totalVolume)}</span>
+                    <span className="text-xs font-medium text-[#6B7280]">volume</span>
                   </div>
                 )}
               </div>
@@ -327,7 +327,7 @@ const Index = () => {
               ref={searchInputRef}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search markets or topics"
+              placeholder="Search markets"
               aria-label="Search markets"
               role="searchbox"
               className="h-[52px] w-full rounded-2xl border border-[#E5E7EB] bg-white pl-12 pr-20 text-[15px] font-bold text-[#111827] shadow-[0_8px_24px_rgba(17,24,39,0.05)] outline-none placeholder:text-[#9CA3AF] focus:border-[#4F46E5]/60 focus:ring-4 focus:ring-[#4F46E5]/10 transition-all"
@@ -352,7 +352,7 @@ const Index = () => {
                   onClick={() => setCategory(chip)}
                   role="tab"
                   aria-selected={category === chip}
-                  className={`relative shrink-0 rounded-full px-4 py-2 text-sm font-black transition-all duration-200 ease-out ${
+                  className={`relative shrink-0 rounded-full px-4 py-2 text-sm font-bold transition-all duration-200 ease-out ${
                     category === chip
                       ? "bg-[#4F46E5] text-white shadow-[0_8px_20px_rgba(79,70,229,0.22)]"
                       : "border border-[#E5E7EB] bg-white text-[#667085] hover:border-[#C7D2FE] hover:text-[#111827]"
@@ -362,7 +362,7 @@ const Index = () => {
                     {chip}
                     {count > 0 && (
                       <span
-                        className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-black ${
+                        className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
                           category === chip
                             ? "bg-white/20 text-white"
                             : "bg-[#F3F4F6] text-[#6B7280]"
@@ -402,7 +402,7 @@ const Index = () => {
         ) : (
           <button
             onClick={reopenSummary}
-            className="mb-5 flex items-center gap-1.5 rounded-full border border-[#E5E7EB] bg-white px-4 py-2 text-xs font-black text-[#6B7280] shadow-sm transition-all duration-200 hover:border-[#4F46E5]/30 hover:shadow-md hover:text-[#111827]"
+            className="mb-5 flex items-center gap-1.5 rounded-full border border-[#E5E7EB] bg-white px-4 py-2 text-xs font-bold text-[#6B7280] shadow-sm transition-all duration-200 hover:border-[#4F46E5]/30 hover:shadow-md hover:text-[#111827]"
           >
             <Clock className="h-3 w-3" />
             Today's summary
@@ -426,11 +426,11 @@ const Index = () => {
             </div>
           ) : marketError && filtered.length === 0 ? (
             <div className="rounded-2xl border border-[#F2C94C]/25 bg-[#F2C94C]/10 p-10 text-center">
-              <h3 className="text-lg font-black">Could not load markets</h3>
+              <h3 className="text-lg font-bold">Could not load markets</h3>
               <p className="mt-1 text-sm text-amber-900/70">{marketError}</p>
               <button
                 onClick={() => loadMarkets({ force: true })}
-                className="mt-5 rounded-xl bg-white px-5 py-3 text-sm font-black text-[#080c10]"
+                className="mt-5 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#080c10]"
               >
                 Retry
               </button>
@@ -457,7 +457,7 @@ const Index = () => {
                   <Sparkles className="h-7 w-7 text-[#4F46E5]" />
                 )}
               </div>
-              <h3 className="text-lg font-black">{emptyTitle}</h3>
+              <h3 className="text-lg font-bold">{emptyTitle}</h3>
               <p className="mt-2 max-w-sm mx-auto text-sm font-bold leading-relaxed text-[#6B7280]">
                 {emptyBody}
               </p>
@@ -476,7 +476,7 @@ const HomeSummaryCard = ({ icon: Icon, title, items }: { icon: any; title: strin
       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#4F46E5]/10">
         <Icon className="h-3.5 w-3.5 text-[#4F46E5]" />
       </div>
-      <h3 className="text-sm font-black text-[#111827]">{title}</h3>
+              <h3 className="text-sm font-bold text-[#111827]">{title}</h3>
     </div>
     <div className="grid gap-2 divide-y divide-[#F3F4F6] sm:grid-cols-3 sm:divide-x sm:divide-y-0 md:grid-cols-1 md:divide-x-0 md:divide-y lg:grid-cols-3 lg:divide-x lg:divide-y-0">
       {items.map((item) => (
@@ -494,20 +494,20 @@ const ProgressSummaryCard = ({ level, streak, accuracy }: { level: string; strea
       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#4F46E5]/10">
         <Award className="h-3.5 w-3.5 text-[#4F46E5]" />
       </div>
-      <h3 className="text-sm font-black text-[#111827]">Your Progress</h3>
+      <h3 className="text-sm font-bold text-[#111827]">Your Progress</h3>
     </div>
     <div className="grid grid-cols-3 divide-x divide-[#F3F4F6]">
       <div className="min-w-0 px-2.5 py-2 sm:px-3">
         <div className="text-[11px] font-bold text-[#6B7280]">Level</div>
-        <div className="mt-1 break-words text-[12px] font-black leading-tight sm:text-sm">{level}</div>
+        <div className="mt-1 break-words text-[12px] font-bold leading-tight sm:text-sm">{level}</div>
       </div>
       <div className="min-w-0 px-2.5 py-2 sm:px-3">
         <div className="text-[11px] font-bold text-[#6B7280]">Streak</div>
-        <div className="mt-1 break-words text-[12px] font-black leading-tight sm:text-sm">{streak}</div>
+        <div className="mt-1 break-words text-[12px] font-bold leading-tight sm:text-sm">{streak}</div>
       </div>
       <div className="min-w-0 px-2.5 py-2 sm:px-3">
         <div className="text-[11px] font-bold text-[#6B7280]">Accuracy</div>
-        <div className="mt-1 break-words text-[12px] font-black leading-tight sm:text-sm">{accuracy ? `${accuracy}%` : "-"}</div>
+        <div className="mt-1 break-words text-[12px] font-bold leading-tight sm:text-sm">{accuracy ? `${accuracy}%` : "-"}</div>
       </div>
     </div>
   </div>
