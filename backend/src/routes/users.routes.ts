@@ -3,6 +3,10 @@ import { supabase } from '../db/supabase-client.js';
 
 const router = Router();
 
+const sanitizeIlikePattern = (input: string): string => {
+  return input.replace(/[%_\\]/g, '\\$&');
+};
+
 /**
  * GET /api/users/search?q=
  * Public lightweight user search for app search suggestions.
@@ -16,10 +20,12 @@ router.get('/search', async (req: Request, res: Response) => {
       return res.json({ users: [] });
     }
 
+    const sanitizedQuery = sanitizeIlikePattern(query);
+
     const { data: users, error } = await supabase
       .from('users')
       .select('id, username, role')
-      .ilike('username', `%${query}%`)
+      .ilike('username', `%${sanitizedQuery}%`)
       .limit(8);
 
     if (error) {

@@ -50,7 +50,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
 
   return (
     <article
-      role="link"
+      role="button"
       tabIndex={0}
       onClick={openMarket}
       onKeyDown={handleKeyDown}

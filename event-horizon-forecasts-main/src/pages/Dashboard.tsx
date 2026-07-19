@@ -8,6 +8,7 @@ import apiService, { type ApiPosition, type ApiProfileStats } from "@/lib/api";
 import { formatCountdown, formatNaira, formatNairaPrice, MARKET_ACTIVATION_REQUIREMENTS } from "@/lib/markets";
 import { getCategoryLabel } from "@/lib/categories";
 import { DelayedFlippeLoader } from "@/components/FlippeBrand";
+import { getCurrentWinStreak, getBestWinStreak, getScore, getForecasterLevel, getNextLevel, getLevelProgress, LEVELS } from "@/lib/levels";
 
 type PortfolioTab = "positions" | "activity" | "performance";
 const tabLabels: Record<PortfolioTab, string> = {
@@ -649,57 +650,6 @@ const PerformanceView = ({ positions, stats }: { positions: ApiPosition[]; stats
       </section>
     </div>
   );
-};
-
-const getCurrentWinStreak = (resolved: ApiPosition[]) => {
-  const recent = [...resolved].sort((a, b) => new Date(b.resolvedAt || b.createdAt).getTime() - new Date(a.resolvedAt || a.createdAt).getTime());
-  let streak = 0;
-  for (const position of recent) {
-    if (!position.isWinner) break;
-    streak += 1;
-  }
-  return streak;
-};
-
-const getBestWinStreak = (resolved: ApiPosition[]) => {
-  const ordered = [...resolved].sort((a, b) => new Date(a.resolvedAt || a.createdAt).getTime() - new Date(b.resolvedAt || b.createdAt).getTime());
-  let best = 0;
-  let current = 0;
-  for (const position of ordered) {
-    current = position.isWinner ? current + 1 : 0;
-    best = Math.max(best, current);
-  }
-  return best;
-};
-
-const LEVELS = [
-  { name: "Rookie", score: 0 },
-  { name: "Sharp Thinker", score: 5 },
-  { name: "Analyst", score: 18 },
-  { name: "Expert", score: 40 },
-  { name: "Elite Forecaster", score: 70 },
-  { name: "Market Master", score: 120 },
-];
-
-const getScore = (totalPredictions: number, wins: number) => totalPredictions + wins * 2;
-
-const getForecasterLevel = (totalPredictions: number, wins: number) => {
-  const score = getScore(totalPredictions, wins);
-  return [...LEVELS].reverse().find((level) => score >= level.score)?.name || "Rookie";
-};
-
-const getNextLevel = (levelName: string) => {
-  const index = LEVELS.findIndex((level) => level.name === levelName);
-  return LEVELS[Math.min(index + 1, LEVELS.length - 1)]?.name || levelName;
-};
-
-const getLevelProgress = (totalPredictions: number, wins: number) => {
-  const score = totalPredictions + wins * 2;
-  const currentIndex = Math.max(0, LEVELS.findIndex((level) => level.name === getForecasterLevel(totalPredictions, wins)));
-  const current = LEVELS[currentIndex] || LEVELS[0];
-  const next = LEVELS[Math.min(currentIndex + 1, LEVELS.length - 1)] || current;
-  if (current.name === next.name) return 100;
-  return Math.max(0, Math.min(100, Math.round(((score - current.score) / (next.score - current.score)) * 100)));
 };
 
 type Achievement = {

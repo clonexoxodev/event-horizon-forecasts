@@ -50,16 +50,14 @@ export async function dropAllTables(): Promise<void> {
   try {
     console.log('Dropping all tables...');
 
-    await pool.query(`
-      DROP TABLE IF EXISTS notifications CASCADE;
-      DROP TABLE IF EXISTS leaderboard_entries CASCADE;
-      DROP TABLE IF EXISTS transactions CASCADE;
-      DROP TABLE IF EXISTS positions CASCADE;
-      DROP TABLE IF EXISTS markets CASCADE;
-      DROP TABLE IF EXISTS wallets CASCADE;
-      DROP TABLE IF EXISTS users CASCADE;
-      DROP FUNCTION IF EXISTS update_updated_at_column CASCADE;
-    `);
+    await pool.query(`DROP TABLE IF EXISTS notifications CASCADE`);
+    await pool.query(`DROP TABLE IF EXISTS leaderboard_entries CASCADE`);
+    await pool.query(`DROP TABLE IF EXISTS transactions CASCADE`);
+    await pool.query(`DROP TABLE IF EXISTS positions CASCADE`);
+    await pool.query(`DROP TABLE IF EXISTS markets CASCADE`);
+    await pool.query(`DROP TABLE IF EXISTS wallets CASCADE`);
+    await pool.query(`DROP TABLE IF EXISTS users CASCADE`);
+    await pool.query(`DROP FUNCTION IF EXISTS update_updated_at_column CASCADE`);
 
     console.log('All tables dropped successfully');
   } catch (error) {

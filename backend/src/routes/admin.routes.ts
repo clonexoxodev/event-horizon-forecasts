@@ -722,7 +722,10 @@ router.get('/finance/transactions', authMiddleware.authenticate, requireRole('su
     let query = supabase.from('transactions').select('*').order('created_at', { ascending: false }).limit(300);
     if (type && type !== 'all') query = query.eq('type', type);
     if (status && status !== 'all') query = query.eq('status', status);
-    if (search) query = query.or(`reference.ilike.%${search}%,description.ilike.%${search}%`);
+    if (search) {
+      const sanitizedSearch = search.replace(/[%_\\]/g, '\\$&');
+      query = query.or(`reference.ilike.%${sanitizedSearch}%,description.ilike.%${sanitizedSearch}%`);
+    }
     const { data, error } = await query;
     if (error) throw error;
     res.json({ transactions: (data || []).map(serializeFinanceTransaction) });

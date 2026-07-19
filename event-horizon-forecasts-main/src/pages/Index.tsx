@@ -5,13 +5,13 @@ import { Header } from "@/components/Header";
 import { FlippeSymbol } from "@/components/FlippeBrand";
 import { MobileNav } from "@/components/MobileNav";
 import { MarketCard } from "@/components/MarketCard";
-import { formatCountdown, getTrendingScore } from "@/lib/markets";
+import { formatCountdown, getTrendingScore, formatNaira } from "@/lib/markets";
 import { useMarketState } from "@/lib/market-state";
 import { useAuth } from "@/lib/auth";
-import { formatNaira } from "@/lib/markets";
 import { NotificationBell } from "@/components/NotificationBell";
 import { categoryMatches, HOME_MARKET_FILTERS, type HomeMarketFilter, normalizeCategory } from "@/lib/categories";
 import apiService, { type ApiPosition, type ApiProfileStats } from "@/lib/api";
+import { getCurrentWinStreak, getScore, getForecasterLevel, LEVELS } from "@/lib/levels";
 
 const VISIT_KEY = "flippe_home_last_visit_v1";
 const HOME_SUMMARY_VISIBLE_MS = 7000;
@@ -429,31 +429,5 @@ const ProgressSummaryCard = ({ level, streak, accuracy }: { level: string; strea
     </div>
   </div>
 );
-
-const getCurrentWinStreak = (resolved: ApiPosition[]) => {
-  const recent = [...resolved].sort((a, b) => new Date(b.resolvedAt || b.createdAt).getTime() - new Date(a.resolvedAt || a.createdAt).getTime());
-  let streak = 0;
-  for (const position of recent) {
-    if (!position.isWinner) break;
-    streak += 1;
-  }
-  return streak;
-};
-
-const LEVELS = [
-  { name: "Rookie", score: 0 },
-  { name: "Sharp Thinker", score: 5 },
-  { name: "Analyst", score: 18 },
-  { name: "Expert", score: 40 },
-  { name: "Elite Forecaster", score: 70 },
-  { name: "Market Master", score: 120 },
-];
-
-const getScore = (totalPredictions: number, wins: number) => totalPredictions + wins * 2;
-
-const getForecasterLevel = (totalPredictions: number, wins: number) => {
-  const score = getScore(totalPredictions, wins);
-  return [...LEVELS].reverse().find((level) => score >= level.score)?.name || "Rookie";
-};
 
 export default Index;

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service.js';
 import { supabase } from '../db/supabase-client.js';
 
-const PRIMARY_SUPER_ADMIN_EMAIL = 'fehintoluwaolu@gmail.com';
+const PRIMARY_SUPER_ADMIN_EMAIL = (process.env.PRIMARY_SUPER_ADMIN_EMAIL || '').toLowerCase();
 
 // Extend Request interface to include user
 declare global {

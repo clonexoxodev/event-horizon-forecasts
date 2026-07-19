@@ -11,14 +11,18 @@ function getSupabaseClient(): SupabaseClient {
   }
 
   const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseKey) {
+    console.error('CRITICAL: SUPABASE_SERVICE_ROLE_KEY is not set. Falling back to anon key — RLS policies will be bypassed but security is degraded.');
+  }
+  const fallbackKey = supabaseKey || process.env.SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
     throw new Error('Missing Supabase environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ANON_KEY are required');
   }
 
   // Create Supabase client with service role key (bypasses RLS)
-  supabaseInstance = createClient(supabaseUrl, supabaseKey, {
+  supabaseInstance = createClient(supabaseUrl, fallbackKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false

@@ -9,6 +9,7 @@ import { NotificationProvider, useNotificationHelpers } from "@/lib/notification
 import { AuthModal } from "@/components/AuthModal";
 import { ForecastSlip } from "@/components/ForecastSlip";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import apiService from "@/lib/api";
 import Index from "./pages/Index.tsx";
 import Login from "./pages/Login.tsx";
@@ -81,20 +82,21 @@ const ForecastSlipContainer = () => {
 };
 
 const App = () => (
-  <TooltipProvider>
-    <AuthProvider>
-      <NotificationProvider>
-        <MarketStateProvider>
-          <ForecastSlipProvider>
-            <Toaster />
-            <Sonner />
-            <AuthModal />
-            <BrowserRouter
-              future={{
-                v7_startTransition: true,
-                v7_relativeSplatPath: true,
-              }}
-            >
+  <ErrorBoundary>
+    <TooltipProvider>
+      <AuthProvider>
+        <NotificationProvider>
+          <MarketStateProvider>
+            <ForecastSlipProvider>
+              <Toaster />
+              <Sonner />
+              <AuthModal />
+              <BrowserRouter
+                future={{
+                  v7_startTransition: true,
+                  v7_relativeSplatPath: true,
+                }}
+              >
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/login" element={<Login />} />
@@ -147,6 +149,7 @@ const App = () => (
         </NotificationProvider>
       </AuthProvider>
     </TooltipProvider>
+  </ErrorBoundary>
 );
 
 export default App;

@@ -23,6 +23,22 @@ type BankDetails = {
 
 const SAVED_BANK_KEY = "flippe_saved_bank_details";
 
+const encodeBankDetails = (details: BankDetails): string => {
+  try {
+    return btoa(JSON.stringify(details));
+  } catch {
+    return "";
+  }
+};
+
+const decodeBankDetails = (encoded: string): BankDetails | null => {
+  try {
+    return JSON.parse(atob(encoded));
+  } catch {
+    return null;
+  }
+};
+
 export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSaved }: WithdrawModalProps) => {
   const [amount, setAmount] = useState("");
   const [bankName, setBankName] = useState("");
@@ -206,20 +222,19 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
 
 const loadSavedBankDetails = (): BankDetails | null => {
   try {
-    const raw = window.localStorage.getItem(SAVED_BANK_KEY);
+    const raw = window.sessionStorage.getItem(SAVED_BANK_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed.bankName || !parsed.accountNumber || !parsed.accountName) return null;
-    return {
-      bankName: String(parsed.bankName),
-      accountNumber: String(parsed.accountNumber),
-      accountName: String(parsed.accountName),
-    };
+    const decoded = decodeBankDetails(raw);
+    if (!decoded || !decoded.bankName || !decoded.accountNumber || !decoded.accountName) return null;
+    return decoded;
   } catch {
     return null;
   }
 };
 
 const saveBankDetails = (details: BankDetails) => {
-  window.localStorage.setItem(SAVED_BANK_KEY, JSON.stringify(details));
+  const encoded = encodeBankDetails(details);
+  if (encoded) {
+    window.sessionStorage.setItem(SAVED_BANK_KEY, encoded);
+  }
 };

@@ -26,10 +26,9 @@ Object.assign(poolConfig, {
 // Create connection pool
 const pool = new Pool(poolConfig);
 
-// Handle pool errors
+// Handle pool errors gracefully
 pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-  process.exit(-1);
+  console.error('Unexpected error on idle client:', err.message);
 });
 
 // Test database connection
@@ -60,7 +59,17 @@ export async function testConnection(): Promise<boolean> {
   }
 }
 
-// Query helper with retry logic
+// Query helper with retry logic (only retries transient errors)
+const TRANSIENT_ERROR_CODES = new Set([
+  'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND',
+  '57P01', // admin_shutdown
+  '57P02', // crash_shutdown
+  '57P03', // cannot_connect_now
+  '57P04', // database_dropped
+  '40001', // serialization_failure
+  '40P01', // deadlock_detected
+]);
+
 export async function query<T = any>(
   text: string,
   params?: any[]
@@ -77,13 +86,18 @@ export async function query<T = any>(
       };
     } catch (error) {
       lastError = error as Error;
+      const errorCode = (error as any).code || '';
+
+      if (!TRANSIENT_ERROR_CODES.has(errorCode) && attempt === 1) {
+        throw error;
+      }
+
       console.warn(
         `Query failed (attempt ${attempt}/${maxRetries}):`,
         error
       );
 
       if (attempt < maxRetries) {
-        // Wait before retrying (exponential backoff)
         await new Promise((resolve) =>
           setTimeout(resolve, 1000 * attempt)
         );

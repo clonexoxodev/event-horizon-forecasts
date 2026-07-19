@@ -75,10 +75,10 @@ export const Header = () => {
             <span className="text-xl font-black tracking-[0.04em] text-[#111827]">FLIPPE</span>
           </Link>
 
-          <div className="ml-auto hidden h-10 max-w-md flex-1 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] px-3 text-sm font-bold text-[#6B7280] md:flex">
+          <Link to="/markets" className="ml-auto hidden h-10 max-w-md flex-1 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] px-3 text-sm font-bold text-[#6B7280] transition hover:border-purple/50 md:flex">
             <Search className="h-4 w-4" />
             Search markets
-          </div>
+          </Link>
 
           {user && (
             <Link to="/wallet" className="hidden rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 text-sm font-black text-[#111827] transition hover:border-[#4F46E5]/50 md:block">

@@ -477,10 +477,14 @@ const normalizePosition = (position: any, market: any) => {
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
+    const limit = Math.min(parseInt(String(req.query.limit || '50')), 100);
+    const offset = parseInt(String(req.query.offset || '0'));
+
     const { data: rawMarkets, error } = await supabase
       .from('markets')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) {
       throw new Error('Failed to fetch markets: ' + error.message);

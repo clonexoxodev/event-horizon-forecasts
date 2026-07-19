@@ -207,6 +207,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
+    if (!window.confirm("Are you sure you want to log out?")) return;
     try {
       await apiService.logout();
     } catch (error) {

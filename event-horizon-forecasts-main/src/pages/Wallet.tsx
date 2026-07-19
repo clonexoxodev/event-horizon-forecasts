@@ -257,8 +257,8 @@ const TransactionDetailModal = ({
   const isPayout = transaction.type === "market_payout" || transaction.type === "position_payout" || transaction.type === "refund";
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-black/35 px-3 py-4 sm:place-items-center">
-      <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white p-5 text-[#111827] shadow-[0_24px_80px_rgba(17,24,39,0.22)]">
+    <div className="fixed inset-0 z-50 grid place-items-end bg-black/35 px-3 py-4 sm:place-items-center" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white p-5 text-[#111827] shadow-[0_24px_80px_rgba(17,24,39,0.22)]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.16em] text-[#667085]">Wallet history</p>

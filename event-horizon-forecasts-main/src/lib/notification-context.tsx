@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from "react";
 import { useAuth } from "./auth";
+import apiService from "./api";
 import {
   Notification,
   NotificationType,
@@ -30,22 +31,51 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  // Load notifications from localStorage on mount
   useEffect(() => {
-    if (user) {
-      const stored = localStorage.getItem(`notifications_${user.id}`);
-      if (stored) {
-        try {
+    if (!user) return;
+
+    const loadNotifications = async () => {
+      try {
+        const stored = localStorage.getItem(`notifications_${user.id}`);
+        if (stored) {
           const parsed = JSON.parse(stored);
           setNotifications(parsed);
-        } catch (error) {
-          console.error("Failed to parse notifications:", error);
         }
+      } catch (error) {
+        console.error("Failed to parse local notifications:", error);
       }
-    }
+
+      try {
+        const response = await apiService.getNotifications();
+        if (response?.notifications?.length) {
+          const serverNotifications: Notification[] = response.notifications.map((n: any) => ({
+            id: n.id,
+            userId: n.user_id,
+            type: n.type,
+            title: n.title,
+            message: n.message,
+            read: Boolean(n.read_at),
+            createdAt: n.created_at,
+            metadata: n.metadata || {},
+          }));
+          setNotifications((prev) => {
+            const merged = [...serverNotifications];
+            for (const local of prev) {
+              if (!merged.find((n) => n.id === local.id)) {
+                merged.push(local);
+              }
+            }
+            return merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          });
+        }
+      } catch (error) {
+        console.warn("Failed to fetch server notifications:", error);
+      }
+    };
+
+    loadNotifications();
   }, [user]);
 
-  // Save notifications to localStorage whenever they change
   useEffect(() => {
     if (user && notifications.length > 0) {
       localStorage.setItem(`notifications_${user.id}`, JSON.stringify(notifications));
@@ -75,8 +105,13 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     );
   }, []);
 
-  const markAllAsRead = useCallback(() => {
+  const markAllAsRead = useCallback(async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    try {
+      await apiService.markAllNotificationsRead();
+    } catch (error) {
+      console.warn("Failed to mark server notifications as read:", error);
+    }
   }, []);
 
   const deleteNotification = useCallback((notificationId: string) => {
