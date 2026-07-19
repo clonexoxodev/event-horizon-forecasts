@@ -1,57 +1,39 @@
-import { useEffect, useMemo, useState } from "react";
-import { Activity as ActivityIcon, Clock, Target, Trophy, Wallet, XCircle } from "lucide-react";
+import { useMemo } from "react";
+import { Bell, CheckCheck, Clock, Inbox, TrendingUp, Trophy, Wallet, Zap } from "lucide-react";
 import { Header } from "@/components/Header";
-import { DelayedFlippeLoader } from "@/components/FlippeBrand";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
-import { formatNaira } from "@/lib/markets";
-import apiService, { type ApiActivity, type ApiPosition } from "@/lib/api";
-import { toast } from "sonner";
+import { useNotifications } from "@/lib/notification-context";
+import { formatNotificationTime, getNotificationStyle, type NotificationType } from "@/lib/notifications";
+
+const typeIcon: Record<string, any> = {
+  market_closing_soon: Clock,
+  market_price_moved: TrendingUp,
+  forecast_confirmed: Zap,
+  market_resolved: Trophy,
+  wallet_low: Wallet,
+  position_sold: Wallet,
+  new_market_added: Inbox,
+};
 
 export default function Notifications() {
   const { user, isLoading: authLoading } = useAuth();
-  const [positions, setPositions] = useState<ApiPosition[]>([]);
-  const [activity, setActivity] = useState<ApiActivity[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
-  useEffect(() => {
-    if (authLoading || !user) return;
-
-    const loadActivity = async () => {
-      setLoading(true);
-      try {
-        const [positionsResponse, activityResponse] = await Promise.all([
-          apiService.getPositions(),
-          apiService.getActivity(),
-        ]);
-        setPositions(positionsResponse.positions);
-        setActivity(activityResponse.activity);
-      } catch (error: any) {
-        toast("Could not load activity", {
-          description: error.message || "Please refresh and try again.",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadActivity();
-  }, [authLoading, user]);
-
-  const groups = useMemo(() => {
-    const active = positions.filter((position) => position.marketStatus === "active");
-    const won = positions.filter((position) => position.marketStatus === "resolved" && position.currentValue > position.stake);
-    const lost = positions.filter((position) => position.marketStatus === "resolved" && position.currentValue <= position.stake);
-
-    return { active, won, lost };
-  }, [positions]);
+  const sorted = useMemo(
+    () => [...notifications].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [notifications]
+  );
 
   if (authLoading) {
     return (
       <div className="app-bg min-h-screen text-[#111827] xl:pl-64">
         <Header />
         <main className="grid min-h-[70vh] place-items-center px-4">
-          <DelayedFlippeLoader active label="Restoring your activity" />
+          <div className="text-center">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[#E5E7EB] border-t-[#4F46E5]" />
+            <p className="text-sm font-semibold text-[#6B7280]">Loading notifications...</p>
+          </div>
         </main>
         <MobileNav />
       </div>
@@ -63,8 +45,11 @@ export default function Notifications() {
       <div className="app-bg min-h-screen text-[#111827] xl:pl-64">
         <Header />
         <main className="mx-auto max-w-3xl px-4 py-20 text-center">
-          <h2 className="text-2xl font-black">Log in to see activity</h2>
-          <p className="mt-2 text-sm text-[#667085]">Your predictions and wallet moves will show here.</p>
+          <div className="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-full bg-[#EEF2FF]">
+            <Bell className="h-8 w-8 text-[#4F46E5]" />
+          </div>
+          <h2 className="text-2xl font-black">Log in to see notifications</h2>
+          <p className="mt-2 text-sm text-[#6B7280]">Your alerts and activity will appear here.</p>
         </main>
         <MobileNav />
       </div>
@@ -74,125 +59,98 @@ export default function Notifications() {
   return (
     <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
-        <div className="mb-6">
-          <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#667085]">Activity</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Your moves</h1>
-          <p className="mt-2 text-sm text-[#667085]">{loading ? "Loading..." : "Active predictions, results, and money history."}</p>
+      <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:py-8">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#4F46E5]">Notifications</p>
+            <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Your alerts</h1>
+            <p className="mt-2 text-sm text-[#6B7280]">
+              {unreadCount > 0
+                ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}`
+                : "You're all caught up"}
+            </p>
+          </div>
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllAsRead}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3.5 py-2 text-xs font-bold text-[#4F46E5] transition hover:bg-[#F3F4F6]"
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+              Mark all read
+            </button>
+          )}
         </div>
 
-        <section className="grid gap-3 sm:grid-cols-3">
-          <SummaryCard icon={Target} label="Active" value={groups.active.length.toString()} tone="neutral" />
-          <SummaryCard icon={Trophy} label="Won" value={groups.won.length.toString()} tone="green" />
-          <SummaryCard icon={XCircle} label="Lost" value={groups.lost.length.toString()} tone="red" />
-        </section>
-
-        <section className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.95fr]">
-          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-black">Predictions</h2>
-                <p className="text-sm text-[#667085]">Your active, won, and lost picks.</p>
-              </div>
-              <ActivityIcon className="h-5 w-5 text-[#12B886]" />
+        {sorted.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[#E5E7EB] bg-white py-20 text-center">
+            <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-[#F3F4F6]">
+              <Bell className="h-7 w-7 text-[#9CA3AF]" />
             </div>
-
-            {positions.length === 0 ? (
-              <EmptyState title="No predictions yet" body="Pick a market to see it here." />
-            ) : (
-              <ul className="space-y-3">
-                {positions.map((position) => (
-                  <li key={position.id} className="rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="line-clamp-2 text-sm font-black">{position.marketQuestion}</div>
-                        <div className="mt-2 text-xs text-[#667085]">{new Date(position.createdAt).toLocaleDateString()}</div>
-                      </div>
-                      <span className={`rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-emerald-400/10 text-[#047857]" : "bg-red-400/10 text-[#B42318]"}`}>
-                        {position.side}
-                      </span>
-                    </div>
-                    <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-                      <Info label="Stake" value={formatNaira(position.stake)} />
-                      <Info label="Price" value={`${Math.round(position.currentPrice)}%`} />
-                      <Info label="Status" value={position.marketStatus} />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <h3 className="text-lg font-bold text-[#111827]">No notifications yet</h3>
+            <p className="mt-1.5 text-sm text-[#6B7280]">
+              When you make predictions or something happens in the market,
+              <br />
+              you'll see updates here.
+            </p>
           </div>
+        ) : (
+          <div className="rounded-2xl border border-[#E5E7EB] bg-white">
+            <ul>
+              {sorted.map((notification, index) => {
+                const isRead = notification.read;
+                const style = getNotificationStyle(notification.type as NotificationType);
+                const Icon = typeIcon[notification.type] || Bell;
 
-          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-black">Money history</h2>
-                <p className="text-sm text-[#667085]">Deposits, withdrawals, predictions, winnings, and refunds.</p>
-              </div>
-              <Wallet className="h-5 w-5 text-[#12B886]" />
-            </div>
+                return (
+                  <li
+                    key={notification.id}
+                    className={`border-b border-[#E5E7EB] last:border-b-0 transition hover:bg-[#F9FAFB] ${
+                      !isRead ? "bg-[#FAFAFE]" : ""
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isRead) markAsRead(notification.id);
+                      }}
+                      className="flex w-full items-start gap-3 p-4 text-left"
+                    >
+                      {/* Icon */}
+                      <div
+                        className={`mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-xl ${style.color}`}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </div>
 
-            {activity.length === 0 ? (
-              <EmptyState title="No history yet" body="Your wallet history will show here." />
-            ) : (
-              <ul className="space-y-3">
-                {activity.map((item) => (
-                  <li key={item.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] p-4">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-black">{item.label}</div>
-                      <div className="mt-1 flex items-center gap-1 text-xs text-[#667085]">
-                        <Clock className="h-3 w-3" />
-                        {new Date(item.createdAt).toLocaleDateString()}
+                      {/* Content */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3
+                            className={`text-sm leading-tight ${
+                              isRead ? "font-semibold text-[#6B7280]" : "font-bold text-[#111827]"
+                            }`}
+                          >
+                            {notification.title}
+                          </h3>
+                          {!isRead && (
+                            <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#4F46E5]" />
+                          )}
+                        </div>
+                        <p className="mt-1 text-sm text-[#6B7280] line-clamp-2">{notification.message}</p>
+                        <div className="mt-2 flex items-center gap-1 text-xs text-[#9CA3AF]">
+                          <Clock className="h-3 w-3" />
+                          {formatNotificationTime(notification.createdAt)}
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <div className={`text-sm font-black ${item.direction === "IN" ? "text-[#12B886]" : "text-[#E85D5D]"}`}>
-                        {item.direction === "IN" ? "+" : "-"}
-                        {formatNaira(item.amount)}
-                      </div>
-                      <div className="mt-1 text-xs capitalize text-[#667085]">{item.status}</div>
-                    </div>
+                    </button>
                   </li>
-                ))}
-              </ul>
-            )}
+                );
+              })}
+            </ul>
           </div>
-        </section>
+        )}
       </main>
       <MobileNav />
     </div>
   );
 }
-
-const SummaryCard = ({ icon: Icon, label, value, tone }: { icon: any; label: string; value: string; tone: "neutral" | "green" | "red" }) => {
-  const tones = {
-    neutral: "border-[#E5E7EB] bg-[#F3F4F6] text-[#667085]",
-    green: "border-[#12B886]/25 bg-[#12B886]/10 text-[#047857]",
-    red: "border-[#E85D5D]/25 bg-[#E85D5D]/10 text-[#B42318]",
-  };
-
-  return (
-    <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
-      <div className={`mb-4 grid h-10 w-10 place-items-center rounded-xl border ${tones[tone]}`}>
-        <Icon className="h-5 w-5" />
-      </div>
-      <div className="text-3xl font-black">{value}</div>
-      <div className="mt-1 text-sm font-bold text-[#667085]">{label}</div>
-    </div>
-  );
-};
-
-const Info = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-xl border border-[#E5E7EB] bg-white p-3">
-    <div className="text-[#667085]">{label}</div>
-    <div className="mt-1 truncate font-black text-[#101828]">{value}</div>
-  </div>
-);
-
-const EmptyState = ({ title, body }: { title: string; body: string }) => (
-  <div className="rounded-2xl border border-dashed border-[#E5E7EB] py-14 text-center">
-    <ActivityIcon className="mx-auto mb-4 h-8 w-8 text-[#12B886]" />
-    <div className="font-black">{title}</div>
-    <p className="mt-1 text-sm text-[#667085]">{body}</p>
-  </div>
-);

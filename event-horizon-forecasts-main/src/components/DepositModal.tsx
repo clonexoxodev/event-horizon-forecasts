@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowDownRight, Loader2, X } from "lucide-react";
+import { ArrowDownRight, CheckCircle, Loader2, ShieldCheck, X } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,12 +14,22 @@ type DepositModalProps = {
   onSaved?: () => void;
 };
 
-export const DepositModal = ({ open, onClose, currency }: DepositModalProps) => {
+export const DepositModal = ({
+  open,
+  onClose,
+  currency,
+  onSaved,
+}: DepositModalProps) => {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const quickAmounts = [500, 1000, 5000, 10000];
+  const quickAmounts = [
+    { value: 500, label: "500" },
+    { value: 1000, label: "1,000" },
+    { value: 5000, label: "5,000" },
+    { value: 10000, label: "10,000" },
+  ];
   const numAmount = Number.parseFloat(amount) || 0;
 
   const handleContinue = async () => {
@@ -54,27 +64,37 @@ export const DepositModal = ({ open, onClose, currency }: DepositModalProps) => 
       <DialogContent className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-0 text-[#111827] shadow-[0_24px_80px_rgba(17,24,39,0.16)] sm:max-w-md">
         <div className="h-1 w-full bg-[#4F46E5]" />
         <div className="p-6">
-          <button
-            onClick={handleClose}
-            disabled={loading}
-            className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
-          >
-            <X className="h-4 w-4" />
-          </button>
-
-          <div className="mb-6">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#4F46E5]">Wallet</p>
-            <h3 className="mt-1 text-2xl font-black">Add Money</h3>
-            <p className="mt-1 text-sm text-[#6B7280]">
-              Enter an amount and continue to secure checkout. Your wallet is credited only after payment is verified.
-            </p>
+          <div className="mb-6 flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-lg bg-[#EEF2FF] text-[#4F46E5]">
+                  <ArrowDownRight className="h-4 w-4" />
+                </div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#4F46E5]">
+                  Deposit
+                </p>
+              </div>
+              <h3 className="mt-3 text-2xl font-black">Add Money</h3>
+              <p className="mt-1 text-sm text-[#6B7280]">
+                Enter an amount below to add funds to your wallet.
+              </p>
+            </div>
+            <button
+              onClick={handleClose}
+              disabled={loading}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
 
           <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">
-            Amount ({currency})
+            Amount
           </label>
-          <div className="relative mb-4">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-[#6B7280]">₦</span>
+          <div className="relative mb-3">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-black text-[#4F46E5]">
+              ₦
+            </span>
             <Input
               type="number"
               min="1"
@@ -82,38 +102,60 @@ export const DepositModal = ({ open, onClose, currency }: DepositModalProps) => 
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
               disabled={loading}
-              className="h-13 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-10 text-lg font-black text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5]"
+              className="h-14 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-12 text-2xl font-black text-[#111827] placeholder:text-[#D1D5DB] focus:border-[#4F46E5] focus:ring-[#4F46E5]/20"
             />
+            {numAmount > 0 && (
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-[#6B7280]">
+                {currency}
+              </span>
+            )}
           </div>
 
-          <div className="mb-6 grid grid-cols-4 gap-2">
-            {quickAmounts.map((value) => (
+          <div className="mb-5 grid grid-cols-4 gap-2">
+            {quickAmounts.map(({ value, label }) => (
               <button
                 key={value}
                 onClick={() => setAmount(value.toString())}
                 disabled={loading}
-                className={`h-10 rounded-xl border text-xs font-black transition sm:text-sm ${
+                className={`rounded-xl border py-2.5 text-xs font-black transition sm:text-sm ${
                   amount === value.toString()
-                    ? "border-[#4F46E5]/40 bg-[#4F46E5]/10 text-[#4F46E5]"
-                    : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:text-[#111827]"
+                    ? "border-[#4F46E5]/40 bg-[#4F46E5]/10 text-[#4F46E5] shadow-[0_2px_8px_rgba(79,70,229,0.15)]"
+                    : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:border-[#4F46E5]/20 hover:text-[#111827]"
                 }`}
               >
-                {formatNaira(value)}
+                ₦{label}
               </button>
             ))}
           </div>
 
-          <div className="mb-6 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4 text-xs font-bold leading-relaxed text-[#6B7280]">
-            FLIPPE will send you to the configured payment provider. We never credit your wallet until the backend verifies the payment.
+          <div className="mb-5 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#6B7280]">
+              <ShieldCheck className="h-4 w-4 shrink-0 text-[#4F46E5]" />
+              <span>
+                Powered by <span className="font-black text-[#111827]">{providerLabel()}</span> — secure, encrypted payment
+              </span>
+            </div>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-[#9CA3AF]">
+              You'll be redirected to a secure checkout. Your wallet is only credited after payment verification.
+            </p>
           </div>
 
           <Button
             onClick={handleContinue}
             disabled={loading || numAmount <= 0}
-            className="h-12 w-full rounded-xl bg-[#4F46E5] text-base font-black text-white hover:bg-[#4338CA] disabled:opacity-50"
+            className="h-12 w-full rounded-xl bg-[#4F46E5] text-sm font-black text-white transition hover:bg-[#4338CA] hover:shadow-[0_4px_14px_rgba(79,70,229,0.4)] disabled:opacity-50"
           >
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowDownRight className="mr-2 h-4 w-4" />}
-            Continue
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Redirecting to checkout...
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <ArrowDownRight className="h-4 w-4" />
+                Deposit {numAmount > 0 ? formatNaira(numAmount) : ""}
+              </span>
+            )}
           </Button>
         </div>
       </DialogContent>

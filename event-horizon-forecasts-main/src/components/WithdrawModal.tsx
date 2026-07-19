@@ -1,5 +1,16 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, ArrowUpRight, CheckCircle, Loader2, X } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowUpRight,
+  Building2,
+  CheckCircle,
+  Copy,
+  CreditCard,
+  Loader2,
+  User,
+  Wallet,
+  X,
+} from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +50,13 @@ const decodeBankDetails = (encoded: string): BankDetails | null => {
   }
 };
 
-export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSaved }: WithdrawModalProps) => {
+export const WithdrawModal = ({
+  open,
+  onClose,
+  currency,
+  availableBalance,
+  onSaved,
+}: WithdrawModalProps) => {
   const [amount, setAmount] = useState("");
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
@@ -54,7 +71,12 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
   const numAmount = Number.parseFloat(amount) || 0;
   const insufficientFunds = numAmount > availableBalance;
   const belowMinimum = numAmount > 0 && numAmount < 500;
-  const missingBankDetails = !bankName.trim() || !accountNumber.trim() || !accountName.trim();
+  const missingBankDetails =
+    !bankName.trim() || !accountNumber.trim() || !accountName.trim();
+
+  const filteredQuickAmounts = quickAmounts.filter(
+    (value) => value <= availableBalance && value >= 500
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -67,7 +89,13 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
   }, [open]);
 
   const handleWithdraw = async () => {
-    if (numAmount <= 0 || insufficientFunds || belowMinimum || missingBankDetails) return;
+    if (
+      numAmount <= 0 ||
+      insufficientFunds ||
+      belowMinimum ||
+      missingBankDetails
+    )
+      return;
 
     setLoading(true);
     try {
@@ -77,22 +105,15 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
         accountName,
         saveBankDetails: saveDetails,
       });
-      if (saveDetails) saveBankDetails({ bankName, accountNumber, accountName });
+      if (saveDetails)
+        saveBankDetails({ bankName, accountNumber, accountName });
       setReference(response.withdrawalRequest.reference);
       setSuccess(true);
       onSaved?.();
-      toast({ title: "Withdrawal submitted", description: "Your withdrawal request is awaiting review." });
-      window.setTimeout(() => {
-        setSuccess(false);
-        setAmount("");
-        setReference("");
-        if (!saveDetails) {
-          setBankName("");
-          setAccountNumber("");
-          setAccountName("");
-        }
-        onClose();
-      }, 1800);
+      toast({
+        title: "Withdrawal submitted",
+        description: "Your withdrawal request is awaiting review.",
+      });
     } catch (error: any) {
       toast({
         title: "Withdraw failed",
@@ -117,42 +138,106 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
     onClose();
   };
 
+  const handleCopyReference = () => {
+    if (reference) {
+      navigator.clipboard.writeText(reference);
+      toast({ title: "Reference copied" });
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-0 text-[#111827] shadow-[0_24px_80px_rgba(17,24,39,0.16)] sm:max-w-md">
         <div className="h-1 w-full bg-[#E85D5D]" />
         {success ? (
           <div className="p-8 text-center">
-            <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-[#12B886]/10 text-[#047857]">
-              <CheckCircle className="h-8 w-8" />
+            <div className="mx-auto mb-5 grid h-20 w-20 place-items-center rounded-full bg-[#12B886]/10 text-[#047857]">
+              <CheckCircle className="h-10 w-10" />
             </div>
-            <h3 className="mb-2 text-xl font-black">Withdrawal submitted</h3>
-            <p className="text-sm text-[#6B7280]">
-              Your withdrawal request has been submitted and is awaiting review.
+            <h3 className="text-xl font-black">Withdrawal Submitted</h3>
+            <p className="mt-2 text-sm text-[#6B7280]">
+              Your withdrawal request of{" "}
+              <span className="font-black text-[#111827]">
+                {formatNaira(numAmount)}
+              </span>{" "}
+              has been submitted and is awaiting review.
             </p>
-            {reference && <p className="mt-3 text-sm font-black text-[#12B886]">Reference: {reference}</p>}
+            {reference && (
+              <div className="mt-5 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
+                  Reference number
+                </p>
+                <div className="mt-1 flex items-center justify-center gap-2">
+                  <span className="font-mono text-sm font-black text-[#12B886]">
+                    {reference}
+                  </span>
+                  <button
+                    onClick={handleCopyReference}
+                    className="grid h-6 w-6 place-items-center rounded-md bg-[#12B886]/10 text-[#047857] transition hover:bg-[#12B886]/20"
+                    title="Copy reference"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            )}
+            <button
+              onClick={() => {
+                setSuccess(false);
+                setAmount("");
+                setReference("");
+                onClose();
+              }}
+              className="mt-6 rounded-xl bg-[#4F46E5] px-6 py-2.5 text-sm font-black text-white transition hover:bg-[#4338CA]"
+            >
+              Done
+            </button>
           </div>
         ) : (
           <div className="p-6">
-            <button
-              onClick={handleClose}
-              disabled={loading}
-              className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <div className="mb-6 flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-[#FEF2F2] text-[#E85D5D]">
+                    <ArrowUpRight className="h-4 w-4" />
+                  </div>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#E85D5D]">
+                    Withdraw
+                  </p>
+                </div>
+                <h3 className="mt-3 text-2xl font-black">Cash Out</h3>
+                <p className="mt-1 text-sm text-[#6B7280]">
+                  Withdraw to your bank account.
+                </p>
+              </div>
+              <button
+                onClick={handleClose}
+                disabled={loading}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
-            <div className="mb-6">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#E85D5D]">Wallet</p>
-              <h3 className="mt-1 text-2xl font-black">Withdraw</h3>
-              <p className="mt-1 text-sm text-[#6B7280]">Available: {formatNaira(availableBalance)}</p>
+            <div className="mb-5 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm text-[#6B7280]">
+                  <Wallet className="h-4 w-4" />
+                  Available balance
+                </div>
+                <span className="text-lg font-black text-[#111827]">
+                  {formatNaira(availableBalance)}
+                </span>
+              </div>
             </div>
 
             <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">
               Amount ({currency})
             </label>
             <div className="relative mb-2">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-[#6B7280]">₦</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-black text-[#E85D5D]">
+                ₦
+              </span>
               <Input
                 type="number"
                 min="1"
@@ -160,58 +245,124 @@ export const WithdrawModal = ({ open, onClose, currency, availableBalance, onSav
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 disabled={loading}
-                className={`h-13 rounded-xl bg-[#F8F7F4] pl-10 text-lg font-black text-[#111827] placeholder:text-[#9CA3AF] ${
-                  insufficientFunds ? "border-[#E85D5D] focus:border-[#E85D5D]" : "border-[#E5E7EB] focus:border-[#4F46E5]"
+                className={`h-14 rounded-xl bg-[#F8F7F4] pl-12 text-2xl font-black text-[#111827] placeholder:text-[#D1D5DB] ${
+                  insufficientFunds
+                    ? "border-[#E85D5D] focus:border-[#E85D5D]"
+                    : "border-[#E5E7EB] focus:border-[#4F46E5]"
                 }`}
               />
-              {insufficientFunds && <AlertCircle className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#E85D5D]" />}
             </div>
-            {insufficientFunds && <p className="mb-4 text-xs font-bold text-[#B42318]">Amount must not exceed your wallet balance.</p>}
-            {belowMinimum && <p className="mb-4 text-xs font-bold text-[#B7791F]">Minimum withdrawal is ₦500.</p>}
+            {insufficientFunds && (
+              <p className="mb-3 flex items-center gap-1 text-xs font-bold text-[#E85D5D]">
+                <AlertCircle className="h-3 w-3" />
+                Amount exceeds available balance.
+              </p>
+            )}
+            {belowMinimum && (
+              <p className="mb-3 flex items-center gap-1 text-xs font-bold text-[#92400E]">
+                <AlertCircle className="h-3 w-3" />
+                Minimum withdrawal is ₦500.
+              </p>
+            )}
 
-            <div className="mb-4 grid grid-cols-4 gap-2">
-              {quickAmounts.filter((value) => value <= availableBalance).map((value) => (
-                <button
-                  key={value}
-                  onClick={() => setAmount(value.toString())}
-                  disabled={loading}
-                  className={`h-10 rounded-xl border text-xs font-black transition sm:text-sm ${
-                    amount === value.toString()
-                      ? "border-[#E85D5D]/40 bg-[#E85D5D]/18 text-[#B42318]"
-                      : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:text-[#111827]"
-                  }`}
-                >
-                  {formatNaira(value)}
-                </button>
-              ))}
-            </div>
-
-            <div className="mb-6 grid gap-3">
-              <Input value={bankName} onChange={(event) => setBankName(event.target.value)} disabled={loading} placeholder="Bank name" className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] text-[#111827] placeholder:text-[#9CA3AF]" />
-              <Input value={accountNumber} onChange={(event) => setAccountNumber(event.target.value)} disabled={loading} placeholder="Account number" className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] text-[#111827] placeholder:text-[#9CA3AF]" />
-              <Input value={accountName} onChange={(event) => setAccountName(event.target.value)} disabled={loading} placeholder="Account name" className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] text-[#111827] placeholder:text-[#9CA3AF]" />
-              <label className="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3 text-sm font-bold text-[#374151]">
-                <input
-                  type="checkbox"
-                  checked={saveDetails}
-                  onChange={(event) => setSaveDetails(event.target.checked)}
-                  disabled={loading}
-                  className="h-4 w-4 accent-[#12B886]"
-                />
-                Save these bank details for next time
-              </label>
-              <div className="rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4 text-xs font-bold leading-relaxed text-[#6B7280]">
-                For faster processing, use a bank account that matches your registered name. Third-party accounts may require additional review.
+            {filteredQuickAmounts.length > 0 && (
+              <div className="mb-5 grid grid-cols-4 gap-2">
+                {filteredQuickAmounts.map((value) => (
+                  <button
+                    key={value}
+                    onClick={() => setAmount(value.toString())}
+                    disabled={loading}
+                    className={`rounded-xl border py-2.5 text-xs font-black transition sm:text-sm ${
+                      amount === value.toString()
+                        ? "border-[#E85D5D]/40 bg-[#E85D5D]/10 text-[#B42318] shadow-[0_2px_8px_rgba(232,93,93,0.15)]"
+                        : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:border-[#E85D5D]/20 hover:text-[#111827]"
+                    }`}
+                  >
+                    ₦{value.toLocaleString()}
+                  </button>
+                ))}
               </div>
+            )}
+
+            <div className="mb-4 space-y-3">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">
+                Bank details
+              </p>
+
+              <div className="relative">
+                <Building2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                <Input
+                  value={bankName}
+                  onChange={(event) => setBankName(event.target.value)}
+                  disabled={loading}
+                  placeholder="Bank name (e.g. GTBank, Access Bank)"
+                  className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-sm font-semibold text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5]"
+                />
+              </div>
+
+              <div className="relative">
+                <CreditCard className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                <Input
+                  value={accountNumber}
+                  onChange={(event) => setAccountNumber(event.target.value)}
+                  disabled={loading}
+                  placeholder="Account number (10 digits)"
+                  maxLength={10}
+                  className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-sm font-semibold text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5]"
+                />
+              </div>
+
+              <div className="relative">
+                <User className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                <Input
+                  value={accountName}
+                  onChange={(event) => setAccountName(event.target.value)}
+                  disabled={loading}
+                  placeholder="Account name"
+                  className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-sm font-semibold text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5]"
+                />
+              </div>
+            </div>
+
+            <label className="mb-4 flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3.5 text-sm font-bold text-[#374151] transition hover:bg-white cursor-pointer">
+              <input
+                type="checkbox"
+                checked={saveDetails}
+                onChange={(event) => setSaveDetails(event.target.checked)}
+                disabled={loading}
+                className="h-4 w-4 rounded accent-[#12B886]"
+              />
+              <span>Save these bank details for next time</span>
+            </label>
+
+            <div className="mb-5 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4 text-xs font-bold leading-relaxed text-[#6B7280]">
+              For faster processing, use a bank account that matches your
+              registered name. Third-party accounts may require additional
+              review. Processing typically takes 1-24 hours.
             </div>
 
             <Button
               onClick={handleWithdraw}
-              disabled={loading || numAmount <= 0 || insufficientFunds || belowMinimum || missingBankDetails}
-              className="h-12 w-full rounded-xl bg-[#E85D5D] text-base font-black text-white hover:bg-[#f07575] disabled:opacity-50"
+              disabled={
+                loading ||
+                numAmount <= 0 ||
+                insufficientFunds ||
+                belowMinimum ||
+                missingBankDetails
+              }
+              className="h-12 w-full rounded-xl bg-[#E85D5D] text-sm font-black text-white transition hover:bg-[#f07575] hover:shadow-[0_4px_14px_rgba(232,93,93,0.35)] disabled:opacity-50"
             >
-              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowUpRight className="mr-2 h-4 w-4" />}
-              Submit request
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Processing...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <ArrowUpRight className="h-4 w-4" />
+                  Withdraw {numAmount > 0 ? formatNaira(numAmount) : ""}
+                </span>
+              )}
             </Button>
           </div>
         )}
@@ -225,7 +376,13 @@ const loadSavedBankDetails = (): BankDetails | null => {
     const raw = window.sessionStorage.getItem(SAVED_BANK_KEY);
     if (!raw) return null;
     const decoded = decodeBankDetails(raw);
-    if (!decoded || !decoded.bankName || !decoded.accountNumber || !decoded.accountName) return null;
+    if (
+      !decoded ||
+      !decoded.bankName ||
+      !decoded.accountNumber ||
+      !decoded.accountName
+    )
+      return null;
     return decoded;
   } catch {
     return null;

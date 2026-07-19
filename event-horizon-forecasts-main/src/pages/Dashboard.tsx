@@ -1,21 +1,41 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Activity, ArrowRight, Award, BarChart3, CheckCircle, Clock, Flame, LineChart, Loader2, Medal, Target, Trophy, X } from "lucide-react";
+import {
+  ArrowRight,
+  Award,
+  BarChart3,
+  CheckCircle,
+  ChevronRight,
+  Clock,
+  Flame,
+  LineChart,
+  Loader2,
+  Medal,
+  Shield,
+  Target,
+  TrendingUp,
+  Trophy,
+  X,
+  Zap,
+} from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
 import apiService, { type ApiPosition, type ApiProfileStats } from "@/lib/api";
 import { formatCountdown, formatNaira, formatNairaPrice, MARKET_ACTIVATION_REQUIREMENTS } from "@/lib/markets";
-import { getCategoryLabel } from "@/lib/categories";
 import { DelayedFlippeLoader } from "@/components/FlippeBrand";
-import { getCurrentWinStreak, getBestWinStreak, getScore, getForecasterLevel, getNextLevel, getLevelProgress, LEVELS } from "@/lib/levels";
+import { AnimatedNumber } from "@/components/AnimatedNumber";
+import {
+  getCurrentWinStreak,
+  getBestWinStreak,
+  getScore,
+  getForecasterLevel,
+  getNextLevel,
+  getLevelProgress,
+  LEVELS,
+} from "@/lib/levels";
 
-type PortfolioTab = "positions" | "activity" | "performance";
-const tabLabels: Record<PortfolioTab, string> = {
-  positions: "Open Predictions",
-  activity: "Prediction History",
-  performance: "My Score",
-};
+type PositionFilterTab = "active" | "resolved" | "all";
 
 const emptyStats: ApiProfileStats = {
   totalPredictions: 0,
@@ -30,6 +50,32 @@ const emptyStats: ApiProfileStats = {
   totalRankedUsers: 0,
 };
 
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+};
+
+const getLevelIcon = (levelName: string) => {
+  switch (levelName) {
+    case "Rookie":
+      return Shield;
+    case "Sharp Thinker":
+      return Zap;
+    case "Analyst":
+      return BarChart3;
+    case "Expert":
+      return Award;
+    case "Elite Forecaster":
+      return Medal;
+    case "Market Master":
+      return Trophy;
+    default:
+      return Shield;
+  }
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
@@ -37,7 +83,7 @@ const Dashboard = () => {
   const [positions, setPositions] = useState<ApiPosition[]>([]);
   const [stats, setStats] = useState<ApiProfileStats>(emptyStats);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<PortfolioTab>("positions");
+  const [positionTab, setPositionTab] = useState<PositionFilterTab>("active");
   const [selectedPosition, setSelectedPosition] = useState<ApiPosition | null>(null);
   const [now, setNow] = useState(Date.now());
 
@@ -99,8 +145,34 @@ const Dashboard = () => {
     [positions, now]
   );
 
-  const openStake = activePositions.reduce((sum, position) => sum + Number(position.stake || 0), 0);
-  const resolvedWinnings = settledPositions.reduce((sum, position) => sum + Number(position.payout || 0), 0);
+  const resolvedPositions = useMemo(
+    () => positions.filter((position) => position.resolvedAt),
+    [positions]
+  );
+
+  const wonPositions = useMemo(
+    () => resolvedPositions.filter((position) => position.isWinner),
+    [resolvedPositions]
+  );
+
+  const filteredPositions = useMemo(() => {
+    if (positionTab === "active") return activePositions;
+    if (positionTab === "resolved") return settledPositions;
+    return positions;
+  }, [positionTab, activePositions, settledPositions, positions]);
+
+  const totalScore = getScore(stats.totalPredictions, wonPositions.length);
+  const level = stats.level || getForecasterLevel(stats.totalPredictions, wonPositions.length);
+  const nextLevel = getNextLevel(level);
+  const progress = getLevelProgress(stats.totalPredictions, wonPositions.length);
+  const winRate = resolvedPositions.length ? Math.round((wonPositions.length / resolvedPositions.length) * 100) : 0;
+  const LevelIcon = getLevelIcon(level);
+
+  const currentLevelIndex = Math.max(0, LEVELS.findIndex((l) => l.name === level));
+  const currentLevelScore = LEVELS[currentLevelIndex]?.score || 0;
+  const nextLevelObj = LEVELS[Math.min(currentLevelIndex + 1, LEVELS.length - 1)];
+  const nextLevelScore = nextLevelObj?.score || currentLevelScore;
+  const pointsToNext = level === nextLevel ? 0 : Math.max(0, nextLevelScore - totalScore);
 
   if (authLoading) {
     return <SessionLoading label="Restoring your predictions..." />;
@@ -116,8 +188,13 @@ const Dashboard = () => {
               <LineChart className="h-8 w-8" />
             </div>
             <h1 className="text-3xl font-black tracking-tight">Track your predictions</h1>
-            <p className="mt-3 text-sm text-[#6B7280]">Log in to see open predictions, resolved results, and wallet-linked history.</p>
-            <Link to="/login" className="mt-6 inline-flex h-12 items-center rounded-xl bg-[#4F46E5] px-6 text-sm font-black text-white hover:bg-[#4338CA]">
+            <p className="mt-3 text-sm text-[#6B7280]">
+              Log in to see open predictions, resolved results, and wallet-linked history.
+            </p>
+            <Link
+              to="/login"
+              className="mt-6 inline-flex h-12 items-center rounded-xl bg-[#4F46E5] px-6 text-sm font-black text-white hover:bg-[#4338CA]"
+            >
               Log in
             </Link>
           </div>
@@ -131,50 +208,201 @@ const Dashboard = () => {
     <div className="app-bg min-h-screen overflow-x-hidden pb-24 text-[#111827] md:pb-0 xl:pl-64" data-now={now}>
       <Header />
       <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:py-8">
-        <section className="rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_18px_52px_rgba(17,24,39,0.08)] sm:p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        {/* ── Header Section ── */}
+        <section className="mb-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">My Predictions</p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-5xl">{formatNaira(openStake)}</h1>
-              <p className="mt-2 max-w-xl text-sm text-[#6B7280]">
-                Money you have backed in open predictions. Final payouts are calculated only after market resolution.
-              </p>
+              <p className="text-sm font-medium text-[#6B7280]">{getGreeting()},</p>
+              <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">
+                {user.name || user.username || "Forecaster"}
+              </h1>
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[520px]">
-              <HeroStat icon={Target} label="Open predictions" value={`${activePositions.length}`} />
-              <HeroStat icon={BarChart3} label="Amount backed" value={formatNaira(openStake)} />
-              <HeroStat icon={LineChart} label="Resolved results" value={`${settledPositions.length}`} />
-              <HeroStat icon={Trophy} label="Resolved winnings" value={formatNaira(resolvedWinnings)} />
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-2.5 shadow-sm">
+                <div className="grid h-7 w-7 place-items-center rounded-lg bg-[#4F46E5]/10">
+                  <LevelIcon className="h-4 w-4 text-[#4F46E5]" />
+                </div>
+                <span className="text-sm font-black text-[#111827]">{level}</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] px-4 py-2.5 text-white shadow-lg shadow-[#4F46E5]/25">
+                <Zap className="h-4 w-4" />
+                <AnimatedNumber value={totalScore} className="text-sm font-black" />
+                <span className="text-xs font-bold opacity-80">pts</span>
+              </div>
             </div>
           </div>
         </section>
 
-        <div className="mt-5 grid grid-cols-3 gap-1 rounded-xl border border-[#E5E7EB] bg-white p-1">
-          {(["positions", "activity", "performance"] as PortfolioTab[]).map((item) => (
-            <button
-              key={item}
-              onClick={() => setTab(item)}
-              className={`h-11 rounded-lg text-sm font-black capitalize transition ${
-                tab === item ? "bg-[#4F46E5] text-white" : "text-[#6B7280] hover:bg-[#F8F7F4] hover:text-[#111827]"
-              }`}
-            >
-              {tabLabels[item]}
-            </button>
-          ))}
-        </div>
+        {/* ── Stats Grid ── */}
+        <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard
+            icon={Target}
+            label="Total Predictions"
+            value={stats.totalPredictions}
+            bgGradient="from-[#EEF2FF] to-[#F5F3FF]"
+            iconBg="bg-[#4F46E5]/10"
+            iconColor="text-[#4F46E5]"
+          />
+          <StatCard
+            icon={Zap}
+            label="Active"
+            value={activePositions.length}
+            bgGradient="from-[#FEF3C7] to-[#FFFBEB]"
+            iconBg="bg-[#D97706]/10"
+            iconColor="text-[#D97706]"
+          />
+          <StatCard
+            icon={Trophy}
+            label="Won"
+            value={wonPositions.length}
+            bgGradient="from-[#D1FAE5] to-[#ECFDF5]"
+            iconBg="bg-[#059669]/10"
+            iconColor="text-[#059669]"
+          />
+          <StatCard
+            icon={TrendingUp}
+            label="Win Rate"
+            value={winRate}
+            suffix="%"
+            bgGradient="from-[#EDE9FE] to-[#F5F3FF]"
+            iconBg="bg-[#7C3AED]/10"
+            iconColor="text-[#7C3AED]"
+          />
+        </section>
 
+        {/* ── Level Progress ── */}
+        <section className="mb-6 rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#4F46E5]/10 text-[#4F46E5]">
+                <LevelIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-sm font-black text-[#111827]">{level}</div>
+                <div className="text-xs text-[#6B7280]">
+                  {level === nextLevel
+                    ? "Top level reached!"
+                    : `${pointsToNext} pts to ${nextLevel}`}
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="flex items-center justify-end gap-1">
+                <AnimatedNumber value={totalScore} className="text-2xl font-black text-[#4F46E5]" />
+              </div>
+              <div className="text-xs font-bold text-[#6B7280]">total points</div>
+            </div>
+          </div>
+          <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#E5E7EB]">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] transition-all duration-700"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="mt-2 flex items-center justify-between text-xs font-bold text-[#6B7280]">
+            <span>{progress}%</span>
+            <span>{level === nextLevel ? "Max level" : `Next: ${nextLevel}`}</span>
+          </div>
+        </section>
+
+        {/* ── Tab Navigation ── */}
+        <section className="mb-5">
+          <div className="flex gap-1 rounded-xl border border-[#E5E7EB] bg-white p-1 shadow-sm">
+            {(["active", "resolved", "all"] as PositionFilterTab[]).map((item) => {
+              const count =
+                item === "active"
+                  ? activePositions.length
+                  : item === "resolved"
+                    ? settledPositions.length
+                    : positions.length;
+              return (
+                <button
+                  key={item}
+                  onClick={() => setPositionTab(item)}
+                  className={`flex-1 rounded-lg py-2.5 text-sm font-black capitalize transition-all duration-200 ${
+                    positionTab === item
+                      ? "bg-[#4F46E5] text-white shadow-md shadow-[#4F46E5]/25"
+                      : "text-[#6B7280] hover:bg-[#F8F7F4] hover:text-[#111827]"
+                  }`}
+                >
+                  <span className="hidden sm:inline">{item === "active" ? "Active" : item === "resolved" ? "Resolved" : "All"}</span>
+                  <span className="sm:hidden">{item === "active" ? "Active" : item === "resolved" ? "Done" : "All"}</span>
+                  <span
+                    className={`ml-1.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[10px] ${
+                      positionTab === item
+                        ? "bg-white/20 text-white"
+                        : "bg-[#F3F4F6] text-[#6B7280]"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ── Position Cards ── */}
         {loading ? (
           <div className="grid min-h-[360px] place-items-center">
             <Loader2 className="h-8 w-8 animate-spin text-[#4F46E5]" />
           </div>
+        ) : filteredPositions.length === 0 ? (
+          positionTab === "active" ? (
+            <EmptyState
+              icon={Target}
+              title="No active predictions"
+              body="Your open positions will appear here. Pick a market and back your instinct."
+              action={
+                <Link
+                  to="/"
+                  className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#4F46E5] px-5 text-sm font-black text-white hover:bg-[#4338CA]"
+                >
+                  Explore markets <ArrowRight className="h-4 w-4" />
+                </Link>
+              }
+            />
+          ) : positionTab === "resolved" ? (
+            <EmptyState
+              icon={CheckCircle}
+              title="No resolved predictions yet"
+              body="Won, lost, and refunded predictions will show here once markets resolve."
+            />
+          ) : (
+            <EmptyState
+              icon={LineChart}
+              title="No predictions yet"
+              body="Start forecasting to build your prediction portfolio and track your performance."
+              action={
+                <Link
+                  to="/"
+                  className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#4F46E5] px-5 text-sm font-black text-white hover:bg-[#4338CA]"
+                >
+                  Make your first prediction <ArrowRight className="h-4 w-4" />
+                </Link>
+              }
+            />
+          )
         ) : (
-          <div className="mt-5">
-            {tab === "positions" && <PositionsView positions={activePositions} onSelect={setSelectedPosition} now={now} />}
-            {tab === "activity" && <ActivityView positions={positions} settledCount={settledPositions.length} />}
-            {tab === "performance" && <PerformanceView positions={positions} stats={stats} />}
+          <div className="grid gap-3 lg:grid-cols-2">
+            {filteredPositions.map((position) => (
+              <PositionCard
+                key={position.id}
+                position={position}
+                now={now}
+                onClick={() => setSelectedPosition(position)}
+              />
+            ))}
           </div>
         )}
+
+        {/* ── Activity Feed ── */}
+        <ActivityFeed positions={positions} settledCount={settledPositions.length} />
+
+        {/* ── Achievements ── */}
+        <AchievementsSection positions={positions} stats={stats} />
       </main>
+
       {selectedPosition && (
         <PredictionDetailModal
           position={selectedPosition}
@@ -192,15 +420,416 @@ const Dashboard = () => {
   );
 };
 
-const HeroStat = ({ icon: Icon, label, value, tone = "neutral" }: { icon: any; label: string; value: string; tone?: "neutral" | "green" | "red" }) => (
-  <div className="rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3">
-    <Icon className={`mb-3 h-4 w-4 ${tone === "green" ? "text-[#12B886]" : tone === "red" ? "text-[#E85D5D]" : "text-[#6B7280]"}`} />
-    <div className="text-[11px] font-bold text-[#6B7280]">{label}</div>
-    <div className="mt-1 text-lg font-black">{value}</div>
+/* ═══════════════════════════════════════════════════════════════
+   Stat Card
+   ═══════════════════════════════════════════════════════════════ */
+
+const StatCard = ({
+  icon: Icon,
+  label,
+  value,
+  suffix = "",
+  bgGradient,
+  iconBg,
+  iconColor,
+}: {
+  icon: any;
+  label: string;
+  value: number;
+  suffix?: string;
+  bgGradient: string;
+  iconBg: string;
+  iconColor: string;
+}) => (
+  <div
+    className={`group rounded-2xl border border-[#E5E7EB] bg-gradient-to-br ${bgGradient} p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md`}
+  >
+    <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl ${iconBg} transition`}>
+      <Icon className={`h-[18px] w-[18px] ${iconColor}`} />
+    </div>
+    <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6B7280]">{label}</div>
+    <div className="mt-1">
+      <AnimatedNumber value={value} className="text-2xl font-black text-[#111827]" suffix={suffix} />
+    </div>
   </div>
 );
 
-const getPredictionCloseTime = (position: ApiPosition) => position.tradingCloseTime || position.marketCloseTime || "";
+/* ═══════════════════════════════════════════════════════════════
+   Position Card
+   ═══════════════════════════════════════════════════════════════ */
+
+const PositionCard = ({
+  position,
+  now,
+  onClick,
+}: {
+  position: ApiPosition;
+  now: number;
+  onClick: () => void;
+}) => {
+  const insight = getPredictionInsight(position);
+  const displayStatus = getPredictionDisplayStatus(position, now);
+  const profitPositive = insight.profitLoss >= 0;
+  const timeLeft = formatPositionCountdown(position);
+
+  return (
+    <button
+      onClick={onClick}
+      data-now={now}
+      className="group rounded-2xl border border-[#E5E7EB] bg-white p-4 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#4F46E5]/30 hover:shadow-md active:scale-[0.99]"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <StatusBadge status={displayStatus} />
+        </div>
+        <SideBadge side={position.side} />
+      </div>
+
+      <h3 className="mt-3 line-clamp-2 text-base font-black leading-tight text-[#111827]">
+        {position.marketQuestion}
+      </h3>
+
+      {insight.isProtected ? (
+        <div className="mt-4 rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] p-3">
+          <div className="text-sm font-black text-[#101828]">Refund Protected</div>
+          <p className="mt-1 text-xs font-bold text-[#475467]">
+            Value appears once this market goes live.
+          </p>
+        </div>
+      ) : (
+        <div className="mt-4 grid grid-cols-3 gap-3 border-t border-[#F3F4F6] pt-3">
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#9CA3AF]">Stake</div>
+            <div className="mt-0.5 text-sm font-black text-[#111827]">{formatNaira(position.stake)}</div>
+          </div>
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#9CA3AF]">Value</div>
+            <div className="mt-0.5 text-sm font-black text-[#111827]">{formatNaira(insight.currentValue)}</div>
+          </div>
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#9CA3AF]">P/L</div>
+            <div
+              className={`mt-0.5 text-sm font-black ${
+                profitPositive ? "text-[#12B886]" : "text-[#E85D5D]"
+              }`}
+            >
+              {profitPositive ? "+" : ""}
+              {formatNaira(insight.profitLoss)}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center justify-between">
+        <span className="text-xs font-bold text-[#9CA3AF]">{timeLeft} left</span>
+        <span className="inline-flex items-center gap-0.5 text-xs font-black text-[#6B7280] transition group-hover:text-[#4F46E5]">
+          View Market <ChevronRight className="h-3.5 w-3.5" />
+        </span>
+      </div>
+    </button>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   Status Badge
+   ═══════════════════════════════════════════════════════════════ */
+
+const StatusBadge = ({ status }: { status: { isOpen: boolean; label: string } }) => {
+  let colorClasses = "bg-gray-100 text-gray-600";
+  let dotColor = "bg-gray-400";
+
+  if (status.isOpen) {
+    colorClasses = "bg-[#D1FAE5] text-[#047857]";
+    dotColor = "bg-[#12B886]";
+  } else if (status.label.includes("pending")) {
+    colorClasses = "bg-[#FEF3C7] text-[#92400E]";
+    dotColor = "bg-[#D97706]";
+  } else if (status.label === "resolved") {
+    colorClasses = "bg-[#EEF2FF] text-[#4F46E5]";
+    dotColor = "bg-[#4F46E5]";
+  } else if (status.label === "refunded") {
+    colorClasses = "bg-[#F3F4F6] text-[#6B7280]";
+    dotColor = "bg-[#9CA3AF]";
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${colorClasses}`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
+      {status.label.charAt(0).toUpperCase() + status.label.slice(1)}
+    </span>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   Side Badge
+   ═══════════════════════════════════════════════════════════════ */
+
+const SideBadge = ({ side }: { side?: string }) => (
+  <span
+    className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${
+      side === "YES"
+        ? "bg-[#12B886]/10 text-[#047857]"
+        : "bg-[#E85D5D]/10 text-[#B42318]"
+    }`}
+  >
+    {side || "N/A"}
+  </span>
+);
+
+/* ═══════════════════════════════════════════════════════════════
+   Activity Feed
+   ═══════════════════════════════════════════════════════════════ */
+
+const ActivityFeed = ({
+  positions,
+  settledCount,
+}: {
+  positions: ApiPosition[];
+  settledCount: number;
+}) => {
+  const activities = useMemo(() => {
+    return positions
+      .filter((p) => p.resolvedAt || p.marketStatus !== "active")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 8);
+  }, [positions]);
+
+  if (activities.length === 0) return null;
+
+  return (
+    <section className="mt-6 mb-2 rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-black text-[#111827]">Recent Activity</h2>
+        <span className="rounded-full border border-[#E5E7EB] bg-[#F8F7F4] px-3 py-1 text-xs font-bold text-[#6B7280]">
+          {settledCount} settled
+        </span>
+      </div>
+      <div className="relative">
+        <div className="absolute left-[19px] top-2 bottom-2 w-px bg-[#E5E7EB]" />
+        <div className="space-y-0">
+          {activities.map((position, index) => (
+            <ActivityItem
+              key={position.id}
+              position={position}
+              isLast={index === activities.length - 1}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const ActivityItem = ({
+  position,
+  isLast,
+}: {
+  position: ApiPosition;
+  isLast: boolean;
+}) => {
+  const isWon = position.resolvedAt && position.isWinner;
+  const isLost = position.resolvedAt && !position.isWinner;
+  const isRefunded =
+    position.status === "refunded" || position.marketStatus === "refunded";
+  const isPending = !position.resolvedAt;
+
+  let iconBg = "bg-[#F3F4F6] text-[#6B7280]";
+  let Icon = Clock;
+  let amountColor = "text-[#6B7280]";
+  let label = "Prediction placed";
+
+  if (isWon) {
+    iconBg = "bg-[#D1FAE5] text-[#059669]";
+    Icon = Trophy;
+    amountColor = "text-[#12B886]";
+    label = "Won";
+  } else if (isLost) {
+    iconBg = "bg-[#FEE2E2] text-[#DC2626]";
+    Icon = X;
+    amountColor = "text-[#E85D5D]";
+    label = "Lost";
+  } else if (isRefunded) {
+    iconBg = "bg-[#EDE9FE] text-[#7C3AED]";
+    Icon = Shield;
+    amountColor = "text-[#4F46E5]";
+    label = "Refunded";
+  } else if (isPending) {
+    iconBg = "bg-[#FEF3C7] text-[#D97706]";
+    Icon = Clock;
+    label = "Pending";
+  }
+
+  const amount = position.resolvedAt
+    ? position.isWinner
+      ? position.payout || 0
+      : position.stake || 0
+    : position.stake || 0;
+
+  const dateStr = position.resolvedAt
+    ? new Date(position.resolvedAt).toLocaleDateString()
+    : new Date(position.createdAt).toLocaleDateString();
+
+  return (
+    <Link
+      to={`/market/${position.marketId}`}
+      className={`relative flex items-start gap-3 py-3 pl-0 transition hover:bg-[#F8F7F4] ${
+        !isLast ? "" : ""
+      }`}
+    >
+      <div
+        className={`relative z-10 grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl ${iconBg}`}
+      >
+        <Icon className="h-[16px] w-[16px]" />
+      </div>
+      <div className="min-w-0 flex-1 pt-0.5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="truncate text-sm font-black text-[#111827]">
+              {position.marketQuestion}
+            </div>
+            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-[#9CA3AF]">
+              <span className="font-bold">{label}</span>
+              <span>·</span>
+              <span>{position.side}</span>
+              <span>·</span>
+              <span>{dateStr}</span>
+            </div>
+          </div>
+          <div className="shrink-0 text-right">
+            <div className={`text-sm font-black ${amountColor}`}>
+              {isWon ? "+" : ""}
+              {formatNaira(amount)}
+            </div>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   Achievements Section
+   ═══════════════════════════════════════════════════════════════ */
+
+const AchievementsSection = ({
+  positions,
+  stats,
+}: {
+  positions: ApiPosition[];
+  stats: ApiProfileStats;
+}) => {
+  const resolved = positions.filter((p) => p.resolvedAt);
+  const won = resolved.filter((p) => p.isWinner);
+  const currentStreak = getCurrentWinStreak(resolved);
+  const bestStreak = getBestWinStreak(resolved);
+  const accuracy = resolved.length ? Math.round((won.length / resolved.length) * 100) : 0;
+  const level = stats.level || getForecasterLevel(stats.totalPredictions, won.length);
+
+  const achievements = getAchievements({
+    totalPredictions: stats.totalPredictions,
+    wins: won.length,
+    currentStreak,
+    bestStreak,
+    accuracy,
+    level,
+    rank: stats.rank || null,
+  });
+
+  return (
+    <section className="mt-6 rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center gap-2">
+        <Medal className="h-5 w-5 text-[#4F46E5]" />
+        <h2 className="text-lg font-black">Achievements</h2>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+        {achievements.map((achievement) => (
+          <AchievementCard key={achievement.title} {...achievement} />
+        ))}
+      </div>
+    </section>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   Achievement Card
+   ═══════════════════════════════════════════════════════════════ */
+
+type Achievement = {
+  icon: any;
+  title: string;
+  description: string;
+  unlocked: boolean;
+};
+
+const AchievementCard = ({
+  icon: Icon,
+  title,
+  description,
+  unlocked,
+}: Achievement) => (
+  <div
+    className={`rounded-xl border p-3 transition ${
+      unlocked
+        ? "border-[#4F46E5]/30 bg-[#EEF2FF]"
+        : "border-[#E5E7EB] bg-[#F8F7F4]"
+    }`}
+  >
+    <div
+      className={`mb-2 grid h-8 w-8 place-items-center rounded-lg ${
+        unlocked ? "bg-[#4F46E5] text-white" : "bg-white text-[#6B7280]"
+      }`}
+    >
+      <Icon className="h-4 w-4" />
+    </div>
+    <div className="text-xs font-black leading-tight">{title}</div>
+    <div
+      className={`mt-1 text-[11px] font-black ${
+        unlocked ? "text-[#4F46E5]" : "text-[#6B7280]"
+      }`}
+    >
+      {unlocked ? "Unlocked" : "Locked"}
+    </div>
+    <p className="mt-1 hidden text-[11px] font-bold leading-relaxed text-[#6B7280] sm:block">
+      {description}
+    </p>
+  </div>
+);
+
+/* ═══════════════════════════════════════════════════════════════
+   Empty State
+   ═══════════════════════════════════════════════════════════════ */
+
+const EmptyState = ({
+  icon: Icon,
+  title,
+  body,
+  action,
+}: {
+  icon: any;
+  title: string;
+  body: string;
+  action?: React.ReactNode;
+}) => (
+  <div className="grid min-h-[300px] place-items-center rounded-2xl border border-dashed border-[#E5E7EB] bg-white/70 p-6 text-center">
+    <div>
+      <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl border border-[#E5E7EB] bg-[#EEF2FF] text-[#4F46E5]">
+        <Icon className="h-8 w-8" />
+      </div>
+      <div className="text-xl font-black">{title}</div>
+      <p className="mx-auto mt-2 max-w-sm text-sm text-[#6B7280]">{body}</p>
+      {action && <div className="mt-6">{action}</div>}
+    </div>
+  </div>
+);
+
+/* ═══════════════════════════════════════════════════════════════
+   Helpers
+   ═══════════════════════════════════════════════════════════════ */
+
+const getPredictionCloseTime = (position: ApiPosition) =>
+  position.tradingCloseTime || position.marketCloseTime || "";
 
 const getPredictionDisplayStatus = (position: ApiPosition, now = Date.now()) => {
   const status = String(position.status || position.marketStatus || "active").toLowerCase();
@@ -208,7 +837,8 @@ const getPredictionDisplayStatus = (position: ApiPosition, now = Date.now()) => 
   const closeMs = closeTime ? new Date(closeTime).getTime() : NaN;
   const hasEnded = Number.isFinite(closeMs) && closeMs <= now;
   const unresolvedClosed = hasEnded && ["active", "open", "closed"].includes(status);
-  const isOpen = !hasEnded && position.marketStatus === "active" && ["active", "open"].includes(status);
+  const isOpen =
+    !hasEnded && position.marketStatus === "active" && ["active", "open"].includes(status);
 
   return {
     isOpen,
@@ -217,7 +847,17 @@ const getPredictionDisplayStatus = (position: ApiPosition, now = Date.now()) => 
   };
 };
 
-const formatPositionCountdown = (position: ApiPosition) => formatCountdown(getPredictionCloseTime(position));
+const formatPositionCountdown = (position: ApiPosition) =>
+  formatCountdown(getPredictionCloseTime(position));
+
+const formatMovement = (movement: number) => {
+  if (Math.abs(movement) < 0.5) return "0";
+  return `${movement > 0 ? "+" : ""}${movement.toFixed(0)}`;
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   Prediction Insight
+   ═══════════════════════════════════════════════════════════════ */
 
 type PredictionInsight = {
   entryCrowdView: number;
@@ -248,16 +888,27 @@ const getPredictionInsight = (position: ApiPosition): PredictionInsight => {
   const sidePool = Number(position.sidePool || 0);
   const opposingPool = Number(position.opposingPool || 0);
   const stake = Number(position.stake || 0);
-  const currentValue = Number(position.currentValue || position.positionValue || position.projectedPayout || 0);
-  const profitLoss = currentValue > 0 ? currentValue - stake : Number(position.projectedProfit || position.estimatedProfit || 0);
+  const currentValue = Number(
+    position.currentValue || position.positionValue || position.projectedPayout || 0
+  );
+  const profitLoss =
+    currentValue > 0
+      ? currentValue - stake
+      : Number(position.projectedProfit || position.estimatedProfit || 0);
   const isProtected =
     totalPool < MARKET_ACTIVATION_REQUIREMENTS.totalPool ||
     sidePool < MARKET_ACTIVATION_REQUIREMENTS.yesPool ||
     opposingPool < MARKET_ACTIVATION_REQUIREMENTS.noPool;
   const projectedPayout = Number(position.projectedPayout || position.estimatedPayout || 0);
-  const fallbackPayout = opposingPool > 0 && sidePool > 0 && stake > 0 ? stake + (stake / sidePool) * opposingPool : 0;
+  const fallbackPayout =
+    opposingPool > 0 && sidePool > 0 && stake > 0
+      ? stake + (stake / sidePool) * opposingPool
+      : 0;
   const currentPayoutEstimate = projectedPayout > 0 ? projectedPayout : fallbackPayout;
-  const multiplier = !isProtected && opposingPool > 0 && stake > 0 && currentPayoutEstimate > 0 ? currentPayoutEstimate / stake : null;
+  const multiplier =
+    !isProtected && opposingPool > 0 && stake > 0 && currentPayoutEstimate > 0
+      ? currentPayoutEstimate / stake
+      : null;
 
   let strength: PredictionInsight["strength"] = "Balanced";
   let strengthTone: PredictionInsight["strengthTone"] = "neutral";
@@ -308,73 +959,63 @@ const getPredictionInsight = (position: ApiPosition): PredictionInsight => {
   };
 };
 
-const PositionsView = ({ positions, onSelect, now }: { positions: ApiPosition[]; onSelect: (position: ApiPosition) => void; now: number }) => {
-  if (positions.length === 0) {
-    return (
-      <EmptyState
-        icon={Target}
-        title="No open predictions"
-        body="Pick a market, choose YES or NO, and your open predictions will appear here."
-        action={<Link to="/" className="rounded-xl bg-[#4F46E5] px-5 py-3 text-sm font-black text-white hover:bg-[#4338CA]">Explore markets</Link>}
-      />
-    );
-  }
+/* ═══════════════════════════════════════════════════════════════
+   Movement Pill
+   ═══════════════════════════════════════════════════════════════ */
 
+const MovementPill = ({ movement }: { movement?: number }) => {
+  if (!movement || Math.abs(movement) < 0.5) return null;
+  const positive = movement > 0;
   return (
-    <div className="grid gap-3 lg:grid-cols-2">
-      {positions.map((position) => {
-        const insight = getPredictionInsight(position);
-        const profitPositive = insight.profitLoss >= 0;
-        return (
-          <button
-            key={position.id}
-            onClick={() => onSelect(position)}
-            data-now={now}
-            className="group rounded-2xl border border-[#E5E7EB] bg-white p-4 text-left shadow-[0_16px_48px_rgba(17,24,39,0.08)] transition duration-200 hover:-translate-y-0.5 hover:border-[#4F46E5]/35 hover:bg-[#F8F7F4] active:scale-[0.99]"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">Open prediction</div>
-                <h2 className="mt-2 line-clamp-2 text-lg font-black leading-tight">{position.marketQuestion}</h2>
-              </div>
-              <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#E85D5D]/10 text-[#B42318]"}`}>
-                {position.side}
-              </span>
-            </div>
-            <div className="mt-4 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-black text-[#111827]">{formatNaira(position.stake)} backed</span>
-                <span className="text-xs font-bold text-[#6B7280]">{formatPositionCountdown(position)} left</span>
-              </div>
-              {insight.isProtected ? (
-                <div className="rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] p-3">
-                  <div className="text-sm font-black text-[#101828]">Refund Protected</div>
-                  <p className="mt-1 text-xs font-bold text-[#475467]">Value appears once this market goes live.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3 border-t border-[#E5E7EB] pt-3">
-                  <div>
-                    <div className="text-[11px] font-bold text-[#6B7280]">Current Value</div>
-                    <div className="mt-1 text-base font-black text-[#111827]">{formatNaira(insight.currentValue)}</div>
-                  </div>
-                  <div>
-                    <div className="text-[11px] font-bold text-[#6B7280]">Profit/Loss</div>
-                    <div className={`mt-1 text-base font-black ${profitPositive ? "text-[#047857]" : "text-[#B42318]"}`}>
-                      {profitPositive ? "+" : ""}{formatNaira(insight.profitLoss)}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            <p className="mt-4 inline-flex items-center gap-1 text-xs font-black text-[#6B7280] transition group-hover:text-[#4F46E5]">
-              Tap to view details <ArrowRight className="h-3.5 w-3.5" />
-            </p>
-          </button>
-        );
-      })}
-    </div>
+    <span
+      className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-black ${
+        positive ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#E85D5D]/10 text-[#B42318]"
+      }`}
+    >
+      {formatMovement(movement)}
+    </span>
   );
 };
+
+/* ═══════════════════════════════════════════════════════════════
+   Metric
+   ═══════════════════════════════════════════════════════════════ */
+
+const Metric = ({
+  label,
+  value,
+  large = false,
+  tone = "neutral",
+  movement,
+}: {
+  label: string;
+  value: string;
+  large?: boolean;
+  tone?: "neutral" | "green" | "red";
+  movement?: number;
+}) => (
+  <div className="min-w-0 transition-colors duration-300">
+    <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6B7280]">{label}</div>
+    <div
+      className={`mt-2 flex items-center font-black transition-all duration-300 ${
+        large ? "text-2xl" : "text-sm"
+      } ${
+        tone === "green"
+          ? "text-[#12B886]"
+          : tone === "red"
+            ? "text-[#E85D5D]"
+            : "text-[#111827]"
+      }`}
+    >
+      {value}
+      <MovementPill movement={movement} />
+    </div>
+  </div>
+);
+
+/* ═══════════════════════════════════════════════════════════════
+   Prediction Detail Modal
+   ═══════════════════════════════════════════════════════════════ */
 
 const PredictionDetailModal = ({
   position,
@@ -397,7 +1038,9 @@ const PredictionDetailModal = ({
   const optionalPoolMetrics = [
     insight.totalPool > 0 ? { label: "Total Pool", value: formatNaira(insight.totalPool) } : null,
     insight.sidePool > 0 ? { label: "Your Side Pool", value: formatNaira(insight.sidePool) } : null,
-    insight.opposingPool > 0 ? { label: "Opposing Pool", value: formatNaira(insight.opposingPool) } : null,
+    insight.opposingPool > 0
+      ? { label: "Opposing Pool", value: formatNaira(insight.opposingPool) }
+      : null,
     shares > 0 ? { label: "Units", value: shares.toFixed(2) } : null,
     { label: "Status", value: displayStatus },
   ].filter(Boolean) as Array<{ label: string; value: string }>;
@@ -407,10 +1050,17 @@ const PredictionDetailModal = ({
       <section className="max-h-[88vh] w-full max-w-2xl animate-in slide-in-from-bottom-4 duration-300 overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_24px_90px_rgba(17,24,39,0.18)] sm:zoom-in-95">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#E5E7EB] bg-white/95 p-4 backdrop-blur">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">Prediction detail</p>
-            <h2 className="mt-1 text-lg font-black text-[#111827]">Your {position.side || "selected"} prediction</h2>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">
+              Prediction detail
+            </p>
+            <h2 className="mt-1 text-lg font-black text-[#111827]">
+              Your {position.side || "selected"} prediction
+            </h2>
           </div>
-          <button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827]">
+          <button
+            onClick={onClose}
+            className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827]"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -419,9 +1069,7 @@ const PredictionDetailModal = ({
           <div>
             <div className="mb-3 flex items-start justify-between gap-3">
               <h3 className="text-xl font-black leading-tight">{marketQuestion}</h3>
-              <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${position.side === "YES" ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#E85D5D]/10 text-[#B42318]"}`}>
-                {position.side || "N/A"}
-              </span>
+              <SideBadge side={position.side} />
             </div>
             <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[#E5E7EB] pt-4 sm:grid-cols-4">
               <Metric label="Amount backed" value={formatNaira(position.stake)} />
@@ -435,7 +1083,8 @@ const PredictionDetailModal = ({
             <section className="rounded-2xl border border-[#C7D2FE] bg-[#EEF2FF] p-4">
               <h4 className="text-base font-black text-[#101828]">Refund Protected</h4>
               <p className="mt-2 text-sm font-bold leading-6 text-[#344054]">
-                Your stake is protected if this market does not reach enough activity before closing. Value appears once this market goes live.
+                Your stake is protected if this market does not reach enough activity before closing.
+                Value appears once this market goes live.
               </p>
             </section>
           ) : (
@@ -460,9 +1109,30 @@ const PredictionDetailModal = ({
               <section>
                 <h4 className="text-sm font-black">Market View</h4>
                 <div className="mt-3 grid gap-x-4 gap-y-3 sm:grid-cols-3">
-                  <Metric label="Entry market view" value={insight.entryCrowdView ? formatNairaPrice(insight.entryCrowdView) : "-"} />
-                  <Metric label="Current market view" value={insight.currentCrowdView ? formatNairaPrice(insight.currentCrowdView) : "-"} movement={insight.movement} />
-                  <Metric label="Movement" value={formatMovement(insight.movement)} tone={insight.direction === "toward" ? "green" : insight.direction === "against" ? "red" : "neutral"} />
+                  <Metric
+                    label="Entry market view"
+                    value={
+                      insight.entryCrowdView ? formatNairaPrice(insight.entryCrowdView) : "-"
+                    }
+                  />
+                  <Metric
+                    label="Current market view"
+                    value={
+                      insight.currentCrowdView ? formatNairaPrice(insight.currentCrowdView) : "-"
+                    }
+                    movement={insight.movement}
+                  />
+                  <Metric
+                    label="Movement"
+                    value={formatMovement(insight.movement)}
+                    tone={
+                      insight.direction === "toward"
+                        ? "green"
+                        : insight.direction === "against"
+                          ? "red"
+                          : "neutral"
+                    }
+                  />
                 </div>
               </section>
 
@@ -480,7 +1150,8 @@ const PredictionDetailModal = ({
               <section>
                 <h4 className="text-sm font-black">Prediction history</h4>
                 <div className="mt-2 text-sm font-bold text-[#6B7280]">
-                  You predicted {position.side} with {formatNaira(position.stake)} on {new Date(position.createdAt).toLocaleString()}.
+                  You predicted {position.side} with {formatNaira(position.stake)} on{" "}
+                  {new Date(position.createdAt).toLocaleString()}.
                 </div>
               </section>
 
@@ -490,11 +1161,13 @@ const PredictionDetailModal = ({
                   {rules || "Open the market to review the full rules and resolution criteria."}
                 </p>
                 <p className="mt-3 text-xs font-bold text-[#6B7280]">
-                  Resolution source: {resolutionSource || "Shown on the market page when available."}
+                  Resolution source:{" "}
+                  {resolutionSource || "Shown on the market page when available."}
                 </p>
                 {getPredictionCloseTime(position) && (
                   <p className="mt-2 text-xs font-bold text-[#6B7280]">
-                    Trading close time: {new Date(getPredictionCloseTime(position)).toLocaleString()}
+                    Trading close time:{" "}
+                    {new Date(getPredictionCloseTime(position)).toLocaleString()}
                   </p>
                 )}
               </section>
@@ -513,151 +1186,9 @@ const PredictionDetailModal = ({
   );
 };
 
-const formatMovement = (movement: number) => {
-  if (Math.abs(movement) < 0.5) return "0";
-  return `${movement > 0 ? "+" : ""}${movement.toFixed(0)}`;
-};
-
-const MovementPill = ({ movement }: { movement?: number }) => {
-  if (!movement || Math.abs(movement) < 0.5) return null;
-  const positive = movement > 0;
-  return (
-    <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-black ${positive ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#E85D5D]/10 text-[#B42318]"}`}>
-      {formatMovement(movement)}
-    </span>
-  );
-};
-
-const ActivityView = ({ positions, settledCount }: { positions: ApiPosition[]; settledCount: number }) => {
-  const sorted = positions
-    .filter((position) => position.marketStatus !== "active" || Boolean(position.resolvedAt))
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-  if (sorted.length === 0) {
-    return <EmptyState icon={Activity} title="No resolved predictions yet" body="Won, lost, refunded, and cancelled predictions will appear here after markets resolve." />;
-  }
-
-  return (
-    <section className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-black">Prediction History</h2>
-        <span className="rounded-full border border-[#E5E7EB] bg-[#F8F7F4] px-3 py-1 text-xs font-bold text-[#6B7280]">{settledCount} settled</span>
-      </div>
-      <div className="space-y-2">
-        {sorted.map((position) => (
-          <Link key={position.id} to={`/market/${position.marketId}`} className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4 transition hover:border-[#4F46E5]/35">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-xl bg-white text-[#4F46E5]">
-                {position.marketStatus === "active" ? <Clock className="h-5 w-5" /> : <Trophy className="h-5 w-5" />}
-              </div>
-              <div className="min-w-0">
-                <div className="truncate text-sm font-black">{position.marketQuestion}</div>
-                <div className="mt-1 text-xs text-[#6B7280]">{getCategoryLabel(position.category)} Â· {position.side} prediction Â· {new Date(position.createdAt).toLocaleDateString()}</div>
-              </div>
-            </div>
-            <div className="shrink-0 text-right">
-              <div className="text-sm font-black">
-                {position.resolvedAt ? formatNaira(position.payout || 0) : formatNaira(position.stake)}
-              </div>
-              <div className={`mt-1 text-xs capitalize ${position.status === "refunded" || position.marketStatus === "refunded" ? "text-[#4F46E5]" : position.resolvedAt ? (position.isWinner ? "text-[#12B886]" : "text-[#E85D5D]") : "text-[#6B7280]"}`}>
-                {position.status === "refunded" || position.marketStatus === "refunded" ? "refunded" : position.resolvedAt ? (position.isWinner ? "won" : "lost") : position.marketStatus}
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-};
-
-const PerformanceView = ({ positions, stats }: { positions: ApiPosition[]; stats: ApiProfileStats }) => {
-  const resolved = positions.filter((position) => position.resolvedAt);
-  const won = resolved.filter((position) => position.isWinner);
-  const lost = resolved.filter((position) => !position.isWinner);
-  const currentStreak = getCurrentWinStreak(resolved);
-  const bestStreak = getBestWinStreak(resolved);
-  const accuracy = resolved.length ? Math.round((won.length / resolved.length) * 100) : 0;
-  const level = stats.level || getForecasterLevel(stats.totalPredictions, won.length);
-  const progress = getLevelProgress(stats.totalPredictions, won.length);
-  const nextLevel = getNextLevel(level);
-  const rankLabel = stats.rank ? `#${stats.rank}` : "Unranked";
-  const achievements = getAchievements({
-    totalPredictions: stats.totalPredictions,
-    wins: won.length,
-    currentStreak,
-    bestStreak,
-    accuracy,
-    level,
-    rank: stats.rank || null,
-  });
-
-  return (
-    <div className="grid gap-4">
-      <section className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">My Score</p>
-                <h2 className="mt-2 text-3xl font-black">{level}</h2>
-                <p className="mt-2 max-w-xl text-sm text-[#6B7280]">
-                  Build your forecasting record through resolved predictions. Streaks and accuracy use real results only.
-                </p>
-              </div>
-              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#EEF2FF] text-[#4F46E5]">
-                <Award className="h-7 w-7" />
-              </div>
-            </div>
-            <div className="mt-6 h-4 overflow-hidden rounded-full bg-[#E5E7EB]">
-              <div className="h-full rounded-full bg-[#4F46E5] transition-all duration-700" style={{ width: `${progress}%` }} />
-            </div>
-            <div className="mt-2 flex items-center justify-between text-xs font-bold text-[#6B7280]">
-              <span>{progress}% progress</span>
-              <span>{nextLevel === level ? "Top level reached" : `Next: ${nextLevel}`}</span>
-            </div>
-          </div>
-          <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
-            <div className="text-xs font-black uppercase tracking-[0.14em] text-[#6B7280]">Rank</div>
-            <div className="mt-2 text-2xl font-black">{rankLabel}</div>
-            <p className="mt-2 text-xs font-bold text-[#6B7280]">
-              {stats.rank
-                ? `${stats.totalRankedUsers || 0} forecasters are ranked from real prediction results.`
-                : "Make a prediction to enter the leaderboard."}
-            </p>
-          </div>
-        </div>
-        <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Metric label="Accuracy score" value={resolved.length ? `${accuracy}%` : "-"} large />
-          <Metric label="Current streak" value={String(currentStreak)} large />
-          <Metric label="Best streak" value={String(bestStreak)} large />
-          <Metric label="Total predictions" value={String(stats.totalPredictions)} large />
-          <Metric label="Wins" value={String(won.length)} large />
-          <Metric label="Losses" value={String(lost.length)} large />
-          <Metric label="Rank" value={rankLabel} large />
-          <Metric label="Level" value={level} large />
-        </div>
-      </section>
-      <section className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
-        <div className="mb-4 flex items-center gap-2">
-          <Medal className="h-5 w-5 text-[#4F46E5]" />
-          <h2 className="text-xl font-black">Achievements</h2>
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
-          {achievements.map((achievement) => (
-            <AchievementCard key={achievement.title} {...achievement} />
-          ))}
-        </div>
-      </section>
-    </div>
-  );
-};
-
-type Achievement = {
-  icon: any;
-  title: string;
-  description: string;
-  unlocked: boolean;
-};
+/* ═══════════════════════════════════════════════════════════════
+   Achievements Data
+   ═══════════════════════════════════════════════════════════════ */
 
 const getAchievements = ({
   totalPredictions,
@@ -676,56 +1207,77 @@ const getAchievements = ({
   level: string;
   rank: number | null;
 }): Achievement[] => [
-  { icon: Target, title: "First Prediction", description: "Lock your first prediction.", unlocked: totalPredictions >= 1 },
-  { icon: Trophy, title: "First Win", description: "Resolve a market correctly.", unlocked: wins >= 1 },
-  { icon: Flame, title: "3 Win Streak", description: "Win three resolved markets in a row.", unlocked: currentStreak >= 3 || bestStreak >= 3 },
-  { icon: Flame, title: "5 Win Streak", description: "Build a five-win streak.", unlocked: currentStreak >= 5 || bestStreak >= 5 },
-  { icon: CheckCircle, title: "10 Predictions", description: "Join ten markets.", unlocked: totalPredictions >= 10 },
-  { icon: CheckCircle, title: "50 Predictions", description: "Join fifty markets.", unlocked: totalPredictions >= 50 },
-  { icon: Award, title: "60% Accuracy", description: "Reach 60% accuracy from resolved predictions.", unlocked: accuracy >= 60 },
-  { icon: Award, title: "70% Accuracy", description: "Reach 70% accuracy from resolved predictions.", unlocked: accuracy >= 70 },
-  { icon: Medal, title: "Top 100 Forecaster", description: "Reach the top 100 on the real leaderboard.", unlocked: Boolean(rank && rank <= 100) },
-  { icon: Trophy, title: "Top 10 Forecaster", description: "Reach the top 10 on the real leaderboard.", unlocked: Boolean(rank && rank <= 10) },
-  { icon: Medal, title: "Elite Forecaster", description: "Reach the Elite Forecaster level.", unlocked: ["Elite Forecaster", "Market Master"].includes(level) },
+  {
+    icon: Target,
+    title: "First Prediction",
+    description: "Lock your first prediction.",
+    unlocked: totalPredictions >= 1,
+  },
+  {
+    icon: Trophy,
+    title: "First Win",
+    description: "Resolve a market correctly.",
+    unlocked: wins >= 1,
+  },
+  {
+    icon: Flame,
+    title: "3 Win Streak",
+    description: "Win three resolved markets in a row.",
+    unlocked: currentStreak >= 3 || bestStreak >= 3,
+  },
+  {
+    icon: Flame,
+    title: "5 Win Streak",
+    description: "Build a five-win streak.",
+    unlocked: currentStreak >= 5 || bestStreak >= 5,
+  },
+  {
+    icon: CheckCircle,
+    title: "10 Predictions",
+    description: "Join ten markets.",
+    unlocked: totalPredictions >= 10,
+  },
+  {
+    icon: CheckCircle,
+    title: "50 Predictions",
+    description: "Join fifty markets.",
+    unlocked: totalPredictions >= 50,
+  },
+  {
+    icon: Award,
+    title: "60% Accuracy",
+    description: "Reach 60% accuracy from resolved predictions.",
+    unlocked: accuracy >= 60,
+  },
+  {
+    icon: Award,
+    title: "70% Accuracy",
+    description: "Reach 70% accuracy from resolved predictions.",
+    unlocked: accuracy >= 70,
+  },
+  {
+    icon: Medal,
+    title: "Top 100 Forecaster",
+    description: "Reach the top 100 on the real leaderboard.",
+    unlocked: Boolean(rank && rank <= 100),
+  },
+  {
+    icon: Trophy,
+    title: "Top 10 Forecaster",
+    description: "Reach the top 10 on the real leaderboard.",
+    unlocked: Boolean(rank && rank <= 10),
+  },
+  {
+    icon: Medal,
+    title: "Elite Forecaster",
+    description: "Reach the Elite Forecaster level.",
+    unlocked: ["Elite Forecaster", "Market Master"].includes(level),
+  },
 ];
 
-const AchievementCard = ({ icon: Icon, title, description, unlocked }: Achievement) => (
-  <div className={`rounded-xl border p-3 transition ${unlocked ? "border-[#4F46E5]/30 bg-[#EEF2FF]" : "border-[#E5E7EB] bg-[#F8F7F4]"}`}>
-    <div className={`mb-2 grid h-8 w-8 place-items-center rounded-lg ${unlocked ? "bg-[#4F46E5] text-white" : "bg-white text-[#6B7280]"}`}>
-      <Icon className="h-4 w-4" />
-    </div>
-    <div className="text-xs font-black leading-tight">{title}</div>
-    <div className={`mt-1 text-[11px] font-black ${unlocked ? "text-[#4F46E5]" : "text-[#6B7280]"}`}>
-      {unlocked ? "Unlocked" : "Locked"}
-    </div>
-    <p className="mt-1 hidden text-[11px] font-bold leading-relaxed text-[#6B7280] sm:block">{description}</p>
-  </div>
-);
-
-const Metric = ({ label, value, large = false, tone = "neutral", movement }: { label: string; value: string; large?: boolean; tone?: "neutral" | "green" | "red"; movement?: number }) => (
-  <div className="min-w-0 transition-colors duration-300">
-    <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6B7280]">{label}</div>
-    <div className={`mt-2 flex items-center font-black transition-all duration-300 ${large ? "text-2xl" : "text-sm"} ${tone === "green" ? "text-[#12B886]" : tone === "red" ? "text-[#E85D5D]" : "text-[#111827]"}`}>
-      {value}
-      <MovementPill movement={movement} />
-    </div>
-  </div>
-);
-
-const EmptyState = ({ icon: Icon, title, body, action }: { icon: any; title: string; body: string; action?: React.ReactNode }) => (
-  <div className="grid min-h-[360px] place-items-center rounded-2xl border border-dashed border-[#E5E7EB] bg-white/70 p-6 text-center">
-    <div>
-      <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl border border-[#E5E7EB] bg-[#EEF2FF] text-[#4F46E5]">
-        <Icon className="h-8 w-8" />
-      </div>
-      <div className="text-xl font-black">{title}</div>
-      <p className="mx-auto mt-2 max-w-sm text-sm text-[#6B7280]">{body}</p>
-      {action && <div className="mt-6">{action}</div>}
-    </div>
-  </div>
-);
-
-export default Dashboard;
+/* ═══════════════════════════════════════════════════════════════
+   Session Loading
+   ═══════════════════════════════════════════════════════════════ */
 
 const SessionLoading = ({ label }: { label: string }) => (
   <div className="app-bg min-h-screen text-[#111827] xl:pl-64">
@@ -736,3 +1288,5 @@ const SessionLoading = ({ label }: { label: string }) => (
     <MobileNav />
   </div>
 );
+
+export default Dashboard;
