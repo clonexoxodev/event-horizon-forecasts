@@ -17,6 +17,17 @@ import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useState } from "react";
 
 const APP_VERSION = "v1.0.0";
 
@@ -24,9 +35,9 @@ export default function More() {
   const { user, logout, isAdmin, isSuperAdmin, isLoading } = useAuth();
   const navigate = useNavigate();
   const adminPath = isSuperAdmin() ? "/super-admin" : "/admin";
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   const handleLogout = async () => {
-    if (!window.confirm("Log out of Flippe?")) return;
     await logout();
     navigate("/login", { replace: true });
   };
@@ -74,7 +85,6 @@ export default function More() {
           <Group title="Learn">
             <Item to="/about" icon={BookOpen} label="How It Works" subtitle="Understand pooled prediction markets" />
             <Item to="/faq" icon={HelpCircle} label="FAQ" subtitle="Common questions and answers" />
-            <Item to="/support" icon={MessageSquare} label="Help Center" subtitle="Get help with your account" />
           </Group>
 
           <Group title="Legal">
@@ -96,13 +106,31 @@ export default function More() {
 
         {/* Logout */}
         {user && (
-          <button
-            onClick={handleLogout}
-            className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 text-sm font-bold text-red-600 transition hover:bg-red-100"
-          >
-            <LogOut className="h-4 w-4" />
-            Log out
-          </button>
+          <>
+            <button
+              onClick={() => setShowLogoutDialog(true)}
+              className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 text-sm font-bold text-red-600 transition hover:bg-red-100"
+            >
+              <LogOut className="h-4 w-4" />
+              Log out
+            </button>
+            <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Log out of Flippe?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    You will be signed out and redirected to the login page.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleLogout} className="bg-red-600 text-white hover:bg-red-700">
+                    Log out
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
         )}
 
         {/* Version */}
@@ -116,9 +144,9 @@ export default function More() {
 const Group = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section>
     <h2 className="mb-2.5 text-xs font-bold uppercase tracking-[0.16em] text-[#6B7280]">{title}</h2>
-    <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
+    <nav role="navigation" aria-label={title} className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
       {children}
-    </div>
+    </nav>
   </section>
 );
 

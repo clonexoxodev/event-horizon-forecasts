@@ -89,21 +89,28 @@ export const NotificationBell = () => {
         onClick={() => setOpen((value) => !value)}
         className="relative grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-white text-[#6B7280] transition hover:bg-[#F8F7F4] hover:text-[#111827]"
         aria-label="Notifications"
+        aria-haspopup="true"
+        aria-expanded={open}
       >
-        <Bell className="h-4 w-4" />
-        {unreadCount > 0 && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-red-500" />}
+        <Bell className="h-4 w-4" aria-hidden="true" />
+        {unreadCount > 0 && (
+          <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-red-500" aria-hidden="true" />
+        )}
+        {unreadCount > 0 && (
+          <span className="sr-only">{unreadCount} unread notifications</span>
+        )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 z-[70] w-[min(340px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white/98 text-[#111827] shadow-[0_24px_90px_rgba(17,24,39,0.16)] backdrop-blur-xl">
+        <div role="menu" aria-label="Notifications" className="absolute right-0 top-12 z-[70] w-[min(340px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white/98 text-[#111827] shadow-[0_24px_90px_rgba(17,24,39,0.16)] backdrop-blur-xl">
           <div className="flex items-center justify-between border-b border-[#E5E7EB] p-4">
             <div>
               <div className="text-sm font-black">Notifications</div>
               <div className="text-xs text-[#6B7280]">{unreadCount ? `${unreadCount} unread` : "All caught up"}</div>
             </div>
             {notifications.length > 0 && (
-              <button onClick={markAllRead} className="inline-flex items-center gap-1 rounded-full border border-[#E5E7EB] bg-[#F8F7F4] px-3 py-1.5 text-xs font-black text-[#6B7280]">
-                <CheckCheck className="h-3.5 w-3.5" />
+              <button onClick={markAllRead} aria-label="Mark all as read" className="inline-flex items-center gap-1 rounded-full border border-[#E5E7EB] bg-[#F8F7F4] px-3 py-1.5 text-xs font-black text-[#6B7280]">
+                <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />
                 Read
               </button>
             )}
@@ -138,11 +145,11 @@ export const NotificationBell = () => {
                 );
 
                 return notification.marketId ? (
-                  <Link key={notification.id} to={`/market/${notification.marketId}`} onClick={() => setOpen(false)}>
+                  <Link key={notification.id} to={`/market/${notification.marketId}`} onClick={() => setOpen(false)} role="menuitem">
                     {content}
                   </Link>
                 ) : (
-                  <div key={notification.id}>{content}</div>
+                  <div key={notification.id} role="menuitem">{content}</div>
                 );
               })}
             </div>

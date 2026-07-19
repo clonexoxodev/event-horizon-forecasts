@@ -147,7 +147,7 @@ export const WithdrawModal = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-0 text-[#111827] shadow-[0_24px_80px_rgba(17,24,39,0.16)] sm:max-w-md">
+      <DialogContent aria-label="Withdraw funds" className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-0 text-[#111827] shadow-modal sm:max-w-md">
         <div className="h-1 w-full bg-[#E85D5D]" />
         {success ? (
           <div className="p-8 text-center">
@@ -245,6 +245,7 @@ export const WithdrawModal = ({
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 disabled={loading}
+                aria-label="Amount in Naira"
                 className={`h-14 rounded-xl bg-[#F8F7F4] pl-12 text-2xl font-black text-[#111827] placeholder:text-[#D1D5DB] ${
                   insufficientFunds
                     ? "border-[#E85D5D] focus:border-[#E85D5D]"
@@ -272,6 +273,7 @@ export const WithdrawModal = ({
                     key={value}
                     onClick={() => setAmount(value.toString())}
                     disabled={loading}
+                    aria-label={`Withdraw ${value.toLocaleString()} Naira`}
                     className={`rounded-xl border py-2.5 text-xs font-black transition sm:text-sm ${
                       amount === value.toString()
                         ? "border-[#E85D5D]/40 bg-[#E85D5D]/10 text-[#B42318] shadow-[0_2px_8px_rgba(232,93,93,0.15)]"
@@ -291,34 +293,43 @@ export const WithdrawModal = ({
 
               <div className="relative">
                 <Building2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                <label htmlFor="bankName" className="sr-only">Bank name</label>
                 <Input
+                  id="bankName"
                   value={bankName}
                   onChange={(event) => setBankName(event.target.value)}
                   disabled={loading}
                   placeholder="Bank name (e.g. GTBank, Access Bank)"
+                  aria-label="Bank name"
                   className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-sm font-semibold text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5]"
                 />
               </div>
 
               <div className="relative">
                 <CreditCard className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                <label htmlFor="accountNumber" className="sr-only">Account number</label>
                 <Input
+                  id="accountNumber"
                   value={accountNumber}
                   onChange={(event) => setAccountNumber(event.target.value)}
                   disabled={loading}
                   placeholder="Account number (10 digits)"
                   maxLength={10}
+                  aria-label="Account number"
                   className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-sm font-semibold text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5]"
                 />
               </div>
 
               <div className="relative">
                 <User className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                <label htmlFor="accountName" className="sr-only">Account name</label>
                 <Input
+                  id="accountName"
                   value={accountName}
                   onChange={(event) => setAccountName(event.target.value)}
                   disabled={loading}
                   placeholder="Account name"
+                  aria-label="Account name"
                   className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-sm font-semibold text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5]"
                 />
               </div>

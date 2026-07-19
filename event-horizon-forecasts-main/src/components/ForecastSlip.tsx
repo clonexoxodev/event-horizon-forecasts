@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,20 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
   const [success, setSuccess] = useState(false);
   const { user, setAuthOpen } = useAuth();
 
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !loading) {
+        onClose();
+      }
+    },
+    [loading, onClose]
+  );
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
+
   if (!selection) return null;
 
   const quickAmounts = [100, 500, 1000, 2000];
@@ -65,6 +79,15 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
       !selection.marketQuestion ||
       !selection.side ||
       !Number.isFinite(Number(selection.currentPrice))
+  );
+
+  const isFormValid = Boolean(
+    user &&
+      !loading &&
+      numAmount > 0 &&
+      !insufficientBalance &&
+      !exceedsProtectedLimit &&
+      !selectionMissingData
   );
 
   const handleConfirm = async () => {
@@ -109,7 +132,12 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
     <>
       <div className="fixed inset-0 z-40 bg-[#111827]/35 backdrop-blur-sm" onClick={() => !loading && onClose()} />
 
-      <div className="fixed bottom-0 left-0 right-0 z-50 max-h-[88vh] overflow-y-auto rounded-t-2xl border border-[#E5E7EB] bg-white pb-[calc(90px+env(safe-area-inset-bottom))] shadow-[0_-24px_80px_rgba(17,24,39,0.16)] md:bottom-auto md:left-auto md:top-0 md:h-screen md:w-[460px] md:rounded-none md:border-l md:pb-0">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Prediction slip"
+        className="fixed bottom-0 left-0 right-0 z-50 max-h-[88vh] overflow-y-auto rounded-t-2xl border border-[#E5E7EB] bg-white pb-[calc(90px+env(safe-area-inset-bottom))] shadow-[0_-24px_80px_rgba(17,24,39,0.16)] md:bottom-auto md:left-auto md:top-0 md:h-screen md:w-[460px] md:rounded-none md:border-l md:pb-0"
+      >
         <div className="flex justify-center pt-3 md:hidden">
           <div className="h-1 w-10 rounded-full bg-[#E5E7EB]" />
         </div>
@@ -151,7 +179,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
               <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
                 <div className="font-black text-[#111827]">Login to place this prediction</div>
                 <p className="mt-1 text-sm text-[#6B7280]">You can browse markets freely. Sign in only when you are ready to predict.</p>
-                <button onClick={() => { onClose(); setAuthOpen(true); }} className="mt-4 flex h-11 w-full items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-black text-white hover:bg-[#4338CA]">
+                <button onClick={() => { onClose(); setAuthOpen(true); }} aria-label="Log in to place prediction" className="mt-4 flex h-11 w-full items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-black text-white hover:bg-[#4338CA]">
                   Continue
                 </button>
               </div>
@@ -168,6 +196,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                 <Input
                   type="number"
                   placeholder="0"
+                  aria-label="Bet amount in Naira"
                   value={amount}
                   onChange={(event) => setAmount(event.target.value)}
                   disabled={loading}
@@ -191,6 +220,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
                 <button
                   key={value}
                   onClick={() => setAmount(value.toString())}
+                  aria-label={`Set amount to ${formatNaira(value).replace(".00", "")}`}
                   disabled={loading}
                   className={`h-11 rounded-xl border text-sm font-black transition ${
                     amount === value.toString()
@@ -225,7 +255,8 @@ export const ForecastSlip = ({ selection, onClose, onConfirm }: ForecastSlipProp
 
             <Button
               onClick={handleConfirm}
-              disabled={!user || loading || numAmount <= 0 || insufficientBalance || exceedsProtectedLimit}
+              disabled={!isFormValid}
+              aria-disabled={!isFormValid}
               className={`h-13 w-full rounded-xl text-base font-black text-white transition ${
                 isPositiveSide
                   ? "bg-[#12B886] text-[#06100d] hover:bg-[#2dd4a0]"
@@ -265,9 +296,10 @@ const SlipHeader = ({ onClose, loading }: { onClose: () => void; loading: boolea
     <button
       onClick={onClose}
       disabled={loading}
+      aria-label="Close prediction slip"
       className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
     >
-      <X className="h-5 w-5" />
+      <X className="h-5 w-5" aria-hidden="true" />
     </button>
   </div>
 );
@@ -282,9 +314,10 @@ const UnavailableState = ({ loading, onClose }: { loading: boolean; onClose: () 
       <button
         onClick={onClose}
         disabled={loading}
+        aria-label="Close prediction slip"
         className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
       >
-        <X className="h-5 w-5" />
+        <X className="h-5 w-5" aria-hidden="true" />
       </button>
     </div>
     <div className="rounded-xl border border-[#E85D5D]/30 bg-[#E85D5D]/10 p-4 text-sm font-bold leading-relaxed text-[#B42318]">

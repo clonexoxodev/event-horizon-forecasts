@@ -3,7 +3,7 @@ import { TrendingUp, ShieldCheck, Users } from "lucide-react";
 
 export const Hero = () => {
   return (
-    <section className="relative overflow-hidden border-b border-[#E5E7EB] bg-gradient-to-b from-[#F8F7F4] to-white">
+    <section role="banner" className="relative overflow-hidden border-b border-[#E5E7EB] bg-gradient-to-b from-[#F8F7F4] to-white">
       <div className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-[#12B886]/8 blur-3xl" aria-hidden="true" />
       <div className="pointer-events-none absolute -bottom-16 -left-16 h-72 w-72 rounded-full bg-[#4F46E5]/6 blur-3xl" aria-hidden="true" />
 
@@ -35,17 +35,17 @@ export const Hero = () => {
         </div>
 
         <div className="mx-auto mt-12 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-3">
-          <Feature icon={<ShieldCheck className="h-5 w-5" />} title="Refund Protected" body="Stakes return automatically if a market never goes live." />
-          <Feature icon={<TrendingUp className="h-5 w-5" />} title="Live prices" body="Crowd View moves with every prediction, in real time." />
-          <Feature icon={<Users className="h-5 w-5" />} title="Community intelligence" body="See where others stand before you back a side." />
+          <Feature icon={<ShieldCheck className="h-5 w-5" />} title="Refund Protected" body="Stakes return automatically if a market never goes live." ariaLabel="Refund protection feature" />
+          <Feature icon={<TrendingUp className="h-5 w-5" />} title="Live prices" body="Crowd View moves with every prediction, in real time." ariaLabel="Live pricing feature" />
+          <Feature icon={<Users className="h-5 w-5" />} title="Community intelligence" body="See where others stand before you back a side." ariaLabel="Community intelligence feature" />
         </div>
       </div>
     </section>
   );
 };
 
-const Feature = ({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) => (
-  <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5 text-left shadow-sm">
+const Feature = ({ icon, title, body, ariaLabel }: { icon: React.ReactNode; title: string; body: string; ariaLabel?: string }) => (
+  <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5 text-left shadow-sm" aria-label={ariaLabel}>
     <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#F3F4F6] text-[#12B886]">{icon}</div>
     <h3 className="mt-3 text-sm font-black text-[#101828]">{title}</h3>
     <p className="mt-1 text-xs font-medium leading-5 text-[#667085]">{body}</p>

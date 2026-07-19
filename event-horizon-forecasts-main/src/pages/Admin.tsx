@@ -116,15 +116,7 @@ const Admin = () => {
 
   useEffect(() => {
     if (view !== "add-admin") return;
-    console.info("[Admin Roles] route entered", {
-      userId: user?.id,
-      role: user?.role,
-    });
-    console.info("[Admin Roles] permission validation", {
-      isAdmin,
-      isSuperAdmin,
-    });
-  }, [view, user?.id, user?.role, isAdmin, isSuperAdmin]);
+  }, [view]);
 
   const loadData = async () => {
     if (!isAdmin) return;
@@ -139,7 +131,6 @@ const Admin = () => {
       if (isSuperAdmin) {
         setAdminRolesLoading(true);
         setAdminRolesError(null);
-        console.info("[Admin Roles] data loading start");
         const [
           analyticsResult,
           adminResult,
@@ -166,17 +157,10 @@ const Admin = () => {
           const adminList = normalizeAdminList(adminResult.value);
           setAdmins(adminList);
           setAdminRolesError(null);
-          console.info("[Admin Roles] data loading success", {
-            count: adminList.length,
-          });
         } else {
           const message = getErrorMessage(adminResult.reason);
           setAdmins([]);
           setAdminRolesError(message);
-          console.error(
-            "[Admin Roles] data loading failure",
-            adminResult.reason
-          );
         }
         if (userResult.status === "fulfilled")
           setUsers(userResult.value.users as AdminUser[]);

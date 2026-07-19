@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
@@ -49,6 +49,7 @@ export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const passwordStrength = useMemo(
     () => getPasswordStrength(password),
@@ -62,6 +63,12 @@ export default function Signup() {
 
   const validateEmail = (value: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimer.current) clearTimeout(redirectTimer.current);
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,7 +102,7 @@ export default function Signup() {
         setError(signupError);
       } else {
         setSuccess(true);
-        setTimeout(() => {
+        redirectTimer.current = setTimeout(() => {
           navigate("/");
         }, 1500);
       }
@@ -122,7 +129,7 @@ export default function Signup() {
             </h1>
 
             {success ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="flex flex-col items-center justify-center py-8 text-center" role="status" aria-live="polite">
                 <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-[#12B886]/10 text-[#047857]">
                   <CheckCircle className="h-8 w-8" />
                 </div>
@@ -135,7 +142,7 @@ export default function Signup() {
               </div>
             ) : (
               <>
-                <form onSubmit={handleSubmit} className="w-full space-y-4">
+                <form onSubmit={handleSubmit} className="w-full space-y-4" aria-label="Create your account">
                   <div>
                     <label className="mb-1.5 block text-xs font-bold text-[#6B7280]">
                       Username
@@ -197,7 +204,7 @@ export default function Signup() {
                       </button>
                     </div>
                     {password.length > 0 && (
-                      <div className="mt-2">
+                      <div className="mt-2" role="meter" aria-valuenow={Math.round((passwordStrength.score / 5) * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`Password strength: ${passwordStrength.label}`}>
                         <div className="flex items-center gap-2">
                           <div className="flex flex-1 gap-1">
                             {[1, 2, 3, 4, 5].map((i) => (
@@ -274,7 +281,7 @@ export default function Signup() {
                   </div>
 
                   {error && (
-                    <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+                    <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600" role="alert">
                       <AlertCircle className="h-4 w-4 shrink-0" />
                       {error}
                     </div>
@@ -282,13 +289,13 @@ export default function Signup() {
 
                   <p className="text-xs text-[#6B7280]">
                     By creating an account, you agree to our{" "}
-                    <span className="font-bold text-[#4F46E5] cursor-pointer hover:underline">
+                    <Link to="/terms" className="font-bold text-[#4F46E5] hover:underline">
                       Terms of Service
-                    </span>{" "}
+                    </Link>{" "}
                     and{" "}
-                    <span className="font-bold text-[#4F46E5] cursor-pointer hover:underline">
+                    <Link to="/privacy" className="font-bold text-[#4F46E5] hover:underline">
                       Privacy Policy
-                    </span>
+                    </Link>
                     .
                   </p>
 

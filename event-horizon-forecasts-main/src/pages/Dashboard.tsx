@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -307,7 +307,10 @@ const Dashboard = () => {
 
         {/* ── Tab Navigation ── */}
         <section className="mb-5">
-          <div className="flex gap-1 rounded-xl border border-[#E5E7EB] bg-white p-1 shadow-sm">
+          <div
+            role="tablist"
+            className="flex gap-1 rounded-xl border border-[#E5E7EB] bg-white p-1 shadow-sm"
+          >
             {(["active", "resolved", "all"] as PositionFilterTab[]).map((item) => {
               const count =
                 item === "active"
@@ -315,12 +318,20 @@ const Dashboard = () => {
                   : item === "resolved"
                     ? settledPositions.length
                     : positions.length;
+              const isActive = positionTab === item;
+              const tabId = `position-tab-${item}`;
+              const panelId = `position-panel-${item}`;
               return (
                 <button
                   key={item}
+                  role="tab"
+                  id={tabId}
+                  aria-selected={isActive}
+                  aria-controls={panelId}
+                  tabIndex={isActive ? 0 : -1}
                   onClick={() => setPositionTab(item)}
                   className={`flex-1 rounded-lg py-2.5 text-sm font-black capitalize transition-all duration-200 ${
-                    positionTab === item
+                    isActive
                       ? "bg-[#4F46E5] text-white shadow-md shadow-[#4F46E5]/25"
                       : "text-[#6B7280] hover:bg-[#F8F7F4] hover:text-[#111827]"
                   }`}
@@ -329,7 +340,7 @@ const Dashboard = () => {
                   <span className="sm:hidden">{item === "active" ? "Active" : item === "resolved" ? "Done" : "All"}</span>
                   <span
                     className={`ml-1.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[10px] ${
-                      positionTab === item
+                      isActive
                         ? "bg-white/20 text-white"
                         : "bg-[#F3F4F6] text-[#6B7280]"
                     }`}
@@ -343,58 +354,72 @@ const Dashboard = () => {
         </section>
 
         {/* ── Position Cards ── */}
-        {loading ? (
-          <div className="grid min-h-[360px] place-items-center">
-            <Loader2 className="h-8 w-8 animate-spin text-[#4F46E5]" />
-          </div>
-        ) : filteredPositions.length === 0 ? (
-          positionTab === "active" ? (
-            <EmptyState
-              icon={Target}
-              title="No active predictions"
-              body="Your open positions will appear here. Pick a market and back your instinct."
-              action={
-                <Link
-                  to="/"
-                  className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#4F46E5] px-5 text-sm font-black text-white hover:bg-[#4338CA]"
-                >
-                  Explore markets <ArrowRight className="h-4 w-4" />
-                </Link>
-              }
-            />
-          ) : positionTab === "resolved" ? (
-            <EmptyState
-              icon={CheckCircle}
-              title="No resolved predictions yet"
-              body="Won, lost, and refunded predictions will show here once markets resolve."
-            />
-          ) : (
-            <EmptyState
-              icon={LineChart}
-              title="No predictions yet"
-              body="Start forecasting to build your prediction portfolio and track your performance."
-              action={
-                <Link
-                  to="/"
-                  className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#4F46E5] px-5 text-sm font-black text-white hover:bg-[#4338CA]"
-                >
-                  Make your first prediction <ArrowRight className="h-4 w-4" />
-                </Link>
-              }
-            />
-          )
-        ) : (
-          <div className="grid gap-3 lg:grid-cols-2">
-            {filteredPositions.map((position) => (
-              <PositionCard
-                key={position.id}
-                position={position}
-                now={now}
-                onClick={() => setSelectedPosition(position)}
+        <div
+          role="tabpanel"
+          id={`position-panel-${positionTab}`}
+          aria-labelledby={`position-tab-${positionTab}`}
+        >
+          {loading ? (
+            <div className="grid min-h-[360px] place-items-center">
+              <Loader2 className="h-8 w-8 animate-spin text-[#4F46E5]" />
+            </div>
+          ) : filteredPositions.length === 0 ? (
+            positionTab === "active" ? (
+              <EmptyState
+                icon={Target}
+                title="No active predictions"
+                body="Your open positions will appear here. Pick a market and back your instinct."
+                action={
+                  <Link
+                    to="/"
+                    className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#4F46E5] px-5 text-sm font-black text-white hover:bg-[#4338CA]"
+                  >
+                    Explore markets <ArrowRight className="h-4 w-4" />
+                  </Link>
+                }
               />
-            ))}
-          </div>
-        )}
+            ) : positionTab === "resolved" ? (
+              <EmptyState
+                icon={CheckCircle}
+                title="No resolved predictions yet"
+                body="Won, lost, and refunded predictions will show here once markets resolve."
+                action={
+                  <Link
+                    to="/"
+                    className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-5 text-sm font-black text-[#111827] transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    Explore markets <ArrowRight className="h-4 w-4" />
+                  </Link>
+                }
+              />
+            ) : (
+              <EmptyState
+                icon={LineChart}
+                title="No predictions yet"
+                body="Start forecasting to build your prediction portfolio and track your performance."
+                action={
+                  <Link
+                    to="/"
+                    className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#4F46E5] px-5 text-sm font-black text-white hover:bg-[#4338CA]"
+                  >
+                    Make your first prediction <ArrowRight className="h-4 w-4" />
+                  </Link>
+                }
+              />
+            )
+          ) : (
+            <div className="grid gap-3 lg:grid-cols-2">
+              {filteredPositions.map((position) => (
+                <PositionCard
+                  key={position.id}
+                  position={position}
+                  now={now}
+                  onClick={() => setSelectedPosition(position)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* ── Activity Feed ── */}
         <ActivityFeed positions={positions} settledCount={settledPositions.length} />
@@ -442,9 +467,9 @@ const StatCard = ({
   iconColor: string;
 }) => (
   <div
-    className={`group rounded-2xl border border-[#E5E7EB] bg-gradient-to-br ${bgGradient} p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md`}
+    className={`group min-h-[130px] rounded-2xl border border-[#E5E7EB] bg-gradient-to-br ${bgGradient} p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md`}
   >
-    <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl ${iconBg} transition`}>
+    <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl ${iconBg} transition-colors duration-200 group-hover:scale-105`}>
       <Icon className={`h-[18px] w-[18px] ${iconColor}`} />
     </div>
     <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6B7280]">{label}</div>
@@ -476,7 +501,7 @@ const PositionCard = ({
     <button
       onClick={onClick}
       data-now={now}
-      className="group rounded-2xl border border-[#E5E7EB] bg-white p-4 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#4F46E5]/30 hover:shadow-md active:scale-[0.99]"
+      className="group rounded-2xl border border-[#E5E7EB] bg-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#4F46E5]/30 hover:shadow-md active:scale-[0.99]"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -497,19 +522,19 @@ const PositionCard = ({
           </p>
         </div>
       ) : (
-        <div className="mt-4 grid grid-cols-3 gap-3 border-t border-[#F3F4F6] pt-3">
+        <div className="mt-4 grid grid-cols-3 gap-3 border-t border-[#F3F4F6] pt-4">
           <div>
             <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#9CA3AF]">Stake</div>
-            <div className="mt-0.5 text-sm font-black text-[#111827]">{formatNaira(position.stake)}</div>
+            <div className="mt-1 text-sm font-black text-[#111827]">{formatNaira(position.stake)}</div>
           </div>
           <div>
             <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#9CA3AF]">Value</div>
-            <div className="mt-0.5 text-sm font-black text-[#111827]">{formatNaira(insight.currentValue)}</div>
+            <div className="mt-1 text-sm font-black text-[#111827]">{formatNaira(insight.currentValue)}</div>
           </div>
           <div>
             <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#9CA3AF]">P/L</div>
             <div
-              className={`mt-0.5 text-sm font-black ${
+              className={`mt-1 text-sm font-black ${
                 profitPositive ? "text-[#12B886]" : "text-[#E85D5D]"
               }`}
             >
@@ -520,7 +545,7 @@ const PositionCard = ({
         </div>
       )}
 
-      <div className="mt-3 flex items-center justify-between">
+      <div className="mt-4 flex items-center justify-between">
         <span className="text-xs font-bold text-[#9CA3AF]">{timeLeft} left</span>
         <span className="inline-flex items-center gap-0.5 text-xs font-black text-[#6B7280] transition group-hover:text-[#4F46E5]">
           View Market <ChevronRight className="h-3.5 w-3.5" />
@@ -674,9 +699,8 @@ const ActivityItem = ({
   return (
     <Link
       to={`/market/${position.marketId}`}
-      className={`relative flex items-start gap-3 py-3 pl-0 transition hover:bg-[#F8F7F4] ${
-        !isLast ? "" : ""
-      }`}
+      aria-label={`${label}: ${position.marketQuestion}, ${position.side}, ${formatNaira(amount)}`}
+      className="relative flex items-start gap-3 py-3 pl-0 transition hover:bg-[#F8F7F4]"
     >
       <div
         className={`relative z-10 grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl ${iconBg}`}
@@ -814,8 +838,8 @@ const EmptyState = ({
 }) => (
   <div className="grid min-h-[300px] place-items-center rounded-2xl border border-dashed border-[#E5E7EB] bg-white/70 p-6 text-center">
     <div>
-      <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl border border-[#E5E7EB] bg-[#EEF2FF] text-[#4F46E5]">
-        <Icon className="h-8 w-8" />
+      <div className="mx-auto mb-4 grid h-20 w-20 place-items-center rounded-2xl border border-[#E5E7EB] bg-[#EEF2FF]/80 text-[#4F46E5] shadow-sm">
+        <Icon className="h-10 w-10" strokeWidth={1.5} />
       </div>
       <div className="text-xl font-black">{title}</div>
       <p className="mx-auto mt-2 max-w-sm text-sm text-[#6B7280]">{body}</p>
@@ -1035,6 +1059,10 @@ const PredictionDetailModal = ({
   const displayStatus = getPredictionDisplayStatus(position, now).label;
   const marketQuestion = position.marketQuestion || "Prediction details unavailable";
   const insight = getPredictionInsight(position);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   const optionalPoolMetrics = [
     insight.totalPool > 0 ? { label: "Total Pool", value: formatNaira(insight.totalPool) } : null,
     insight.sidePool > 0 ? { label: "Your Side Pool", value: formatNaira(insight.sidePool) } : null,
@@ -1045,8 +1073,33 @@ const PredictionDetailModal = ({
     { label: "Status", value: displayStatus },
   ].filter(Boolean) as Array<{ label: string; value: string }>;
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onCloseRef.current();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (modalRef.current) {
+      const focusable = modalRef.current.querySelector<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      focusable?.focus();
+    }
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-[70] flex animate-in fade-in duration-200 items-end justify-center bg-black/70 px-3 pb-[calc(84px+env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-6">
+    <div
+      ref={modalRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Prediction details"
+      className="fixed inset-0 z-[70] flex animate-in fade-in duration-200 items-end justify-center bg-black/70 px-3 pb-[calc(84px+env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-6"
+    >
       <section className="max-h-[88vh] w-full max-w-2xl animate-in slide-in-from-bottom-4 duration-300 overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_24px_90px_rgba(17,24,39,0.18)] sm:zoom-in-95">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#E5E7EB] bg-white/95 p-4 backdrop-blur">
           <div>
@@ -1059,6 +1112,7 @@ const PredictionDetailModal = ({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827]"
           >
             <X className="h-5 w-5" />

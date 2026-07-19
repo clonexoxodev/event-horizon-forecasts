@@ -13,7 +13,7 @@ const links = [
 
 export const Footer = () => {
   return (
-    <footer className="mt-16 hidden border-t border-[#E5E7EB] bg-white text-[#101828] md:block">
+    <footer role="contentinfo" className="mt-16 hidden border-t border-[#E5E7EB] bg-white text-[#101828] md:block">
       <div className="mx-auto flex max-w-[1280px] flex-col gap-8 px-6 py-10 lg:flex-row lg:items-center lg:justify-between">
         <div className="max-w-md">
           <Link to="/" className="flex items-center gap-2 text-xl font-black">
@@ -24,7 +24,8 @@ export const Footer = () => {
           </p>
         </div>
 
-        <nav className="flex flex-wrap gap-x-5 gap-y-3">
+        <h2 className="sr-only">Footer links</h2>
+        <nav className="flex flex-wrap gap-x-5 gap-y-3" aria-label="Footer navigation">
           {links.map((link) => (
             <Link key={link.path} to={link.path} className="text-sm font-bold text-[#667085] transition hover:text-[#4F46E5]">
               {link.name}

@@ -30,7 +30,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
-import { DelayedFlippeLoader } from "@/components/FlippeBrand";
 import { MobileNav } from "@/components/MobileNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,7 +72,6 @@ export default function MarketDetail() {
   const [timeframe, setTimeframe] = useState<Timeframe>("24H");
   const [now, setNow] = useState(Date.now());
   const [rulesExpanded, setRulesExpanded] = useState(false);
-  const [protectedInfoExpanded, setProtectedInfoExpanded] = useState(false);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const marketsRef = useRef(markets);
@@ -164,6 +162,18 @@ export default function MarketDetail() {
     setSheetVisible(false);
     setTimeout(() => setSheetSide(null), 300);
   };
+
+  useEffect(() => {
+    if (sheetSide) {
+      const handleEsc = (e: KeyboardEvent) => {
+        if (e.key === "Escape" && !submitting) {
+          closeSheet();
+        }
+      };
+      window.addEventListener("keydown", handleEsc);
+      return () => window.removeEventListener("keydown", handleEsc);
+    }
+  }, [sheetSide, submitting]);
 
   const marketCategoryLabel = market ? getMarketCategoryLabel(market) : "Other";
 
@@ -260,9 +270,57 @@ export default function MarketDetail() {
     return (
       <div className="app-bg min-h-screen text-[#111827] xl:pl-64">
         <Header />
-        <main className="grid min-h-[70vh] place-items-center px-4">
-          <DelayedFlippeLoader active label="Loading market" />
+        <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:py-6">
+          <div className="mb-6 flex items-center justify-between">
+            <div className="h-10 w-24 animate-pulse rounded-xl bg-[#E5E7EB]" />
+            <div className="h-10 w-10 animate-pulse rounded-xl bg-[#E5E7EB]" />
+          </div>
+          <div className="mx-auto max-w-5xl">
+            <div className="min-w-0">
+              <section className="border-b border-[#E5E7EB] pb-6">
+                <div className="flex items-start gap-4 sm:gap-5">
+                  <div className="h-20 w-20 shrink-0 animate-pulse rounded-2xl bg-[#E5E7EB] sm:h-24 sm:w-24" />
+                  <div className="flex-1 space-y-3">
+                    <div className="flex gap-2">
+                      <div className="h-6 w-16 animate-pulse rounded-full bg-[#E5E7EB]" />
+                      <div className="h-6 w-20 animate-pulse rounded-full bg-[#E5E7EB]" />
+                    </div>
+                    <div className="h-8 w-3/4 animate-pulse rounded-lg bg-[#E5E7EB]" />
+                    <div className="h-8 w-1/2 animate-pulse rounded-lg bg-[#E5E7EB]" />
+                  </div>
+                </div>
+                <div className="mt-5 flex gap-2">
+                  <div className="h-8 w-28 animate-pulse rounded-full bg-[#E5E7EB]" />
+                  <div className="h-8 w-28 animate-pulse rounded-full bg-[#E5E7EB]" />
+                  <div className="h-8 w-32 animate-pulse rounded-full bg-[#E5E7EB]" />
+                </div>
+              </section>
+              <section className="mt-8">
+                <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-2">
+                    <div className="h-6 w-48 animate-pulse rounded-lg bg-[#E5E7EB]" />
+                    <div className="h-4 w-64 animate-pulse rounded-lg bg-[#E5E7EB]" />
+                  </div>
+                  <div className="h-8 w-56 animate-pulse rounded-full bg-[#E5E7EB]" />
+                </div>
+                <div className="relative overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-4">
+                  <div className="mb-3 flex justify-between">
+                    <div className="space-y-1.5">
+                      <div className="h-3 w-24 animate-pulse rounded bg-[#E5E7EB]" />
+                      <div className="h-7 w-20 animate-pulse rounded bg-[#E5E7EB]" />
+                    </div>
+                    <div className="space-y-1.5 text-right">
+                      <div className="h-3 w-24 animate-pulse rounded bg-[#E5E7EB]" />
+                      <div className="h-7 w-20 animate-pulse rounded bg-[#E5E7EB]" />
+                    </div>
+                  </div>
+                  <div className="h-[290px] w-full animate-pulse rounded-xl bg-[#F3F4F6] sm:h-[380px]" />
+                </div>
+              </section>
+            </div>
+          </div>
         </main>
+        <MobileNav />
       </div>
     );
   }
@@ -415,42 +473,15 @@ export default function MarketDetail() {
                     <p className="mt-3 text-sm font-bold leading-6 text-[#344054]">
                       You can predict now. If this market does not reach enough
                       activity before closing, your stake is refunded.
+                      <span className="group/ml relative ml-1.5 inline-flex items-center">
+                        <HelpCircle className="inline h-3.5 w-3.5 cursor-help text-[#4F46E5]" />
+                        <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-60 -translate-x-1/2 rounded-xl border border-[#C7D2FE] bg-white p-3 text-xs font-bold leading-relaxed text-[#475467] opacity-0 shadow-lg transition-opacity duration-200 group-hover/ml:opacity-100 focus-within/ml:opacity-100">
+                          A Protected Market guarantees your stake is refunded if total activity stays below the required threshold before closing.
+                        </span>
+                      </span>
                     </p>
                   </div>
 
-                  <button
-                    onClick={() => setProtectedInfoExpanded(!protectedInfoExpanded)}
-                    className="flex w-full items-center justify-between border-t border-[#C7D2FE] bg-white/60 px-4 py-3 text-xs font-bold text-[#4F46E5] transition hover:bg-white/80"
-                  >
-                    <span className="inline-flex items-center gap-1.5">
-                      <HelpCircle className="h-3.5 w-3.5" />
-                      What does this mean?
-                    </span>
-                    {protectedInfoExpanded ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </button>
-                  {protectedInfoExpanded && (
-                    <div className="border-t border-[#C7D2FE] bg-white/40 px-4 py-3 text-xs font-bold leading-relaxed text-[#475467]">
-                      <p className="mb-2">
-                        A <strong>Protected Market</strong> means your stake is
-                        safe even if the market doesn&apos;t get enough
-                        participation.
-                      </p>
-                      <p className="mb-2">
-                        When a market is protected, FLIPPE guarantees a refund
-                        of your stake if the total activity remains below the
-                        required threshold before the market closes.
-                      </p>
-                      <p>
-                        This gives you confidence to participate early in new or
-                        emerging markets without worrying about low-liquidity
-                        risk.
-                      </p>
-                    </div>
-                  )}
                 </div>
               )}
             </section>
@@ -525,8 +556,9 @@ export default function MarketDetail() {
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-3">
           <button
             disabled={!marketIsActive}
+            aria-label={`Back YES at ${formatNairaPrice(market.yesPrice)}`}
             onClick={() => setSheetSide("YES")}
-            className="group relative h-12 overflow-hidden rounded-xl bg-gradient-to-r from-[#12B886] to-[#10B981] text-sm font-black text-white shadow-lg shadow-[#12B886]/25 transition-all duration-200 hover:shadow-xl hover:shadow-[#12B886]/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-500 disabled:shadow-none"
+            className="group relative h-12 overflow-hidden rounded-xl bg-gradient-to-r from-[#12B886] to-[#10B981] text-sm font-black text-white shadow-lg shadow-[#12B886]/25 transition-all duration-200 hover:shadow-xl hover:shadow-[#12B886]/30 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#12B886] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-500 disabled:shadow-none"
           >
             <span className="relative z-10 flex items-center justify-center gap-2">
               Back YES {formatNairaPrice(market.yesPrice)}
@@ -534,8 +566,9 @@ export default function MarketDetail() {
           </button>
           <button
             disabled={!marketIsActive}
+            aria-label={`Back NO at ${formatNairaPrice(market.noPrice)}`}
             onClick={() => setSheetSide("NO")}
-            className="group relative h-12 overflow-hidden rounded-xl bg-gradient-to-r from-[#E85D5D] to-[#DC4444] text-sm font-black text-white shadow-lg shadow-[#E85D5D]/25 transition-all duration-200 hover:shadow-xl hover:shadow-[#E85D5D]/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-500 disabled:shadow-none"
+            className="group relative h-12 overflow-hidden rounded-xl bg-gradient-to-r from-[#E85D5D] to-[#DC4444] text-sm font-black text-white shadow-lg shadow-[#E85D5D]/25 transition-all duration-200 hover:shadow-xl hover:shadow-[#E85D5D]/30 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E85D5D] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-500 disabled:shadow-none"
           >
             <span className="relative z-10 flex items-center justify-center gap-2">
               Back NO {formatNairaPrice(market.noPrice)}
@@ -552,6 +585,9 @@ export default function MarketDetail() {
         >
           <div
             ref={sheetRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Place your prediction"
             className={`absolute bottom-0 left-0 right-0 max-h-[88vh] overflow-y-auto rounded-t-3xl border border-[#E5E7EB] bg-white p-5 pb-[calc(90px+env(safe-area-inset-bottom))] text-[#111827] shadow-[0_-24px_80px_rgba(17,24,39,0.18)] transition-transform duration-300 ease-out md:left-auto md:right-6 md:top-24 md:h-fit md:w-[380px] md:rounded-2xl md:pb-5 ${sheetVisible
               ? "translate-y-0"
               : "translate-y-full"
@@ -574,6 +610,7 @@ export default function MarketDetail() {
               </div>
               <button
                 onClick={closeSheet}
+                aria-label="Close prediction sheet"
                 disabled={submitting}
                 className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] transition hover:bg-[#F3F4F6] disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -737,7 +774,7 @@ export default function MarketDetail() {
               ))}
             </div>
           )}
-          <div className="animate-fade-up relative w-full max-w-sm overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-8 text-center shadow-[0_24px_90px_rgba(17,24,39,0.22)]">
+          <div role="alert" aria-live="assertive" className="animate-fade-up relative w-full max-w-sm overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-8 text-center shadow-[0_24px_90px_rgba(17,24,39,0.22)]">
             <div
               className={`absolute inset-x-0 top-0 h-1 ${justPredicted === "YES"
                 ? "bg-gradient-to-r from-[#12B886] to-[#10B981]"
@@ -788,6 +825,8 @@ export default function MarketDetail() {
 
       <MobileNav />
 
+      {/* Inline style required: Tailwind does not support @keyframes with
+          randomized inline animation-delay/transform values on confetti particles */}
       <style>{`
         @keyframes confetti-fall {
           0% {
@@ -919,8 +958,14 @@ const Chart = ({
         easing: "easeOutQuart",
       },
       interaction: {
-        mode: "index",
+        mode: "nearest",
         intersect: false,
+      },
+      onHover: (_event, elements) => {
+        const canvas = _event.native?.target as HTMLCanvasElement | null;
+        if (canvas) {
+          canvas.style.cursor = elements.length > 0 ? "pointer" : "default";
+        }
       },
       plugins: {
         legend: {
@@ -929,16 +974,14 @@ const Chart = ({
         tooltip: {
           enabled: true,
           displayColors: true,
-          backgroundColor: "rgba(255, 255, 255, 0.98)",
-          borderColor: "#E5E7EB",
-          borderWidth: 1,
-          titleColor: "#101828",
-          bodyColor: "#344054",
-          footerColor: "#6B7280",
-          padding: { top: 12, bottom: 12, left: 14, right: 14 },
-          cornerRadius: 14,
+          backgroundColor: "rgba(17, 24, 39, 0.9)",
+          cornerRadius: 8,
+          padding: 10,
+          titleFont: { weight: "600" },
+          titleColor: "#F9FAFB",
+          bodyColor: "#D1D5DB",
+          footerColor: "#9CA3AF",
           boxPadding: 6,
-          titleFont: { size: 12, weight: 800 },
           bodyFont: { size: 11, weight: 600 },
           footerFont: { size: 10, weight: 600 },
           callbacks: {

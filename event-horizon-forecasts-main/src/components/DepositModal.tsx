@@ -61,7 +61,7 @@ export const DepositModal = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-0 text-[#111827] shadow-[0_24px_80px_rgba(17,24,39,0.16)] sm:max-w-md">
+      <DialogContent aria-label="Deposit funds" className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-0 text-[#111827] shadow-modal sm:max-w-md">
         <div className="h-1 w-full bg-[#4F46E5]" />
         <div className="p-6">
           <div className="mb-6 flex items-start justify-between">
@@ -102,6 +102,7 @@ export const DepositModal = ({
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
               disabled={loading}
+              aria-label="Amount in Naira"
               className="h-14 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-12 text-2xl font-black text-[#111827] placeholder:text-[#D1D5DB] focus:border-[#4F46E5] focus:ring-[#4F46E5]/20"
             />
             {numAmount > 0 && (
@@ -117,6 +118,7 @@ export const DepositModal = ({
                 key={value}
                 onClick={() => setAmount(value.toString())}
                 disabled={loading}
+                aria-label={`Deposit ${label} Naira`}
                 className={`rounded-xl border py-2.5 text-xs font-black transition sm:text-sm ${
                   amount === value.toString()
                     ? "border-[#4F46E5]/40 bg-[#4F46E5]/10 text-[#4F46E5] shadow-[0_2px_8px_rgba(79,70,229,0.15)]"

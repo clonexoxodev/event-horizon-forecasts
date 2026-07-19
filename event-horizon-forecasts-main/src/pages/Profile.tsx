@@ -9,6 +9,17 @@ import { formatNaira } from "@/lib/markets";
 import apiService, { type ApiPosition, type ApiProfileStats } from "@/lib/api";
 import { toast } from "sonner";
 import { getCategoryLabel } from "@/lib/categories";
+import { LEVELS } from "@/lib/levels";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const emptyStats: ApiProfileStats = {
   totalPredictions: 0,
@@ -17,6 +28,10 @@ const emptyStats: ApiProfileStats = {
   winRate: 0,
   totalStaked: 0,
   totalEarnings: 0,
+  rank: 0,
+  score: 0,
+  level: "",
+  totalRankedUsers: 0,
 };
 
 export default function Profile() {
@@ -26,6 +41,7 @@ export default function Profile() {
   const [positions, setPositions] = useState<ApiPosition[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -66,7 +82,6 @@ export default function Profile() {
   };
 
   const handleLogout = async () => {
-    if (!window.confirm("Log out of Flippe?")) return;
     await logout();
     navigate("/login", { replace: true });
   };
@@ -112,7 +127,11 @@ export default function Profile() {
 
   const level = stats.level || "Beginner";
   const score = stats.score || 0;
-  const nextThreshold = 500;
+  const currentLevelIndex = LEVELS.findIndex((l) => l.name === level);
+  const nextThreshold =
+    currentLevelIndex >= 0 && currentLevelIndex < LEVELS.length - 1
+      ? LEVELS[currentLevelIndex + 1].score
+      : LEVELS[LEVELS.length - 1].score;
   const progress = Math.min((score / nextThreshold) * 100, 100);
 
   return (
@@ -125,7 +144,7 @@ export default function Profile() {
             <div className="relative">
               <div className="h-28 w-28 overflow-hidden rounded-full border-4 border-[#E5E7EB] bg-[#F3F4F6]">
                 {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
+                  <img src={user.avatarUrl} alt={user.name || 'Profile picture'} className="h-full w-full object-cover" />
                 ) : (
                   <div className="grid h-full w-full place-items-center text-4xl font-black text-[#4F46E5]">
                     {initials}
@@ -171,7 +190,7 @@ export default function Profile() {
         </section>
 
         {/* Stats Summary */}
-        <section className="mt-5 grid grid-cols-3 gap-3">
+        <section className="mt-5 grid grid-cols-3 gap-3" aria-label="User statistics">
           <StatCard icon={LineChart} label="Predictions" value={String(stats.totalPredictions)} />
           <StatCard icon={Trophy} label="Win rate" value={stats.totalPredictions ? `${Math.round(stats.winRate)}%` : "-"} />
           <StatCard icon={Wallet} label="Active value" value={formatNaira(activeValue)} />
@@ -262,13 +281,29 @@ export default function Profile() {
         </section>
 
         {/* Logout */}
-        <button
-          onClick={handleLogout}
-          className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 text-sm font-bold text-red-600 transition hover:bg-red-100"
-        >
-          <LogOut className="h-4 w-4" />
-          Log out
-        </button>
+        <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+          <button
+            onClick={() => setShowLogoutDialog(true)}
+            className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 text-sm font-bold text-red-600 transition hover:bg-red-100"
+          >
+            <LogOut className="h-4 w-4" />
+            Log out
+          </button>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Log out of Flippe?</AlertDialogTitle>
+              <AlertDialogDescription>
+                You will be signed out and redirected to the login page.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleLogout} className="bg-red-600 text-white hover:bg-red-700">
+                Log out
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
       <MobileNav />
     </div>

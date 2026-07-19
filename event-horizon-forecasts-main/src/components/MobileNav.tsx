@@ -26,7 +26,7 @@ export const MobileNav = () => (
           aria-label={item.label}
           className={({ isActive }) =>
             [
-              "flex flex-col items-center justify-center gap-1 rounded-2xl transition-all duration-200",
+              "flex flex-col items-center justify-center gap-1 rounded-2xl min-h-[44px] min-w-[44px] transition-all duration-200",
               isActive
                 ? "text-[#4F46E5]"
                 : "text-[#6B7280] active:scale-90",

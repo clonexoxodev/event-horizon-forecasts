@@ -23,13 +23,15 @@ export const CategoryTabs = ({ onChange }: { onChange?: (c: string) => void }) =
   return (
     <div className="border-b border-border/40 bg-card/60 backdrop-premium sticky top-[57px] z-30 shadow-xs">
       <div className="container">
-        <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin py-1 px-1">
+        <div role="tablist" aria-label="Market categories" className="flex items-center gap-1 overflow-x-auto scrollbar-thin py-1 px-1">
           {HOME_MARKET_FILTERS.map((label) => {
             const Icon = categoryIcons[label] || LayoutGrid;
             const isActive = active === label;
             return (
               <button
                 key={label}
+                role="tab"
+                aria-selected={isActive}
                 onClick={() => { setActive(label); onChange?.(label); }}
                 className={`relative flex items-center gap-1.5 px-3.5 py-2.5 text-[13px] font-semibold whitespace-nowrap transition-all duration-280 rounded-lg ${
                   isActive

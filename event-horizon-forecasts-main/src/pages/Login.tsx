@@ -70,7 +70,7 @@ export default function Login() {
               Log in to your account
             </h1>
 
-            <form onSubmit={handleSubmit} className="w-full space-y-4">
+            <form onSubmit={handleSubmit} className="w-full space-y-4" aria-label="Log in to your account">
               <div>
                 <label className="mb-1.5 block text-xs font-bold text-[#6B7280]">
                   Email address
@@ -118,17 +118,16 @@ export default function Login() {
               </div>
 
               <div className="flex justify-end">
-                <button
-                  type="button"
-                  className="text-xs font-bold text-[#4F46E5] transition hover:text-[#4338CA]"
-                  onClick={() => {}}
+                <Link
+                  to="/support"
+                  className="text-xs font-bold text-[#6B7280] transition hover:text-[#4F46E5]"
                 >
-                  Forgot password?
-                </button>
+                  Contact support for password reset
+                </Link>
               </div>
 
               {error && (
-                <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+                <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600" role="alert">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   {error}
                 </div>

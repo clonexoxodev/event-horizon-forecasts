@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Bell, CheckCheck, Clock, Inbox, TrendingUp, Trophy, Wallet, Zap } from "lucide-react";
+import { Bell, CheckCheck, Clock, Inbox, Loader2, TrendingUp, Trophy, Wallet, Zap } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
@@ -31,7 +31,9 @@ export default function Notifications() {
         <Header />
         <main className="grid min-h-[70vh] place-items-center px-4">
           <div className="text-center">
-            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[#E5E7EB] border-t-[#4F46E5]" />
+            <div className="mx-auto mb-4 flex items-center justify-center">
+              <Loader2 className="h-10 w-10 animate-spin text-[#4F46E5]" />
+            </div>
             <p className="text-sm font-semibold text-[#6B7280]">Loading notifications...</p>
           </div>
         </main>
@@ -95,7 +97,7 @@ export default function Notifications() {
           </div>
         ) : (
           <div className="rounded-2xl border border-[#E5E7EB] bg-white">
-            <ul>
+            <ul role="log" aria-label="Notifications" aria-live="polite">
               {sorted.map((notification, index) => {
                 const isRead = notification.read;
                 const style = getNotificationStyle(notification.type as NotificationType);
@@ -113,6 +115,7 @@ export default function Notifications() {
                       onClick={() => {
                         if (!isRead) markAsRead(notification.id);
                       }}
+                      aria-label={`${notification.title}. ${notification.message}. ${formatNotificationTime(notification.createdAt)}${!isRead ? '. Unread' : ''}`}
                       className="flex w-full items-start gap-3 p-4 text-left"
                     >
                       {/* Icon */}

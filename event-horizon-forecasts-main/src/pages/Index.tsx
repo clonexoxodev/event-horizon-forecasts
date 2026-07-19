@@ -66,7 +66,6 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { markets, loadMarkets, isLoadingMarkets, marketError } = useMarketState();
-  const [now, setNow] = useState(Date.now());
   const [positions, setPositions] = useState<ApiPosition[]>([]);
   const [stats, setStats] = useState<ApiProfileStats>(emptyStats);
   const [lastVisit] = useState<VisitSnapshot | null>(() => readVisitSnapshot());
@@ -83,11 +82,6 @@ const Index = () => {
       // The shared market state keeps the last successful list, so Home should not flash empty.
     });
   }, [loadMarkets]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     const refresh = window.setInterval(() => {
@@ -326,7 +320,7 @@ const Index = () => {
         )}
 
         {/* ── Search Bar ── */}
-        <section className="mb-4" data-now={now}>
+        <section className="mb-4">
           <div className="relative">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#9CA3AF]" />
             <input
@@ -334,6 +328,8 @@ const Index = () => {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search markets or topics"
+              aria-label="Search markets"
+              role="searchbox"
               className="h-[52px] w-full rounded-2xl border border-[#E5E7EB] bg-white pl-12 pr-20 text-[15px] font-bold text-[#111827] shadow-[0_8px_24px_rgba(17,24,39,0.05)] outline-none placeholder:text-[#9CA3AF] focus:border-[#4F46E5]/60 focus:ring-4 focus:ring-[#4F46E5]/10 transition-all"
             />
             <kbd className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-lg border border-[#E5E7EB] bg-[#F3F4F6] px-2 py-0.5 text-[11px] font-bold text-[#9CA3AF] shadow-sm">
@@ -354,6 +350,8 @@ const Index = () => {
                 <button
                   key={chip}
                   onClick={() => setCategory(chip)}
+                  role="tab"
+                  aria-selected={category === chip}
                   className={`relative shrink-0 rounded-full px-4 py-2 text-sm font-black transition-all duration-200 ease-out ${
                     category === chip
                       ? "bg-[#4F46E5] text-white shadow-[0_8px_20px_rgba(79,70,229,0.22)]"
@@ -423,7 +421,7 @@ const Index = () => {
           {isLoadingMarkets && markets.length === 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
               {[1, 2, 3, 4, 5, 6].map((item) => (
-                <div key={item} className="h-64 rounded-2xl border border-[#E5E7EB] bg-white/70 soft-shimmer" />
+                <div key={item} className="h-64 rounded-2xl border border-[#E5E7EB] soft-shimmer" />
               ))}
             </div>
           ) : marketError && filtered.length === 0 ? (
@@ -438,10 +436,11 @@ const Index = () => {
               </button>
             </div>
           ) : filtered.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3" role="list">
               {filtered.map((market, index) => (
                 <div
                   key={market.id}
+                  role="listitem"
                   className="opacity-0 animate-fade-up"
                   style={{ animationDelay: `${Math.min(index * 50, 400)}ms` }}
                 >

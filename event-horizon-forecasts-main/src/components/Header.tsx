@@ -22,7 +22,7 @@ export const Header = () => {
       <aside
         className="fixed left-0 top-0 z-50 hidden h-screen w-64 border-r border-[#E5E7EB] bg-white p-5 shadow-[4px_0_24px_rgba(17,24,39,0.04)] xl:flex xl:flex-col"
         role="navigation"
-        aria-label="Sidebar navigation"
+        aria-label="Main navigation"
       >
         {/* Brand */}
         <Link to="/" className="mb-8 flex items-center gap-3" aria-label="FLIPPE home">

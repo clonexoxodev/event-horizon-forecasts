@@ -111,18 +111,20 @@ export default function Settings() {
 
           <Card>
             <CardHeader icon={Lock} title="Security" />
-            <LinkRow
-              icon={Lock}
-              label="Change password"
-              description="Update your account password."
-              onClick={() => {}}
-            />
-            <LinkRow
-              icon={Shield}
-              label="Two-factor authentication"
-              description="Add an extra layer of security to your account."
-              onClick={() => {}}
-            />
+            <div className="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5 opacity-50 cursor-not-allowed">
+              <Lock className="h-4 w-4 shrink-0 text-[#6B7280]" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-[#111827]">Change password</div>
+                <div className="mt-0.5 text-xs text-[#6B7280]">Coming soon</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5 opacity-50 cursor-not-allowed">
+              <Shield className="h-4 w-4 shrink-0 text-[#6B7280]" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-[#111827]">Two-factor authentication</div>
+                <div className="mt-0.5 text-xs text-[#6B7280]">Coming soon</div>
+              </div>
+            </div>
           </Card>
 
           <Card>
@@ -205,6 +207,7 @@ const Toggle = ({
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={label}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors ${checked ? "bg-[#4F46E5]" : "bg-[#D1D5DB]"}`}
     >

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -144,7 +144,7 @@ export default function Wallet() {
   return (
     <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8 w-full">
         <div className="mb-6">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#6B7280]">
@@ -160,16 +160,16 @@ export default function Wallet() {
         </div>
 
         <section>
-          <div className="relative overflow-hidden rounded-2xl shadow-[0_20px_60px_rgba(79,70,229,0.25)]">
+          <div className="relative overflow-hidden rounded-2xl shadow-elevated">
             <div className="absolute inset-0 bg-gradient-to-br from-[#4F46E5] via-[#6366F1] to-[#4338CA]" />
-            <div className="absolute inset-0 opacity-10">
+            <div className="absolute inset-0 opacity-10" aria-hidden="true">
               <svg className="h-full w-full" viewBox="0 0 400 250" fill="none">
                 <circle cx="350" cy="50" r="120" fill="white" opacity="0.08" />
                 <circle cx="300" cy="200" r="80" fill="white" opacity="0.05" />
                 <circle cx="50" cy="180" r="60" fill="white" opacity="0.06" />
               </svg>
             </div>
-            <div className="relative p-6 sm:p-8">
+            <div className="relative p-6 sm:p-8" aria-label="Wallet balance">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="grid h-12 w-12 place-items-center rounded-xl bg-white/15 text-white backdrop-blur-sm">
@@ -212,7 +212,7 @@ export default function Wallet() {
               <div className="mt-8 grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setDepositModalOpen(true)}
-                  className="flex h-12 items-center justify-center gap-2 rounded-xl bg-white text-sm font-black text-[#4F46E5] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition hover:bg-white/95 hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)]"
+                  className="flex h-12 items-center justify-center gap-2 rounded-xl bg-white text-sm font-black text-[#4F46E5] shadow-elevated transition hover:bg-white/95 hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)]"
                 >
                   <ArrowDownRight className="h-4 w-4" />
                   Add Money
@@ -229,10 +229,10 @@ export default function Wallet() {
           </div>
         </section>
 
-        <section className="mt-4 grid grid-cols-2 gap-3 sm:gap-4">
+        <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
           <button
             onClick={() => setDepositModalOpen(true)}
-            className="group flex items-center gap-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-[0_18px_52px_rgba(17,24,39,0.08)] transition hover:border-[#4F46E5]/30 hover:shadow-[0_22px_60px_rgba(79,70,229,0.12)] sm:p-5"
+            className="group flex items-center gap-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-elevated transition hover:border-[#4F46E5]/30 hover:shadow-[0_22px_60px_rgba(79,70,229,0.12)] sm:p-5"
           >
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#EEF2FF] text-[#4F46E5] transition group-hover:bg-[#4F46E5] group-hover:text-white">
               <CreditCard className="h-5 w-5" />
@@ -244,7 +244,7 @@ export default function Wallet() {
           </button>
           <button
             onClick={() => setWithdrawModalOpen(true)}
-            className="group flex items-center gap-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-[0_18px_52px_rgba(17,24,39,0.08)] transition hover:border-[#E85D5D]/30 hover:shadow-[0_22px_60px_rgba(232,93,93,0.12)] sm:p-5"
+            className="group flex items-center gap-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-elevated transition hover:border-[#E85D5D]/30 hover:shadow-[0_22px_60px_rgba(232,93,93,0.12)] sm:p-5"
           >
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#FEF2F2] text-[#E85D5D] transition group-hover:bg-[#E85D5D] group-hover:text-white">
               <Landmark className="h-5 w-5" />
@@ -301,9 +301,10 @@ export default function Wallet() {
                   <button
                     type="button"
                     onClick={() => setSelectedTransaction(tx.transaction)}
-                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-4 text-left transition hover:border-[#4F46E5]/30 hover:bg-white hover:shadow-[0_10px_28px_rgba(17,24,39,0.08)]"
+                    aria-label={`${tx.label} — ${tx.amount >= 0 ? "deposit" : "withdrawal"} of ${formatNaira(Math.abs(tx.amount))}, ${tx.status}`}
+                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] px-4 py-3.5 text-left transition hover:border-[#4F46E5]/30 hover:bg-white hover:shadow-elevated sm:px-5 sm:py-4"
                   >
-                    <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                       <div
                         className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${
                           tx.amount >= 0
@@ -318,12 +319,12 @@ export default function Wallet() {
                           {tx.label}
                         </div>
                         <div className="mt-1 flex items-center gap-1 text-xs text-[#6B7280]">
-                          <Clock className="h-3 w-3" />
-                          {tx.date}
+                          <Clock className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{tx.date}</span>
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="shrink-0 text-right">
                       <div
                         className={`text-sm font-black ${
                           tx.amount >= 0 ? "text-[#12B886]" : "text-[#E85D5D]"
@@ -421,6 +422,7 @@ const TransactionDetailModal = ({
   transaction: ApiTransaction;
   onClose: () => void;
 }) => {
+  const closeRef = useRef<HTMLButtonElement>(null);
   const metadata = transaction.metadata || {};
   const bankName =
     stringMeta(metadata, "bankName") || stringMeta(metadata, "bank_name");
@@ -443,6 +445,15 @@ const TransactionDetailModal = ({
     stringMeta(metadata, "provider") ||
     stringMeta(metadata, "paymentMethod") ||
     stringMeta(metadata, "payment_method");
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    closeRef.current?.focus();
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   const isWithdrawal = transaction.type.includes("withdrawal");
   const isDeposit = transaction.type.includes("deposit");
   const isPrediction =
@@ -461,7 +472,7 @@ const TransactionDetailModal = ({
       aria-modal="true"
     >
       <div
-        className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white p-5 text-[#111827] shadow-[0_24px_80px_rgba(17,24,39,0.22)]"
+        className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white p-5 text-[#111827] shadow-modal"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">
@@ -477,6 +488,7 @@ const TransactionDetailModal = ({
             </p>
           </div>
           <button
+            ref={closeRef}
             type="button"
             onClick={onClose}
             className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#667085] transition hover:text-[#111827]"

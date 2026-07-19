@@ -60,7 +60,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
       onClick={openMarket}
       onKeyDown={handleKeyDown}
       aria-label={`${m.question}. ${isLive ? (activation.isProtected ? "Refund protected" : "Live trading") : "Trading closed"}. YES price ${nairaSymbol}${Math.round(m.yesPrice)}, NO price ${nairaSymbol}${Math.round(m.noPrice)}.`}
-      className="group block rounded-2xl border border-[#E5E7EB] bg-white p-3 shadow-[0_8px_24px_rgba(17,24,39,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#4F46E5]/30 hover:shadow-[0_14px_34px_rgba(17,24,39,0.1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4F46E5] active:translate-y-0 active:shadow-[0_6px_16px_rgba(17,24,39,0.08)]"
+      className="group block min-h-[260px] rounded-2xl border border-[#E5E7EB] bg-white p-3 shadow-[0_8px_24px_rgba(17,24,39,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#4F46E5]/30 hover:shadow-[0_14px_34px_rgba(17,24,39,0.1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4F46E5] active:translate-y-0 active:shadow-[0_6px_16px_rgba(17,24,39,0.08)]"
     >
       <div className="flex items-start gap-3">
         <div
@@ -209,7 +209,7 @@ const PriceButton = ({
     type="button"
     onClick={onClick}
     disabled={disabled}
-    aria-label={`${label} at ${Math.round(value)} naira`}
+    aria-label={`${label} at ${Math.round(value)}%`}
     className={`rounded-xl border px-3 py-2.5 text-left transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 ${
       tone === "green"
         ? "border-[#12B886]/25 bg-[#12B886]/10 text-[#047857] hover:border-[#12B886]/40 hover:bg-[#12B886]/20"
