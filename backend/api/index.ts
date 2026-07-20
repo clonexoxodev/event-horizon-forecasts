@@ -1909,13 +1909,13 @@ const buildRealLeaderboard = async (limit = 10) => {
 
   if (positionsError) throw positionsError;
 
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('*');
+  const { data: users } = await supabase
+    .from('users')
+    .select('id, username, email, avatar_url, profile_image_url, name');
 
   const profileByUserId = new Map<string, any>();
-  for (const profile of profiles || []) {
-    profileByUserId.set(profile.user_id || profile.id, profile);
+  for (const user of users || []) {
+    profileByUserId.set(user.id, user);
   }
 
   const byUser = new Map<string, {
@@ -1963,8 +1963,8 @@ const buildRealLeaderboard = async (limit = 10) => {
       const score = getLeaderboardScore(row.totalPredictions, row.wins);
       return {
         userId: row.userId,
-        username: profile?.username || profile?.display_name || profile?.email?.split('@')[0] || 'Forecaster',
-        displayName: profile?.display_name || profile?.username || profile?.email?.split('@')[0] || 'Forecaster',
+        username: profile?.username || profile?.name || profile?.email?.split('@')[0] || 'Forecaster',
+        displayName: profile?.name || profile?.username || profile?.email?.split('@')[0] || 'Forecaster',
         avatarUrl: profile?.avatar_url || profile?.profile_image_url || null,
         rank: 0,
         level: getLeaderboardLevel(row.totalPredictions, row.wins),
@@ -4785,7 +4785,7 @@ app.get('/api/admin/users', authenticate, requireRole('admin'), async (_req: Req
   try {
     const { data, error } = await supabase
       .from('users')
-      .select('id, email, username, role, created_at')
+      .select('id, email, username, name, role, created_at, account_status, suspended_at, suspended_by, suspension_reason')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -4837,7 +4837,9 @@ app.get('/api/admin/users', authenticate, requireRole('admin'), async (_req: Req
         };
         return {
           ...user,
-          status: 'active',
+          account_status: user.account_status || 'active',
+          suspended_at: user.suspended_at || null,
+          suspension_reason: user.suspension_reason || null,
           last_login_at: null,
           last_active_at: null,
           wallet_balance: toAmount(Number(wallet?.balance_ngn_kobo || wallet?.available_ngn_kobo || 0)),
@@ -4918,7 +4920,7 @@ app.get('/api/admin/finance/overview', authenticate, requireRole('admin'), async
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
     const todayIso = startOfToday.toISOString();
-    const [walletsResult, depositsResult, withdrawalsResult, pendingDepositsResult, pendingWithdrawalsResult, todayDepositsResult, todayWithdrawalsResult, todayPredictionsResult, pendingPayoutsResult] = await Promise.all([
+    const [walletsResult, depositsResult, withdrawalsResult, pendingDepositsResult, pendingWithdrawalsResult, todayDepositsResult, todayWithdrawalsResult, todayPredictionsResult, pendingPayoutsResult, refundsResult, transactionsResult] = await Promise.all([
       supabase.from('wallets').select('balance_ngn_kobo, locked_ngn_kobo'),
       supabase.from('deposit_requests').select('amount_smallest_unit').eq('status', 'completed'),
       supabase.from('withdrawal_requests').select('amount_smallest_unit').eq('status', 'completed'),
@@ -4928,15 +4930,23 @@ app.get('/api/admin/finance/overview', authenticate, requireRole('admin'), async
       supabase.from('withdrawal_requests').select('amount_smallest_unit').eq('status', 'completed').gte('approved_at', todayIso),
       supabase.from('positions').select('amount_smallest_unit').gte('created_at', todayIso),
       supabase.from('positions').select('id', { count: 'exact', head: true }).eq('status', 'won'),
+      supabase.from('transactions').select('amount_smallest_unit').eq('type', 'refund').eq('status', 'completed'),
+      supabase.from('transactions').select('amount_smallest_unit, type, status'),
     ]);
     const sum = (rows?: any[] | null) => (rows || []).reduce((total, row) => total + Number(row.amount_smallest_unit || 0), 0);
     const totalUserBalances = (walletsResult.data || []).reduce((total, wallet) => total + Number(wallet.balance_ngn_kobo || 0), 0);
     const totalLocked = (walletsResult.data || []).reduce((total, wallet) => total + Number(wallet.locked_ngn_kobo || 0), 0);
+    const totalRefunds = sum(refundsResult.data);
+    const totalDepositsCompleted = sum(depositsResult.data);
+    const totalWithdrawalsCompleted = sum(withdrawalsResult.data);
+    const platformRevenue = Math.max(0, totalDepositsCompleted - totalWithdrawalsCompleted - totalRefunds - totalUserBalances);
     res.json({ overview: {
       totalUserBalances: toAmount(totalUserBalances),
       totalLocked: toAmount(totalLocked),
-      totalDeposits: toAmount(sum(depositsResult.data)),
-      totalWithdrawals: toAmount(sum(withdrawalsResult.data)),
+      totalDeposits: toAmount(totalDepositsCompleted),
+      totalWithdrawals: toAmount(totalWithdrawalsCompleted),
+      totalRefunds: toAmount(totalRefunds),
+      platformRevenue: toAmount(platformRevenue),
       pendingDeposits: pendingDepositsResult.count || 0,
       pendingWithdrawals: pendingWithdrawalsResult.count || 0,
       todayDeposits: toAmount(sum(todayDepositsResult.data)),
@@ -4962,7 +4972,7 @@ const serializeDepositRequest = (request: any) => ({
   provider: request.provider,
   paymentInstruction: request.payment_instruction,
   status: request.status,
-  user: request.users ? { email: request.users.email, username: request.users.username } : null,
+  user: request._user ? { email: request._user.email, username: request._user.username } : null,
   createdAt: request.created_at,
   updatedAt: request.updated_at,
 });
@@ -4982,7 +4992,7 @@ const serializeWithdrawalRequest = (request: any) => ({
   accountName: request.account_name,
   reviewTier: request.review_tier,
   status: request.status,
-  user: request.users ? { email: request.users.email, username: request.users.username } : null,
+  user: request._user ? { email: request._user.email, username: request._user.username } : null,
   createdAt: request.created_at,
   updatedAt: request.updated_at,
 });
@@ -4990,11 +5000,16 @@ const serializeWithdrawalRequest = (request: any) => ({
 app.get('/api/admin/finance/deposits', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
   try {
     const status = String(req.query.status || 'pending');
-    let query = supabase.from('deposit_requests').select('*, users(email, username)').order('created_at', { ascending: false }).limit(200);
+    let query = supabase.from('deposit_requests').select('*').order('created_at', { ascending: false }).limit(200);
     if (status !== 'all') query = query.eq('status', status);
     const { data, error } = await query;
     if (error) throw error;
-    res.json({ deposits: (data || []).map(serializeDepositRequest) });
+    const userIds = Array.from(new Set((data || []).map((r: any) => r.user_id).filter(Boolean)));
+    const { data: users } = userIds.length
+      ? await supabase.from('users').select('id, email, username').in('id', userIds)
+      : { data: [] as any[] };
+    const userMap = new Map<string, any>((users || []).map((u: any) => [u.id, u]));
+    res.json({ deposits: (data || []).map((d) => serializeDepositRequest({ ...d, _user: userMap.get(d.user_id) || null })) });
   } catch (error) {
     console.error('Finance deposits error:', error);
     res.status(500).json({ error: { code: 'FINANCE_DEPOSITS_FAILED', message: 'Could not load deposit queue.', timestamp: new Date().toISOString() } });
@@ -5004,11 +5019,16 @@ app.get('/api/admin/finance/deposits', authenticate, requireRole('admin'), async
 app.get('/api/admin/finance/withdrawals', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
   try {
     const status = String(req.query.status || 'pending');
-    let query = supabase.from('withdrawal_requests').select('*, users(email, username)').order('created_at', { ascending: false }).limit(200);
+    let query = supabase.from('withdrawal_requests').select('*').order('created_at', { ascending: false }).limit(200);
     if (status !== 'all') query = query.eq('status', status);
     const { data, error } = await query;
     if (error) throw error;
-    res.json({ withdrawals: (data || []).map(serializeWithdrawalRequest) });
+    const userIds = Array.from(new Set((data || []).map((r: any) => r.user_id).filter(Boolean)));
+    const { data: users } = userIds.length
+      ? await supabase.from('users').select('id, email, username').in('id', userIds)
+      : { data: [] as any[] };
+    const userMap = new Map<string, any>((users || []).map((u: any) => [u.id, u]));
+    res.json({ withdrawals: (data || []).map((w) => serializeWithdrawalRequest({ ...w, _user: userMap.get(w.user_id) || null })) });
   } catch (error) {
     console.error('Finance withdrawals error:', error);
     res.status(500).json({ error: { code: 'FINANCE_WITHDRAWALS_FAILED', message: 'Could not load withdrawal queue.', timestamp: new Date().toISOString() } });
@@ -5295,6 +5315,7 @@ app.get('/api/admin/dashboard/stats', authenticate, requireRole('admin'), async 
       todayPositionsResult,
       totalPositionsResult,
       recentActivityResult,
+      pendingWithdrawalsResult,
     ] = await Promise.all([
       supabase.from('users').select('id', { count: 'exact', head: true }),
       supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', todayIso),
@@ -5305,6 +5326,7 @@ app.get('/api/admin/dashboard/stats', authenticate, requireRole('admin'), async 
       supabase.from('positions').select('amount_smallest_unit, currency, created_at, user_id').gte('created_at', todayIso),
       supabase.from('positions').select('amount_smallest_unit, currency'),
       supabase.from('transactions').select('id, type, created_at, metadata').order('created_at', { ascending: false }).limit(20),
+      supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     ]);
 
     const todayVolume = (todayPositionsResult.data || [])
@@ -5324,6 +5346,8 @@ app.get('/api/admin/dashboard/stats', authenticate, requireRole('admin'), async 
         pendingMarkets: pendingMarketsResult.count || 0,
         resolvedMarkets: resolvedMarketsResult.count || 0,
         pendingResolution: pendingMarketsResult.count || 0,
+        pendingResolutions: pendingMarketsResult.count || 0,
+        pendingWithdrawals: pendingWithdrawalsResult.count || 0,
         todayVolume: toAmount(todayVolume),
         totalVolume: toAmount(totalVolume),
         dailyActiveUsers,
