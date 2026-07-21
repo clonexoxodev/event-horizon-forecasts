@@ -12,6 +12,7 @@ import adminMarketRoutes from './routes/admin-market.routes.js';
 import notificationsRoutes from './routes/notifications.routes.js';
 import usersRoutes from './routes/users.routes.js';
 import profileRoutes from './routes/profile.routes.js';
+import orderRoutes from './routes/order.routes.js';
 import { normalizeMarketCategory } from './validation/market.validation.js';
 
 dotenv.config();
@@ -61,6 +62,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/markets', adminMarketRoutes);
+app.use('/api/markets', orderRoutes);
 
 const toAmount = (smallestUnit: number | null | undefined) => Number(smallestUnit || 0) / 100;
 

@@ -1,0 +1,16 @@
+-- ============================================================================
+-- FLIPPE AUDIT: 01 MISSING TABLES
+-- Tables referenced in code but NOT created by any migration.
+-- Run AFTER 20260721_order_book_sprint1.sql and 20260721_settlement_sprint4.sql
+-- ============================================================================
+
+-- All tables referenced in the codebase are already defined in the two
+-- unexecuted sprint migrations:
+--
+--   20260721_order_book_sprint1.sql  — wallets, markets, orders, positions,
+--                                       notifications, transactions, etc.
+--   20260721_settlement_sprint4.sql — settlement audit tables, market state
+--                                       transitions, outcome resolution, etc.
+--
+-- This file is intentionally minimal.
+-- If you have NOT run the sprint migrations yet, run them first.

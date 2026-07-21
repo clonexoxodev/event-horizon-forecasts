@@ -1120,26 +1120,13 @@ const creditVerifiedDeposit = async (reference: string) => {
     return { alreadyCredited: true, request };
   }
 
-  // ATOMIC STEP 2: Credit wallet (safe — we hold the 'pending'→'completed' lock)
-  const { data: wallet, error: walletError } = await supabase
-    .from('wallets')
-    .select('*')
-    .eq('id', request.wallet_id)
-    .single();
-  if (walletError || !wallet) throw walletError || new Error('Wallet not found.');
-
+  // ATOMIC STEP 2: Credit wallet (single SQL — no race condition possible)
   const amount = Number(request.amount_smallest_unit || 0);
+  const { data: wallet } = await supabase.from('wallets').select('user_id').eq('id', request.wallet_id).single();
+  if (!wallet) throw new Error('Wallet not found.');
   const { data: updatedWallet, error: updateError } = await supabase
-    .from('wallets')
-    .update({
-      balance_ngn_kobo: Number(wallet.balance_ngn_kobo || 0) + amount,
-      available_ngn_kobo: Number(wallet.available_ngn_kobo || 0) + amount,
-      total_deposited_ngn_kobo: Number(wallet.total_deposited_ngn_kobo || 0) + amount,
-      updated_at: creditedAt,
-    })
-    .eq('id', wallet.id)
-    .select()
-    .single();
+    .rpc('atomic_credit_deposit', { p_user_id: wallet.user_id, p_amount: amount, p_currency: 'NGN' })
+    .maybeSingle();
   if (updateError || !updatedWallet) throw updateError || new Error('Wallet credit failed.');
 
   // Update the original deposit_request transaction status
@@ -1299,22 +1286,14 @@ const refundUnactivatedMarket = async (market: any, actor?: any) => {
       .maybeSingle();
     if (existingRefund) continue;
 
-    const { data: wallet, error: walletError } = await supabase
-      .from('wallets')
-      .select('*')
-      .eq('user_id', position.user_id)
-      .single();
-    if (walletError || !wallet) throw walletError || new Error('Wallet not found for refund.');
-
-    const availableField = position.currency === 'USD' ? 'available_usd_cents' : 'available_ngn_kobo';
-    const { error: walletUpdateError } = await supabase
-      .from('wallets')
-      .update({
-        [availableField]: Number(wallet[availableField] || 0) + refundAmount,
-        updated_at: now
+    const { data: refundedWallet, error: refundError } = await supabase
+      .rpc('atomic_refund_to_available', {
+        p_user_id: position.user_id,
+        p_amount: refundAmount,
+        p_currency: position.currency || 'NGN',
       })
-      .eq('id', wallet.id);
-    if (walletUpdateError) throw walletUpdateError;
+      .maybeSingle<{ id: string }>();
+    if (refundError || !refundedWallet) throw refundError || new Error('Refund failed');
 
     let { error: positionUpdateError } = await supabase
       .from('positions')
@@ -1352,7 +1331,7 @@ const refundUnactivatedMarket = async (market: any, actor?: any) => {
       .from('transactions')
       .insert({
         user_id: position.user_id,
-        wallet_id: wallet.id,
+        wallet_id: refundedWallet.id,
         type: 'refund',
         amount_smallest_unit: refundAmount,
         currency: position.currency || 'NGN',
@@ -2378,8 +2357,10 @@ app.post('/api/wallet/deposit', authenticate, rateLimitMiddleware(DEPOSIT_RATE),
 });
 
 app.post('/api/wallet/withdrawal-request', authenticate, rateLimitMiddleware(WITHDRAWAL_RATE), async (req: Request, res: Response) => {
-  let rollbackWallet: { id: string; available: number; locked: number } | null = null;
   let createdTransactionId: string | null = null;
+  let reservedWalletId: string | null = null;
+  let rollbackUserId: string | null = null;
+  let rollbackAmount: number = 0;
   try {
     const user = (req as any).user;
     const amountSmallestUnit = Number(req.body.amount_smallest_unit || req.body.amountSmallestUnit || Math.round(Number(req.body.amount || 0) * 100));
@@ -2400,25 +2381,30 @@ app.post('/api/wallet/withdrawal-request', authenticate, rateLimitMiddleware(WIT
     if (todayTotal + amountSmallestUnit > MAX_DAILY_WITHDRAWAL_KOBO) {
       return res.status(422).json({ error: { code: 'DAILY_LIMIT_EXCEEDED', message: `Daily withdrawal limit is ₦${toAmount(MAX_DAILY_WITHDRAWAL_KOBO).toLocaleString()}.`, timestamp: new Date().toISOString() } });
     }
-    const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('user_id', user.id).single();
-    if (walletError || !wallet) return res.status(404).json({ error: { code: 'WALLET_NOT_FOUND', message: 'Wallet not found', timestamp: new Date().toISOString() } });
-    if (Number(wallet.available_ngn_kobo || 0) < amountSmallestUnit) return res.status(422).json({ error: { code: 'INSUFFICIENT_BALANCE', message: 'Insufficient available balance.', timestamp: new Date().toISOString() } });
     const reference = makeWalletReference('WDR');
     const reviewTier = amountSmallestUnit > FAST_REVIEW_THRESHOLD_KOBO ? 'manual_review' : 'fast_review';
-    rollbackWallet = {
-      id: wallet.id,
-      available: Number(wallet.available_ngn_kobo || 0),
-      locked: Number(wallet.locked_ngn_kobo || 0)
-    };
-    const { data: updatedWallet, error: updateError } = await supabase.from('wallets').update({
-      available_ngn_kobo: Number(wallet.available_ngn_kobo || 0) - amountSmallestUnit,
-      locked_ngn_kobo: Number(wallet.locked_ngn_kobo || 0) + amountSmallestUnit,
-      updated_at: new Date().toISOString()
-    }).eq('id', wallet.id).gte('available_ngn_kobo', amountSmallestUnit).select().single();
-    if (updateError || !updatedWallet) throw updateError || new Error('Could not reserve withdrawal funds');
+    const { data: reservedWallet, error: reserveError } = await supabase
+      .rpc('atomic_reserve_for_withdrawal', {
+        p_user_id: user.id,
+        p_amount: amountSmallestUnit,
+        p_currency: 'NGN',
+      })
+      .maybeSingle<{ id: string }>();
+    if (reserveError || !reservedWallet) {
+      return res.status(reserveError ? 500 : 422).json({
+        error: {
+          code: reserveError ? 'WITHDRAWAL_RESERVE_FAILED' : 'INSUFFICIENT_BALANCE',
+          message: reserveError ? 'Could not reserve withdrawal funds' : 'Insufficient available balance.',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+    reservedWalletId = reservedWallet.id;
+    rollbackUserId = user.id;
+    rollbackAmount = amountSmallestUnit;
     const { data: transaction, error: txError } = await supabase.from('transactions').insert({
       user_id: user.id,
-      wallet_id: wallet.id,
+      wallet_id: reservedWallet.id,
       type: 'withdrawal_request',
       amount_smallest_unit: amountSmallestUnit,
       currency: 'NGN',
@@ -2433,7 +2419,7 @@ app.post('/api/wallet/withdrawal-request', authenticate, rateLimitMiddleware(WIT
     createdTransactionId = transaction.id;
     const { data: withdrawalRequest, error: requestError } = await supabase.from('withdrawal_requests').insert({
       user_id: user.id,
-      wallet_id: wallet.id,
+      wallet_id: reservedWallet.id,
       transaction_id: transaction.id,
       amount_smallest_unit: amountSmallestUnit,
       currency: 'NGN',
@@ -2461,7 +2447,7 @@ app.post('/api/wallet/withdrawal-request', authenticate, rateLimitMiddleware(WIT
     await insertNotificationSafely({ user_id: user.id, type: 'withdrawal_requested', title: 'Withdrawal requested', message: `Your ₦${toAmount(amountSmallestUnit).toLocaleString()} withdrawal is pending review.`, reference_id: withdrawalRequest.id, reference_type: 'withdrawal_request', metadata: { reference, amount: toAmount(amountSmallestUnit), reviewTier } }, 'Withdrawal notification');
     res.status(201).json({
       message: 'Withdrawal request created',
-      wallet: serializeWalletV1(updatedWallet),
+      wallet: serializeWalletV1(reservedWallet),
       withdrawalRequest: {
         id: withdrawalRequest.id,
         amount: toAmount(withdrawalRequest.amount_smallest_unit),
@@ -2476,12 +2462,12 @@ app.post('/api/wallet/withdrawal-request', authenticate, rateLimitMiddleware(WIT
     });
   } catch (error) {
     console.error('Withdrawal request error:', error);
-    if (rollbackWallet) {
-      await supabase.from('wallets').update({
-        available_ngn_kobo: rollbackWallet.available,
-        locked_ngn_kobo: rollbackWallet.locked,
-        updated_at: new Date().toISOString()
-      }).eq('id', rollbackWallet.id);
+    if (reservedWalletId && rollbackUserId) {
+      await supabase.rpc('atomic_unlock_from_order', {
+        p_user_id: rollbackUserId,
+        p_amount: rollbackAmount,
+        p_currency: 'NGN',
+      });
     }
     if (createdTransactionId) {
       await supabase.from('transactions').update({
@@ -3157,33 +3143,6 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
       });
     }
 
-    const { data: wallet, error: walletError } = await supabase
-      .from('wallets')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
-    if (walletError || !wallet) {
-      return res.status(404).json({
-        error: {
-          code: 'WALLET_NOT_FOUND',
-          message: 'Wallet not found',
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
-
-    const balanceField = currency === 'USD' ? 'available_usd_cents' : 'available_ngn_kobo';
-    if (Number(wallet[balanceField] || 0) < amountSmallestUnit) {
-      return res.status(422).json({
-        error: {
-          code: 'INSUFFICIENT_BALANCE',
-          message: 'Insufficient available balance',
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
-
     const trade = calculateOwnershipTrade(currentMarket, side, amountSmallestUnit);
     const currentVolume = Number(currentMarket.total_volume_smallest_unit || 0);
     const nextTradeCount = Number(currentMarket.trade_count || 0) + 1;
@@ -3266,16 +3225,18 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
     }
 
     const { data: updatedWallet, error: walletUpdateError } = await supabase
-      .from('wallets')
-      .update({
-        [balanceField]: Number(wallet[balanceField] || 0) - amountSmallestUnit,
-        updated_at: new Date().toISOString()
+      .rpc('atomic_decrement_available', {
+        p_user_id: user.id,
+        p_amount: amountSmallestUnit,
+        p_currency: currency || 'NGN',
       })
-      .eq('id', wallet.id)
-      .select()
-      .single();
+      .maybeSingle<{ id: string; user_id: string; balance_ngn_kobo: number; balance_usd_cents: number; available_ngn_kobo: number; available_usd_cents: number }>();
 
-    if (walletUpdateError || !updatedWallet) throw walletUpdateError;
+    if (walletUpdateError || !updatedWallet) {
+      return res.status(!updatedWallet ? 422 : 500).json({
+        error: { code: !updatedWallet ? 'INSUFFICIENT_BALANCE' : 'WALLET_DEBIT_FAILED', message: !updatedWallet ? 'Insufficient available balance' : 'Wallet debit failed', timestamp: new Date().toISOString() }
+      });
+    }
 
     const { data: participantRows } = await supabase
       .from('positions')
@@ -3369,7 +3330,7 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
       .from('transactions')
       .insert({
         user_id: user.id,
-        wallet_id: wallet.id,
+        wallet_id: updatedWallet.id,
         type: 'position_entry',
         amount_smallest_unit: amountSmallestUnit,
         currency,
@@ -4152,21 +4113,19 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
     if (result.payoutSmallestUnit > 0) {
       const { data: wallet } = await supabase
         .from('wallets')
-        .select('*')
+        .select('id')
         .eq('user_id', position.user_id)
         .single();
 
       if (wallet) {
-        const balanceField = position.currency === 'USD' ? 'available_usd_cents' : 'available_ngn_kobo';
-        const totalBalanceField = position.currency === 'USD' ? 'balance_usd_cents' : 'balance_ngn_kobo';
-        await supabase
-          .from('wallets')
-          .update({
-            [balanceField]: Number(wallet[balanceField] || 0) + result.payoutSmallestUnit,
-            [totalBalanceField]: Number(wallet[totalBalanceField] || 0) + Math.max(0, result.profitSmallestUnit),
-            updated_at: now
-          })
-          .eq('id', wallet.id);
+        const { error: payoutError } = await supabase
+          .rpc('atomic_settlement_payout', {
+            p_user_id: position.user_id,
+            p_payout: result.payoutSmallestUnit,
+            p_profit: Math.max(0, result.profitSmallestUnit),
+            p_currency: position.currency || 'NGN',
+          });
+        if (payoutError) throw payoutError;
 
         await supabase
           .from('transactions')
@@ -4210,22 +4169,13 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
         }, 'Payout notification');
       }
     } else {
-      const { data: wallet } = await supabase
-        .from('wallets')
-        .select('*')
-        .eq('user_id', position.user_id)
-        .single();
-
-      if (wallet) {
-        const totalBalanceField = position.currency === 'USD' ? 'balance_usd_cents' : 'balance_ngn_kobo';
-        await supabase
-          .from('wallets')
-          .update({
-            [totalBalanceField]: Math.max(0, Number(wallet[totalBalanceField] || 0) - result.stakeSmallestUnit),
-            updated_at: now
-          })
-          .eq('id', wallet.id);
-      }
+      const { error: lossError } = await supabase
+        .rpc('atomic_settlement_loss', {
+          p_user_id: position.user_id,
+          p_stake: result.stakeSmallestUnit,
+          p_currency: position.currency || 'NGN',
+        });
+      if (lossError) throw lossError;
     }
 
     await insertNotificationSafely({
@@ -4781,6 +4731,314 @@ app.patch('/api/admin/markets/:marketId/status', authenticate, requireRole('admi
   }
 });
 
+/**
+ * GET /api/admin/markets/:marketId/settlement-status
+ * Get detailed settlement status for a market.
+ */
+app.get('/api/admin/markets/:marketId/settlement-status', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const marketId = String(req.params.marketId || '');
+    const { data: market, error } = await supabase
+      .from('markets')
+      .select('id, status, settlement_status, settlement_started_at, settlement_completed_at, settlement_error, settlement_log, total_settled_positions, total_settled_payout_smallest_unit, total_refunded_smallest_unit, winning_outcome, resolved_at, resolved_by, refunded_at')
+      .eq('id', marketId)
+      .single();
+
+    if (error || !market) return res.status(404).json({ success: false, error: { code: 'MARKET_NOT_FOUND', message: 'Market not found.' } });
+
+    const { data: unsettledPositions } = await supabase
+      .from('positions')
+      .select('id, user_id, side, amount_smallest_unit, status')
+      .eq('market_id', marketId)
+      .is('settled_at', null)
+      .is('resolved_at', null)
+      .not('status', 'in', '("won","lost","settled","refunded")');
+
+    const { data: activeOrders } = await supabase
+      .from('orders')
+      .select('id, user_id, side, order_type, status, locked_amount')
+      .eq('market_id', marketId)
+      .in('status', ['waiting', 'partial', 'pending']);
+
+    const { data: recentAudit } = await supabase
+      .from('settlement_audit_log')
+      .select('*')
+      .eq('market_id', marketId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    res.json({
+      success: true,
+      settlement: {
+        ...market,
+        unsettledPositionCount: unsettledPositions?.length || 0,
+        activeOrderCount: activeOrders?.length || 0,
+        activeOrderLockedTotal: (activeOrders || []).reduce((sum: number, o: any) => sum + Number(o.locked_amount || 0), 0),
+        recentAudit: recentAudit || [],
+      },
+    });
+  } catch (error: any) {
+    console.error('Settlement status error:', error);
+    res.status(500).json({ success: false, error: { code: 'SETTLEMENT_STATUS_FAILED', message: error.message || 'Failed to get settlement status.' } });
+  }
+});
+
+/**
+ * POST /api/admin/markets/:marketId/refund
+ * Refund all positions and orders for a market.
+ */
+app.post('/api/admin/markets/:marketId/refund', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const marketId = String(req.params.marketId || '');
+    const reason = String(req.body.reason || 'market_refund');
+
+    if (!['market_refund', 'market_cancel', 'protected_refund'].includes(reason)) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_REASON', message: 'Invalid refund reason.' } });
+    }
+
+    const { data: market, error } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('id', marketId)
+      .single();
+
+    if (error || !market) return res.status(404).json({ success: false, error: { code: 'MARKET_NOT_FOUND', message: 'Market not found.' } });
+
+    const refundResult = await refundUnactivatedMarket(
+      { ...market, status: displayStatusForMarket(market), state: 'closed' },
+      user
+    );
+
+    res.json({
+      success: true,
+      market: normalizeAdminMarket(refundResult.market),
+      summary: {
+        alreadyRefunded: refundResult.alreadyRefunded,
+        refundedCount: refundResult.refundedCount,
+        refundedAmount: toAmount(refundResult.refundedSmallestUnit),
+        refundedSmallestUnit: refundResult.refundedSmallestUnit,
+      },
+    });
+  } catch (error: any) {
+    console.error('Admin refund market error:', error);
+    res.status(500).json({ success: false, error: { code: 'REFUND_MARKET_FAILED', message: error.message || 'Failed to refund market.' } });
+  }
+});
+
+/**
+ * POST /api/admin/markets/:marketId/cancel
+ * Cancel a market and refund all positions.
+ */
+app.post('/api/admin/markets/:marketId/cancel', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const marketId = String(req.params.marketId || '');
+
+    const { data: market, error } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('id', marketId)
+      .single();
+
+    if (error || !market) return res.status(404).json({ success: false, error: { code: 'MARKET_NOT_FOUND', message: 'Market not found.' } });
+
+    if (['resolved', 'cancelled'].includes(market.status)) {
+      return res.status(400).json({ success: false, error: { code: 'MARKET_ALREADY_FINAL', message: 'Market is already resolved or cancelled.' } });
+    }
+
+    const result = await refundUnactivatedMarket(
+      { ...market, status: displayStatusForMarket(market), state: 'closed' },
+      user
+    );
+
+    await supabase.from('markets').update({
+      status: 'cancelled',
+      state: 'closed',
+      updated_at: new Date().toISOString(),
+    }).eq('id', marketId).neq('status', 'resolved');
+
+    res.json({
+      success: true,
+      market: normalizeAdminMarket({ ...market, status: 'cancelled' }),
+      summary: {
+        refundedCount: result.refundedCount,
+        refundedAmount: toAmount(result.refundedSmallestUnit),
+      },
+    });
+  } catch (error: any) {
+    console.error('Admin cancel market error:', error);
+    res.status(500).json({ success: false, error: { code: 'CANCEL_MARKET_FAILED', message: error.message || 'Failed to cancel market.' } });
+  }
+});
+
+/**
+ * POST /api/admin/markets/:marketId/retry-settlement
+ * Retry a failed settlement.
+ */
+app.post('/api/admin/markets/:marketId/retry-settlement', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const marketId = String(req.params.marketId || '');
+
+    const { data: market, error } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('id', marketId)
+      .single();
+
+    if (error || !market) return res.status(404).json({ success: false, error: { code: 'MARKET_NOT_FOUND', message: 'Market not found.' } });
+
+    if (market.settlement_status !== 'failed') {
+      return res.status(400).json({ success: false, error: { code: 'NOT_FAILED', message: 'Market settlement is not in failed state.' } });
+    }
+
+    await supabase.from('markets').update({
+      settlement_status: 'idle',
+      settlement_error: null,
+      status: market.status === 'resolving' ? 'pending_resolution' : market.status,
+      updated_at: new Date().toISOString(),
+    }).eq('id', marketId);
+
+    const outcome = normalizePredictionSide(market.winning_outcome || req.body.outcome);
+    if (!outcome) {
+      return res.status(400).json({ success: false, error: { code: 'OUTCOME_REQUIRED', message: 'Provide winning outcome for retry.' } });
+    }
+
+    const result = await resolveMarketWithPayouts(market, outcome, user);
+    res.json({ success: true, market: normalizeAdminMarket(result.market), summary: result.payoutSummary });
+  } catch (error: any) {
+    console.error('Retry settlement error:', error);
+    res.status(500).json({ success: false, error: { code: 'RETRY_SETTLEMENT_FAILED', message: error.message || 'Failed to retry settlement.' } });
+  }
+});
+
+/**
+ * POST /api/admin/markets/:marketId/rollback
+ * Emergency rollback of a settlement (super admin only, within 30 minutes).
+ */
+app.post('/api/admin/markets/:marketId/rollback', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (user.role !== 'super_admin') {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Only super admins can rollback settlements.' } });
+    }
+
+    const marketId = String(req.params.marketId || '');
+
+    const { data: market, error } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('id', marketId)
+      .single();
+
+    if (error || !market) return res.status(404).json({ success: false, error: { code: 'MARKET_NOT_FOUND', message: 'Market not found.' } });
+
+    if (market.status !== 'resolved') {
+      return res.status(400).json({ success: false, error: { code: 'NOT_RESOLVED', message: 'Can only rollback resolved markets.' } });
+    }
+
+    if (market.settlement_completed_at) {
+      const elapsed = Date.now() - new Date(market.settlement_completed_at).getTime();
+      if (elapsed > 30 * 60 * 1000) {
+        return res.status(400).json({ success: false, error: { code: 'TOO_LATE', message: 'Cannot rollback: settlement completed more than 30 minutes ago.' } });
+      }
+    }
+
+    const { data: settledPositions } = await supabase
+      .from('positions')
+      .select('*')
+      .eq('market_id', marketId)
+      .not('settled_at', 'is', null);
+
+    for (const position of settledPositions || []) {
+      const payout = Number(position.payout_smallest_unit || 0);
+      const stake = Number(position.amount_smallest_unit || 0);
+
+      if (payout > 0 && position.user_id) {
+        await supabase.rpc('atomic_refund_to_available', {
+          p_user_id: position.user_id,
+          p_amount: payout,
+          p_currency: position.currency || 'NGN',
+        }).catch(() => {});
+      }
+
+      await supabase.from('positions').update({
+        status: 'active',
+        is_winner: null,
+        payout_smallest_unit: 0,
+        profit_smallest_unit: 0,
+        settlement_payout_smallest_unit: 0,
+        settlement_profit_smallest_unit: 0,
+        settled_at: null,
+        resolved_at: null,
+        settlement_id: null,
+        settlement_outcome: null,
+        winning_outcome: null,
+        final_payout_smallest_unit: null,
+      }).eq('id', position.id);
+    }
+
+    await supabase.from('markets').update({
+      status: 'pending_resolution',
+      settlement_status: 'idle',
+      settlement_completed_at: null,
+      settlement_started_at: null,
+      settlement_error: null,
+      winning_outcome: null,
+      resolved_outcome: null,
+      resolved_at: null,
+      resolved_by: null,
+      total_settled_positions: 0,
+      total_settled_payout_smallest_unit: 0,
+      updated_at: new Date().toISOString(),
+    }).eq('id', marketId);
+
+    await insertNotificationSafely({
+      user_id: user.id,
+      type: 'system',
+      title: 'Settlement Rolled Back',
+      message: `Settlement for market "${market.question}" has been rolled back.`,
+      reference_id: marketId,
+      reference_type: 'market',
+    }, 'Rollback notification');
+
+    res.json({ success: true, message: 'Settlement rolled back successfully.' });
+  } catch (error: any) {
+    console.error('Rollback settlement error:', error);
+    res.status(500).json({ success: false, error: { code: 'ROLLBACK_FAILED', message: error.message || 'Failed to rollback settlement.' } });
+  }
+});
+
+/**
+ * GET /api/admin/settlement-audit
+ * Get settlement audit log.
+ */
+app.get('/api/admin/settlement-audit', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const marketId = typeof req.query.marketId === 'string' ? req.query.marketId : '';
+    const actionType = typeof req.query.actionType === 'string' ? req.query.actionType : '';
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+
+    let query = supabase
+      .from('settlement_audit_log')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (marketId) query = query.eq('market_id', marketId);
+    if (actionType) query = query.eq('action_type', actionType);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, audit: data || [] });
+  } catch (error: any) {
+    console.error('Settlement audit error:', error);
+    res.status(500).json({ success: false, error: { code: 'AUDIT_FAILED', message: error.message || 'Failed to load audit log.' } });
+  }
+});
+
 app.get('/api/admin/users', authenticate, requireRole('admin'), async (_req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
@@ -5059,15 +5317,12 @@ app.post('/api/admin/finance/deposits/:id/approve', authenticate, requireRole('a
     const { data: request, error: requestError } = await supabase.from('deposit_requests').select('*').eq('id', req.params.id).single();
     if (requestError || !request) return res.status(404).json({ error: { code: 'DEPOSIT_NOT_FOUND', message: 'Deposit request not found.', timestamp: new Date().toISOString() } });
     if (request.status !== 'pending') return res.status(409).json({ error: { code: 'DEPOSIT_ALREADY_HANDLED', message: 'This deposit request has already been handled.', timestamp: new Date().toISOString() } });
-    const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('id', request.wallet_id).single();
+    const { data: wallet, error: walletError } = await supabase.from('wallets').select('id, user_id').eq('id', request.wallet_id).single();
     if (walletError || !wallet) throw walletError || new Error('Wallet not found');
     const approvedAt = new Date().toISOString();
-    const { data: updatedWallet, error: updateError } = await supabase.from('wallets').update({
-      balance_ngn_kobo: Number(wallet.balance_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
-      available_ngn_kobo: Number(wallet.available_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
-      total_deposited_ngn_kobo: Number(wallet.total_deposited_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
-      updated_at: approvedAt,
-    }).eq('id', wallet.id).select().single();
+    const { data: updatedWallet, error: updateError } = await supabase
+      .rpc('atomic_credit_deposit', { p_user_id: wallet.user_id, p_amount: Number(request.amount_smallest_unit || 0), p_currency: 'NGN' })
+      .maybeSingle();
     if (updateError || !updatedWallet) throw updateError || new Error('Wallet credit failed');
     await supabase.from('deposit_requests').update({ status: 'completed', approved_by: admin.id, approved_at: approvedAt, updated_at: approvedAt }).eq('id', request.id).eq('status', 'pending');
     if (request.transaction_id) await supabase.from('transactions').update({ status: 'completed', approved_by: admin.id, approved_at: approvedAt, updated_at: approvedAt }).eq('id', request.transaction_id);
@@ -5135,16 +5390,16 @@ app.post('/api/admin/finance/withdrawals/:id/approve', authenticate, requireRole
     const { data: request, error: requestError } = await supabase.from('withdrawal_requests').select('*').eq('id', req.params.id).single();
     if (requestError || !request) return res.status(404).json({ error: { code: 'WITHDRAWAL_NOT_FOUND', message: 'Withdrawal request not found.', timestamp: new Date().toISOString() } });
     if (request.status !== 'pending') return res.status(409).json({ error: { code: 'WITHDRAWAL_ALREADY_HANDLED', message: 'This withdrawal request has already been handled.', timestamp: new Date().toISOString() } });
-    const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('id', request.wallet_id).single();
+    const { data: wallet, error: walletError } = await supabase.from('wallets').select('id, user_id').eq('id', request.wallet_id).single();
     if (walletError || !wallet) throw walletError || new Error('Wallet not found');
-    if (Number(wallet.locked_ngn_kobo || 0) < Number(request.amount_smallest_unit || 0)) throw new Error('Locked balance is lower than withdrawal amount.');
     const approvedAt = new Date().toISOString();
-    const { data: updatedWallet, error: updateError } = await supabase.from('wallets').update({
-      balance_ngn_kobo: Math.max(0, Number(wallet.balance_ngn_kobo || 0) - Number(request.amount_smallest_unit || 0)),
-      locked_ngn_kobo: Math.max(0, Number(wallet.locked_ngn_kobo || 0) - Number(request.amount_smallest_unit || 0)),
-      total_withdrawn_ngn_kobo: Number(wallet.total_withdrawn_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
-      updated_at: approvedAt,
-    }).eq('id', wallet.id).select().single();
+    const { data: updatedWallet, error: updateError } = await supabase
+      .rpc('atomic_approve_withdrawal', {
+        p_user_id: wallet.user_id,
+        p_amount: Number(request.amount_smallest_unit || 0),
+        p_currency: 'NGN',
+      })
+      .maybeSingle();
     if (updateError || !updatedWallet) throw updateError || new Error('Wallet withdrawal update failed');
     await supabase.from('withdrawal_requests').update({ status: 'completed', approved_by: admin.id, approved_at: approvedAt, updated_at: approvedAt, metadata: { ...(request.metadata || {}), adminNote } }).eq('id', request.id).eq('status', 'pending');
     if (request.transaction_id) await supabase.from('transactions').update({ status: 'completed', approved_by: admin.id, approved_at: approvedAt, updated_at: approvedAt, metadata: { ...(request.metadata || {}), adminNote } }).eq('id', request.transaction_id);
@@ -5179,14 +5434,16 @@ app.post('/api/admin/finance/withdrawals/:id/reject', authenticate, requireRole(
     const { data: request, error: requestError } = await supabase.from('withdrawal_requests').select('*').eq('id', req.params.id).single();
     if (requestError || !request) return res.status(404).json({ error: { code: 'WITHDRAWAL_NOT_FOUND', message: 'Withdrawal request not found.', timestamp: new Date().toISOString() } });
     if (request.status !== 'pending') return res.status(409).json({ error: { code: 'WITHDRAWAL_ALREADY_HANDLED', message: 'This withdrawal request has already been handled.', timestamp: new Date().toISOString() } });
-    const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('id', request.wallet_id).single();
+    const { data: wallet, error: walletError } = await supabase.from('wallets').select('id, user_id').eq('id', request.wallet_id).single();
     if (walletError || !wallet) throw walletError || new Error('Wallet not found');
     const rejectedAt = new Date().toISOString();
-    const { data: updatedWallet, error: updateError } = await supabase.from('wallets').update({
-      available_ngn_kobo: Number(wallet.available_ngn_kobo || 0) + Number(request.amount_smallest_unit || 0),
-      locked_ngn_kobo: Math.max(0, Number(wallet.locked_ngn_kobo || 0) - Number(request.amount_smallest_unit || 0)),
-      updated_at: rejectedAt,
-    }).eq('id', wallet.id).select().single();
+    const { data: updatedWallet, error: updateError } = await supabase
+      .rpc('atomic_reject_withdrawal', {
+        p_user_id: wallet.user_id,
+        p_amount: Number(request.amount_smallest_unit || 0),
+        p_currency: 'NGN',
+      })
+      .maybeSingle();
     if (updateError || !updatedWallet) throw updateError || new Error('Wallet release failed');
     await supabase.from('withdrawal_requests').update({ status: 'rejected', rejected_by: admin.id, rejected_at: rejectedAt, updated_at: rejectedAt, metadata: { ...(request.metadata || {}), adminNote } }).eq('id', request.id).eq('status', 'pending');
     if (request.transaction_id) await supabase.from('transactions').update({ status: 'rejected', approved_by: admin.id, approved_at: rejectedAt, updated_at: rejectedAt, metadata: { ...(request.metadata || {}), adminNote } }).eq('id', request.transaction_id);
@@ -5591,6 +5848,311 @@ app.post('/api/admin/users/:userId/activate', authenticate, requireRole('admin')
   } catch (error: any) {
     console.error('Activate user error:', error);
     res.status(500).json({ error: { code: 'ACTIVATE_USER_FAILED', message: error.message || 'Could not activate user.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// ============================================================================
+// ORDER BOOK ENDPOINTS — Sprint 2B
+// ============================================================================
+
+const ORDER_RATE: RateLimitConfig = { maxRequests: 30, windowMs: 60_000 };
+
+app.post('/api/markets/:marketId/orders', authenticate, rateLimitMiddleware(ORDER_RATE), async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const marketId = String(req.params.marketId);
+    const { side, order_type, price: rawPrice, quantity: rawQty } = req.body;
+    const price = Number(rawPrice);
+    const quantity = Number(rawQty);
+
+    if (!side || !['YES', 'NO'].includes(side)) {
+      return res.status(400).json({ error: { code: 'INVALID_SIDE', message: 'side must be YES or NO', timestamp: new Date().toISOString() } });
+    }
+    if (!order_type || !['BUY', 'SELL'].includes(order_type)) {
+      return res.status(400).json({ error: { code: 'INVALID_ORDER_TYPE', message: 'order_type must be BUY or SELL', timestamp: new Date().toISOString() } });
+    }
+    if (!Number.isFinite(price) || price <= 0 || price >= 100) {
+      return res.status(400).json({ error: { code: 'INVALID_PRICE', message: 'price must be between 1 and 99', timestamp: new Date().toISOString() } });
+    }
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      return res.status(400).json({ error: { code: 'INVALID_QUANTITY', message: 'quantity must be greater than 0', timestamp: new Date().toISOString() } });
+    }
+
+    const { data: market, error: mErr } = await supabase.from('markets').select('*').eq('id', marketId).single();
+    if (mErr || !market) return res.status(404).json({ error: { code: 'MARKET_NOT_FOUND', message: 'Market not found', timestamp: new Date().toISOString() } });
+    if (market.pricing_model !== 'orderbook') {
+      return res.status(422).json({ error: { code: 'NOT_ORDERBOOK_MARKET', message: 'This market does not use order book pricing', timestamp: new Date().toISOString() } });
+    }
+    if (!['trading', 'active'].includes(market.status)) {
+      return res.status(422).json({ error: { code: 'MARKET_NOT_TRADING', message: 'Market is not accepting orders', timestamp: new Date().toISOString() } });
+    }
+    if (market.close_date && new Date(market.close_date) < new Date()) {
+      return res.status(422).json({ error: { code: 'MARKET_CLOSED', message: 'Market is closed', timestamp: new Date().toISOString() } });
+    }
+
+    const { data: wallet } = await supabase.from('wallets').select('*').eq('user_id', user.id).single();
+    if (!wallet) return res.status(404).json({ error: { code: 'WALLET_NOT_FOUND', message: 'Wallet not found', timestamp: new Date().toISOString() } });
+    if (Number(wallet.available_ngn_kobo || 0) < quantity) {
+      return res.status(422).json({ error: { code: 'INSUFFICIENT_BALANCE', message: 'Insufficient available balance', timestamp: new Date().toISOString() } });
+    }
+
+    const { error: lockErr } = await supabase.rpc('atomic_lock_for_order', {
+      p_user_id: user.id, p_amount: quantity, p_currency: 'NGN'
+    });
+    if (lockErr) {
+      return res.status(500).json({ error: { code: 'LOCK_FAILED', message: 'Failed to lock funds', timestamp: new Date().toISOString() } });
+    }
+
+    const { data: order, error: oErr } = await supabase.from('orders').insert({
+      user_id: user.id, market_id: marketId, side, order_type: order_type,
+      price, quantity, filled_quantity: 0, status: 'pending',
+      locked_amount: quantity, filled_amount: 0, source: 'user'
+    }).select().single();
+    if (oErr || !order) {
+      await supabase.rpc('atomic_unlock_from_order', { p_user_id: user.id, p_amount: quantity, p_currency: 'NGN' });
+      return res.status(500).json({ error: { code: 'ORDER_CREATE_FAILED', message: 'Failed to create order', timestamp: new Date().toISOString() } });
+    }
+
+    await supabase.from('order_events').insert({
+      order_id: order.id, market_id: marketId, user_id: user.id, event_type: 'created', quantity_affected: quantity, price_affected: price
+    });
+
+    const opposingType = order_type === 'BUY' ? 'SELL' : 'BUY';
+    const { data: opposingOrders } = await supabase
+      .from('orders').select('*')
+      .eq('market_id', marketId).eq('side', side).eq('order_type', opposingType)
+      .in('status', ['waiting', 'partial'])
+      .order('price', { ascending: order_type === 'BUY' })
+      .order('created_at', { ascending: true });
+
+    const remaining = quantity - (order.filled_quantity || 0);
+    let totalMatched = 0;
+    let matchPrice: number | null = null;
+    const now = new Date().toISOString();
+
+    for (const opp of (opposingOrders || []) as any[]) {
+      if (remaining - totalMatched <= 0) break;
+      const oppRemaining = (opp.quantity || 0) - (opp.filled_quantity || 0);
+      if (oppRemaining <= 0) continue;
+
+      const compatible = order_type === 'BUY' ? price >= opp.price : price <= opp.price;
+      if (!compatible) break;
+
+      const matchQty = Math.min(remaining - totalMatched, oppRemaining);
+      matchPrice = opp.price;
+
+      const newOppFilled = (opp.filled_quantity || 0) + matchQty;
+      const newOppStatus = newOppFilled >= opp.quantity ? 'filled' : 'partial';
+      await supabase.from('orders').update({
+        filled_quantity: newOppFilled,
+        filled_amount: (opp.filled_amount || 0) + (matchQty * opp.price),
+        status: newOppStatus,
+        filled_at: newOppStatus === 'filled' ? now : null,
+        updated_at: now
+      }).eq('id', opp.id);
+
+      const buyerOrder = order_type === 'BUY' ? order : opp;
+      const sellerOrder = order_type === 'SELL' ? order : opp;
+
+      await supabase.from('order_fills').insert([
+        { order_id: buyerOrder.id, user_id: buyerOrder.user_id, market_id: marketId, side, order_type: 'BUY', fill_price: opp.price, fill_quantity: matchQty, matched_order_id: sellerOrder.id, matched_user_id: sellerOrder.user_id },
+        { order_id: sellerOrder.id, user_id: sellerOrder.user_id, market_id: marketId, side, order_type: 'SELL', fill_price: opp.price, fill_quantity: matchQty, matched_order_id: buyerOrder.id, matched_user_id: buyerOrder.user_id }
+      ]);
+
+      await supabase.from('trades').insert({
+        market_id: marketId, buy_order_id: buyerOrder.id, sell_order_id: sellerOrder.id,
+        buyer_id: buyerOrder.user_id, seller_id: sellerOrder.user_id,
+        side, trade_price: opp.price, trade_quantity: matchQty
+      });
+
+      await supabase.from('order_events').insert([
+        { order_id: buyerOrder.id, market_id: marketId, user_id: buyerOrder.user_id, event_type: newOppStatus === 'filled' ? 'full_fill' : 'partial_fill', quantity_affected: matchQty, price_affected: opp.price },
+        { order_id: sellerOrder.id, market_id: marketId, user_id: sellerOrder.user_id, event_type: newOppStatus === 'filled' ? 'full_fill' : 'partial_fill', quantity_affected: matchQty, price_affected: opp.price },
+      ]);
+
+      totalMatched += matchQty;
+    }
+
+    const newFilled = totalMatched;
+    const finalStatus = newFilled >= quantity ? 'filled' : newFilled > 0 ? 'partial' : 'waiting';
+    await supabase.from('orders').update({
+      filled_quantity: newFilled,
+      filled_amount: newFilled * (matchPrice || price),
+      status: finalStatus,
+      filled_at: finalStatus === 'filled' ? now : null,
+      updated_at: now
+    }).eq('id', order.id);
+
+    const bookEventType = totalMatched > 0 ? (finalStatus === 'filled' ? 'full_fill' : 'partial_fill') : 'entered_book';
+    await supabase.from('order_events').insert({
+      order_id: order.id, market_id: marketId, user_id: user.id,
+      event_type: bookEventType, quantity_affected: totalMatched || undefined, price_affected: matchPrice || undefined
+    });
+
+    const { data: updatedOrder } = await supabase.from('orders').select('*').eq('id', order.id).single();
+
+    res.status(201).json({ order: updatedOrder, matched: totalMatched });
+  } catch (error: any) {
+    console.error('Create order error:', error);
+    res.status(500).json({ error: { code: 'CREATE_ORDER_FAILED', message: error.message || 'Failed to create order', timestamp: new Date().toISOString() } });
+  }
+});
+
+app.delete('/api/markets/:marketId/orders/:orderId', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const { orderId } = req.params;
+
+    const { data: order, error: oErr } = await supabase.from('orders').select('*').eq('id', orderId).single();
+    if (oErr || !order) return res.status(404).json({ error: { code: 'ORDER_NOT_FOUND', message: 'Order not found', timestamp: new Date().toISOString() } });
+    if (order.user_id !== user.id) return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Cannot cancel another user\'s order', timestamp: new Date().toISOString() } });
+    if (!['waiting', 'partial'].includes(order.status)) {
+      return res.status(422).json({ error: { code: 'ORDER_NOT_CANCELLABLE', message: `Cannot cancel order in '${order.status}' state`, timestamp: new Date().toISOString() } });
+    }
+
+    const remaining = (order.quantity || 0) - (order.filled_quantity || 0);
+    if (remaining > 0) {
+      await supabase.rpc('atomic_unlock_from_order', { p_user_id: user.id, p_amount: remaining, p_currency: 'NGN' });
+    }
+
+    const now = new Date().toISOString();
+    await supabase.from('orders').update({ status: 'cancelled', cancelled_at: now, updated_at: now }).eq('id', orderId);
+    await supabase.from('order_events').insert([
+      { order_id: orderId, market_id: order.market_id, user_id: user.id, event_type: 'cancelled', quantity_affected: remaining },
+      { order_id: orderId, market_id: order.market_id, user_id: user.id, event_type: 'unlock', quantity_affected: remaining },
+    ]);
+
+    const { data: updatedOrder } = await supabase.from('orders').select('*').eq('id', orderId).single();
+    res.json({ order: updatedOrder });
+  } catch (error: any) {
+    console.error('Cancel order error:', error);
+    res.status(500).json({ error: { code: 'CANCEL_ORDER_FAILED', message: error.message || 'Failed to cancel order', timestamp: new Date().toISOString() } });
+  }
+});
+
+app.get('/api/markets/:marketId/orderbook', async (req: Request, res: Response) => {
+  try {
+    const marketId = String(req.params.marketId);
+    const { data: buyOrders } = await supabase.from('orders')
+      .select('price, filled_quantity, quantity').eq('market_id', marketId).eq('order_type', 'BUY').in('status', ['waiting', 'partial']);
+    const { data: sellOrders } = await supabase.from('orders')
+      .select('price, filled_quantity, quantity').eq('market_id', marketId).eq('order_type', 'SELL').in('status', ['waiting', 'partial']);
+
+    const bidMap = new Map<number, { total_quantity: number; order_count: number }>();
+    const askMap = new Map<number, { total_quantity: number; order_count: number }>();
+    for (const o of buyOrders || []) {
+      const rem = (o.quantity || 0) - (o.filled_quantity || 0);
+      if (rem <= 0) continue;
+      const e = bidMap.get(o.price) || { total_quantity: 0, order_count: 0 };
+      e.total_quantity += rem; e.order_count += 1;
+      bidMap.set(o.price, e);
+    }
+    for (const o of sellOrders || []) {
+      const rem = (o.quantity || 0) - (o.filled_quantity || 0);
+      if (rem <= 0) continue;
+      const e = askMap.get(o.price) || { total_quantity: 0, order_count: 0 };
+      e.total_quantity += rem; e.order_count += 1;
+      askMap.set(o.price, e);
+    }
+    const bids = Array.from(bidMap.entries()).map(([price, data]) => ({ price, ...data })).sort((a, b) => b.price - a.price);
+    const asks = Array.from(askMap.entries()).map(([price, data]) => ({ price, ...data })).sort((a, b) => a.price - b.price);
+
+    res.json({ market_id: marketId, bids, asks, best_bid: bids[0]?.price || null, best_ask: asks[0]?.price || null, spread: (bids[0] && asks[0]) ? asks[0].price - bids[0].price : null });
+  } catch (error: any) {
+    console.error('Get orderbook error:', error);
+    res.status(500).json({ error: { code: 'ORDERBOOK_FAILED', message: 'Failed to get order book', timestamp: new Date().toISOString() } });
+  }
+});
+
+app.get('/api/markets/:marketId/orders', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const marketId = String(req.params.marketId);
+    const status = req.query.status as string | undefined;
+    let query = supabase.from('orders').select('*').eq('market_id', marketId).eq('user_id', user.id).order('created_at', { ascending: false });
+    if (status) query = query.eq('status', status);
+    const { data: orders, error } = await query;
+    if (error) throw error;
+    res.json({ orders: orders || [] });
+  } catch (error: any) {
+    console.error('Get user orders error:', error);
+    res.status(500).json({ error: { code: 'GET_ORDERS_FAILED', message: 'Failed to get orders', timestamp: new Date().toISOString() } });
+  }
+});
+
+app.get('/api/markets/:marketId/trades', async (req: Request, res: Response) => {
+  try {
+    const marketId = String(req.params.marketId);
+    const { data: trades, error } = await supabase.from('trades').select('*').eq('market_id', marketId).order('created_at', { ascending: false }).limit(100);
+    if (error) throw error;
+    res.json({ trades: trades || [] });
+  } catch (error: any) {
+    console.error('Get trades error:', error);
+    res.status(500).json({ error: { code: 'GET_TRADES_FAILED', message: 'Failed to get trades', timestamp: new Date().toISOString() } });
+  }
+});
+
+app.get('/api/markets/:marketId/open-orders', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const marketId = String(req.params.marketId);
+    const { data: orders, error } = await supabase.from('orders')
+      .select('*').eq('market_id', marketId).eq('user_id', user.id)
+      .in('status', ['waiting', 'partial']).order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json({ orders: orders || [] });
+  } catch (error: any) {
+    console.error('Get open orders error:', error);
+    res.status(500).json({ error: { code: 'GET_OPEN_ORDERS_FAILED', message: 'Failed to get open orders', timestamp: new Date().toISOString() } });
+  }
+});
+
+app.get('/api/markets/:marketId/pending-orders', async (req: Request, res: Response) => {
+  try {
+    const marketId = String(req.params.marketId);
+    const { data: orders, error } = await supabase.from('orders')
+      .select('id, user_id, side, order_type, price, quantity, filled_quantity, status, created_at')
+      .eq('market_id', marketId).eq('status', 'waiting')
+      .order('created_at', { ascending: false }).limit(100);
+    if (error) throw error;
+    res.json({ orders: orders || [] });
+  } catch (error: any) {
+    console.error('Get pending orders error:', error);
+    res.status(500).json({ error: { code: 'GET_PENDING_ORDERS_FAILED', message: 'Failed to get pending orders', timestamp: new Date().toISOString() } });
+  }
+});
+
+app.get('/api/markets/:marketId/partial-orders', async (req: Request, res: Response) => {
+  try {
+    const marketId = String(req.params.marketId);
+    const { data: orders, error } = await supabase.from('orders')
+      .select('id, user_id, side, order_type, price, quantity, filled_quantity, status, created_at')
+      .eq('market_id', marketId).eq('status', 'partial')
+      .order('created_at', { ascending: false }).limit(100);
+    if (error) throw error;
+    res.json({ orders: orders || [] });
+  } catch (error: any) {
+    console.error('Get partial orders error:', error);
+    res.status(500).json({ error: { code: 'GET_PARTIAL_ORDERS_FAILED', message: 'Failed to get partial orders', timestamp: new Date().toISOString() } });
+  }
+});
+
+app.get('/api/users/:userId/orders', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const targetUserId = String(req.params.userId);
+    if (user.id !== targetUserId && user.role !== 'admin') {
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Cannot view another user\'s orders', timestamp: new Date().toISOString() } });
+    }
+    const marketId = req.query.market_id as string | undefined;
+    let query = supabase.from('orders').select('*').eq('user_id', targetUserId).order('created_at', { ascending: false });
+    if (marketId) query = query.eq('market_id', marketId);
+    const { data: orders, error } = await query;
+    if (error) throw error;
+    res.json({ orders: orders || [] });
+  } catch (error: any) {
+    console.error('Get user orders error:', error);
+    res.status(500).json({ error: { code: 'GET_USER_ORDERS_FAILED', message: 'Failed to get user orders', timestamp: new Date().toISOString() } });
   }
 });
 

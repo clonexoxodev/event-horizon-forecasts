@@ -21,12 +21,14 @@ import {
   ChevronUp,
   Clock,
   Info,
+  Layers,
   Loader2,
   Share2,
   Shield,
   TrendingUp,
   Users,
   X,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
@@ -34,7 +36,7 @@ import { MobileNav } from "@/components/MobileNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProtectedMarketInfo, ProtectedMarketTooltip } from "@/components/ProtectedMarketInfo";
-import apiService, { ApiRequestError } from "@/lib/api";
+import apiService, { ApiRequestError, type ApiOrderBook, type ApiTrade, type ApiOrder } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useMarketState } from "@/lib/market-state";
 import {
@@ -68,18 +70,26 @@ export default function MarketDetail() {
   const [loading, setLoading] = useState(true);
   const [sheetSide, setSheetSide] = useState<"YES" | "NO" | null>(null);
   const [amount, setAmount] = useState("");
+  const [price, setPrice] = useState("");
+  const [orderType, setOrderType] = useState<"BUY" | "SELL">("BUY");
   const [submitting, setSubmitting] = useState(false);
   const [justPredicted, setJustPredicted] = useState<"YES" | "NO" | null>(null);
+  const [orderJustPlaced, setOrderJustPlaced] = useState<{ order: ApiOrder; matched: number } | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>("24H");
   const [now, setNow] = useState(Date.now());
   const [rulesExpanded, setRulesExpanded] = useState(false);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showProtectedInfo, setShowProtectedInfo] = useState(false);
+  const [orderBook, setOrderBook] = useState<ApiOrderBook | null>(null);
+  const [recentTrades, setRecentTrades] = useState<ApiTrade[]>([]);
+  const [userOrders, setUserOrders] = useState<ApiOrder[]>([]);
   const marketsRef = useRef(markets);
   const marketRef = useRef<Market | null>(null);
   const latestLoadRef = useRef(0);
   const sheetRef = useRef<HTMLDivElement>(null);
+
+  const isOrderBook = market?.pricing_model === "orderbook";
 
   useEffect(() => {
     marketsRef.current = markets;
@@ -118,6 +128,16 @@ export default function MarketDetail() {
         };
         setMarket(enrichedMarket);
         upsertMarket(enrichedMarket);
+
+        if (enrichedMarket.pricing_model === "orderbook") {
+          const [bookRes, tradesRes] = await Promise.all([
+            apiService.getOrderBook(id).catch(() => null),
+            apiService.getMarketTrades(id).catch(() => null),
+          ]);
+          if (latestLoadRef.current !== loadId) return;
+          if (bookRes) setOrderBook(bookRes);
+          if (tradesRes) setRecentTrades(tradesRes.trades || []);
+        }
       } catch (error: any) {
         if (latestLoadRef.current !== loadId) return;
         const cached = readCachedMarket();
@@ -149,6 +169,40 @@ export default function MarketDetail() {
   }, []);
 
   useEffect(() => {
+    if (!id || !isOrderBook) return;
+    const interval = window.setInterval(async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const [bookRes, tradesRes, mktRes] = await Promise.all([
+          apiService.getOrderBook(id),
+          apiService.getMarketTrades(id),
+          apiService.getMarket(id),
+        ]);
+        setOrderBook(bookRes);
+        setRecentTrades(tradesRes.trades || []);
+        if (mktRes?.market) {
+          const updated = { ...mktRes.market, priceHistory: market?.priceHistory };
+          setMarket(updated);
+          upsertMarket(updated);
+        }
+      } catch { /* polling is best-effort */ }
+    }, 5000);
+    return () => window.clearInterval(interval);
+  }, [id, isOrderBook, upsertMarket]);
+
+  useEffect(() => {
+    if (!id || !isOrderBook || !user) return;
+    const interval = window.setInterval(async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const res = await apiService.getUserOrders(id);
+        setUserOrders(res.orders || []);
+      } catch { /* polling is best-effort */ }
+    }, 10000);
+    return () => window.clearInterval(interval);
+  }, [id, isOrderBook, user]);
+
+  useEffect(() => {
     if (sheetSide) {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -160,9 +214,22 @@ export default function MarketDetail() {
     }
   }, [sheetSide]);
 
+  useEffect(() => {
+    if (isOrderBook && sheetSide && !price) {
+      const currentPrice = sheetSide === "YES" ? (market?.yesPrice || 50) : (market?.noPrice || 50);
+      setPrice(String(Math.round(currentPrice)));
+    }
+  }, [sheetSide, isOrderBook, market?.yesPrice, market?.noPrice]);
+
   const closeSheet = () => {
     setSheetVisible(false);
-    setTimeout(() => setSheetSide(null), 300);
+    setTimeout(() => {
+      setSheetSide(null);
+      setAmount("");
+      setPrice("");
+      setOrderType("BUY");
+      setOrderJustPlaced(null);
+    }, 300);
   };
 
   useEffect(() => {
@@ -220,7 +287,11 @@ export default function MarketDetail() {
       return;
     }
     const numericAmount = Number.parseFloat(amount) || 0;
+    const numericPrice = Number.parseFloat(price) || 0;
     if (numericAmount <= 0) return toast.error("Enter an amount.");
+    if (isOrderBook && (numericPrice <= 0 || numericPrice >= 100)) {
+      return toast.error("Price must be between 1 and 99.");
+    }
     const currentActivation = getMarketActivation(market);
     if (
       currentActivation.isProtected &&
@@ -233,38 +304,69 @@ export default function MarketDetail() {
 
     setSubmitting(true);
     try {
-      const result = await apiService.placePrediction(market.id, {
-        side: sheetSide,
-        amount: numericAmount,
-        currency: "NGN",
-      });
-      const historyResponse = await apiService
-        .getMarketPriceHistory(market.id)
-        .catch(() => null);
-      const updatedMarket = {
-        ...result.market,
-        priceHistory: historyResponse?.priceHistory?.length
-          ? historyResponse.priceHistory
-          : result.market.priceHistory,
-      };
-      setMarket(updatedMarket);
-      upsertMarket(updatedMarket);
-      refreshUser().catch((error) =>
-        console.warn("User refresh after prediction failed", error)
-      );
-      setJustPredicted(sheetSide);
-      setShowConfetti(true);
-      setAmount("");
-      closeSheet();
-      toast.success(
-        `Prediction saved: ${sheetSide} with ${formatNaira(numericAmount)}.`
-      );
-      setTimeout(() => setShowConfetti(false), 3000);
+      if (isOrderBook) {
+        const result = await apiService.createOrder(market.id, {
+          side: sheetSide,
+          order_type: orderType,
+          price: numericPrice,
+          quantity: numericAmount,
+        });
+        setOrderJustPlaced(result);
+        setJustPredicted(sheetSide);
+        setShowConfetti(true);
+        toast.success(
+          `Order placed: ${result.order.status === "filled" ? "Fully filled" : result.order.status === "partial" ? "Partially matched" : "Waiting for match"}`
+        );
+        await refreshUser().catch(() => {});
+        setTimeout(() => setShowConfetti(false), 3000);
+      } else {
+        const result = await apiService.placePrediction(market.id, {
+          side: sheetSide,
+          amount: numericAmount,
+          currency: "NGN",
+        });
+        const historyResponse = await apiService
+          .getMarketPriceHistory(market.id)
+          .catch(() => null);
+        const updatedMarket = {
+          ...result.market,
+          priceHistory: historyResponse?.priceHistory?.length
+            ? historyResponse.priceHistory
+            : result.market.priceHistory,
+        };
+        setMarket(updatedMarket);
+        upsertMarket(updatedMarket);
+        refreshUser().catch((error) =>
+          console.warn("User refresh after prediction failed", error)
+        );
+        setJustPredicted(sheetSide);
+        setShowConfetti(true);
+        setAmount("");
+        closeSheet();
+        toast.success(
+          `Prediction saved: ${sheetSide} with ${formatNaira(numericAmount)}.`
+        );
+        setTimeout(() => setShowConfetti(false), 3000);
+      }
     } catch (error: any) {
-      console.error("Prediction submit failed", error);
-      toast.error(error.message || "Could not save prediction.");
+      console.error("Order submit failed", error);
+      toast.error(error.message || "Could not save order.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const cancelOrderHandler = async (orderId: string) => {
+    if (!market) return;
+    try {
+      await apiService.cancelOrder(market.id, orderId);
+      setUserOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: "cancelled" as const } : o))
+      );
+      toast.success("Order cancelled.");
+      await refreshUser().catch(() => {});
+    } catch (error: any) {
+      toast.error(error.message || "Failed to cancel order.");
     }
   };
 
@@ -357,7 +459,25 @@ export default function MarketDetail() {
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
                   {marketCategoryLabel}
                 </span>
-                {marketIsActive && activation.isProtected ? (
+                {market.status === 'resolved' ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#4F46E5]/10 px-2 py-0.5 text-[10px] font-bold text-[#4F46E5]">
+                    <CheckCircle className="h-3 w-3" />
+                    Resolved — {market.winningOutcome || market.winning_outcome || market.outcome} Wins
+                  </span>
+                ) : market.status === 'refunded' ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#F59E0B]/10 px-2 py-0.5 text-[10px] font-bold text-[#D97706]">
+                    Refunded
+                  </span>
+                ) : market.status === 'cancelled' ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#E85D5D]/10 px-2 py-0.5 text-[10px] font-bold text-[#B42318]">
+                    Cancelled
+                  </span>
+                ) : market.settlement_status === 'settling' ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#F59E0B]/10 px-2 py-0.5 text-[10px] font-bold text-[#D97706]">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Settling...
+                  </span>
+                ) : marketIsActive && activation.isProtected ? (
                   <ProtectedMarketTooltip onClick={() => setShowProtectedInfo(true)} />
                 ) : marketIsActive ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-[#12B886]/10 px-2 py-0.5 text-[10px] font-bold text-[#047857]">
@@ -383,15 +503,79 @@ export default function MarketDetail() {
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             {!activation.isProtected && (
               <>
-                <StatChip icon={Users} value={market.participants || 0} label="backers" />
-                <StatChip icon={BarChart3} value={market.tradeCount || 0} label="predictions" />
+                <StatChip icon={Users} value={market.participants || 0} label="traders" />
+                {isOrderBook ? (
+                  <>
+                    <StatChip icon={Layers} value={market.matched_volume || market.tradeCount || 0} label="matched" />
+                    <StatChip icon={BarChart3} value={market.open_interest || 0} label="open" />
+                  </>
+                ) : (
+                  <StatChip icon={BarChart3} value={market.tradeCount || 0} label="predictions" />
+                )}
               </>
             )}
             <span className="inline-flex items-center gap-1 rounded-full bg-[#F3F4F6] px-2.5 py-1 text-[10px] font-bold text-[#9CA3AF]">
               <Clock className="h-3 w-3" />
               {formatCountdown(tradingCloseTime, market.closesIn)}
             </span>
+            {isOrderBook && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#4F46E5]/10 px-2.5 py-1 text-[10px] font-bold text-[#4F46E5]">
+                <Layers className="h-3 w-3" />
+                Order Book
+              </span>
+            )}
           </div>
+
+          {/* Resolved Market Banner */}
+          {market.status === 'resolved' && (market.winningOutcome || market.winning_outcome || market.outcome) && (
+            <div className="mt-3 rounded-xl border border-[#4F46E5]/20 bg-[#EEF2FF]/60 p-4">
+              <div className="flex items-center gap-3">
+                <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white ${
+                  (market.winningOutcome || market.winning_outcome || market.outcome) === 'YES' ? 'bg-[#12B886]' : 'bg-[#E85D5D]'
+                }`}>
+                  <CheckCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-[#101828]">
+                    {(market.winningOutcome || market.winning_outcome || market.outcome) === 'YES' ? 'YES' : 'NO'} Wins
+                  </div>
+                  <div className="text-xs text-[#6B7280]">
+                    This market has been resolved. Settlement is {market.settlement_status === 'completed' ? 'complete' : 'in progress'}.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Refunded Market Banner */}
+          {market.status === 'refunded' && (
+            <div className="mt-3 rounded-xl border border-[#F59E0B]/20 bg-[#FEF3C7]/60 p-4">
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#F59E0B] text-white">
+                  <AlertCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-[#101828]">Market Refunded</div>
+                  <div className="text-xs text-[#6B7280]">All positions have been refunded to their original wallets.</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Cancelled Market Banner */}
+          {market.status === 'cancelled' && (
+            <div className="mt-3 rounded-xl border border-[#E85D5D]/20 bg-[#FEF2F2]/60 p-4">
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#E85D5D] text-white">
+                  <X className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-[#101828]">Market Cancelled</div>
+                  <div className="text-xs text-[#6B7280]">This market has been cancelled. All positions have been refunded.</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Protected market progress */}
           {activation.isProtected && (
@@ -480,6 +664,132 @@ export default function MarketDetail() {
             )}
           </div>
         </section>
+
+        {/* ── Order Book Summary (Order Book Markets) ── */}
+        {isOrderBook && orderBook && (
+          <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
+            <h2 className="mb-3 text-base font-bold text-[#101828]">Order Book</h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#047857]">Bids (BUY)</div>
+                {orderBook.bids.length === 0 ? (
+                  <div className="py-3 text-center text-xs font-bold text-[#9CA3AF]">No bids</div>
+                ) : (
+                  <div className="space-y-1">
+                    {orderBook.bids.slice(0, 5).map((level) => {
+                      const maxQty = Math.max(...orderBook.bids.map((b) => b.total_quantity));
+                      const depth = maxQty > 0 ? (level.total_quantity / maxQty) * 100 : 0;
+                      return (
+                        <div key={level.price} className="relative overflow-hidden rounded-lg bg-[#12B886]/8 px-2.5 py-1.5 transition-all duration-300">
+                          <div
+                            className="absolute inset-y-0 left-0 bg-[#12B886]/12 transition-all duration-500"
+                            style={{ width: `${depth}%` }}
+                          />
+                          <div className="relative flex items-center justify-between">
+                            <span className="text-xs font-bold text-[#047857]">{formatNaira(level.price)}</span>
+                            <span className="text-[10px] font-bold text-[#6B7280]">{level.total_quantity} ({level.order_count})</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div>
+                <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#B42318]">Asks (SELL)</div>
+                {orderBook.asks.length === 0 ? (
+                  <div className="py-3 text-center text-xs font-bold text-[#9CA3AF]">No asks</div>
+                ) : (
+                  <div className="space-y-1">
+                    {orderBook.asks.slice(0, 5).map((level) => {
+                      const maxQty = Math.max(...orderBook.asks.map((a) => a.total_quantity));
+                      const depth = maxQty > 0 ? (level.total_quantity / maxQty) * 100 : 0;
+                      return (
+                        <div key={level.price} className="relative overflow-hidden rounded-lg bg-[#E85D5D]/8 px-2.5 py-1.5 transition-all duration-300">
+                          <div
+                            className="absolute inset-y-0 right-0 bg-[#E85D5D]/12 transition-all duration-500"
+                            style={{ width: `${depth}%` }}
+                          />
+                          <div className="relative flex items-center justify-between">
+                            <span className="text-xs font-bold text-[#B42318]">{formatNaira(level.price)}</span>
+                            <span className="text-[10px] font-bold text-[#6B7280]">{level.total_quantity} ({level.order_count})</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-between rounded-xl bg-[#F8F7F4] px-3 py-2">
+              <div className="text-[10px] font-bold text-[#6B7280]">
+                Best Bid: <span className="text-[#047857] transition-all duration-300">{orderBook.best_bid ? formatNaira(orderBook.best_bid) : "—"}</span>
+              </div>
+              <div className="text-[10px] font-bold text-[#6B7280]">
+                Spread: <span className="text-[#4F46E5] transition-all duration-300">{orderBook.spread != null ? formatNaira(orderBook.spread) : "—"}</span>
+              </div>
+              <div className="text-[10px] font-bold text-[#6B7280]">
+                Best Ask: <span className="text-[#B42318] transition-all duration-300">{orderBook.best_ask ? formatNaira(orderBook.best_ask) : "—"}</span>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ── Recent Trades (Order Book Markets) ── */}
+        {isOrderBook && recentTrades.length > 0 && (
+          <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
+            <h2 className="mb-3 text-base font-bold text-[#101828]">Recent Trades</h2>
+            <div className="space-y-1.5">
+              {recentTrades.slice(0, 8).map((trade) => (
+                <div key={trade.id} className="flex items-center justify-between rounded-xl bg-[#F8F7F4] px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${trade.side === "YES" ? "bg-[#12B886]/12 text-[#047857]" : "bg-[#E85D5D]/12 text-[#B42318]"}`}>
+                      {trade.side}
+                    </span>
+                    <span className="text-xs font-bold text-[#111827]">{formatNaira(trade.trade_price)}/share</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs font-bold text-[#111827]">{trade.trade_quantity} shares</div>
+                    <div className="text-[10px] text-[#9CA3AF]">{new Date(trade.created_at).toLocaleTimeString()}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── User Open Orders (Order Book Markets) ── */}
+        {isOrderBook && userOrders.filter((o) => ["waiting", "partial", "pending"].includes(o.status)).length > 0 && (
+          <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
+            <h2 className="mb-3 text-base font-bold text-[#101828]">Your Open Orders</h2>
+            <div className="space-y-1.5">
+              {userOrders.filter((o) => ["waiting", "partial", "pending"].includes(o.status)).slice(0, 5).map((order) => (
+                <div key={order.id} className="flex items-center justify-between rounded-xl bg-[#F8F7F4] px-3 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${order.side === "YES" ? "bg-[#12B886]/12 text-[#047857]" : "bg-[#E85D5D]/12 text-[#B42318]"}`}>
+                      {order.side}
+                    </span>
+                    <span className="text-[10px] font-bold text-[#6B7280]">{order.order_type}</span>
+                    <span className="text-xs font-bold text-[#111827]">{formatNaira(order.price)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-[#9CA3AF]">
+                      {order.filled_quantity}/{order.quantity}
+                    </span>
+                    {["waiting", "partial"].includes(order.status) && (
+                      <button
+                        onClick={() => cancelOrderHandler(order.id)}
+                        className="rounded-lg bg-[#E85D5D]/10 px-2 py-1 text-[10px] font-bold text-[#B42318] transition hover:bg-[#E85D5D]/20"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
 
       {/* ── Sticky Action Bar ── */}
@@ -533,10 +843,10 @@ export default function MarketDetail() {
                     sheetSide === "YES" ? "text-[#12B886]" : "text-[#E85D5D]"
                   }`}
                 >
-                  Prediction slip
+                  {isOrderBook ? "Order slip" : "Prediction slip"}
                 </p>
                 <h2 className="mt-0.5 text-xl font-bold">
-                  You picked {sheetSide}
+                  {isOrderBook ? "Place your order" : `You picked ${sheetSide}`}
                 </h2>
               </div>
               <button
@@ -554,8 +864,64 @@ export default function MarketDetail() {
               </div>
             ) : (
               <>
+                {isOrderBook && (
+                  <div className="mb-3">
+                    <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">
+                      Order Type
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setOrderType("BUY")}
+                        disabled={submitting}
+                        className={`h-10 rounded-lg border text-xs font-bold transition ${
+                          orderType === "BUY"
+                            ? "border-[#12B886]/45 bg-[#12B886]/18 text-[#047857]"
+                            : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280]"
+                        }`}
+                      >
+                        BUY
+                      </button>
+                      <button
+                        onClick={() => setOrderType("SELL")}
+                        disabled={submitting}
+                        className={`h-10 rounded-lg border text-xs font-bold transition ${
+                          orderType === "SELL"
+                            ? "border-[#E85D5D]/45 bg-[#E85D5D]/18 text-[#B42318]"
+                            : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280]"
+                        }`}
+                      >
+                        SELL
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {isOrderBook && (
+                  <div className="mb-3">
+                    <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">
+                      Price per share
+                    </label>
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-[#6B7280]">
+                        NGN
+                      </span>
+                      <Input
+                        type="number"
+                        value={price}
+                        onChange={(event) => setPrice(event.target.value)}
+                        disabled={submitting}
+                        placeholder="0"
+                        min="1"
+                        max="99"
+                        className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-lg font-bold text-[#111827] placeholder:text-[#D1D5DB] focus:border-[#4F46E5] focus:ring-[#4F46E5]/20"
+                      />
+                    </div>
+                    <p className="mt-1 text-[10px] font-bold text-[#9CA3AF]">Price between 1 and 99</p>
+                  </div>
+                )}
+
                 <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">
-                  Amount
+                  {isOrderBook ? "Amount (NGN)" : "Amount"}
                 </label>
                 <div className="relative">
                   <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-[#6B7280]">
@@ -587,7 +953,32 @@ export default function MarketDetail() {
                   ))}
                 </div>
 
-                {numericAmount > 0 && selectedPrice && (
+                {isOrderBook && numericAmount > 0 && numericPrice > 0 && (
+                  <div className="mt-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#6B7280]">Est. Shares</span>
+                      <span className="text-sm font-bold text-[#101828]">{estimatedShares}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#6B7280]">Price/Share</span>
+                      <span className="text-sm font-bold text-[#101828]">{formatNaira(numericPrice)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#6B7280]">Order Value</span>
+                      <span className="text-sm font-bold text-[#101828]">{formatNaira(numericAmount)}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-[#E5E7EB] pt-1.5">
+                      <span className="text-xs font-bold text-[#6B7280]">Possible Outcome</span>
+                      <span className="text-sm font-bold text-[#12B886]">
+                        {orderType === "BUY"
+                          ? `Win ${formatNaira(estimatedShares * 100)}`
+                          : `Sell ${estimatedShares} shares`}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {!isOrderBook && numericAmount > 0 && selectedPrice && (
                   <div className="mt-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-[#6B7280]">Est. return</span>
@@ -639,7 +1030,7 @@ export default function MarketDetail() {
                 </div>
                 <Button
                   onClick={confirmPrediction}
-                  disabled={submitting || numericAmount <= 0 || exceedsProtectedLimit}
+                  disabled={submitting || numericAmount <= 0 || exceedsProtectedLimit || (isOrderBook && (numericPrice <= 0 || numericPrice >= 100))}
                   className={`mt-4 h-11 w-full rounded-xl text-sm font-bold shadow-lg transition-all duration-200 hover:shadow-xl active:scale-[0.98] disabled:shadow-none ${
                     sheetSide === "YES"
                       ? "bg-[#12B886] text-white shadow-[#12B886]/20 hover:bg-[#0ea371]"
@@ -651,7 +1042,11 @@ export default function MarketDetail() {
                   ) : (
                     <TrendingUp className="mr-2 h-4 w-4" />
                   )}
-                  {user ? `Confirm ${sheetSide}` : "Login to predict"}
+                  {user
+                    ? isOrderBook
+                      ? `Place ${orderType} Order`
+                      : `Confirm ${sheetSide}`
+                    : "Login to trade"}
                 </Button>
               </>
             )}

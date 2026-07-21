@@ -1,0 +1,27 @@
+-- ============================================================================
+-- FLIPPE AUDIT: 05 MISSING TRIGGERS
+-- Triggers that must exist for the backend to function correctly.
+-- ============================================================================
+
+-- ============================================================================
+-- STATUS: No missing triggers.
+--
+-- All required triggers are already defined in the existing migrations:
+--
+-- 1. orders_updated_at
+--    Defined in 20260721_order_book_sprint1.sql (Section 7).
+--    Fires BEFORE UPDATE on orders, calls update_orders_updated_at().
+--    Ensures orders.updated_at stays current on every mutation.
+--
+-- 2. update_updated_at_column
+--    Defined in init.sql (base schema).
+--    Generic trigger on wallets/markets/positions/notifications/transactions.
+--    Auto-stamps updated_at on row modification.
+--
+-- 3. market resolved notification trigger (trigger_notify_market_resolved)
+--    Defined in NOTIFICATIONS_MIGRATION_FIXED.sql (supabase/migrations/).
+--    Fires AFTER UPDATE on markets when resolved_at transitions to non-null.
+--    Inserts a notification row for each participant.
+--
+-- No additional triggers are required.
+-- ============================================================================

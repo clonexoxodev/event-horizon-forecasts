@@ -366,6 +366,23 @@ export class WalletService {
   }
 
   /**
+   * Lock funds for an order (available → locked).
+   * Returns the updated wallet, or null if insufficient balance.
+   */
+  async lockForOrder(userId: string, amount: number, currency: 'NGN' | 'USD' = 'NGN'): Promise<Wallet | null> {
+    if (amount <= 0) throw new InvalidAmountError('Lock amount must be greater than zero');
+    return await this.walletRepository.lockForOrder(userId, amount, currency);
+  }
+
+  /**
+   * Unlock funds from a cancelled/expired order (locked → available).
+   */
+  async unlockFromOrder(userId: string, amount: number, currency: 'NGN' | 'USD' = 'NGN'): Promise<Wallet | null> {
+    if (amount <= 0) throw new InvalidAmountError('Unlock amount must be greater than zero');
+    return await this.walletRepository.unlockFromOrder(userId, amount, currency);
+  }
+
+  /**
    * Get wallet statistics
    */
   async getWalletStats(userId: string): Promise<{

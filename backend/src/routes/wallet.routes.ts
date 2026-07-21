@@ -204,7 +204,7 @@ webhookRouter.post('/payment/callback', async (req: Request, res: Response) => {
       return res.status(400).json({ error: { code: 'MISSING_REFERENCE', message: 'No payment reference in webhook payload.', timestamp: new Date().toISOString() } });
     }
 
-    const { data: transaction } = await supabase.from('transactions').select('id, user_id, wallet_id, amount_smallest_unit, status').eq('reference', reference).maybeSingle();
+    const { data: transaction } = await supabase.from('transactions').select('id, user_id, wallet_id, amount_smallest_unit, currency, status').eq('reference', reference).maybeSingle();
     if (!transaction) {
       return res.status(404).json({ error: { code: 'TRANSACTION_NOT_FOUND', message: 'No transaction matches this reference.', timestamp: new Date().toISOString() } });
     }
@@ -214,21 +214,12 @@ webhookRouter.post('/payment/callback', async (req: Request, res: Response) => {
 
     const amountSmallestUnit = Number(transaction.amount_smallest_unit || 0);
 
-    // Read current wallet, then credit atomically (idempotent — transaction.status already checked above)
-    const { data: currentWallet } = await supabase.from('wallets')
-      .select('id, balance_ngn_kobo, available_ngn_kobo, total_deposited_ngn_kobo')
-      .eq('id', transaction.wallet_id)
-      .maybeSingle();
-
-    const { data: wallet, error: walletError } = await supabase.from('wallets')
-      .update({
-        balance_ngn_kobo: (Number(currentWallet?.balance_ngn_kobo || 0)) + amountSmallestUnit,
-        available_ngn_kobo: (Number(currentWallet?.available_ngn_kobo || 0)) + amountSmallestUnit,
-        total_deposited_ngn_kobo: (Number(currentWallet?.total_deposited_ngn_kobo || 0)) + amountSmallestUnit,
-        updated_at: new Date().toISOString(),
+    const { data: wallet, error: walletError } = await supabase
+      .rpc('atomic_credit_deposit', {
+        p_user_id: transaction.user_id,
+        p_amount: amountSmallestUnit,
+        p_currency: transaction.currency || 'NGN',
       })
-      .eq('id', transaction.wallet_id)
-      .select()
       .maybeSingle();
 
     if (walletError || !wallet) {
@@ -650,24 +641,28 @@ router.post('/withdrawal-request', async (req: Request, res: Response) => {
       return res.status(422).json({ error: { code: 'DAILY_LIMIT_EXCEEDED', message: `Daily withdrawal limit is ₦${toAmount(MAX_DAILY_WITHDRAWAL_KOBO).toLocaleString()}.`, timestamp: new Date().toISOString() } });
     }
 
-    const { data: wallet, error: walletError } = await supabase.from('wallets').select('*').eq('user_id', userId).single();
-    if (walletError || !wallet) return res.status(404).json({ error: { code: 'WALLET_NOT_FOUND', message: 'Wallet not found', timestamp: new Date().toISOString() } });
-    if (Number(wallet.available_ngn_kobo || 0) < amountSmallestUnit) {
-      return res.status(422).json({ error: { code: 'INSUFFICIENT_BALANCE', message: 'Insufficient available balance.', timestamp: new Date().toISOString() } });
-    }
-
     const reference = makeReference('WDR');
     const reviewTier = amountSmallestUnit > FAST_REVIEW_THRESHOLD_KOBO ? 'manual_review' : 'fast_review';
-    const { data: updatedWallet, error: updateError } = await supabase.from('wallets').update({
-      available_ngn_kobo: Number(wallet.available_ngn_kobo || 0) - amountSmallestUnit,
-      locked_ngn_kobo: Number(wallet.locked_ngn_kobo || 0) + amountSmallestUnit,
-      updated_at: new Date().toISOString(),
-    }).eq('id', wallet.id).gte('available_ngn_kobo', amountSmallestUnit).select().single();
-    if (updateError || !updatedWallet) throw updateError || new Error('Could not reserve withdrawal funds');
+    const { data: reservedWallet, error: reserveError } = await supabase
+      .rpc('atomic_reserve_for_withdrawal', {
+        p_user_id: userId,
+        p_amount: amountSmallestUnit,
+        p_currency: 'NGN',
+      })
+      .maybeSingle<{ id: string }>();
+    if (reserveError || !reservedWallet) {
+      return res.status(reserveError ? 500 : 422).json({
+        error: {
+          code: reserveError ? 'WITHDRAWAL_RESERVE_FAILED' : 'INSUFFICIENT_BALANCE',
+          message: reserveError ? 'Could not reserve withdrawal funds' : 'Insufficient available balance.',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
 
     const { data: transaction, error: txError } = await supabase.from('transactions').insert({
       user_id: userId,
-      wallet_id: wallet.id,
+      wallet_id: reservedWallet.id,
       type: 'withdrawal_request',
       direction: 'HOLD',
       amount_smallest_unit: amountSmallestUnit,
@@ -682,7 +677,7 @@ router.post('/withdrawal-request', async (req: Request, res: Response) => {
 
     const { data: request, error: requestError } = await supabase.from('withdrawal_requests').insert({
       user_id: userId,
-      wallet_id: wallet.id,
+      wallet_id: reservedWallet.id,
       transaction_id: transaction.id,
       amount_smallest_unit: amountSmallestUnit,
       currency: 'NGN',
@@ -709,7 +704,7 @@ router.post('/withdrawal-request', async (req: Request, res: Response) => {
 
     res.status(201).json({
       message: 'Withdrawal request created',
-      wallet: serializeWallet(updatedWallet),
+      wallet: serializeWallet(reservedWallet),
       withdrawalRequest: {
         id: request.id,
         amount: toAmount(request.amount_smallest_unit),

@@ -1,0 +1,42 @@
+-- ============================================================================
+-- FLIPPE AUDIT: 04 MISSING FUNCTIONS
+-- Utility functions referenced by code but not in existing migrations.
+-- Run AFTER 02_missing_columns.sql (which adds locked_usd_cents and
+-- total_winnings_usd_cents needed by the sprint1/sprint4 RPC functions).
+-- ============================================================================
+
+-- ============================================================================
+-- STATUS: No missing functions.
+--
+-- All RPC functions called by the backend are defined in the sprint migrations:
+--
+-- Sprint 1 (20260721_order_book_sprint1.sql):
+--   atomic_lock_for_order(uuid, bigint, text)
+--   atomic_unlock_from_order(uuid, bigint, text)
+--   atomic_credit_deposit(uuid, bigint, text)
+--   atomic_reserve_for_withdrawal(uuid, bigint, text)
+--   atomic_approve_withdrawal(uuid, bigint, text)
+--   atomic_reject_withdrawal(uuid, bigint, text)
+--   atomic_settlement_payout(uuid, bigint, bigint, text)
+--   atomic_settlement_loss(uuid, bigint, text)
+--   atomic_decrement_available(uuid, bigint, text)
+--   atomic_refund_to_available(uuid, bigint, text)
+--   update_orders_updated_at()          -- trigger function
+--   add_column_if_missing(text, text, text, text)  -- helper
+--
+-- Sprint 4 (20260721_settlement_sprint4.sql):
+--   atomic_settle_winner(uuid, bigint, bigint, bigint, text)
+--   atomic_settle_loser(uuid, bigint, text)
+--   atomic_refund_order(uuid, bigint, text)
+--   atomic_orderbook_settle(uuid, bigint, bigint, bigint, text)
+--   get_unsettled_positions(text)
+--   get_active_orders_for_market(text)
+--
+-- Notification writes use supabase.from('notifications').insert(...) directly
+-- — no RPC wrapper is needed.
+-- ============================================================================
+
+-- NOTE: The sprint1 and sprint4 RPC functions reference locked_usd_cents
+-- and total_winnings_usd_cents columns on the wallets table. These columns
+-- MUST be added before the functions can execute. Run 02_missing_columns.sql
+-- first if the base init.sql does not include them.

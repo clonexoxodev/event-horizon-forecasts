@@ -84,10 +84,14 @@ export const MarketDetailView = ({
   const [refundLoading, setRefundLoading] = useState(false);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmType, setConfirmType] = useState<"YES" | "NO" | "REFUND" | "status" | null>(null);
+  const [confirmType, setConfirmType] = useState<"YES" | "NO" | "REFUND" | "CANCEL" | "status" | null>(null);
   const [pendingOutcome, setPendingOutcome] = useState<"YES" | "NO" | null>(null);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [rollbackLoading, setRollbackLoading] = useState(false);
+  const [retryLoading, setRetryLoading] = useState(false);
+  const [settlementInfo, setSettlementInfo] = useState<any>(null);
 
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -243,6 +247,8 @@ export const MarketDetailView = ({
       executeResolve();
     } else if (confirmType === "REFUND") {
       executeRefund();
+    } else if (confirmType === "CANCEL") {
+      executeCancel();
     } else if (confirmType === "status" && pendingStatus) {
       applyStatusChange(pendingStatus);
     }
@@ -254,6 +260,72 @@ export const MarketDetailView = ({
     setPendingOutcome(null);
     setPendingStatus(null);
   };
+
+  const handleCancelClick = () => {
+    setConfirmType("CANCEL");
+    setConfirmOpen(true);
+  };
+
+  const executeCancel = async () => {
+    setActionLoading(true);
+    setCancelLoading(true);
+    try {
+      const result = await apiService.cancelAdminMarket(marketId);
+      setMarket(result.market || market);
+      showToast("success", "Market cancelled. All positions refunded.");
+    } catch (err: unknown) {
+      showToast("error", getErrorMessage(err));
+    } finally {
+      setActionLoading(false);
+      setCancelLoading(false);
+      setConfirmOpen(false);
+      setConfirmType(null);
+    }
+  };
+
+  const executeRollback = async () => {
+    setActionLoading(true);
+    setRollbackLoading(true);
+    try {
+      await apiService.rollbackSettlement(marketId);
+      await fetchMarket();
+      showToast("success", "Settlement rolled back. Market is pending resolution again.");
+    } catch (err: unknown) {
+      showToast("error", getErrorMessage(err));
+    } finally {
+      setActionLoading(false);
+      setRollbackLoading(false);
+    }
+  };
+
+  const executeRetry = async () => {
+    setActionLoading(true);
+    setRetryLoading(true);
+    try {
+      const result = await apiService.retrySettlement(marketId, market?.winning_outcome || 'YES');
+      setMarket(result.market || market);
+      showToast("success", "Settlement retried successfully.");
+    } catch (err: unknown) {
+      showToast("error", getErrorMessage(err));
+    } finally {
+      setActionLoading(false);
+      setRetryLoading(false);
+    }
+  };
+
+  const fetchSettlementStatus = useCallback(async () => {
+    if (!market || !['resolved', 'failed'].includes(market.status)) return;
+    try {
+      const result = await apiService.getSettlementStatus(marketId);
+      setSettlementInfo(result.settlement);
+    } catch {
+      // Non-fatal
+    }
+  }, [marketId, market?.status]);
+
+  useEffect(() => {
+    fetchSettlementStatus();
+  }, [fetchSettlementStatus]);
 
   if (loading) {
     return (
@@ -309,14 +381,18 @@ export const MarketDetailView = ({
         ? "Resolve Market as NO"
         : confirmType === "REFUND"
           ? "Refund All Eligible Stakes"
-          : "Change Market Status";
+          : confirmType === "CANCEL"
+            ? "Cancel Market"
+            : "Change Market Status";
 
   const confirmBody =
     confirmType === "YES" || confirmType === "NO"
       ? `This will settle the market in favor of ${confirmType}. All YES holders ${confirmType === "NO" ? "will lose" : "will be paid out"}. This action cannot be undone.`
       : confirmType === "REFUND"
         ? "This will refund all eligible stakes back to participants. This action cannot be undone."
-        : `Are you sure you want to change the market status to "${statusLabel(pendingStatus || "")}"? This may affect market visibility.`;
+        : confirmType === "CANCEL"
+          ? "This will cancel the market and refund all eligible stakes. This action cannot be undone."
+          : `Are you sure you want to change the market status to "${statusLabel(pendingStatus || "")}"? This may affect market visibility.`;
 
   return (
     <div className="space-y-6">
@@ -731,6 +807,97 @@ export const MarketDetailView = ({
             </div>
           </Card>
 
+          {(market.status === 'resolved' || market.status === 'failed' || market.settlement_status) && (
+            <Card>
+              <SectionHeader title="Settlement" description="Settlement engine status and controls." />
+              <div className="space-y-3">
+                <InfoRow label="Status">
+                  <Badge variant={
+                    market.settlement_status === 'completed' ? 'success'
+                      : market.settlement_status === 'failed' ? 'danger'
+                        : market.settlement_status === 'settling' ? 'warning'
+                          : market.settlement_status === 'refunded' ? 'info'
+                            : 'default'
+                  }>
+                    {market.settlement_status || 'idle'}
+                  </Badge>
+                </InfoRow>
+                {market.total_settled_positions !== undefined && market.total_settled_positions > 0 && (
+                  <InfoRow label="Positions settled">
+                    {market.total_settled_positions}
+                  </InfoRow>
+                )}
+                {market.total_settled_payout_smallest_unit !== undefined && market.total_settled_payout_smallest_unit > 0 && (
+                  <InfoRow label="Total payout">
+                    {formatNaira(koboToNaira(market.total_settled_payout_smallest_unit))}
+                  </InfoRow>
+                )}
+                {market.total_refunded_smallest_unit !== undefined && market.total_refunded_smallest_unit > 0 && (
+                  <InfoRow label="Total refunded">
+                    {formatNaira(koboToNaira(market.total_refunded_smallest_unit))}
+                  </InfoRow>
+                )}
+                {market.settlement_error && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                    <span className="font-bold">Error:</span> {market.settlement_error}
+                  </div>
+                )}
+
+                {market.status === 'resolved' && (
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      onClick={executeRollback}
+                      disabled={rollbackLoading || actionLoading}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 transition hover:bg-amber-100 active:scale-[0.98] disabled:opacity-50"
+                    >
+                      {rollbackLoading ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RefreshCcw className="h-3 w-3" />
+                      )}
+                      Rollback
+                    </button>
+                  </div>
+                )}
+
+                {market.status === 'failed' && (
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      onClick={executeRetry}
+                      disabled={retryLoading || actionLoading}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100 active:scale-[0.98] disabled:opacity-50"
+                    >
+                      {retryLoading ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RefreshCcw className="h-3 w-3" />
+                      )}
+                      Retry Settlement
+                    </button>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {!canResolve && market.status === 'active' && (
+            <Card>
+              <SectionHeader title="Cancel Market" description="Cancel this market before resolution." />
+              <button
+                onClick={handleCancelClick}
+                disabled={cancelLoading || actionLoading}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-100 active:scale-[0.98] disabled:opacity-50"
+              >
+                {cancelLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <XCircle className="h-4 w-4" />
+                )}
+                Cancel & Refund
+              </button>
+            </Card>
+          )}
+
           {market.activation_state && (
             <Card>
               <SectionHeader title="Activation State" />
@@ -769,10 +936,12 @@ export const MarketDetailView = ({
             ? `Resolve ${confirmType}`
             : confirmType === "REFUND"
               ? "Refund All"
-              : "Update Status"
+              : confirmType === "CANCEL"
+                ? "Cancel Market"
+                : "Update Status"
         }
         confirmVariant={
-          confirmType === "REFUND"
+          confirmType === "REFUND" || confirmType === "CANCEL"
             ? "warning"
             : confirmType === "YES"
               ? "primary"

@@ -5,7 +5,11 @@ export type NotificationType =
   | "market_resolved"
   | "wallet_low"
   | "position_sold"
-  | "new_market_added";
+  | "new_market_added"
+  | "settlement_won"
+  | "settlement_lost"
+  | "order_refunded"
+  | "refund";
 
 export type Notification = {
   id: string;
@@ -171,6 +175,22 @@ export const getNotificationStyle = (type: NotificationType) => {
     new_market_added: {
       icon: "🆕",
       color: "text-indigo-600 bg-indigo-50",
+    },
+    settlement_won: {
+      icon: "🏆",
+      color: "text-emerald bg-emerald-soft",
+    },
+    settlement_lost: {
+      icon: "📉",
+      color: "text-graphite bg-graphite/10",
+    },
+    order_refunded: {
+      icon: "💰",
+      color: "text-amber-600 bg-amber-50",
+    },
+    refund: {
+      icon: "💰",
+      color: "text-amber-600 bg-amber-50",
     },
   };
 

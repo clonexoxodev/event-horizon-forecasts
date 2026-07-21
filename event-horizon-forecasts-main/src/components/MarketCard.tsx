@@ -42,6 +42,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
       participants: m.participants,
       minAmount: m.minAmount,
       maxAmount: m.maxAmount,
+      pricingModel: m.pricing_model,
     });
   };
 
@@ -165,11 +166,18 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
 
           {/* Footer meta */}
           <div className="mt-2.5 flex items-center justify-between text-[10px] font-bold text-[#9CA3AF]">
-            {activation.isProtected ? (
-              <span className="text-[#4F46E5]">{activation.progress}% protected</span>
-            ) : (
-              <span className="truncate">{formatNaira(m.totalPool || m.totalVolume || 0)} pool</span>
-            )}
+            <div className="flex items-center gap-2">
+              {activation.isProtected ? (
+                <span className="text-[#4F46E5]">{activation.progress}% protected</span>
+              ) : (
+                <span className="truncate">{formatNaira(m.totalPool || m.totalVolume || 0)} pool</span>
+              )}
+              {m.pricing_model === "orderbook" && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#4F46E5]/8 px-1.5 py-0.5 text-[9px] font-bold text-[#4F46E5]">
+                  Order Book
+                </span>
+              )}
+            </div>
             <span>{(m.participants || 0).toLocaleString()} backers</span>
           </div>
         </div>

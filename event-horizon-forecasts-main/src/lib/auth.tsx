@@ -7,6 +7,7 @@ type AuthUser = {
   username: string;
   name: string;
   balance: number;
+  lockedBalance: number;
   role: UserRole;
   avatarUrl?: string | null;
 };
@@ -39,6 +40,7 @@ const AUTH_USER_CACHE_KEY = "flippe_auth_user";
 const Ctx = createContext<AuthCtx | null>(null);
 
 const walletBalanceFromResponse = (wallet: Awaited<ReturnType<typeof apiService.getWallet>>["wallet"]): number => {
+  if (typeof wallet.available === "number") return wallet.available;
   if (typeof wallet.availableNgn === "number") return wallet.availableNgn;
   if (typeof wallet.availableNgnKobo === "number") return wallet.availableNgnKobo / 100;
   if (typeof wallet.balanceNgn === "number") return wallet.balanceNgn;
@@ -46,12 +48,20 @@ const walletBalanceFromResponse = (wallet: Awaited<ReturnType<typeof apiService.
   return 0;
 };
 
-const toAuthUser = (user: AuthUserResponse, balance?: number): AuthUser => ({
+const walletLockedFromResponse = (wallet: Awaited<ReturnType<typeof apiService.getWallet>>["wallet"]): number => {
+  if (typeof wallet.locked === "number") return wallet.locked;
+  if (typeof wallet.lockedNgn === "number") return wallet.lockedNgn;
+  if (typeof wallet.lockedNgnKobo === "number") return wallet.lockedNgnKobo / 100;
+  return 0;
+};
+
+const toAuthUser = (user: AuthUserResponse, balance?: number, lockedBalance?: number): AuthUser => ({
   id: user.id,
   email: user.email,
   username: user.username,
   name: user.username,
   balance: typeof balance === "number" ? balance : user.balance ?? 0,
+  lockedBalance: typeof lockedBalance === "number" ? lockedBalance : 0,
   role: user.email.toLowerCase() === PRIMARY_SUPER_ADMIN_EMAIL ? "super_admin" : user.role || "user",
   avatarUrl: user.avatarUrl || user.avatar_url || user.profile_image_url || null,
 });
@@ -96,15 +106,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const applyUser = async (apiUser: AuthUserResponse) => {
     let balance = apiUser.balance ?? 0;
+    let lockedBalance = 0;
 
     try {
       const walletResponse = await apiService.getWallet();
       balance = walletBalanceFromResponse(walletResponse.wallet);
+      lockedBalance = walletLockedFromResponse(walletResponse.wallet);
     } catch (walletError) {
       console.warn("Failed to fetch wallet during auth refresh:", walletError);
     }
 
-    const authUser = toAuthUser(apiUser, balance);
+    const authUser = toAuthUser(apiUser, balance, lockedBalance);
     writeCachedUser(authUser);
     setUser(authUser);
     setSession({ user: authUser });

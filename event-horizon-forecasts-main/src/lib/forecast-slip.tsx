@@ -13,6 +13,7 @@ type ForecastSelection = {
   participants?: number;
   minAmount?: number;
   maxAmount?: number;
+  pricingModel?: "pool" | "orderbook";
 };
 
 type ForecastSlipContextType = {

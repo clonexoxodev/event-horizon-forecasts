@@ -1,0 +1,30 @@
+-- RUN 6th: Add missing columns to positions table (part 1 of 2)
+
+select public.add_column_if_missing('positions', 'status', 'text', quote_literal('open'));
+select public.add_column_if_missing('positions', 'amount_smallest_unit', 'bigint');
+select public.add_column_if_missing('positions', 'stake_amount', 'bigint');
+select public.add_column_if_missing('positions', 'currency', 'text', quote_literal('NGN'));
+select public.add_column_if_missing('positions', 'potential_return_smallest_unit', 'bigint');
+select public.add_column_if_missing('positions', 'estimated_payout_smallest_unit', 'bigint');
+select public.add_column_if_missing('positions', 'estimated_profit_smallest_unit', 'bigint');
+select public.add_column_if_missing('positions', 'estimated_payout_at_purchase', 'bigint');
+select public.add_column_if_missing('positions', 'estimated_profit_at_purchase', 'bigint');
+select public.add_column_if_missing('positions', 'shares_received', 'numeric');
+select public.add_column_if_missing('positions', 'shares_owned', 'numeric');
+select public.add_column_if_missing('positions', 'price_at_purchase', 'numeric');
+select public.add_column_if_missing('positions', 'entry_price', 'numeric');
+select public.add_column_if_missing('positions', 'current_price', 'numeric');
+select public.add_column_if_missing('positions', 'current_value_smallest_unit', 'bigint');
+select public.add_column_if_missing('positions', 'ownership_percent', 'numeric');
+select public.add_column_if_missing('positions', 'is_winner', 'boolean');
+select public.add_column_if_missing('positions', 'payout_smallest_unit', 'bigint');
+select public.add_column_if_missing('positions', 'final_payout_smallest_unit', 'bigint');
+select public.add_column_if_missing('positions', 'settlement_payout_smallest_unit', 'bigint');
+select public.add_column_if_missing('positions', 'settlement_profit_smallest_unit', 'bigint');
+select public.add_column_if_missing('positions', 'profit_smallest_unit', 'bigint');
+select public.add_column_if_missing('positions', 'winning_outcome', 'text');
+select public.add_column_if_missing('positions', 'resolved_at', 'timestamptz');
+select public.add_column_if_missing('positions', 'settled_at', 'timestamptz');
+select public.add_column_if_missing('positions', 'market_question_snapshot', 'text');
+select public.add_column_if_missing('positions', 'market_category_snapshot', 'text');
+select public.add_column_if_missing('positions', 'outcome', 'text');

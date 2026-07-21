@@ -95,6 +95,9 @@ export type ApiMarket = {
   closeTime: string;
   tradingCloseTime?: string;
   status: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived' | 'refunded';
+  pricing_model?: 'pool' | 'orderbook';
+  matched_volume?: number;
+  open_interest?: number;
   rules?: string;
   minAmount?: number;
   maxAmount?: number;
@@ -117,6 +120,14 @@ export type ApiMarket = {
   activation_no_min_smallest_unit?: number;
   activation_min_participants?: number;
   protected_max_stake_smallest_unit?: number;
+  settlement_status?: 'idle' | 'pending' | 'settling' | 'completed' | 'failed' | 'refunding' | 'refunded' | 'cancelled';
+  settlement_started_at?: string | null;
+  settlement_completed_at?: string | null;
+  settlement_error?: string | null;
+  total_settled_positions?: number;
+  total_settled_payout_smallest_unit?: number;
+  total_refunded_smallest_unit?: number;
+  refundedAt?: string | null;
   priceHistory?: Array<{ timestamp: string; yesPrice: number; noPrice: number; yesPool?: number; noPool?: number; volume?: number; tradeCount?: number; side?: 'YES' | 'NO' | null; amount?: number }>;
 };
 
@@ -270,6 +281,8 @@ export type ApiWallet = {
   currency?: 'NGN';
   createdAt?: string;
   updatedAt?: string;
+  locked?: number;
+  available?: number;
 };
 
 export type ApiTransaction = {
@@ -390,6 +403,58 @@ export type ApiSearchUser = {
   id: string;
   username: string;
   role: UserRole;
+};
+
+export type OrderSide = 'YES' | 'NO';
+export type OrderType = 'BUY' | 'SELL';
+export type OrderStatus = 'pending' | 'waiting' | 'partial' | 'filled' | 'cancelled' | 'expired' | 'refunded';
+
+export type ApiOrder = {
+  id: string;
+  user_id: string;
+  market_id: string;
+  side: OrderSide;
+  order_type: OrderType;
+  price: number;
+  quantity: number;
+  filled_quantity: number;
+  filled_amount: number;
+  locked_amount: number;
+  status: OrderStatus;
+  source: string;
+  created_at: string;
+  updated_at: string;
+  filled_at: string | null;
+  cancelled_at: string | null;
+  expired_at: string | null;
+};
+
+export type ApiOrderBookLevel = {
+  price: number;
+  total_quantity: number;
+  order_count: number;
+};
+
+export type ApiOrderBook = {
+  market_id: string;
+  bids: ApiOrderBookLevel[];
+  asks: ApiOrderBookLevel[];
+  best_bid: number | null;
+  best_ask: number | null;
+  spread: number | null;
+};
+
+export type ApiTrade = {
+  id: string;
+  market_id: string;
+  buy_order_id: string;
+  sell_order_id: string;
+  buyer_id: string;
+  seller_id: string;
+  side: OrderSide;
+  trade_price: number;
+  trade_quantity: number;
+  created_at: string;
 };
 
 export type WalletResponse = {
@@ -600,6 +665,52 @@ class ApiService {
         currency,
       }),
     });
+  }
+
+  async createOrder(
+    marketId: string,
+    order: { side: OrderSide; order_type: OrderType; price: number; quantity: number }
+  ): Promise<{ order: ApiOrder; matched: number }> {
+    return this.request(`/api/markets/${encodeURIComponent(marketId)}/orders`, {
+      method: 'POST',
+      body: JSON.stringify(order),
+    });
+  }
+
+  async cancelOrder(marketId: string, orderId: string): Promise<{ order: ApiOrder }> {
+    return this.request(`/api/markets/${encodeURIComponent(marketId)}/orders/${encodeURIComponent(orderId)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getOrderBook(marketId: string): Promise<ApiOrderBook> {
+    return this.request(`/api/markets/${encodeURIComponent(marketId)}/orderbook`);
+  }
+
+  async getUserOrders(marketId: string, status?: string): Promise<{ orders: ApiOrder[] }> {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+    return this.request(`/api/markets/${encodeURIComponent(marketId)}/orders${qs}`);
+  }
+
+  async getMarketTrades(marketId: string): Promise<{ trades: ApiTrade[] }> {
+    return this.request(`/api/markets/${encodeURIComponent(marketId)}/trades`);
+  }
+
+  async getOpenOrders(marketId: string): Promise<{ orders: ApiOrder[] }> {
+    return this.request(`/api/markets/${encodeURIComponent(marketId)}/open-orders`);
+  }
+
+  async getPendingOrders(marketId: string): Promise<{ orders: ApiOrder[] }> {
+    return this.request(`/api/markets/${encodeURIComponent(marketId)}/pending-orders`);
+  }
+
+  async getPartialOrders(marketId: string): Promise<{ orders: ApiOrder[] }> {
+    return this.request(`/api/markets/${encodeURIComponent(marketId)}/partial-orders`);
+  }
+
+  async getUserOrderHistory(userId: string, marketId?: string): Promise<{ orders: ApiOrder[] }> {
+    const qs = marketId ? `?market_id=${encodeURIComponent(marketId)}` : '';
+    return this.request(`/api/users/${encodeURIComponent(userId)}/orders${qs}`);
   }
 
   async getPositions(): Promise<{ positions: ApiPosition[]; count: number }> {
@@ -892,6 +1003,36 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ reason }),
     });
+  }
+
+  async cancelAdminMarket(marketId: string) {
+    return this.request<{ success: boolean; market: AdminMarket; summary?: any }>(`/api/admin/markets/${encodeURIComponent(marketId)}/cancel`, {
+      method: 'POST',
+    });
+  }
+
+  async getSettlementStatus(marketId: string) {
+    return this.request<{ success: boolean; settlement: any }>(`/api/admin/markets/${encodeURIComponent(marketId)}/settlement-status`);
+  }
+
+  async retrySettlement(marketId: string, outcome: string) {
+    return this.request<{ success: boolean; market: AdminMarket; summary?: any }>(`/api/admin/markets/${encodeURIComponent(marketId)}/retry-settlement`, {
+      method: 'POST',
+      body: JSON.stringify({ outcome }),
+    });
+  }
+
+  async rollbackSettlement(marketId: string) {
+    return this.request<{ success: boolean; message: string }>(`/api/admin/markets/${encodeURIComponent(marketId)}/rollback`, {
+      method: 'POST',
+    });
+  }
+
+  async getSettlementAudit(marketId?: string, actionType?: string) {
+    const params = new URLSearchParams();
+    if (marketId) params.set('marketId', marketId);
+    if (actionType) params.set('actionType', actionType);
+    return this.request<{ success: boolean; audit: any[] }>(`/api/admin/settlement-audit?${params.toString()}`);
   }
 
   async healthCheck() {
