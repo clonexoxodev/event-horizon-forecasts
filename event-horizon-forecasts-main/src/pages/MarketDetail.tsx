@@ -301,7 +301,7 @@ export default function MarketDetail() {
         setShowConfetti(true);
         setAmount("");
         closeSheet();
-        toast.success(`Position opened on ${sheetSide} with ${formatNaira(numericAmount)}.`);
+        toast.success(`Trade placed: ${formatNaira(numericAmount)} on ${sheetSide}.`);
         setTimeout(() => setShowConfetti(false), 3000);
       }
     } catch (error: any) {
@@ -433,11 +433,11 @@ export default function MarketDetail() {
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             {!activation.isProtected && (
               <>
-                <StatChip icon={Users} value={market.participants || 0} label="traders" />
+                <StatChip icon={Users} value={market.participants || 0} label="trading" />
                 {isOrderBook ? (
                   <>
                     <StatChip icon={Layers} value={market.matched_volume || market.tradeCount || 0} label="matched" />
-                    <StatChip icon={BarChart3} value={market.open_interest || 0} label="open" />
+                    <StatChip icon={BarChart3} value={market.open_interest || 0} label="open orders" />
                   </>
                 ) : (
                   <StatChip icon={BarChart3} value={market.tradeCount || 0} label="trades" />
@@ -451,7 +451,7 @@ export default function MarketDetail() {
             {isOrderBook && (
               <span className="inline-flex items-center gap-1 rounded-full bg-[#4F46E5]/10 px-2.5 py-1 text-[10px] font-bold text-[#4F46E5]">
                 <Layers className="h-3 w-3" />
-                Order Book
+                Peer-to-Peer
               </span>
             )}
           </div>
@@ -527,7 +527,10 @@ export default function MarketDetail() {
         {/* ── Price Chart ── */}
         <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
           <div className="mb-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-base font-bold text-[#101828]">Price History</h2>
+            <div>
+              <h2 className="text-base font-bold text-[#101828]">Price History</h2>
+              <p className="mt-0.5 text-[10px] font-bold text-[#9CA3AF]">How YES and NO prices have moved over time</p>
+            </div>
             <div className="flex w-fit rounded-lg bg-[#F3F4F6] p-0.5">
               {(["1H", "24H", "7D", "ALL"] as Timeframe[]).map((item) => (
                 <button
@@ -551,7 +554,10 @@ export default function MarketDetail() {
         {isOrderBook && orderBook && (
           <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-base font-bold text-[#101828]">Order Book</h2>
+              <div>
+                <h2 className="text-base font-bold text-[#101828]">Order Book</h2>
+                <p className="mt-0.5 text-[10px] font-bold text-[#9CA3AF]">Live buy and sell orders from other traders</p>
+              </div>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-[#12B886]" />
@@ -926,15 +932,18 @@ export default function MarketDetail() {
                 {/* Order Type (Order Book Markets) */}
                 {isOrderBook && (
                   <div className="mb-4">
-                    <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">Order Type</label>
+                    <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">What do you want to do?</label>
                     <div className="grid grid-cols-2 gap-2">
                       <button onClick={() => setOrderType("BUY")} disabled={submitting} className={`flex h-11 items-center justify-center gap-1.5 rounded-xl border-2 text-xs font-bold transition ${orderType === "BUY" ? "border-[#12B886] bg-[#12B886]/[0.06] text-[#047857]" : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:border-[#D1D5DB]"}`}>
-                        BUY
+                        Bet on Outcome
                       </button>
                       <button onClick={() => setOrderType("SELL")} disabled={submitting} className={`flex h-11 items-center justify-center gap-1.5 rounded-xl border-2 text-xs font-bold transition ${orderType === "SELL" ? "border-[#E85D5D] bg-[#E85D5D]/[0.06] text-[#B42318]" : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:border-[#D1D5DB]"}`}>
-                        SELL
+                        Sell Shares
                       </button>
                     </div>
+                    <p className="mt-1.5 text-[10px] font-bold text-[#9CA3AF]">
+                      {orderType === "BUY" ? "Buy shares hoping the outcome wins. Each share pays ₦100 if correct." : "Sell shares you already own from a previous buy order."}
+                    </p>
                   </div>
                 )}
 
@@ -945,10 +954,16 @@ export default function MarketDetail() {
                   </span>
                   <div>
                     <div className="text-xs font-bold text-[#111827]">
-                      {isOrderBook ? `${orderType} ${sheetSide}` : `Backing ${sheetSide}`}
+                      {isOrderBook
+                        ? `${orderType === "BUY" ? "Betting on" : "Selling"} ${sheetSide}`
+                        : `Backing ${sheetSide}`
+                      }
                     </div>
                     <div className="text-[10px] text-[#6B7280]">
-                      at {formatNairaPrice(selectedPrice)} per share
+                      {isOrderBook
+                        ? `at up to ${formatNairaPrice(selectedPrice)} per share`
+                        : <>If <strong>{sheetSide}</strong> wins, each share pays <strong>₦100</strong></>
+                      }
                     </div>
                   </div>
                 </div>
@@ -970,24 +985,26 @@ export default function MarketDetail() {
                         className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-lg font-bold text-[#111827] placeholder:text-[#D1D5DB] focus:border-[#4F46E5] focus:ring-[#4F46E5]/20"
                       />
                     </div>
-                    <p className="mt-1 text-[10px] font-bold text-[#9CA3AF]">Price must be between 1 and 99</p>
+                    <p className="mt-1 text-[10px] font-bold text-[#9CA3AF]">
+                      What you pay per share (1–99). Lower price = cheaper but may take longer to match.
+                    </p>
                   </div>
                 )}
 
                 {/* Amount */}
                 <div className="mb-3">
                   <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">
-                    {isOrderBook ? "Quantity" : "Amount"}
+                    {isOrderBook ? "Number of Shares" : "Amount to Stake"}
                   </label>
                   <div className="relative">
-                    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-[#6B7280]">NGN</span>
+                    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-[#6B7280]">{isOrderBook ? "×" : "NGN"}</span>
                     <Input
                       type="number"
                       value={amount}
                       onChange={(event) => setAmount(event.target.value)}
                       disabled={submitting}
                       placeholder="0"
-                      className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-lg font-bold text-[#111827] placeholder:text-[#D1D5DB] focus:border-[#4F46E5] focus:ring-[#4F46E5]/20"
+                      className={`h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] text-lg font-bold text-[#111827] placeholder:text-[#D1D5DB] focus:border-[#4F46E5] focus:ring-[#4F46E5]/20 ${isOrderBook ? "pl-9" : "pl-11"}`}
                     />
                   </div>
                 </div>
@@ -1017,16 +1034,19 @@ export default function MarketDetail() {
                       <span className="text-sm font-bold tabular-nums text-[#101828]">{formatNaira(numericPrice)}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#6B7280]">Order Value</span>
+                      <span className="text-xs font-bold text-[#6B7280]">Total Cost</span>
                       <span className="text-sm font-bold tabular-nums text-[#101828]">{formatNaira(numericAmount)}</span>
                     </div>
                     <div className="border-t border-[#E5E7EB] pt-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-[#6B7280]">Possible Outcome</span>
+                        <span className="text-xs font-bold text-[#6B7280]">If {sheetSide} wins</span>
                         <span className="text-sm font-bold tabular-nums text-[#12B886]">
-                          {orderType === "BUY" ? `Win ${formatNaira(estimatedShares * 100)}` : `Sell ${estimatedShares.toFixed(2)} shares`}
+                          {orderType === "BUY" ? `Pays ${formatNaira(estimatedShares * 100)}` : `Sell for ${formatNaira(numericAmount)}`}
                         </span>
                       </div>
+                      <p className="mt-1 text-[10px] font-bold text-[#9CA3AF]">
+                        {orderType === "BUY" ? "Depends on order matching. Unmatched shares are refunded." : "You'll receive this amount from the buyer."}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -1035,13 +1055,16 @@ export default function MarketDetail() {
                 {!isOrderBook && numericAmount > 0 && selectedPrice && (
                   <div className="mb-4 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#6B7280]">Est. Return</span>
-                      <span className="text-sm font-bold tabular-nums text-[#101828]">{formatNaira(estimatedReturn)}</span>
+                      <span className="text-xs font-bold text-[#6B7280]">Shares You Get</span>
+                      <span className="text-sm font-bold tabular-nums text-[#101828]">{(numericAmount / selectedPrice * 100).toFixed(1)}</span>
                     </div>
                     <div className="mt-1.5 flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#6B7280]">Est. Profit</span>
-                      <span className="text-sm font-bold tabular-nums text-[#12B886]">+{formatNaira(estimatedProfit)}</span>
+                      <span className="text-xs font-bold text-[#6B7280]">If {sheetSide} wins, pays</span>
+                      <span className="text-sm font-bold tabular-nums text-[#12B886]">{formatNaira(numericAmount / selectedPrice * 100)}</span>
                     </div>
+                    <p className="mt-2 text-[10px] font-bold leading-relaxed text-[#9CA3AF]">
+                      This is an estimate. Actual payout depends on market resolution. If {sheetSide} loses, the stake is not returned.
+                    </p>
                   </div>
                 )}
 
@@ -1074,6 +1097,51 @@ export default function MarketDetail() {
                   )}
                 </div>
 
+                {/* What Happens Next */}
+                <div className="mb-4 rounded-xl border border-[#4F46E5]/15 bg-[#4F46E5]/[0.03] p-3.5">
+                  <div className="mb-2 flex items-center gap-1.5">
+                    <Info className="h-3.5 w-3.5 text-[#4F46E5]" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#4F46E5]">What happens next</span>
+                  </div>
+                  <ol className="space-y-1.5 text-[11px] leading-relaxed text-[#6B7280]">
+                    {isOrderBook ? (
+                      <>
+                        <li className="flex items-start gap-1.5">
+                          <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-[#4F46E5]" />
+                          Your funds are locked while the order is active
+                        </li>
+                        <li className="flex items-start gap-1.5">
+                          <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-[#4F46E5]" />
+                          We search for matching orders from other traders
+                        </li>
+                        <li className="flex items-start gap-1.5">
+                          <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-[#4F46E5]" />
+                          Once matched, your position is confirmed — track it in &ldquo;My Positions&rdquo;
+                        </li>
+                        <li className="flex items-start gap-1.5">
+                          <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-[#4F46E5]" />
+                          If the market closes before matching, your funds are refunded
+                        </li>
+                      </>
+                    ) : (
+                      <>
+                        <li className="flex items-start gap-1.5">
+                          <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-[#4F46E5]" />
+                          Your stake is placed immediately on the {sheetSide} side
+                        </li>
+                        <li className="flex items-start gap-1.5">
+                          <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-[#4F46E5]" />
+                          Track your position in &ldquo;My Positions&rdquo;
+                        </li>
+                        <li className="flex items-start gap-1.5">
+                          <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-[#4F46E5]" />
+                          When the market resolves, winners receive ₦100 per share
+                        </li>
+                      </>
+                    )}
+                  </ol>
+                </div>
+
                 {/* Submit */}
                 <Button
                   onClick={confirmPrediction}
@@ -1087,8 +1155,8 @@ export default function MarketDetail() {
                   )}
                   {user
                     ? isOrderBook
-                      ? `Place ${orderType} Order`
-                      : "Place Order"
+                      ? orderType === "BUY" ? "Place Bet" : "Place Sell Order"
+                      : "Place Trade"
                     : "Login to Trade"}
                 </Button>
               </>
@@ -1139,11 +1207,11 @@ export default function MarketDetail() {
             <h3 className="text-2xl font-black text-[#101828]">
               {orderJustPlaced
                 ? orderJustPlaced.order.status === "filled"
-                  ? "Order Filled"
+                  ? "Order Fully Matched"
                   : orderJustPlaced.order.status === "partial"
-                    ? "Partially Filled"
+                    ? "Partially Matched"
                     : "Order Placed"
-                : "Position Opened"}
+                : `Trade Placed on ${justPredicted}`}
             </h3>
 
             {orderJustPlaced ? (
@@ -1151,53 +1219,73 @@ export default function MarketDetail() {
                 <p className="text-sm font-bold text-[#6B7280]">
                   <span className={justPredicted === "YES" ? "text-[#047857]" : "text-[#B42318]"}>{orderJustPlaced.order.side}</span>
                   {" "}
-                  {orderJustPlaced.order.order_type} at {formatNaira(orderJustPlaced.order.price)}
+                  {orderJustPlaced.order.order_type === "BUY" ? "Bet on" : "Sell"} at {formatNaira(orderJustPlaced.order.price)}
                 </p>
                 <div className="mx-auto w-fit rounded-lg bg-[#F8F7F4] px-3 py-2">
                   <div className="flex items-center gap-4">
                     <div className="text-center">
-                      <div className="text-[10px] font-bold uppercase text-[#9CA3AF]">Quantity</div>
+                      <div className="text-[10px] font-bold uppercase text-[#9CA3AF]">Shares</div>
                       <div className="text-sm font-bold tabular-nums text-[#111827]">{orderJustPlaced.order.quantity}</div>
                     </div>
                     <div className="h-6 w-px bg-[#E5E7EB]" />
                     <div className="text-center">
-                      <div className="text-[10px] font-bold uppercase text-[#9CA3AF]">Filled</div>
+                      <div className="text-[10px] font-bold uppercase text-[#9CA3AF]">Matched</div>
                       <div className="text-sm font-bold tabular-nums text-[#111827]">{orderJustPlaced.order.filled_quantity}</div>
                     </div>
                     <div className="h-6 w-px bg-[#E5E7EB]" />
                     <div className="text-center">
                       <div className="text-[10px] font-bold uppercase text-[#9CA3AF]">Status</div>
                       <div className={`text-sm font-bold ${orderJustPlaced.order.status === "filled" ? "text-[#12B886]" : orderJustPlaced.order.status === "partial" ? "text-[#F59E0B]" : "text-[#4F46E5]"}`}>
-                        {orderJustPlaced.order.status === "filled" ? "Filled" : orderJustPlaced.order.status === "partial" ? "Partial" : "Waiting"}
+                        {orderJustPlaced.order.status === "filled" ? "Matched" : orderJustPlaced.order.status === "partial" ? "Partial" : "Waiting"}
                       </div>
                     </div>
                   </div>
                 </div>
                 {orderJustPlaced.order.status === "waiting" && (
-                  <p className="text-xs text-[#9CA3AF]">
-                    Your order is waiting to be matched. It will execute when a matching order arrives.
-                  </p>
+                  <div className="rounded-lg bg-[#4F46E5]/[0.05] p-2.5">
+                    <p className="text-[11px] font-bold leading-relaxed text-[#6B7280]">
+                      Your order is waiting for a matching trader. Funds are locked until matched or the market closes. You can cancel anytime.
+                    </p>
+                  </div>
                 )}
                 {orderJustPlaced.order.status === "partial" && (
-                  <p className="text-xs text-[#9CA3AF]">
-                    {orderJustPlaced.order.filled_quantity} of {orderJustPlaced.order.quantity} filled. Remaining will be matched as orders arrive.
-                  </p>
+                  <div className="rounded-lg bg-[#F59E0B]/[0.05] p-2.5">
+                    <p className="text-[11px] font-bold leading-relaxed text-[#6B7280]">
+                      {orderJustPlaced.order.filled_quantity} of {orderJustPlaced.order.quantity} shares matched. Remaining shares will be matched as orders arrive.
+                    </p>
+                  </div>
+                )}
+                {orderJustPlaced.order.status === "filled" && (
+                  <div className="rounded-lg bg-[#12B886]/[0.05] p-2.5">
+                    <p className="text-[11px] font-bold leading-relaxed text-[#6B7280]">
+                      All shares matched! Your position is confirmed. Track it in &ldquo;My Positions&rdquo;.
+                    </p>
+                  </div>
                 )}
               </div>
             ) : (
-              <p className="mt-2 text-sm font-bold text-[#6B7280]">
-                Position opened on <span className={justPredicted === "YES" ? "text-[#047857]" : "text-[#B42318]"}>{justPredicted}</span>
-              </p>
+              <div className="mt-3 space-y-2">
+                <p className="text-sm font-bold text-[#6B7280]">
+                  You backed <span className={justPredicted === "YES" ? "text-[#047857]" : "text-[#B42318]"}>{justPredicted}</span> with {formatNaira(Number.parseFloat(amount) || 0)}
+                </p>
+                <div className="rounded-lg bg-[#4F46E5]/[0.05] p-2.5">
+                  <p className="text-[11px] font-bold leading-relaxed text-[#6B7280]">
+                    Your position is active. When the market resolves, {justPredicted} side wins get ₦100 per share. Track it in &ldquo;My Positions&rdquo;.
+                  </p>
+                </div>
+              </div>
             )}
-            <p className="mt-1 text-xs text-[#9CA3AF]">Track in My Positions</p>
+            <p className="mt-1 text-xs text-[#9CA3AF]">
+              {orderJustPlaced ? "Track your order status below" : "Track in My Positions"}
+            </p>
 
             <div className="mt-6 grid gap-2">
               <Link
-                to="/positions"
+                to={orderJustPlaced ? "/orders" : "/positions"}
                 onClick={() => { setJustPredicted(null); setShowConfetti(false); }}
                 className="flex h-11 items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-bold text-white shadow-lg shadow-[#4F46E5]/20 transition hover:bg-[#4338CA]"
               >
-                View Position
+                {orderJustPlaced ? "View Orders" : "View Position"}
               </Link>
               <button
                 onClick={() => { setJustPredicted(null); setShowConfetti(false); }}

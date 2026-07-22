@@ -188,7 +188,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
               )}
               {m.pricing_model === "orderbook" && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-[#4F46E5]/8 px-2 py-0.5 text-[10px] font-bold text-[#4F46E5]">
-                  Order Book
+                  Peer-to-Peer
                 </span>
               )}
             </div>

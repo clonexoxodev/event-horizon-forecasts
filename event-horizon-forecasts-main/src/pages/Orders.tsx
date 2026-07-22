@@ -215,8 +215,8 @@ const Orders = () => {
         {/* Tabs */}
         <div className="mb-5 flex gap-1 rounded-xl bg-[#F3F4F6] p-1">
           {([
-            { key: "pending" as OrderTab, label: "Pending", count: pendingOrders.length },
-            { key: "live" as OrderTab, label: "Live Trades", count: livePositions.length },
+            { key: "pending" as OrderTab, label: "Waiting", count: pendingOrders.length },
+            { key: "live" as OrderTab, label: "Matched", count: livePositions.length },
             { key: "resolved" as OrderTab, label: "Resolved", count: resolvedPositions.length },
           ]).map(({ key, label, count }) => {
             const isActive = activeTab === key;
@@ -287,13 +287,13 @@ const EmptyOrders = ({ tab }: { tab: OrderTab }) => {
   const config = {
     pending: {
       icon: <Clock className="h-5 w-5 text-[#4F46E5]" />,
-      title: "No pending orders",
-      body: "When you place an order, it appears here while waiting to be matched.",
+      title: "No waiting orders",
+      body: "When you place an order, it appears here while waiting to be matched with another trader.",
     },
     live: {
       icon: <TrendingUp className="h-5 w-5 text-[#047857]" />,
-      title: "No live trades",
-      body: "Once your orders are matched, they'll appear here as active positions.",
+      title: "No matched trades yet",
+      body: "When your orders find a match, they become positions and appear here.",
     },
     resolved: {
       icon: <CheckCircle className="h-5 w-5 text-[#6B7280]" />,

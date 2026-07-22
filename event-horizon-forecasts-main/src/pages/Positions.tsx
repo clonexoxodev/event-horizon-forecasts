@@ -168,7 +168,12 @@ const Positions = () => {
                   <Target className="h-5 w-5" strokeWidth={1.5} />
                 </div>
                 <div className="text-sm font-bold">No positions yet</div>
-                <p className="mx-auto mt-1 max-w-xs text-xs text-[#9CA3AF]">When your orders get matched, they'll appear here.</p>
+                <p className="mx-auto mt-1 max-w-xs text-xs text-[#9CA3AF]">
+                  {tab === "active"
+                    ? "When your orders are matched with another trader, they become positions and appear here."
+                    : "Resolved positions will appear here once the market settles."
+                  }
+                </p>
                 <Link to="/" className="mt-3 inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#4F46E5] px-4 text-sm font-bold text-white hover:bg-[#4338CA]">
                   Discover markets <ArrowRight className="h-3.5 w-3.5" />
                 </Link>

@@ -140,6 +140,8 @@ export default function Wallet() {
   }, []);
 
   const ngnBalance = walletSnapshot?.availableNgn ?? user?.balance ?? 0;
+  const lockedBalance = walletSnapshot?.lockedNgn ?? 0;
+  const hasLockedFunds = lockedBalance > 0;
 
   const filteredTransactions =
     activeTab === "all"
@@ -235,6 +237,16 @@ export default function Wallet() {
                   Withdraw
                 </button>
               </div>
+
+              {hasLockedFunds && (
+                <div className="mt-4 flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2.5 backdrop-blur-sm">
+                  <Clock className="h-3.5 w-3.5 text-white/60" />
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">Locked in orders</span>
+                    <span className="ml-2 text-xs font-bold text-white/80">{formatNaira(lockedBalance)}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </section>
