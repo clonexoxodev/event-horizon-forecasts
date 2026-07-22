@@ -90,7 +90,7 @@
 
 @layer base {
   :root {
-    /* Flippe calm consumer palette */
+    /* Flippe Exchange Design System */
     --color-charcoal: 221 39% 11%;
     --color-graphite: 214 16% 60%;
     --color-off-white: 36 22% 96%;
@@ -102,6 +102,8 @@
     --color-coral-soft: 0 45% 14%;
     --color-border-subtle: 220 13% 91%;
     --color-muted-text: 220 9% 46%;
+    --color-surface: 0 0% 100%;
+    --color-surface-secondary: 220 20% 97%;
     
     /* Existing theme colors (maintained for compatibility) */
     --background: 36 22% 96%;
@@ -147,8 +149,9 @@
     /* Premium Shadows - Refined for depth */
     --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-    --shadow-card: 0 2px 4px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
     --shadow-elevated: 0 8px 16px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.03);
+    --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
     --shadow-modal: 0 24px 48px rgba(0, 0, 0, 0.10), 0 8px 16px rgba(0, 0, 0, 0.06);
     --shadow-glow-purple: 0 0 0 3px hsl(158 100% 33% / 0.12);
     --shadow-glow-emerald: 0 0 0 3px hsl(158 76% 40% / 0.12);
@@ -413,6 +416,9 @@
     clip: auto;
     white-space: normal;
   }
+
+  .card-float { box-shadow: var(--shadow-float); }
+  .text-tabular { font-variant-numeric: tabular-nums; }
 }
 
 @keyframes fade-up {
@@ -435,9 +441,14 @@
   0%   { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 .animate-fade-up   { animation: fade-up 0.5s cubic-bezier(0.4, 0, 0.2, 1) both; }
 .animate-fade-in   { animation: fade-in 0.4s ease both; }
+.animate-slide-up  { animation: slide-up 0.4s cubic-bezier(0.4, 0, 0.2, 1) both; }
 .animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
 
 .delay-100 { animation-delay: 0.1s; }

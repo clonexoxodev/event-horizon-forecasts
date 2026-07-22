@@ -69,7 +69,7 @@ const VIEW_TITLES: Record<AdminView, string> = {
   "edit-market": "Edit Market",
   finance: "Finance",
   withdrawals: "Withdrawal Queue",
-  users: "Users",
+  users: "User Management",
   admins: "Admin Management",
   "audit-log": "Audit Log",
   "settlement-dashboard": "Settlement Dashboard",
@@ -136,7 +136,7 @@ export const AdminLayout = ({
   );
 
   return (
-    <div className="min-h-screen bg-gray-50/50 text-gray-900">
+    <div className="min-h-screen bg-gray-50/50 text-gray-900 font-['Inter',sans-serif]">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-gray-200 bg-white xl:flex xl:flex-col">
         <div className="flex items-center gap-3 px-5 py-5">

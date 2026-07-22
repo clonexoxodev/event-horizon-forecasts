@@ -107,7 +107,7 @@ export default function Profile() {
             <Trophy className="h-8 w-8 text-[#4F46E5]" />
           </div>
           <h2 className="text-2xl font-black">Log in to see your profile</h2>
-          <p className="mt-2 text-sm text-[#6B7280]">Your prediction history and stats will show here.</p>
+          <p className="mt-2 text-sm text-[#6B7280]">Your trading history and stats will show here.</p>
           <Link
             to="/login"
             className="mt-6 inline-flex h-12 items-center justify-center rounded-xl bg-[#4F46E5] px-6 text-sm font-bold text-white transition hover:bg-[#4338CA]"
@@ -138,8 +138,8 @@ export default function Profile() {
     <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:py-8">
-        {/* Avatar + User Info */}
-        <section className="rounded-2xl border border-[#E5E7EB] bg-white p-5 sm:p-6">
+        {/* ── Avatar + User Info ── */}
+        <section className="rounded-3xl border border-[#E5E7EB] bg-white p-5 sm:p-6">
           <div className="flex flex-col items-center sm:flex-row sm:items-start sm:gap-6">
             <div className="relative">
               <div className="h-28 w-28 overflow-hidden rounded-full border-4 border-[#E5E7EB] bg-[#F3F4F6]">
@@ -166,7 +166,7 @@ export default function Profile() {
             <div className="mt-4 text-center sm:mt-0 sm:text-left">
               <h1 className="text-2xl font-black">{user.name || user.username}</h1>
               <p className="mt-1 text-sm text-[#6B7280]">@{user.username}</p>
-              <p className="mt-0.5 text-sm text-[#6B7280]">{user.email}</p>
+              <p className="mt-0.5 text-sm text-[#9CA3AF]">{user.email}</p>
               <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#EEF2FF] px-3 py-1">
                 <Trophy className="h-3.5 w-3.5 text-[#4F46E5]" />
                 <span className="text-xs font-bold text-[#4F46E5]">{level}</span>
@@ -174,49 +174,49 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* Level Progress */}
+          {/* ── Level Progress ── */}
           <div className="mt-6">
             <div className="mb-1.5 flex items-center justify-between text-xs">
-              <span className="font-semibold text-[#6B7280]">Level progress</span>
+              <span className="font-semibold text-[#9CA3AF]">Level progress</span>
               <span className="font-bold text-[#111827]">{score} / {nextThreshold} pts</span>
             </div>
             <div className="h-2.5 overflow-hidden rounded-full bg-[#F3F4F6]">
               <div
-                className="h-full rounded-full bg-[#4F46E5] transition-all duration-500"
+                className="h-full rounded-full bg-gradient-to-r from-[#4F46E5] to-[#6366F1] transition-all duration-500"
                 style={{ width: `${progress}%` }}
               />
             </div>
           </div>
         </section>
 
-        {/* Stats Summary */}
-        <section className="mt-5 grid grid-cols-3 gap-3" aria-label="User statistics">
-          <StatCard icon={LineChart} label="Predictions" value={String(stats.totalPredictions)} />
+        {/* ── Stats Summary ── */}
+        <section className="mt-4 grid grid-cols-3 gap-3" aria-label="Trading statistics">
+          <StatCard icon={LineChart} label="Trades" value={String(stats.totalPredictions)} />
           <StatCard icon={Trophy} label="Win rate" value={stats.totalPredictions ? `${Math.round(stats.winRate)}%` : "-"} />
           <StatCard icon={Wallet} label="Active value" value={formatNaira(activeValue)} />
         </section>
 
-        {/* Quick Links */}
-        <section className="mt-5 rounded-2xl border border-[#E5E7EB] bg-white">
-          <Link to="/edit-profile" className="flex items-center gap-3 border-b border-[#E5E7EB] p-4 transition last:border-b-0 hover:bg-[#F9FAFB]">
+        {/* ── Quick Links ── */}
+        <section className="mt-4 rounded-3xl border border-[#E5E7EB] bg-white">
+          <Link to="/edit-profile" className="flex items-center gap-3 border-b border-[#F3F4F6] p-4 transition last:border-b-0 hover:bg-[#F9FAFB]">
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#EEF2FF] text-[#4F46E5]">
               <Camera className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-sm font-bold text-[#111827]">Edit Profile</div>
-              <div className="text-xs text-[#6B7280]">Update your name, bio, and avatar</div>
+              <div className="text-xs text-[#9CA3AF]">Update your name, bio, and avatar</div>
             </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-[#9CA3AF]" />
+            <ChevronRight className="h-4 w-4 shrink-0 text-[#D1D5DB]" />
           </Link>
-          <Link to="/settings" className="flex items-center gap-3 border-b border-[#E5E7EB] p-4 transition last:border-b-0 hover:bg-[#F9FAFB]">
+          <Link to="/settings" className="flex items-center gap-3 border-b border-[#F3F4F6] p-4 transition last:border-b-0 hover:bg-[#F9FAFB]">
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#EEF2FF] text-[#4F46E5]">
               <Settings className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-sm font-bold text-[#111827]">Settings</div>
-              <div className="text-xs text-[#6B7280]">Notifications, privacy, and security</div>
+              <div className="text-xs text-[#9CA3AF]">Notifications, privacy, and security</div>
             </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-[#9CA3AF]" />
+            <ChevronRight className="h-4 w-4 shrink-0 text-[#D1D5DB]" />
           </Link>
           <Link to="/wallet" className="flex items-center gap-3 p-4 transition hover:bg-[#F9FAFB]">
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#EEF2FF] text-[#4F46E5]">
@@ -224,18 +224,18 @@ export default function Profile() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-sm font-bold text-[#111827]">Wallet</div>
-              <div className="text-xs text-[#6B7280]">Deposit, withdraw, and view balance</div>
+              <div className="text-xs text-[#9CA3AF]">Deposit, withdraw, and view balance</div>
             </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-[#9CA3AF]" />
+            <ChevronRight className="h-4 w-4 shrink-0 text-[#D1D5DB]" />
           </Link>
         </section>
 
-        {/* Prediction History */}
-        <section className="mt-5 rounded-2xl border border-[#E5E7EB] bg-white p-5">
+        {/* ── Recent Positions ── */}
+        <section className="mt-4 rounded-3xl border border-[#E5E7EB] bg-white p-5">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold">Recent predictions</h2>
-              <p className="text-xs text-[#6B7280]">{loading ? "Loading..." : "Your latest market positions"}</p>
+              <h2 className="text-lg font-bold">Recent positions</h2>
+              <p className="text-xs text-[#9CA3AF]">{loading ? "Loading..." : "Your latest market positions"}</p>
             </div>
             <span className="rounded-full bg-[#EEF2FF] px-3 py-1 text-xs font-bold text-[#4F46E5]">
               {stats.activePredictions} active
@@ -244,26 +244,28 @@ export default function Profile() {
 
           {positions.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[#E5E7EB] py-14 text-center">
-              <LineChart className="mx-auto mb-4 h-8 w-8 text-[#4F46E5]" />
-              <div className="font-bold text-[#111827]">No predictions yet</div>
-              <p className="mt-1 text-sm text-[#6B7280]">Pick a market to start building your record.</p>
+              <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-[#EEF2FF]">
+                <LineChart className="h-8 w-8 text-[#4F46E5]" />
+              </div>
+              <div className="font-bold text-[#111827]">No positions yet</div>
+              <p className="mt-1 text-sm text-[#9CA3AF]">Browse markets to open your first position.</p>
             </div>
           ) : (
             <ul className="space-y-3">
               {positions.map((position) => (
-                <li key={position.id} className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-4">
+                <li key={position.id} className="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="line-clamp-2 text-sm font-bold text-[#111827]">{position.marketQuestion}</div>
-                      <div className="mt-2 text-xs text-[#6B7280]">
+                      <div className="mt-2 text-xs text-[#9CA3AF]">
                         {getCategoryLabel(position.category)} · {new Date(position.createdAt).toLocaleDateString()}
                       </div>
                     </div>
                     <span
                       className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
                         position.side === "YES"
-                          ? "bg-emerald-50 text-[#047857]"
-                          : "bg-red-50 text-[#B42318]"
+                          ? "bg-[#12B886]/10 text-[#047857]"
+                          : "bg-[#E85D5D]/10 text-[#B42318]"
                       }`}
                     >
                       {position.side}
@@ -280,18 +282,18 @@ export default function Profile() {
           )}
         </section>
 
-        {/* Logout */}
+        {/* ── Logout ── */}
         <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
           <button
             onClick={() => setShowLogoutDialog(true)}
-            className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 text-sm font-bold text-red-600 transition hover:bg-red-100"
+            className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#E85D5D]/20 bg-[#FEF2F2] text-sm font-bold text-[#E85D5D] transition hover:bg-red-100"
           >
             <LogOut className="h-4 w-4" />
             Log out
           </button>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Log out of Flippe?</AlertDialogTitle>
+              <AlertDialogTitle>Log out of Flippi?</AlertDialogTitle>
               <AlertDialogDescription>
                 You will be signed out and redirected to the login page.
               </AlertDialogDescription>
@@ -316,13 +318,13 @@ const StatCard = ({ icon: Icon, label, value }: { icon: any; label: string; valu
       <Icon className="h-4 w-4 text-[#4F46E5]" />
     </div>
     <div className="text-xl font-black text-[#111827]">{value}</div>
-    <div className="mt-0.5 text-xs font-semibold text-[#6B7280]">{label}</div>
+    <div className="mt-0.5 text-xs font-semibold text-[#9CA3AF]">{label}</div>
   </div>
 );
 
 const Mini = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-lg border border-[#E5E7EB] bg-white p-2.5">
-    <div className="text-[10px] font-bold uppercase tracking-wider text-[#6B7280]">{label}</div>
+  <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5">
+    <div className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">{label}</div>
     <div className="mt-0.5 truncate text-xs font-bold text-[#111827]">{value}</div>
   </div>
 );

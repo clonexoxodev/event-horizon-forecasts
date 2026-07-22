@@ -125,7 +125,7 @@ export const FinanceView = () => {
   const totalWithdrawals = o.total_withdrawals ?? o.totalWithdrawals ?? 0;
   const pendingWithdrawals = o.pending_withdrawals ?? o.pendingWithdrawals ?? 0;
   const totalRefunds = o.total_refunds ?? o.totalRefunds ?? 0;
-  const todayVolume = o.today_volume ?? o.todayVolume ?? o.todayPredictionVolume ?? 0;
+  const todayVolume = o.today_volume ?? o.todayVolume ?? 0;
   const platformRevenue = o.platform_revenue ?? o.platformRevenue ?? 0;
 
   return (

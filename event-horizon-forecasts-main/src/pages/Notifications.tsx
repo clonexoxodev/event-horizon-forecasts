@@ -49,11 +49,11 @@ export default function Notifications() {
       <div className="app-bg min-h-screen text-[#111827] xl:pl-64">
         <Header />
         <main className="mx-auto max-w-3xl px-4 py-20 text-center">
-          <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl bg-[#4F46E5]/10 text-[#4F46E5]">
-            <Bell className="h-6 w-6" />
+          <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-[#EEF2FF] text-[#4F46E5]">
+            <Bell className="h-7 w-7" />
           </div>
           <h2 className="text-xl font-black">Log in to see notifications</h2>
-          <p className="mt-1 text-sm text-[#9CA3AF]">Your alerts will appear here.</p>
+          <p className="mt-1 text-sm text-[#9CA3AF]">Your alerts and activity feed will appear here.</p>
         </main>
         <MobileNav />
       </div>
@@ -66,7 +66,10 @@ export default function Notifications() {
       <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:py-8">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black tracking-tight">Notifications</h1>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9CA3AF]">
+              Notifications
+            </p>
+            <h1 className="mt-1 text-2xl font-black tracking-tight">Notifications</h1>
             <p className="mt-1 text-sm text-[#9CA3AF]">
               {unreadCount > 0
                 ? `${unreadCount} unread`
@@ -76,7 +79,7 @@ export default function Notifications() {
           {unreadCount > 0 && (
             <button
               onClick={markAllAsRead}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-xs font-bold text-[#4F46E5] transition hover:bg-[#F3F4F6]"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 text-xs font-bold text-[#4F46E5] transition hover:bg-[#F3F4F6]"
             >
               <CheckCheck className="h-3.5 w-3.5" />
               Mark all read
@@ -85,17 +88,17 @@ export default function Notifications() {
         </div>
 
         {sorted.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[#E5E7EB] bg-white/60 py-16 text-center">
-            <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl bg-[#F3F4F6]">
-              <Bell className="h-5 w-5 text-[#9CA3AF]" />
+          <div className="rounded-3xl border border-dashed border-[#E5E7EB] bg-white/60 py-16 text-center">
+            <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-[#F3F4F6]">
+              <Bell className="h-7 w-7 text-[#D1D5DB]" />
             </div>
             <h3 className="text-base font-bold text-[#111827]">No notifications yet</h3>
             <p className="mt-1 text-sm text-[#9CA3AF]">
-              Updates will appear here when you make predictions.
+              Updates will appear here when you place trades.
             </p>
           </div>
         ) : (
-          <div className="rounded-xl border border-[#E5E7EB] bg-white">
+          <div className="rounded-3xl border border-[#E5E7EB] bg-white">
             <ul role="log" aria-label="Notifications" aria-live="polite">
               {sorted.map((notification, index) => {
                 const isRead = notification.read;
@@ -115,10 +118,10 @@ export default function Notifications() {
                         if (!isRead) markAsRead(notification.id);
                       }}
                       aria-label={`${notification.title}. ${notification.message}. ${formatNotificationTime(notification.createdAt)}${!isRead ? '. Unread' : ''}`}
-                      className="flex w-full items-start gap-3 p-3.5 text-left"
+                      className="flex w-full items-start gap-3.5 p-4 text-left"
                     >
                       <div
-                        className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg ${style.color}`}
+                        className={`mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-xl ${style.color}`}
                       >
                         <Icon className="h-4 w-4" />
                       </div>
@@ -136,7 +139,7 @@ export default function Notifications() {
                             <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#4F46E5]" />
                           )}
                         </div>
-                        <p className="mt-0.5 text-xs text-[#9CA3AF] line-clamp-2">{notification.message}</p>
+                        <p className="mt-1 text-xs text-[#9CA3AF] line-clamp-2">{notification.message}</p>
                         <div className="mt-1.5 flex items-center gap-1 text-[11px] text-[#D1D5DB]">
                           <Clock className="h-3 w-3" />
                           {formatNotificationTime(notification.createdAt)}

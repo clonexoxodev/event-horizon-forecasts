@@ -46,14 +46,17 @@ export default function Settings() {
       <Header />
       <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-black tracking-tight">Settings</h1>
-          <p className="mt-1 text-sm text-[#9CA3AF]">Manage your account and preferences.</p>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9CA3AF]">
+            Settings
+          </p>
+          <h1 className="mt-2 text-2xl font-black tracking-tight">Settings</h1>
+          <p className="mt-1 text-sm text-[#6B7280]">Manage your account and preferences.</p>
         </div>
 
-        <div className="space-y-5">
+        <div className="space-y-4">
           <Card>
             <CardHeader icon={User} title="Account" />
-            <div className="space-y-3">
+            <div className="space-y-2">
               <InfoRow
                 icon={Mail}
                 label="Email"
@@ -74,7 +77,7 @@ export default function Settings() {
 
           <Card>
             <CardHeader icon={Bell} title="Notifications" />
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Toggle
                 label="Push notifications"
                 description="Receive push notifications on this device."
@@ -89,7 +92,7 @@ export default function Settings() {
               />
               <Toggle
                 label="Wallet alerts"
-                description="Deposit, withdrawal, stake, refund, and payout updates."
+                description="Deposit, withdrawal, and payout updates."
                 checked={preferences.walletAlerts}
                 onChange={(value) => updatePreference("walletAlerts", value)}
               />
@@ -110,29 +113,31 @@ export default function Settings() {
 
           <Card>
             <CardHeader icon={Lock} title="Security" />
-            <div className="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5 opacity-50 cursor-not-allowed">
-              <Lock className="h-4 w-4 shrink-0 text-[#6B7280]" />
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-[#111827]">Change password</div>
-                <div className="mt-0.5 text-xs text-[#6B7280]">Coming soon</div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5 opacity-50 cursor-not-allowed">
+                <Lock className="h-4 w-4 shrink-0 text-[#9CA3AF]" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold text-[#111827]">Change password</div>
+                  <div className="mt-0.5 text-xs text-[#9CA3AF]">Coming soon</div>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5 opacity-50 cursor-not-allowed">
-              <Shield className="h-4 w-4 shrink-0 text-[#6B7280]" />
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-[#111827]">Two-factor authentication</div>
-                <div className="mt-0.5 text-xs text-[#6B7280]">Coming soon</div>
+              <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5 opacity-50 cursor-not-allowed">
+                <Shield className="h-4 w-4 shrink-0 text-[#9CA3AF]" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold text-[#111827]">Two-factor authentication</div>
+                  <div className="mt-0.5 text-xs text-[#9CA3AF]">Coming soon</div>
+                </div>
               </div>
             </div>
           </Card>
 
           <Card>
             <CardHeader icon={Info} title="About" />
-            <div className="space-y-3">
+            <div className="space-y-2">
               <InfoRow
                 icon={Info}
                 label="App version"
-                value="Flippe v1.0.0"
+                value="Flippi v1.0.0"
               />
               <LinkRow
                 icon={ExternalLink}
@@ -149,7 +154,7 @@ export default function Settings() {
               <LinkRow
                 icon={ExternalLink}
                 label="Risk disclaimer"
-                description="Important information about prediction market risks."
+                description="Important information about trading market risks."
                 href="/responsible-use"
               />
             </div>
@@ -162,14 +167,14 @@ export default function Settings() {
 }
 
 const Card = ({ children }: { children: React.ReactNode }) => (
-  <section className="rounded-2xl border border-[#E5E7EB] bg-white p-5 sm:p-6">
+  <section className="rounded-3xl border border-[#E5E7EB] bg-white p-5 sm:p-6">
     {children}
   </section>
 );
 
 const CardHeader = ({ icon: Icon, title }: { icon: any; title: string }) => (
   <div className="mb-4 flex items-center gap-3">
-    <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#EEF2FF] text-[#4F46E5]">
+    <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#EEF2FF] text-[#4F46E5]">
       <Icon className="h-4 w-4" />
     </div>
     <h2 className="text-lg font-bold">{title}</h2>
@@ -177,10 +182,10 @@ const CardHeader = ({ icon: Icon, title }: { icon: any; title: string }) => (
 );
 
 const InfoRow = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
-  <div className="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5">
-    <Icon className="h-4 w-4 shrink-0 text-[#6B7280]" />
+  <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5">
+    <Icon className="h-4 w-4 shrink-0 text-[#9CA3AF]" />
     <div className="min-w-0 flex-1">
-      <div className="text-xs font-bold uppercase tracking-wider text-[#6B7280]">{label}</div>
+      <div className="text-[11px] font-bold uppercase tracking-wider text-[#9CA3AF]">{label}</div>
       <div className="mt-0.5 truncate text-sm font-semibold text-[#111827]">{value}</div>
     </div>
   </div>
@@ -197,10 +202,10 @@ const Toggle = ({
   checked: boolean;
   onChange: (value: boolean) => void;
 }) => (
-  <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5 transition hover:bg-[#F3F4F6]">
+  <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5 transition hover:bg-[#F3F4F6]">
     <div className="min-w-0 flex-1">
       <span className="block text-sm font-semibold text-[#111827]">{label}</span>
-      <span className="mt-0.5 block text-xs text-[#6B7280]">{description}</span>
+      <span className="mt-0.5 block text-xs text-[#9CA3AF]">{description}</span>
     </div>
     <button
       type="button"
@@ -231,13 +236,13 @@ const LinkRow = ({
   href?: string;
 }) => {
   const content = (
-    <div className="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5 transition hover:bg-[#F3F4F6]">
-      <Icon className="h-4 w-4 shrink-0 text-[#6B7280]" />
+    <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5 transition hover:bg-[#F3F4F6]">
+      <Icon className="h-4 w-4 shrink-0 text-[#9CA3AF]" />
       <div className="min-w-0 flex-1">
         <div className="text-sm font-semibold text-[#111827]">{label}</div>
-        <div className="mt-0.5 text-xs text-[#6B7280]">{description}</div>
+        <div className="mt-0.5 text-xs text-[#9CA3AF]">{description}</div>
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-[#9CA3AF]" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-[#D1D5DB]" />
     </div>
   );
 

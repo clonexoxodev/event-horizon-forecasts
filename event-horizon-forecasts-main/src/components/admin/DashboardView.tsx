@@ -83,7 +83,7 @@ export const DashboardView = ({
   const activeMarkets = s.activeMarkets ?? 0;
   const pendingWithdrawalsCount = s.pendingWithdrawals ?? pendingWithdrawals.length;
   const pendingResolutionsCount = s.pendingResolutions ?? pendingMarkets.length;
-  const todayVolume = s.todayVolume ?? s.todayPredictionVolume ?? 0;
+  const todayVolume = s.todayVolume ?? s.todayVolume ?? 0;
   const totalVolume = s.totalVolume ?? 0;
 
   return (
@@ -231,7 +231,7 @@ export const DashboardView = ({
                             <span>·</span>
                             <span>{formatNaira(marketVolume(market))}</span>
                             <span>·</span>
-                            <span>{market.participant_count ?? 0} participants</span>
+                            <span>{market.participant_count ?? 0} traders</span>
                           </div>
                         </div>
                         <button

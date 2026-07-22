@@ -69,7 +69,7 @@ const getLevelIcon = (levelName: string) => {
     case "Sharp Thinker": return Zap;
     case "Analyst": return BarChart3;
     case "Expert": return Award;
-    case "Elite Forecaster": return Medal;
+    case "Elite Trader": return Medal;
     case "Market Master": return Trophy;
     default: return Shield;
   }
@@ -110,7 +110,7 @@ const Dashboard = () => {
         setStats(statsResponse.stats || emptyStats);
       } catch (error) {
         if (!mounted) return;
-        console.warn("My Predictions request failed", error);
+        console.warn("My Positions request failed", error);
       } finally {
         if (mounted && !silent) setLoading(false);
       }
@@ -211,7 +211,7 @@ const Dashboard = () => {
   };
 
   if (authLoading) {
-    return <SessionLoading label="Restoring your predictions..." />;
+    return <SessionLoading label="Loading your positions..." />;
   }
 
   if (!user) {
@@ -223,9 +223,9 @@ const Dashboard = () => {
             <div className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-xl bg-[#4F46E5]/10 text-[#4F46E5]">
               <LineChart className="h-5 w-5" />
             </div>
-            <h1 className="text-xl font-black tracking-tight">Track your predictions</h1>
+            <h1 className="text-xl font-black tracking-tight">Track your positions</h1>
             <p className="mt-1.5 text-sm text-[#9CA3AF]">
-              Log in to see open predictions, resolved results, and wallet-linked history.
+              Log in to see your positions, resolved results, and wallet-linked history.
             </p>
             <Link
               to="/login"
@@ -244,13 +244,13 @@ const Dashboard = () => {
     <div className="app-bg min-h-screen overflow-x-hidden pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:py-6">
-        {/* ── Header ── */}
+        {/* Header */}
         <section className="mb-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">{getGreeting()}</p>
               <h1 className="mt-0.5 text-xl font-black tracking-tight sm:text-2xl">
-                {user.name || user.username || "Forecaster"}
+                {user.name || user.username || "Trader"}
               </h1>
             </div>
             <div className="flex items-center gap-1.5">
@@ -267,41 +267,44 @@ const Dashboard = () => {
           </div>
         </section>
 
-        {/* ── Stats Row ── */}
+        {/* Stats Row */}
         <section className="mb-4 grid grid-cols-4 gap-2">
-          <StatCard label="Total" value={stats.totalPredictions} />
-          <StatCard label="Active" value={activePositions.length} />
-          <StatCard label="Won" value={wonPositions.length} />
-          <StatCard label="Win Rate" value={winRate} suffix="%" />
+          <StatCard label="Positions" value={stats.totalPredictions} icon={Target} />
+          <StatCard label="Active" value={activePositions.length} icon={TrendingUp} />
+          <StatCard label="Won" value={wonPositions.length} icon={Trophy} />
+          <StatCard label="Win Rate" value={winRate} suffix="%" icon={BarChart3} />
         </section>
 
-        {/* ── Level Progress ── */}
-        <section className="mb-4 rounded-xl border border-[#E5E7EB] bg-white p-3.5 shadow-sm">
+        {/* Level Progress */}
+        <section className="mb-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="grid h-7 w-7 place-items-center rounded-lg bg-[#4F46E5]/10 text-[#4F46E5]">
-                <LevelIcon className="h-3.5 w-3.5" />
+            <div className="flex items-center gap-2.5">
+              <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#4F46E5]/10 text-[#4F46E5]">
+                <LevelIcon className="h-4.5 w-4.5" />
               </div>
               <div>
-                <div className="text-xs font-bold text-[#111827]">{level}</div>
-                <div className="text-[10px] text-[#9CA3AF]">
-                  {level === nextLevel ? "Top level" : `${pointsToNext} pts to ${nextLevel}`}
+                <div className="text-sm font-bold text-[#111827]">{level}</div>
+                <div className="text-[10px] font-bold text-[#9CA3AF]">
+                  {level === nextLevel ? "Max level reached" : `${pointsToNext} pts to ${nextLevel}`}
                 </div>
               </div>
             </div>
-            <AnimatedNumber value={totalScore} className="text-base font-black text-[#4F46E5]" />
+            <div className="text-right">
+              <AnimatedNumber value={totalScore} className="text-xl font-black text-[#4F46E5]" />
+              <div className="text-[9px] font-bold text-[#9CA3AF]">points</div>
+            </div>
           </div>
-          <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-[#F3F4F6]">
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#F3F4F6]">
             <div
-              className="h-full rounded-full bg-[#4F46E5] transition-all duration-700"
+              className="h-full rounded-full bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] transition-all duration-700"
               style={{ width: `${progress}%` }}
             />
           </div>
         </section>
 
-        {/* ── Portfolio Tab Navigation ── */}
+        {/* Portfolio Tab Navigation */}
         <section className="mb-4">
-          <div role="tablist" className="flex gap-1 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-0.5">
+          <div role="tablist" className="flex gap-1 rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-1">
             {([
               { key: "positions", label: "Positions", icon: Target, count: positions.length },
               { key: "orders", label: "Orders", icon: Layers, count: openOrders.length },
@@ -314,7 +317,7 @@ const Dashboard = () => {
                   role="tab"
                   aria-selected={isActive}
                   onClick={() => setPortfolioTab(key)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all duration-150 ${
+                  className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all duration-150 ${
                     isActive
                       ? "bg-white text-[#111827] shadow-sm"
                       : "text-[#9CA3AF] hover:text-[#6B7280]"
@@ -323,7 +326,7 @@ const Dashboard = () => {
                   <Icon className="h-3.5 w-3.5" />
                   {label}
                   {count > 0 && (
-                    <span className={`inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] ${
+                    <span className={`inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold ${
                       isActive ? "bg-[#4F46E5]/10 text-[#4F46E5]" : "bg-[#E5E7EB] text-[#9CA3AF]"
                     }`}>
                       {count}
@@ -337,9 +340,9 @@ const Dashboard = () => {
 
         {portfolioTab === "positions" && (
           <>
-            {/* ── Position Filter Tabs ── */}
+            {/* Position Filter Tabs */}
             <section className="mb-4">
-              <div className="flex gap-1 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-0.5">
+              <div className="flex gap-1 rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-1">
                 {(["active", "resolved", "all"] as PositionFilterTab[]).map((item) => {
                   const count =
                     item === "active" ? activePositions.length
@@ -352,14 +355,14 @@ const Dashboard = () => {
                       role="tab"
                       aria-selected={isActive}
                       onClick={() => setPositionTab(item)}
-                      className={`flex-1 rounded-lg py-2 text-xs font-bold transition-all duration-150 ${
+                      className={`flex-1 rounded-xl py-2 text-xs font-bold transition-all duration-150 ${
                         isActive
                           ? "bg-white text-[#111827] shadow-sm"
                           : "text-[#9CA3AF] hover:text-[#6B7280]"
                       }`}
                     >
                       {item === "active" ? "Active" : item === "resolved" ? "Done" : "All"}
-                      <span className={`ml-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] ${
+                      <span className={`ml-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold ${
                         isActive ? "bg-[#4F46E5]/10 text-[#4F46E5]" : "bg-[#E5E7EB] text-[#9CA3AF]"
                       }`}>
                         {count}
@@ -372,7 +375,7 @@ const Dashboard = () => {
           </>
         )}
 
-        {/* ── Position Cards ── */}
+        {/* Position Cards */}
         {portfolioTab === "positions" && (
         <div role="tabpanel">
           {loading ? (
@@ -383,7 +386,7 @@ const Dashboard = () => {
             positionTab === "active" ? (
               <EmptyState
                 icon={Target}
-                title="No active predictions"
+                title="No active positions"
                 body="Your open positions will appear here."
                 action={
                   <Link to="/" className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#4F46E5] px-4 text-sm font-bold text-white hover:bg-[#4338CA]">
@@ -394,8 +397,8 @@ const Dashboard = () => {
             ) : positionTab === "resolved" ? (
               <EmptyState
                 icon={CheckCircle}
-                title="No resolved predictions"
-                body="Won, lost, and refunded predictions will show here."
+                title="No resolved positions"
+                body="Won, lost, and refunded positions will show here."
                 action={
                   <Link to="/" className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm font-bold text-[#111827] transition hover:shadow-md">
                     Explore markets <ArrowRight className="h-3.5 w-3.5" />
@@ -405,11 +408,11 @@ const Dashboard = () => {
             ) : (
               <EmptyState
                 icon={LineChart}
-                title="No predictions yet"
-                body="Start forecasting to build your portfolio."
+                title="No positions yet"
+                body="Start trading to build your portfolio."
                 action={
                   <Link to="/" className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#4F46E5] px-4 text-sm font-bold text-white hover:bg-[#4338CA]">
-                    Make your first prediction <ArrowRight className="h-3.5 w-3.5" />
+                    Make your first trade <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 }
               />
@@ -430,7 +433,7 @@ const Dashboard = () => {
         </div>
         )}
 
-        {/* ── Orders Tab ── */}
+        {/* Orders Tab */}
         {portfolioTab === "orders" && (
           <div role="tabpanel">
             {ordersLoading ? (
@@ -458,7 +461,7 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* ── Trades Tab ── */}
+        {/* Trades Tab */}
         {portfolioTab === "trades" && (
           <div role="tabpanel">
             {ordersLoading ? (
@@ -486,15 +489,17 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* ── Activity Feed (Collapsible) ── */}
+        {/* Activity Feed */}
         {positions.some((p) => p.resolvedAt || p.marketStatus !== "active") && (
           <section className="mt-4">
             <button
               onClick={() => setShowActivity(!showActivity)}
-              className="flex w-full items-center justify-between rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 shadow-sm"
+              className="flex w-full items-center justify-between rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3.5 shadow-sm transition hover:shadow-md"
             >
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-[#9CA3AF]" />
+              <div className="flex items-center gap-2.5">
+                <div className="grid h-7 w-7 place-items-center rounded-lg bg-[#F3F4F6]">
+                  <Clock className="h-3.5 w-3.5 text-[#6B7280]" />
+                </div>
                 <span className="text-sm font-bold text-[#111827]">Recent Activity</span>
               </div>
               {showActivity ? (
@@ -504,21 +509,23 @@ const Dashboard = () => {
               )}
             </button>
             {showActivity && (
-              <div className="mt-2 rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm">
+              <div className="mt-2 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
                 <ActivityFeed positions={positions} settledCount={settledPositions.length} />
               </div>
             )}
           </section>
         )}
 
-        {/* ── Achievements (Collapsible) ── */}
+        {/* Achievements */}
         <section className="mt-4">
           <button
             onClick={() => setShowAchievements(!showAchievements)}
-            className="flex w-full items-center justify-between rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 shadow-sm"
+            className="flex w-full items-center justify-between rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3.5 shadow-sm transition hover:shadow-md"
           >
-            <div className="flex items-center gap-2">
-              <Medal className="h-4 w-4 text-[#4F46E5]" />
+            <div className="flex items-center gap-2.5">
+              <div className="grid h-7 w-7 place-items-center rounded-lg bg-[#4F46E5]/10">
+                <Medal className="h-3.5 w-3.5 text-[#4F46E5]" />
+              </div>
               <span className="text-sm font-bold text-[#111827]">Achievements</span>
             </div>
             {showAchievements ? (
@@ -528,7 +535,7 @@ const Dashboard = () => {
             )}
           </button>
           {showAchievements && (
-            <div className="mt-2 rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm">
+            <div className="mt-2 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
               <AchievementsSection positions={positions} stats={stats} />
             </div>
           )}
@@ -536,7 +543,7 @@ const Dashboard = () => {
       </main>
 
       {selectedPosition && (
-        <PredictionDetailModal
+        <PositionDetailModal
           position={selectedPosition}
           now={now}
           onClose={() => setSelectedPosition(null)}
@@ -567,15 +574,24 @@ const StatCard = ({
   label,
   value,
   suffix = "",
+  icon: Icon,
 }: {
   label: string;
   value: number;
   suffix?: string;
+  icon?: any;
 }) => (
-  <div className="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm">
-    <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">{label}</div>
-    <div className="mt-0.5">
-      <AnimatedNumber value={value} className="text-lg font-black text-[#111827]" suffix={suffix} />
+  <div className="rounded-2xl border border-[#E5E7EB] bg-white p-3.5 shadow-sm transition hover:shadow-md">
+    <div className="flex items-center justify-between">
+      <div className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">{label}</div>
+      {Icon && (
+        <div className="grid h-6 w-6 place-items-center rounded-lg bg-[#4F46E5]/8">
+          <Icon className="h-3 w-3 text-[#4F46E5]" />
+        </div>
+      )}
+    </div>
+    <div className="mt-1">
+      <AnimatedNumber value={value} className="text-xl font-black text-[#111827]" suffix={suffix} />
     </div>
   </div>
 );
@@ -603,7 +619,7 @@ const PositionCard = ({
   return (
     <button
       onClick={onClick}
-      className="group rounded-2xl border border-[#E5E7EB] bg-white p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-px hover:border-[#4F46E5]/20 hover:shadow-[0_4px_16px_rgba(17,24,39,0.06)] active:scale-[0.99]"
+      className="group rounded-2xl border border-[#E5E7EB] bg-white p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-px hover:border-[#4F46E5]/20 hover:shadow-[0_4px_20px_rgba(17,24,39,0.06)] active:scale-[0.99]"
     >
       <div className="flex items-start justify-between gap-2">
         <StatusBadge status={displayStatus} />
@@ -616,7 +632,7 @@ const PositionCard = ({
 
       {insight.isProtected ? (
         <div
-          className={`mt-3 rounded-lg border border-[#C7D2FE] bg-[#EEF2FF] p-2.5 ${onLearnProtected ? "cursor-pointer transition hover:bg-[#E0E7FF]" : ""}`}
+          className={`mt-3 rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] p-2.5 ${onLearnProtected ? "cursor-pointer transition hover:bg-[#E0E7FF]" : ""}`}
           onClick={onLearnProtected ? (e) => { e.stopPropagation(); onLearnProtected(); } : undefined}
         >
           <div className="flex items-center justify-between">
@@ -756,7 +772,7 @@ const ActivityItem = ({
   return (
     <Link
       to={`/market/${position.marketId}`}
-      className="relative flex items-start gap-2.5 py-2.5 pl-0 transition hover:bg-[#F8F7F4] rounded-lg"
+      className="relative flex items-start gap-2.5 py-2.5 pl-0 transition hover:bg-[#F8F7F4] rounded-xl"
     >
       <div className={`relative z-10 grid h-8 w-8 shrink-0 place-items-center rounded-lg ${iconBg}`}>
         <Icon className="h-3.5 w-3.5" />
@@ -813,7 +829,7 @@ const AchievementsSection = ({
   });
 
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4">
       {achievements.map((achievement) => (
         <AchievementCard key={achievement.title} {...achievement} />
       ))}
@@ -837,15 +853,15 @@ const AchievementCard = ({
   title,
   unlocked,
 }: Achievement) => (
-  <div className={`rounded-lg border p-2.5 transition ${
+  <div className={`rounded-xl border p-3 transition ${
     unlocked ? "border-[#4F46E5]/20 bg-[#4F46E5]/[0.04]" : "border-[#E5E7EB] bg-[#F8F7F4]"
   }`}>
-    <div className={`mb-1 grid h-6 w-6 place-items-center rounded-md ${
+    <div className={`mb-1.5 grid h-7 w-7 place-items-center rounded-lg ${
       unlocked ? "bg-[#4F46E5] text-white" : "bg-white text-[#9CA3AF]"
     }`}>
-      <Icon className="h-3 w-3" />
+      <Icon className="h-3.5 w-3.5" />
     </div>
-    <div className="text-[10px] font-bold leading-tight">{title}</div>
+    <div className="text-[11px] font-bold leading-tight text-[#111827]">{title}</div>
     <div className={`mt-0.5 text-[9px] font-bold ${unlocked ? "text-[#4F46E5]" : "text-[#9CA3AF]"}`}>
       {unlocked ? "Unlocked" : "Locked"}
     </div>
@@ -910,7 +926,7 @@ const getNextLevel = (current: string) => {
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   Prediction Insight
+   Position Insight
    ═══════════════════════════════════════════════════════════════ */
 
 type PredictionInsight = {
@@ -985,10 +1001,10 @@ const Metric = ({
 );
 
 /* ═══════════════════════════════════════════════════════════════
-   Prediction Detail Modal
+   Position Detail Modal
    ═══════════════════════════════════════════════════════════════ */
 
-const PredictionDetailModal = ({
+const PositionDetailModal = ({
   position,
   now,
   onClose,
@@ -1006,7 +1022,7 @@ const PredictionDetailModal = ({
   const resolutionSource = (position as ApiPosition & { resolutionSource?: string }).resolutionSource;
   const timeLeft = formatPositionCountdown(position);
   const displayStatus = getPredictionDisplayStatus(position, now).label;
-  const marketQuestion = position.marketQuestion || "Prediction details unavailable";
+  const marketQuestion = position.marketQuestion || "Position details unavailable";
   const insight = getPredictionInsight(position);
   const modalRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -1034,15 +1050,15 @@ const PredictionDetailModal = ({
       ref={modalRef}
       role="dialog"
       aria-modal="true"
-      aria-label="Prediction details"
+      aria-label="Position details"
       className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 px-3 pb-[calc(84px+env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-6"
     >
       <section className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_24px_90px_rgba(17,24,39,0.18)]">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#E5E7EB] bg-white/95 p-4 backdrop-blur">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">Prediction detail</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">Position detail</p>
             <h2 className="mt-0.5 text-base font-bold text-[#111827]">
-              Your {position.side || "selected"} prediction
+              Your {position.side || "selected"} position
             </h2>
           </div>
           <button
@@ -1108,7 +1124,7 @@ const PredictionDetailModal = ({
               </div>
               {shares > 0 && <Metric label="Units" value={shares.toFixed(2)} />}
               <div className="text-xs font-bold text-[#6B7280]">
-                Predicted {position.side} with {formatNaira(position.stake)} on {new Date(position.createdAt).toLocaleString()}.
+                Traded {position.side} with {formatNaira(position.stake)} on {new Date(position.createdAt).toLocaleString()}.
               </div>
               {rules && <p className="text-xs leading-relaxed text-[#6B7280]">{rules}</p>}
               {resolutionSource && <p className="text-[10px] font-bold text-[#9CA3AF]">Source: {resolutionSource}</p>}
@@ -1148,17 +1164,17 @@ const getAchievements = ({
   level: string;
   rank: number | null;
 }): Achievement[] => [
-  { icon: Target, title: "First Prediction", description: "", unlocked: totalPredictions >= 1 },
+  { icon: Target, title: "First Trade", description: "", unlocked: totalPredictions >= 1 },
   { icon: Trophy, title: "First Win", description: "", unlocked: wins >= 1 },
   { icon: Flame, title: "3 Win Streak", description: "", unlocked: currentStreak >= 3 || bestStreak >= 3 },
   { icon: Flame, title: "5 Win Streak", description: "", unlocked: currentStreak >= 5 || bestStreak >= 5 },
-  { icon: CheckCircle, title: "10 Predictions", description: "", unlocked: totalPredictions >= 10 },
-  { icon: CheckCircle, title: "50 Predictions", description: "", unlocked: totalPredictions >= 50 },
+  { icon: CheckCircle, title: "10 Trades", description: "", unlocked: totalPredictions >= 10 },
+  { icon: CheckCircle, title: "50 Trades", description: "", unlocked: totalPredictions >= 50 },
   { icon: Award, title: "60% Accuracy", description: "", unlocked: accuracy >= 60 },
   { icon: Award, title: "70% Accuracy", description: "", unlocked: accuracy >= 70 },
   { icon: Medal, title: "Top 100", description: "", unlocked: Boolean(rank && rank <= 100) },
   { icon: Trophy, title: "Top 10", description: "", unlocked: Boolean(rank && rank <= 10) },
-  { icon: Medal, title: "Elite Forecaster", description: "", unlocked: ["Elite Forecaster", "Market Master"].includes(level) },
+  { icon: Medal, title: "Elite Trader", description: "", unlocked: ["Elite Trader", "Market Master"].includes(level) },
 ];
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1185,16 +1201,16 @@ const OrderCard = ({
   const canCancel = ["waiting", "partial", "pending"].includes(order.status);
 
   return (
-    <div className="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm">
+    <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm transition hover:shadow-md">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span
-            className={`inline-flex h-6 items-center rounded-full px-2 text-[10px] font-bold ${status.bg} ${status.color}`}
+            className={`inline-flex h-6 items-center rounded-full px-2.5 text-[10px] font-bold ${status.bg} ${status.color}`}
           >
             {status.label}
           </span>
           <span
-            className={`inline-flex h-6 items-center rounded-full px-2 text-[10px] font-bold ${
+            className={`inline-flex h-6 items-center rounded-full px-2.5 text-[10px] font-bold ${
               order.order_type === "BUY"
                 ? "bg-[#12B886]/10 text-[#047857]"
                 : "bg-[#E85D5D]/10 text-[#B42318]"
@@ -1209,27 +1225,27 @@ const OrderCard = ({
         {canCancel && (
           <button
             onClick={() => onCancel(order.id, order.market_id)}
-            className="flex h-7 items-center gap-1 rounded-lg border border-[#E85D5D]/30 bg-[#E85D5D]/5 px-2 text-[10px] font-bold text-[#E85D5D] transition hover:bg-[#E85D5D]/10"
+            className="flex h-7 items-center gap-1 rounded-lg border border-[#E85D5D]/30 bg-[#E85D5D]/5 px-2.5 text-[10px] font-bold text-[#E85D5D] transition hover:bg-[#E85D5D]/10"
           >
             <X className="h-3 w-3" /> Cancel
           </button>
         )}
       </div>
-      <div className="mt-2 grid grid-cols-3 gap-2">
+      <div className="mt-3 grid grid-cols-3 gap-2">
         <div>
           <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Quantity</div>
-          <div className="text-xs font-bold text-[#111827]">{order.quantity}</div>
+          <div className="mt-0.5 text-xs font-bold text-[#111827]">{order.quantity}</div>
         </div>
         <div>
           <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Price</div>
-          <div className="text-xs font-bold text-[#111827]">{formatNaira(order.price)}</div>
+          <div className="mt-0.5 text-xs font-bold text-[#111827]">{formatNaira(order.price)}</div>
         </div>
         <div>
           <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Value</div>
-          <div className="text-xs font-bold text-[#111827]">{formatNaira(order.filled_amount || order.locked_amount)}</div>
+          <div className="mt-0.5 text-xs font-bold text-[#111827]">{formatNaira(order.filled_amount || order.locked_amount)}</div>
         </div>
       </div>
-      <div className="mt-1.5 flex items-center justify-between text-[10px] text-[#9CA3AF]">
+      <div className="mt-2 flex items-center justify-between text-[10px] text-[#9CA3AF]">
         <span>
           {new Date(order.created_at).toLocaleDateString("en-NG", {
             day: "numeric",
@@ -1254,39 +1270,45 @@ const OrderCard = ({
 
 const TradeCard = ({ trade }: { trade: ApiTrade }) => {
   return (
-    <div className="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm">
+    <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm transition hover:shadow-md">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Zap className="h-3.5 w-3.5 text-[#4F46E5]" />
-          <span className="text-xs font-bold text-[#111827]">
-            {trade.side} Trade
-          </span>
+        <div className="flex items-center gap-2.5">
+          <div className={`grid h-7 w-7 place-items-center rounded-lg ${
+            trade.side === "YES" ? "bg-[#12B886]/10 text-[#12B886]" : "bg-[#E85D5D]/10 text-[#E85D5D]"
+          }`}>
+            <Zap className="h-3.5 w-3.5" />
+          </div>
+          <div>
+            <span className="text-xs font-bold text-[#111827]">
+              {trade.side} Trade
+            </span>
+            <div className="text-[10px] font-bold text-[#9CA3AF]">
+              {new Date(trade.created_at).toLocaleDateString("en-NG", {
+                day: "numeric",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </div>
+          </div>
         </div>
-        <span className="text-xs font-bold text-[#047857]">
+        <span className="text-sm font-bold text-[#047857]">
           {formatNaira(trade.trade_price * trade.trade_quantity)}
         </span>
       </div>
-      <div className="mt-2 grid grid-cols-3 gap-2">
+      <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[#F3F4F6] pt-3">
         <div>
           <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Quantity</div>
-          <div className="text-xs font-bold text-[#111827]">{trade.trade_quantity}</div>
+          <div className="mt-0.5 text-xs font-bold text-[#111827]">{trade.trade_quantity}</div>
         </div>
         <div>
           <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Price</div>
-          <div className="text-xs font-bold text-[#111827]">{formatNaira(trade.trade_price)}</div>
+          <div className="mt-0.5 text-xs font-bold text-[#111827]">{formatNaira(trade.trade_price)}</div>
         </div>
         <div>
           <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Total</div>
-          <div className="text-xs font-bold text-[#111827]">{formatNaira(trade.trade_price * trade.trade_quantity)}</div>
+          <div className="mt-0.5 text-xs font-bold text-[#111827]">{formatNaira(trade.trade_price * trade.trade_quantity)}</div>
         </div>
-      </div>
-      <div className="mt-1.5 text-[10px] text-[#9CA3AF]">
-        {new Date(trade.created_at).toLocaleDateString("en-NG", {
-          day: "numeric",
-          month: "short",
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
       </div>
     </div>
   );

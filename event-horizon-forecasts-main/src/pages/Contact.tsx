@@ -30,10 +30,9 @@ export default function Contact() {
   };
 
   return (
-    <div className="app-bg min-h-screen flex flex-col pb-20 md:pb-0">
+    <div className="app-bg min-h-screen flex flex-col font-['Inter',sans-serif] pb-20 md:pb-0">
       <Header />
       <main className="flex-1">
-        {/* Hero Section */}
         <section className="container py-16 max-w-4xl text-center">
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-[#101828] mb-6">
             Contact Us
@@ -45,9 +44,8 @@ export default function Contact() {
 
         <div className="container max-w-5xl pb-20">
           <div className="grid md:grid-cols-3 gap-8">
-            {/* Contact Form */}
             <div className="md:col-span-2">
-              <div className="surface-raised rounded-2xl p-8">
+              <div className="rounded-3xl border border-[#E5E7EB] bg-white p-8 shadow-sm">
                 <h2 className="text-2xl font-bold text-[#101828] mb-6">Send us a message</h2>
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div>
@@ -101,7 +99,7 @@ export default function Contact() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full bg-[#4F46E5] text-white hover:bg-[#4338CA]"
+                    className="w-full rounded-2xl bg-[#4F46E5] text-white font-semibold shadow-sm hover:bg-[#4338CA] hover:shadow-md transition-all"
                   >
                     {isSubmitting ? "Opening email..." : "Open email app"}
                   </Button>
@@ -109,21 +107,20 @@ export default function Contact() {
               </div>
             </div>
 
-            {/* Contact Info */}
             <div className="space-y-6">
-              <div className="surface-raised rounded-2xl p-6">
-                <div className="w-10 h-10 rounded-xl bg-[#4F46E5]/10 grid place-items-center mb-4">
+              <div className="rounded-3xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
+                <div className="w-11 h-11 rounded-2xl bg-[#4F46E5]/10 grid place-items-center mb-4">
                   <Mail className="w-5 h-5 text-[#4F46E5]" />
                 </div>
                 <h3 className="font-bold text-[#101828] mb-2">Contact email</h3>
-                <a href="mailto:support@flippe.com" className="text-sm text-[#667085] hover:text-[#4F46E5] transition-fast">
+                <a href="mailto:support@flippe.com" className="text-sm text-[#667085] hover:text-[#4F46E5] transition-colors">
                   support@flippe.com
                 </a>
                 <p className="mt-2 text-xs text-[#667085]">Use this for account, wallet, and market questions.</p>
               </div>
 
-              <div className="surface-raised rounded-2xl p-6">
-                <div className="w-10 h-10 rounded-xl bg-[#4F46E5]/10 grid place-items-center mb-4">
+              <div className="rounded-3xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
+                <div className="w-11 h-11 rounded-2xl bg-[#4F46E5]/10 grid place-items-center mb-4">
                   <MessageCircle className="w-5 h-5 text-[#4F46E5]" />
                 </div>
                 <h3 className="font-bold text-[#101828] mb-2">Support hours</h3>
@@ -132,18 +129,18 @@ export default function Contact() {
                 </p>
               </div>
 
-              <div className="surface-raised rounded-2xl p-6">
+              <div className="rounded-3xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
                 <h3 className="font-bold text-[#101828] mb-4">Follow Us</h3>
                 <div className="flex gap-2">
                   <a
                     href="#"
-                    className="w-9 h-9 rounded-xl border border-[#E5E7EB] grid place-items-center text-[#667085] hover:text-[#101828] hover:border-[#4F46E5]/40 hover:bg-[#F3F4F6] transition-fast"
+                    className="w-10 h-10 rounded-2xl border border-[#E5E7EB] grid place-items-center text-[#667085] hover:text-[#101828] hover:border-[#4F46E5]/40 hover:bg-[#F9FAFB] transition-all"
                   >
                     <Twitter className="w-4 h-4" />
                   </a>
                   <a
                     href="#"
-                    className="w-9 h-9 rounded-xl border border-[#E5E7EB] grid place-items-center text-[#667085] hover:text-[#101828] hover:border-[#4F46E5]/40 hover:bg-[#F3F4F6] transition-fast"
+                    className="w-10 h-10 rounded-2xl border border-[#E5E7EB] grid place-items-center text-[#667085] hover:text-[#101828] hover:border-[#4F46E5]/40 hover:bg-[#F9FAFB] transition-all"
                   >
                     <Send className="w-4 h-4" />
                   </a>

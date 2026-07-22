@@ -11,6 +11,7 @@ import {
   User,
   ArrowRight,
   Shield,
+  Sparkles,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -114,103 +115,106 @@ export default function Signup() {
   return (
     <AuthLayout>
       <div className="w-full max-w-md mx-auto">
-        <div className="rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_24px_90px_rgba(16,24,40,0.10)]">
-          <div className="flex flex-col items-center px-6 pt-10 pb-8 sm:px-10">
-            <Link to="/" className="mb-6 inline-flex items-center">
+        <div className="rounded-3xl border border-[#E5E7EB] bg-white shadow-[0_8px_40px_rgba(16,24,40,0.08)]">
+          <div className="flex flex-col items-center px-8 pt-10 pb-8 sm:px-12">
+            <Link to="/" className="mb-8 inline-flex items-center">
               <FlippeWordmark size="xl" />
             </Link>
 
-            <p className="mb-1 text-center text-sm text-[#9CA3AF]">
-              Join thousands of forecasters
+            <p className="mb-1.5 text-center text-sm font-medium text-[#6B7280]">
+              Join thousands of traders
             </p>
 
-            <h1 className="mb-7 text-center text-xl font-black tracking-tight text-[#111827]">
+            <h1 className="mb-8 text-center text-2xl font-extrabold tracking-tight text-[#111827]">
               Create your account
             </h1>
 
             {success ? (
               <div className="flex flex-col items-center justify-center py-8 text-center" role="status" aria-live="polite">
-                <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-[#12B886]/10 text-[#047857]">
-                  <CheckCircle className="h-8 w-8" />
+                <div className="mb-5 grid h-16 w-16 place-items-center rounded-full bg-[#12B886]/10">
+                  <CheckCircle className="h-8 w-8 text-[#12B886]" />
                 </div>
                 <h3 className="mb-2 text-lg font-bold text-[#111827]">
-                  Account created
+                  You're all set!
                 </h3>
-                <p className="text-sm text-[#6B7280]">
-                  Taking you to the app...
+                <p className="text-sm font-medium text-[#6B7280]">
+                  Taking you to the markets...
                 </p>
+                <div className="mt-4 h-1 w-32 overflow-hidden rounded-full bg-[#E5E7EB]">
+                  <div className="h-full animate-pulse rounded-full bg-[#12B886]" style={{ width: "60%" }} />
+                </div>
               </div>
             ) : (
               <>
-                <form onSubmit={handleSubmit} className="w-full space-y-4" aria-label="Create your account">
+                <form onSubmit={handleSubmit} className="w-full space-y-4.5" aria-label="Create your account">
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold text-[#6B7280]">
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#6B7280]">
                       Username
                     </label>
                     <div className="relative">
-                      <User className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                      <User className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#9CA3AF]" />
                       <Input
                         placeholder="Choose a username"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-sm font-semibold text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5]"
+                        className="h-12 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] pl-11 text-sm font-medium text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5] focus:ring-4 focus:ring-[#4F46E5]/[0.06]"
                         disabled={loading}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold text-[#6B7280]">
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#6B7280]">
                       Email address
                     </label>
                     <div className="relative">
-                      <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                      <Mail className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#9CA3AF]" />
                       <Input
                         placeholder="you@example.com"
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-sm font-semibold text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5]"
+                        className="h-12 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] pl-11 text-sm font-medium text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5] focus:ring-4 focus:ring-[#4F46E5]/[0.06]"
                         disabled={loading}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold text-[#6B7280]">
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#6B7280]">
                       Password
                     </label>
                     <div className="relative">
-                      <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                      <Lock className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#9CA3AF]" />
                       <Input
                         placeholder="At least 8 characters"
                         type={showPass ? "text" : "password"}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 pr-11 text-sm font-semibold text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5]"
+                        className="h-12 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] pl-11 pr-11 text-sm font-medium text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5] focus:ring-4 focus:ring-[#4F46E5]/[0.06]"
                         disabled={loading}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPass((value) => !value)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] transition hover:text-[#6B7280]"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] transition-colors hover:text-[#6B7280]"
                         tabIndex={-1}
                       >
                         {showPass ? (
-                          <EyeOff className="h-4 w-4" />
+                          <EyeOff className="h-[18px] w-[18px]" />
                         ) : (
-                          <Eye className="h-4 w-4" />
+                          <Eye className="h-[18px] w-[18px]" />
                         )}
                       </button>
                     </div>
                     {password.length > 0 && (
-                      <div className="mt-2" role="meter" aria-valuenow={Math.round((passwordStrength.score / 5) * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`Password strength: ${passwordStrength.label}`}>
-                        <div className="flex items-center gap-2">
+                      <div className="mt-2.5" role="meter" aria-valuenow={Math.round((passwordStrength.score / 5) * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`Password strength: ${passwordStrength.label}`}>
+                        <div className="flex items-center gap-2.5">
                           <div className="flex flex-1 gap-1">
                             {[1, 2, 3, 4, 5].map((i) => (
                               <div
                                 key={i}
-                                className="h-1 flex-1 rounded-full transition-colors duration-300"
+                                className="h-1.5 flex-1 rounded-full transition-all duration-300"
                                 style={{
                                   backgroundColor:
                                     i <= passwordStrength.score
@@ -232,17 +236,17 @@ export default function Signup() {
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold text-[#6B7280]">
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#6B7280]">
                       Confirm password
                     </label>
                     <div className="relative">
-                      <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+                      <Lock className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#9CA3AF]" />
                       <Input
                         placeholder="Re-enter your password"
                         type={showConfirmPass ? "text" : "password"}
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className={`h-12 rounded-xl bg-[#F8F7F4] pl-11 pr-11 text-sm font-semibold text-[#111827] placeholder:text-[#9CA3AF] ${
+                        className={`h-12 rounded-xl bg-[#F9FAFB] pl-11 pr-11 text-sm font-medium text-[#111827] placeholder:text-[#9CA3AF] focus:ring-4 focus:ring-[#4F46E5]/[0.06] ${
                           passwordsMatch
                             ? "border-[#12B886] focus:border-[#12B886]"
                             : passwordsMismatch
@@ -256,38 +260,38 @@ export default function Signup() {
                         onClick={() =>
                           setShowConfirmPass((value) => !value)
                         }
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] transition hover:text-[#6B7280]"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] transition-colors hover:text-[#6B7280]"
                         tabIndex={-1}
                       >
                         {showConfirmPass ? (
-                          <EyeOff className="h-4 w-4" />
+                          <EyeOff className="h-[18px] w-[18px]" />
                         ) : (
-                          <Eye className="h-4 w-4" />
+                          <Eye className="h-[18px] w-[18px]" />
                         )}
                       </button>
                     </div>
                     {passwordsMatch && (
-                      <p className="mt-1.5 flex items-center gap-1 text-xs font-bold text-[#12B886]">
-                        <CheckCircle className="h-3 w-3" />
+                      <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-[#12B886]">
+                        <CheckCircle className="h-3.5 w-3.5" />
                         Passwords match
                       </p>
                     )}
                     {passwordsMismatch && (
-                      <p className="mt-1.5 flex items-center gap-1 text-xs font-bold text-[#E85D5D]">
-                        <AlertCircle className="h-3 w-3" />
+                      <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-[#E85D5D]">
+                        <AlertCircle className="h-3.5 w-3.5" />
                         Passwords do not match
                       </p>
                     )}
                   </div>
 
                   {error && (
-                    <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600" role="alert">
-                      <AlertCircle className="h-4 w-4 shrink-0" />
+                    <div className="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3.5 text-sm font-medium text-red-600" role="alert">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                       {error}
                     </div>
                   )}
 
-                  <p className="text-xs text-[#6B7280]">
+                  <p className="text-xs leading-relaxed text-[#6B7280]">
                     By creating an account, you agree to our{" "}
                     <Link to="/terms" className="font-bold text-[#4F46E5] hover:underline">
                       Terms of Service
@@ -302,14 +306,14 @@ export default function Signup() {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="group h-12 w-full rounded-xl bg-[#4F46E5] text-sm font-bold text-white transition hover:bg-[#4338CA] hover:shadow-[0_4px_14px_rgba(79,70,229,0.4)] disabled:opacity-50"
+                    className="group h-12 w-full rounded-xl bg-[#4F46E5] text-sm font-bold text-white shadow-[0_2px_8px_rgba(79,70,229,0.25)] transition-all duration-200 hover:bg-[#4338CA] hover:shadow-[0_4px_16px_rgba(79,70,229,0.35)] disabled:opacity-50 disabled:shadow-none"
                   >
                     {loading ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
                       <span className="flex items-center gap-2">
                         Create account
-                        <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                       </span>
                     )}
                   </Button>
@@ -320,11 +324,11 @@ export default function Signup() {
                   Secured with end-to-end encryption
                 </div>
 
-                <div className="mt-6 text-center text-sm text-[#6B7280]">
+                <div className="mt-6 w-full border-t border-[#F3F4F6] pt-6 text-center text-sm text-[#6B7280]">
                   Already have an account?{" "}
                   <Link
                     to="/login"
-                    className="font-bold text-[#4F46E5] transition hover:text-[#6366F1]"
+                    className="font-bold text-[#4F46E5] transition-colors hover:text-[#6366F1]"
                   >
                     Log in
                   </Link>

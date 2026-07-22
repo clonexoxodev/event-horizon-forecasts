@@ -13,11 +13,12 @@ import {
   Wallet as WalletIcon,
   X,
   BarChart3,
+  Landmark,
+  Zap,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { DelayedFlippeLoader } from "@/components/FlippeBrand";
 import { MobileNav } from "@/components/MobileNav";
-import { Button } from "@/components/ui/button";
 import { DepositModal } from "@/components/DepositModal";
 import { WithdrawModal } from "@/components/WithdrawModal";
 import { useAuth } from "@/lib/auth";
@@ -130,10 +131,19 @@ export default function Wallet() {
       <div className="app-bg min-h-screen text-[#111827] xl:pl-64">
         <Header />
         <main className="mx-auto max-w-3xl px-4 py-20 text-center">
-            <h2 className="text-2xl font-bold">Log in to see your wallet</h2>
+          <div className="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-full bg-[#EEF2FF]">
+            <WalletIcon className="h-8 w-8 text-[#4F46E5]" />
+          </div>
+          <h2 className="text-2xl font-black">Log in to see your wallet</h2>
           <p className="mt-2 text-sm text-[#6B7280]">
-            Your balance and history will show here.
+            Your balance and transaction history will appear here.
           </p>
+          <Link
+            to="/login"
+            className="mt-6 inline-flex h-12 items-center justify-center rounded-xl bg-[#4F46E5] px-6 text-sm font-bold text-white transition hover:bg-[#4338CA]"
+          >
+            Sign in
+          </Link>
         </main>
         <MobileNav />
       </div>
@@ -145,41 +155,40 @@ export default function Wallet() {
       <Header />
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8 w-full">
         <div className="mb-6">
-          <div>
-            <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#6B7280]">
-              Wallet
-            </p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
-              Balance and history
-            </h1>
-            <p className="mt-2 text-sm text-[#6B7280]">
-              Add money, withdraw, and review transactions.
-            </p>
-          </div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9CA3AF]">
+            Wallet
+          </p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
+            Balance and history
+          </h1>
+          <p className="mt-1 text-sm text-[#6B7280]">
+            Fund your account, withdraw, and review all activity.
+          </p>
         </div>
 
+        {/* ── Hero Balance Card ── */}
         <section>
-          <div className="relative overflow-hidden rounded-2xl shadow-elevated">
+          <div className="relative overflow-hidden rounded-3xl shadow-[0_8px_30px_rgba(79,70,229,0.25)]">
             <div className="absolute inset-0 bg-gradient-to-br from-[#4F46E5] via-[#6366F1] to-[#4338CA]" />
-            <div className="absolute inset-0 opacity-10" aria-hidden="true">
-              <svg className="h-full w-full" viewBox="0 0 400 250" fill="none">
-                <circle cx="350" cy="50" r="120" fill="white" opacity="0.08" />
-                <circle cx="300" cy="200" r="80" fill="white" opacity="0.05" />
-                <circle cx="50" cy="180" r="60" fill="white" opacity="0.06" />
+            <div className="absolute inset-0 opacity-[0.07]" aria-hidden="true">
+              <svg className="h-full w-full" viewBox="0 0 600 280" fill="none">
+                <circle cx="520" cy="40" r="160" fill="white" />
+                <circle cx="460" cy="240" r="100" fill="white" />
+                <circle cx="60" cy="220" r="80" fill="white" />
               </svg>
             </div>
             <div className="relative p-6 sm:p-8" aria-label="Wallet balance">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="grid h-12 w-12 place-items-center rounded-xl bg-white/15 text-white backdrop-blur-sm">
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/15 text-white backdrop-blur-sm">
                     <WalletIcon className="h-6 w-6" />
                   </div>
                   <div>
                     <div className="text-sm font-bold text-white/80">
                       Available balance
                     </div>
-                    <div className="text-xs text-white/60">
-                      Ready to use
+                    <div className="text-xs text-white/55">
+                      Ready to trade
                     </div>
                   </div>
                 </div>
@@ -200,15 +209,15 @@ export default function Wallet() {
               </div>
 
               {lockedBalance > 0 && (
-                <div className="mt-3 flex items-center gap-2 text-sm text-white/70">
-                  <ShieldCheck className="h-4 w-4" />
+                <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/75">
+                  <ShieldCheck className="h-3.5 w-3.5" />
                   <span>
-                    {formatNaira(lockedBalance)} locked in active predictions
+                    {formatNaira(lockedBalance)} locked in active positions
                   </span>
                 </div>
               )}
 
-              <div className="flex items-center gap-2 text-xs text-white/50">
+              <div className="mt-4 flex items-center gap-2 text-[11px] text-white/45">
                 <Clock className="h-3 w-3" />
                 <span>Updated just now</span>
               </div>
@@ -216,14 +225,14 @@ export default function Wallet() {
               <div className="mt-6 grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setDepositModalOpen(true)}
-                  className="flex h-12 items-center justify-center gap-2 rounded-xl bg-white text-sm font-bold text-[#4F46E5] shadow-elevated transition hover:bg-white/95 hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)]"
+                  className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-white text-sm font-bold text-[#4F46E5] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] hover:bg-white/95"
                 >
                   <ArrowDownRight className="h-4 w-4" />
-                  Add Money
+                  Deposit
                 </button>
                 <button
                   onClick={() => setWithdrawModalOpen(true)}
-                  className="flex h-12 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/20"
+                  className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/25 bg-white/10 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/20"
                 >
                   <ArrowUpRight className="h-4 w-4" />
                   Withdraw
@@ -233,34 +242,69 @@ export default function Wallet() {
           </div>
         </section>
 
-        <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-          <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-xs text-[#6B7280] sm:col-span-2">
-            <ShieldCheck className="h-4 w-4 shrink-0 text-[#4F46E5]" />
-            <span>Secured by Flutterwave &middot; 256-bit encryption &middot; All transactions are verified server-side</span>
+        {/* ── Quick Stats ── */}
+        <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3">
+            <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#EEF2FF] text-[#4F46E5]">
+              <Landmark className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF]">Available</div>
+              <div className="text-sm font-bold text-[#111827]">{formatNaira(ngnBalance)}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3">
+            <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#EEF2FF] text-[#4F46E5]">
+              <ShieldCheck className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF]">Locked</div>
+              <div className="text-sm font-bold text-[#111827]">{formatNaira(lockedBalance)}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3">
+            <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#EEF2FF] text-[#4F46E5]">
+              <Zap className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF]">Transactions</div>
+              <div className="text-sm font-bold text-[#111827]">{historyLoading ? "..." : transactions.length}</div>
+            </div>
           </div>
         </section>
 
-        <section className="mt-6 rounded-2xl border border-[#E5E7EB] bg-white p-4 sm:p-5">
+        {/* ── Security Banner ── */}
+        <section className="mt-3">
+          <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-xs text-[#6B7280]">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-[#12B886]" />
+            <span>Secured by Flutterwave &middot; 256-bit encryption &middot; All transactions verified server-side</span>
+          </div>
+        </section>
+
+        {/* ── Transaction History ── */}
+        <section className="mt-6 rounded-3xl border border-[#E5E7EB] bg-white p-4 sm:p-5">
           <div className="mb-5 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#EEF2FF] text-[#4F46E5]">
                 <History className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-lg font-bold">Transaction History</h2>
+                <h2 className="text-lg font-bold">Transaction history</h2>
                 <p className="text-xs text-[#6B7280]">
-                  Deposits, withdrawals, predictions, and winnings.
+                  Deposits, withdrawals, positions, and payouts.
                 </p>
               </div>
             </div>
-            <span className="rounded-full border border-[#E5E7EB] bg-[#F8F7F4] px-3 py-1 text-xs font-bold text-[#6B7280]">
-              {historyLoading ? "Loading" : `${transactions.length} items`}
-            </span>
-            {transactions.length > 0 && (
-              <Link to="/transaction-history" className="ml-2 text-xs font-bold text-[#4F46E5] hover:underline">
-                View All
-              </Link>
-            )}
+            <div className="flex items-center gap-2">
+              <span className="rounded-full border border-[#E5E7EB] bg-[#F9FAFB] px-3 py-1 text-xs font-bold text-[#6B7280]">
+                {historyLoading ? "Loading" : `${transactions.length} items`}
+              </span>
+              {transactions.length > 0 && (
+                <Link to="/transaction-history" className="text-xs font-bold text-[#4F46E5] hover:underline">
+                  View All
+                </Link>
+              )}
+            </div>
           </div>
 
           {transactions.length === 0 ? (
@@ -272,15 +316,15 @@ export default function Wallet() {
                 No transactions yet
               </h3>
               <p className="mt-2 text-sm text-[#6B7280]">
-                Your transaction history will appear here once you add money or
-                make a prediction.
+                Your transaction history will appear here once you fund your
+                account or open a position.
               </p>
               <button
                 onClick={() => setDepositModalOpen(true)}
                 className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#4F46E5] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#4338CA]"
               >
                 <ArrowDownRight className="h-4 w-4" />
-                Add Money
+                Deposit
               </button>
             </div>
           ) : (
@@ -291,7 +335,7 @@ export default function Wallet() {
                     type="button"
                     onClick={() => setSelectedTransaction(tx.transaction)}
                     aria-label={`${tx.label} — ${tx.amount >= 0 ? "deposit" : "withdrawal"} of ${formatNaira(Math.abs(tx.amount))}, ${tx.status}`}
-                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] px-4 py-3.5 text-left transition hover:border-[#4F46E5]/30 hover:bg-white hover:shadow-elevated sm:px-5 sm:py-4"
+                    className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-4 text-left transition hover:border-[#4F46E5]/20 hover:bg-white hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)] sm:px-5"
                   >
                     <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                       <div
@@ -307,7 +351,7 @@ export default function Wallet() {
                         <div className="truncate text-sm font-bold text-[#111827]">
                           {tx.label}
                         </div>
-                        <div className="mt-1 flex items-center gap-1 text-xs text-[#6B7280]">
+                        <div className="mt-1 flex items-center gap-1 text-xs text-[#9CA3AF]">
                           <Clock className="h-3 w-3 shrink-0" />
                           <span className="truncate">{tx.date}</span>
                         </div>
@@ -445,7 +489,7 @@ const TransactionDetailModal = ({
 
   const isWithdrawal = transaction.type.includes("withdrawal");
   const isDeposit = transaction.type.includes("deposit");
-  const isPrediction =
+  const isPosition =
     transaction.type === "prediction_stake" ||
     transaction.type === "position_entry";
   const isPayout =
@@ -455,24 +499,24 @@ const TransactionDetailModal = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-end bg-black/35 px-3 py-4 sm:place-items-center"
+      className="fixed inset-0 z-50 grid place-items-end bg-black/40 px-3 py-4 sm:place-items-center"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white p-5 text-[#111827] shadow-modal"
+        className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-[#E5E7EB] bg-white p-6 text-[#111827] shadow-[0_20px_60px_rgba(0,0,0,0.2)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#667085]">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#9CA3AF]">
               Transaction details
             </p>
-            <h3 className="mt-1 text-2xl font-bold">
+            <h3 className="mt-1.5 text-xl font-bold leading-tight">
               {labelForTransaction(transaction)}
             </h3>
-            <p className="mt-1 text-sm text-[#667085]">
+            <p className="mt-1 text-sm text-[#6B7280]">
               {new Date(transaction.createdAt).toLocaleString()}
             </p>
           </div>
@@ -480,14 +524,14 @@ const TransactionDetailModal = ({
             ref={closeRef}
             type="button"
             onClick={onClose}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#667085] transition hover:text-[#111827]"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] text-[#6B7280] transition hover:text-[#111827]"
             aria-label="Close transaction details"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="mt-5 grid gap-3">
+        <div className="mt-6 grid gap-3">
           <DetailRow
             label="Amount"
             value={formatNaira(transaction.amount)}
@@ -514,10 +558,10 @@ const TransactionDetailModal = ({
                 label="Account name"
                 value={accountName || "Not available"}
               />
-              {adminNote && <DetailRow label="Admin note" value={adminNote} />}
+              {adminNote && <DetailRow label="Note" value={adminNote} />}
             </>
           )}
-          {(isPrediction || isPayout) && (
+          {(isPosition || isPayout) && (
             <>
               {marketQuestion && (
                 <DetailRow label="Market" value={marketQuestion} />
@@ -526,7 +570,7 @@ const TransactionDetailModal = ({
             </>
           )}
           <DetailRow
-            label="Ledger type"
+            label="Type"
             value={transaction.type.replace(/_/g, " ")}
           />
         </div>
@@ -536,8 +580,8 @@ const TransactionDetailModal = ({
 };
 
 const DetailRow = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-xl bg-[#F8F7F4] px-4 py-3">
-    <div className="text-xs font-bold uppercase tracking-[0.14em] text-[#667085]">
+  <div className="rounded-xl bg-[#F9FAFB] px-4 py-3">
+    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#9CA3AF]">
       {label}
     </div>
     <div className="mt-1 break-words text-sm font-bold text-[#111827]">
@@ -567,16 +611,16 @@ const labelForTransaction = (tx: ApiTransaction) => {
       tx.type === "market_payout")
   ) {
     return tx.type === "position_payout" || tx.type === "market_payout"
-      ? `Winnings Credited: ${marketQuestion}`
-      : `Prediction Backed: ${marketQuestion}`;
+      ? `Payout Credited: ${marketQuestion}`
+      : `Position Opened: ${marketQuestion}`;
   }
 
   const labels: Record<ApiTransaction["type"], string> = {
     deposit: tx.status === "failed" ? "Deposit Failed" : "Deposit Successful",
     withdrawal:
       tx.status === "failed" ? "Withdrawal Rejected" : "Withdrawal Approved",
-    position_entry: "Prediction Backed",
-    position_payout: "Winnings Credited",
+    position_entry: "Position Opened",
+    position_payout: "Payout Credited",
     refund: "Refund Credited",
     deposit_request: "Deposit Pending",
     deposit_approved: "Deposit Successful",
@@ -584,8 +628,8 @@ const labelForTransaction = (tx: ApiTransaction) => {
     withdrawal_request: "Withdrawal Pending",
     withdrawal_approved: "Withdrawal Approved",
     withdrawal_rejected: "Withdrawal Rejected",
-    prediction_stake: "Prediction Backed",
-    market_payout: "Winnings Credited",
+    prediction_stake: "Position Opened",
+    market_payout: "Payout Credited",
     admin_adjustment: "Admin Adjustment",
   };
 

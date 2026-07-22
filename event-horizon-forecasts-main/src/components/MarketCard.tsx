@@ -1,4 +1,4 @@
-import { Clock, Play, Shield } from "lucide-react";
+import { Clock, Play, Shield, TrendingUp, Users } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -65,16 +65,15 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
         onClick={openMarket}
         onKeyDown={handleKeyDown}
         aria-label={`${m.question}. ${isLive ? (activation.isProtected ? "Refund protected" : "Live trading") : "Trading closed"}. YES price ${nairaSymbol}${Math.round(m.yesPrice)}, NO price ${nairaSymbol}${Math.round(m.noPrice)}.`}
-        className="group block rounded-2xl border border-[#E5E7EB] bg-white shadow-sm transition-all duration-200 hover:-translate-y-px hover:border-[#4F46E5]/15 hover:shadow-[0_4px_16px_rgba(17,24,39,0.06)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4F46E5] active:translate-y-0 active:shadow-sm overflow-hidden"
+        className="group block rounded-2xl border border-[#E5E7EB] bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#4F46E5]/15 hover:shadow-[0_6px_24px_rgba(17,24,39,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4F46E5] active:translate-y-0 active:shadow-sm overflow-hidden"
       >
-        {/* Media */}
         {media.src && (
           <div className={`relative ${compact ? "h-28" : "h-36"} w-full overflow-hidden bg-[#F3F4F6]`}>
             {media.type === "video" ? (
               <video
                 src={media.src}
                 poster={media.poster}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                 muted
                 playsInline
                 loop
@@ -85,18 +84,19 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
               <img
                 src={media.src}
                 alt=""
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                 loading="lazy"
                 aria-hidden="true"
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-black/5 to-transparent" />
+
             {media.type === "video" && (
-              <div className="absolute right-2.5 top-2.5 grid h-7 w-7 place-items-center rounded-full bg-black/30 text-white backdrop-blur-sm">
+              <div className="absolute right-2.5 top-2.5 grid h-7 w-7 place-items-center rounded-full bg-black/40 text-white backdrop-blur-md">
                 <Play className="h-3 w-3 fill-current" aria-hidden="true" />
               </div>
             )}
-            {/* Status badge */}
+
             <div className="absolute left-2.5 top-2.5">
               {isLive && activation.isProtected ? (
                 <button
@@ -105,46 +105,60 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
                     e.preventDefault();
                     setShowProtectedInfo(true);
                   }}
-                  className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-[#4F46E5] backdrop-blur-sm"
+                  className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#4F46E5] shadow-sm backdrop-blur-md"
                 >
                   <Shield className="h-2.5 w-2.5" aria-hidden="true" />
                   Protected
                 </button>
               ) : isLive ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-[#047857] backdrop-blur-sm">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#12B886]/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm backdrop-blur-md">
                   <span className="relative flex h-1.5 w-1.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#12B886] opacity-75" />
-                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#12B886]" />
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
                   </span>
                   Live
                 </span>
               ) : (
-                <span className="inline-flex items-center rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-[#6B7280] backdrop-blur-sm">
+                <span className="inline-flex items-center rounded-full bg-[#6B7280]/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
                   Closed
                 </span>
               )}
             </div>
+
+            <div className="absolute bottom-0 left-0 right-0 p-3 pt-8 bg-gradient-to-t from-black/30 to-transparent">
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/20 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
+                {categoryLabel}
+              </span>
+            </div>
           </div>
         )}
 
-        <div className="p-3.5">
-          {/* Category + Countdown row */}
-          <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
-              {categoryLabel}
-            </span>
-            <span className="flex items-center gap-1 text-[10px] font-bold text-[#9CA3AF]">
-              <Clock className="h-2.5 w-2.5" aria-hidden="true" />
-              {formatCountdown(tradingCloseTime, m.closesIn)}
-            </span>
-          </div>
+        <div className="p-4">
+          {!media.src && (
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
+                {categoryLabel}
+              </span>
+              <span className="flex items-center gap-1 text-[10px] font-bold text-[#9CA3AF]">
+                <Clock className="h-2.5 w-2.5" aria-hidden="true" />
+                {formatCountdown(tradingCloseTime, m.closesIn)}
+              </span>
+            </div>
+          )}
 
-          {/* Question */}
+          {media.src && (
+            <div className="mb-1.5 flex items-center justify-end">
+              <span className="flex items-center gap-1 text-[10px] font-bold text-[#9CA3AF]">
+                <Clock className="h-2.5 w-2.5" aria-hidden="true" />
+                {formatCountdown(tradingCloseTime, m.closesIn)}
+              </span>
+            </div>
+          )}
+
           <h3 className="line-clamp-2 text-[14px] font-bold leading-snug text-[#101828]">
             {m.question}
           </h3>
 
-          {/* YES / NO buttons */}
           <div className="mt-3 grid grid-cols-2 gap-2" role="group" aria-label="Trading options">
             <PriceButton
               label="YES"
@@ -164,21 +178,29 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
             />
           </div>
 
-          {/* Footer meta */}
-          <div className="mt-2.5 flex items-center justify-between text-[10px] font-bold text-[#9CA3AF]">
+          <div className="mt-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               {activation.isProtected ? (
-                <span className="text-[#4F46E5]">{activation.progress}% protected</span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#4F46E5]/8 px-2 py-0.5 text-[10px] font-bold text-[#4F46E5]">
+                  <Shield className="h-2.5 w-2.5" aria-hidden="true" />
+                  {activation.progress}% protected
+                </span>
               ) : (
-                <span className="truncate">{formatNaira(m.totalPool || m.totalVolume || 0)} pool</span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[10px] font-bold text-[#6B7280]">
+                  <TrendingUp className="h-2.5 w-2.5" aria-hidden="true" />
+                  {formatNaira(m.totalPool || m.totalVolume || 0)} pool
+                </span>
               )}
               {m.pricing_model === "orderbook" && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-[#4F46E5]/8 px-1.5 py-0.5 text-[9px] font-bold text-[#4F46E5]">
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#4F46E5]/8 px-2 py-0.5 text-[10px] font-bold text-[#4F46E5]">
                   Order Book
                 </span>
               )}
             </div>
-            <span>{(m.participants || 0).toLocaleString()} backers</span>
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#9CA3AF]">
+              <Users className="h-2.5 w-2.5" aria-hidden="true" />
+              {(m.participants || 0).toLocaleString()} traders
+            </span>
           </div>
         </div>
       </article>
@@ -218,14 +240,14 @@ const PriceButton = ({
     onClick={onClick}
     disabled={disabled}
     aria-label={`${label} at ${Math.round(value)}%`}
-    className={`rounded-xl border px-3 py-2 text-left transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 ${
+    className={`relative rounded-xl border-2 px-3 py-2.5 text-left transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 ${
       tone === "green"
-        ? "border-[#12B886]/20 bg-[#12B886]/[0.04] text-[#047857] hover:border-[#12B886]/30 hover:bg-[#12B886]/10"
-        : "border-[#E85D5D]/20 bg-[#E85D5D]/[0.04] text-[#B42318] hover:border-[#E85D5D]/30 hover:bg-[#E85D5D]/10"
+        ? "border-[#12B886]/25 bg-[#12B886]/[0.06] text-[#047857] hover:border-[#12B886]/40 hover:bg-[#12B886]/12 hover:shadow-[0_2px_8px_rgba(18,184,134,0.12)]"
+        : "border-[#E85D5D]/25 bg-[#E85D5D]/[0.06] text-[#B42318] hover:border-[#E85D5D]/40 hover:bg-[#E85D5D]/12 hover:shadow-[0_2px_8px_rgba(232,93,93,0.12)]"
     }`}
   >
-    <span className="block text-[10px] font-bold uppercase text-[#6B7280]">{label}</span>
-    <span className="mt-0.5 block text-[14px] font-bold">
+    <span className="block text-[10px] font-bold uppercase tracking-wider text-[#6B7280]">{label}</span>
+    <span className="mt-0.5 block text-[15px] font-black">
       <AnimatedNumber value={value} prefix={nairaSymbol} />
     </span>
   </button>

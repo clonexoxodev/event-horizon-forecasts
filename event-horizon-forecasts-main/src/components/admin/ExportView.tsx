@@ -159,25 +159,27 @@ export function ExportView() {
           <Card
             key={option.type}
             className={classNames(
-              "cursor-pointer transition-all hover:border-blue-500",
+              "cursor-pointer transition-all hover:border-indigo-300 hover:shadow-md",
               selectedType === option.type
-                ? "border-blue-500 bg-blue-500/5"
+                ? "border-indigo-400 bg-indigo-50/50"
                 : ""
             )}
             onClick={() => setSelectedType(option.type)}
           >
             <div className="flex flex-col items-center gap-3 p-4 text-center">
-              <FileText className="h-8 w-8 text-slate-400" />
+              <div className="grid h-12 w-12 place-items-center rounded-xl bg-indigo-50 text-indigo-500">
+                <FileText className="h-6 w-6" />
+              </div>
               <div>
-                <p className="font-medium text-slate-200">{option.label}</p>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="font-semibold text-gray-900">{option.label}</p>
+                <p className="mt-1 text-xs text-gray-500">
                   {option.description}
                 </p>
               </div>
               {selectedType === option.type ? (
                 <Badge variant="info">Selected</Badge>
               ) : (
-                <Badge variant="neutral">Select</Badge>
+                <Badge variant="muted">Select</Badge>
               )}
             </div>
           </Card>
@@ -187,13 +189,15 @@ export function ExportView() {
       {selectedOption && (
         <Card className="space-y-4">
           <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-slate-400" />
-            <h3 className="font-medium text-slate-200">
+            <div className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-50 text-indigo-500">
+              <Filter className="h-4 w-4" />
+            </div>
+            <h3 className="font-semibold text-gray-900">
               Export {selectedOption.label}
             </h3>
           </div>
 
-          <p className="text-sm text-slate-400">{selectedOption.description}</p>
+          <p className="text-sm text-gray-500">{selectedOption.description}</p>
 
           <div className="flex flex-wrap items-end gap-4">
             <InputField
@@ -216,10 +220,10 @@ export function ExportView() {
               onClick={handleExport}
               disabled={exporting}
               className={classNames(
-                "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+                "inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition active:scale-[0.98]",
                 exporting
-                  ? "cursor-not-allowed bg-slate-700 text-slate-400"
-                  : "bg-blue-600 text-white hover:bg-blue-500"
+                  ? "cursor-not-allowed bg-gray-200 text-gray-400"
+                  : "bg-indigo-600 text-white hover:bg-indigo-700"
               )}
             >
               <Download className="h-4 w-4" />
@@ -228,10 +232,10 @@ export function ExportView() {
           </div>
 
           {lastExport && lastExport.type === selectedType && (
-            <div className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-800/50 p-3 text-sm text-slate-400">
-              <FileSpreadsheet className="h-4 w-4 text-green-400" />
+            <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+              <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
               <span>
-                Last export: <strong className="text-slate-200">{lastExport.count.toLocaleString()}</strong> records
+                Last export: <strong>{lastExport.count.toLocaleString()}</strong> records
                 {" · "}
                 {formatDateTime(lastExport.timestamp)}
               </span>

@@ -257,10 +257,10 @@ export default function MarketDetail() {
     const shareText = [
       "FLIPPE market",
       market.question,
-      `YES Crowd View: ${formatNairaPrice(market.yesPrice)}`,
-      `NO Crowd View: ${formatNairaPrice(market.noPrice)}`,
+      `YES Price: ${formatNairaPrice(market.yesPrice)}`,
+      `NO Price: ${formatNairaPrice(market.noPrice)}`,
       `Time left: ${timeLeft}`,
-      "Back your opinion on FLIPPE.",
+      "Trade on FLIPPE.",
       url,
     ].join("\n");
     try {
@@ -344,13 +344,13 @@ export default function MarketDetail() {
         setAmount("");
         closeSheet();
         toast.success(
-          `Prediction saved: ${sheetSide} with ${formatNaira(numericAmount)}.`
+          `Position opened on ${sheetSide} with ${formatNaira(numericAmount)}.`
         );
         setTimeout(() => setShowConfetti(false), 3000);
       }
     } catch (error: any) {
       console.error("Order submit failed", error);
-      toast.error(error.message || "Could not save order.");
+      toast.error(error.message || "Could not place order.");
     } finally {
       setSubmitting(false);
     }
@@ -425,7 +425,7 @@ export default function MarketDetail() {
             className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 text-xs font-bold text-[#6B7280] transition hover:text-[#111827]"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Home
+            Markets
           </Link>
           <IconButton onClick={handleShare} icon={Share2} label="Share" />
         </div>
@@ -510,7 +510,7 @@ export default function MarketDetail() {
                     <StatChip icon={BarChart3} value={market.open_interest || 0} label="open" />
                   </>
                 ) : (
-                  <StatChip icon={BarChart3} value={market.tradeCount || 0} label="predictions" />
+                  <StatChip icon={BarChart3} value={market.tradeCount || 0} label="trades" />
                 )}
               </>
             )}
@@ -605,7 +605,7 @@ export default function MarketDetail() {
         {/* ── Price History / Crowd View ── */}
         <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
           <div className="mb-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-base font-bold text-[#101828]">Crowd View</h2>
+            <h2 className="text-base font-bold text-[#101828]">Price History</h2>
             <div className="flex w-fit rounded-lg bg-[#F3F4F6] p-0.5">
               {(["1H", "24H", "7D", "ALL"] as Timeframe[]).map((item) => (
                 <button
@@ -665,29 +665,51 @@ export default function MarketDetail() {
           </div>
         </section>
 
-        {/* ── Order Book Summary (Order Book Markets) ── */}
+        {/* ── Order Book (Order Book Markets) ── */}
         {isOrderBook && orderBook && (
           <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
-            <h2 className="mb-3 text-base font-bold text-[#101828]">Order Book</h2>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-base font-bold text-[#101828]">Order Book</h2>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-[#12B886]" />
+                  <span className="text-[10px] font-bold text-[#9CA3AF]">Bids</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-[#E85D5D]" />
+                  <span className="text-[10px] font-bold text-[#9CA3AF]">Asks</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Column Headers */}
+            <div className="mb-2 grid grid-cols-3 px-2.5 text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
+              <span>Price</span>
+              <span className="text-center">Size</span>
+              <span className="text-right">Orders</span>
+            </div>
+
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {/* Bids */}
               <div>
                 <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#047857]">Bids (BUY)</div>
                 {orderBook.bids.length === 0 ? (
                   <div className="py-3 text-center text-xs font-bold text-[#9CA3AF]">No bids</div>
                 ) : (
-                  <div className="space-y-1">
-                    {orderBook.bids.slice(0, 5).map((level) => {
+                  <div className="space-y-0.5">
+                    {orderBook.bids.slice(0, 6).map((level) => {
                       const maxQty = Math.max(...orderBook.bids.map((b) => b.total_quantity));
                       const depth = maxQty > 0 ? (level.total_quantity / maxQty) * 100 : 0;
                       return (
-                        <div key={level.price} className="relative overflow-hidden rounded-lg bg-[#12B886]/8 px-2.5 py-1.5 transition-all duration-300">
+                        <div key={level.price} className="relative overflow-hidden rounded-lg bg-[#12B886]/[0.04] px-2.5 py-1.5 transition-all duration-300">
                           <div
-                            className="absolute inset-y-0 left-0 bg-[#12B886]/12 transition-all duration-500"
+                            className="absolute inset-y-0 left-0 bg-[#12B886]/[0.08] transition-all duration-500"
                             style={{ width: `${depth}%` }}
                           />
                           <div className="relative flex items-center justify-between">
-                            <span className="text-xs font-bold text-[#047857]">{formatNaira(level.price)}</span>
-                            <span className="text-[10px] font-bold text-[#6B7280]">{level.total_quantity} ({level.order_count})</span>
+                            <span className="text-xs font-bold tabular-nums text-[#047857]">{formatNaira(level.price)}</span>
+                            <span className="text-[10px] font-bold tabular-nums text-[#6B7280]">{level.total_quantity}</span>
+                            <span className="text-[10px] font-bold tabular-nums text-[#9CA3AF]">{level.order_count}</span>
                           </div>
                         </div>
                       );
@@ -695,24 +717,26 @@ export default function MarketDetail() {
                   </div>
                 )}
               </div>
+              {/* Asks */}
               <div>
                 <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#B42318]">Asks (SELL)</div>
                 {orderBook.asks.length === 0 ? (
                   <div className="py-3 text-center text-xs font-bold text-[#9CA3AF]">No asks</div>
                 ) : (
-                  <div className="space-y-1">
-                    {orderBook.asks.slice(0, 5).map((level) => {
+                  <div className="space-y-0.5">
+                    {orderBook.asks.slice(0, 6).map((level) => {
                       const maxQty = Math.max(...orderBook.asks.map((a) => a.total_quantity));
                       const depth = maxQty > 0 ? (level.total_quantity / maxQty) * 100 : 0;
                       return (
-                        <div key={level.price} className="relative overflow-hidden rounded-lg bg-[#E85D5D]/8 px-2.5 py-1.5 transition-all duration-300">
+                        <div key={level.price} className="relative overflow-hidden rounded-lg bg-[#E85D5D]/[0.04] px-2.5 py-1.5 transition-all duration-300">
                           <div
-                            className="absolute inset-y-0 right-0 bg-[#E85D5D]/12 transition-all duration-500"
+                            className="absolute inset-y-0 right-0 bg-[#E85D5D]/[0.08] transition-all duration-500"
                             style={{ width: `${depth}%` }}
                           />
                           <div className="relative flex items-center justify-between">
-                            <span className="text-xs font-bold text-[#B42318]">{formatNaira(level.price)}</span>
-                            <span className="text-[10px] font-bold text-[#6B7280]">{level.total_quantity} ({level.order_count})</span>
+                            <span className="text-xs font-bold tabular-nums text-[#B42318]">{formatNaira(level.price)}</span>
+                            <span className="text-[10px] font-bold tabular-nums text-[#6B7280]">{level.total_quantity}</span>
+                            <span className="text-[10px] font-bold tabular-nums text-[#9CA3AF]">{level.order_count}</span>
                           </div>
                         </div>
                       );
@@ -721,15 +745,26 @@ export default function MarketDetail() {
                 )}
               </div>
             </div>
-            <div className="mt-3 flex items-center justify-between rounded-xl bg-[#F8F7F4] px-3 py-2">
-              <div className="text-[10px] font-bold text-[#6B7280]">
-                Best Bid: <span className="text-[#047857] transition-all duration-300">{orderBook.best_bid ? formatNaira(orderBook.best_bid) : "—"}</span>
+
+            {/* Spread Bar */}
+            <div className="mt-3 grid grid-cols-3 items-center rounded-xl bg-[#F8F7F4] px-3 py-2.5 border border-[#E5E7EB]/60">
+              <div className="text-center">
+                <div className="text-[10px] font-bold text-[#9CA3AF]">Best Bid</div>
+                <div className="mt-0.5 text-xs font-bold tabular-nums text-[#047857] transition-all duration-300">
+                  {orderBook.best_bid ? formatNaira(orderBook.best_bid) : "—"}
+                </div>
               </div>
-              <div className="text-[10px] font-bold text-[#6B7280]">
-                Spread: <span className="text-[#4F46E5] transition-all duration-300">{orderBook.spread != null ? formatNaira(orderBook.spread) : "—"}</span>
+              <div className="text-center border-x border-[#E5E7EB]/60 px-3">
+                <div className="text-[10px] font-bold text-[#9CA3AF]">Spread</div>
+                <div className="mt-0.5 text-xs font-bold tabular-nums text-[#4F46E5] transition-all duration-300">
+                  {orderBook.spread != null ? formatNaira(orderBook.spread) : "—"}
+                </div>
               </div>
-              <div className="text-[10px] font-bold text-[#6B7280]">
-                Best Ask: <span className="text-[#B42318] transition-all duration-300">{orderBook.best_ask ? formatNaira(orderBook.best_ask) : "—"}</span>
+              <div className="text-center">
+                <div className="text-[10px] font-bold text-[#9CA3AF]">Best Ask</div>
+                <div className="mt-0.5 text-xs font-bold tabular-nums text-[#B42318] transition-all duration-300">
+                  {orderBook.best_ask ? formatNaira(orderBook.best_ask) : "—"}
+                </div>
               </div>
             </div>
           </section>
@@ -738,20 +773,34 @@ export default function MarketDetail() {
         {/* ── Recent Trades (Order Book Markets) ── */}
         {isOrderBook && recentTrades.length > 0 && (
           <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
-            <h2 className="mb-3 text-base font-bold text-[#101828]">Recent Trades</h2>
-            <div className="space-y-1.5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-base font-bold text-[#101828]">Recent Trades</h2>
+              <span className="text-[10px] font-bold text-[#9CA3AF]">
+                {recentTrades.length} trades
+              </span>
+            </div>
+
+            {/* Column Headers */}
+            <div className="mb-2 grid grid-cols-[auto_1fr_1fr_auto] items-center gap-3 px-3 text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
+              <span>Side</span>
+              <span>Price</span>
+              <span>Qty</span>
+              <span>Time</span>
+            </div>
+
+            <div className="space-y-0.5">
               {recentTrades.slice(0, 8).map((trade) => (
-                <div key={trade.id} className="flex items-center justify-between rounded-xl bg-[#F8F7F4] px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${trade.side === "YES" ? "bg-[#12B886]/12 text-[#047857]" : "bg-[#E85D5D]/12 text-[#B42318]"}`}>
-                      {trade.side}
-                    </span>
-                    <span className="text-xs font-bold text-[#111827]">{formatNaira(trade.trade_price)}/share</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs font-bold text-[#111827]">{trade.trade_quantity} shares</div>
-                    <div className="text-[10px] text-[#9CA3AF]">{new Date(trade.created_at).toLocaleTimeString()}</div>
-                  </div>
+                <div key={trade.id} className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-3 rounded-lg bg-[#F8F7F4]/80 px-3 py-2 transition-colors hover:bg-[#F3F4F6]">
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    trade.side === "YES"
+                      ? "bg-[#12B886]/[0.1] text-[#047857]"
+                      : "bg-[#E85D5D]/[0.1] text-[#B42318]"
+                  }`}>
+                    {trade.side}
+                  </span>
+                  <span className="text-xs font-bold tabular-nums text-[#111827]">{formatNaira(trade.trade_price)}</span>
+                  <span className="text-xs font-bold tabular-nums text-[#6B7280]">{trade.trade_quantity}</span>
+                  <span className="text-[10px] tabular-nums text-[#9CA3AF]">{new Date(trade.created_at).toLocaleTimeString()}</span>
                 </div>
               ))}
             </div>
@@ -761,25 +810,32 @@ export default function MarketDetail() {
         {/* ── User Open Orders (Order Book Markets) ── */}
         {isOrderBook && userOrders.filter((o) => ["waiting", "partial", "pending"].includes(o.status)).length > 0 && (
           <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
-            <h2 className="mb-3 text-base font-bold text-[#101828]">Your Open Orders</h2>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-base font-bold text-[#101828]">Open Orders</h2>
+              <span className="text-[10px] font-bold text-[#9CA3AF]">
+                {userOrders.filter((o) => ["waiting", "partial", "pending"].includes(o.status)).length} active
+              </span>
+            </div>
             <div className="space-y-1.5">
               {userOrders.filter((o) => ["waiting", "partial", "pending"].includes(o.status)).slice(0, 5).map((order) => (
-                <div key={order.id} className="flex items-center justify-between rounded-xl bg-[#F8F7F4] px-3 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${order.side === "YES" ? "bg-[#12B886]/12 text-[#047857]" : "bg-[#E85D5D]/12 text-[#B42318]"}`}>
+                <div key={order.id} className="flex items-center justify-between rounded-xl bg-[#F8F7F4] px-3 py-2.5 border border-[#E5E7EB]/40">
+                  <div className="flex items-center gap-2.5">
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                      order.side === "YES" ? "bg-[#12B886]/[0.1] text-[#047857]" : "bg-[#E85D5D]/[0.1] text-[#B42318]"
+                    }`}>
                       {order.side}
                     </span>
-                    <span className="text-[10px] font-bold text-[#6B7280]">{order.order_type}</span>
-                    <span className="text-xs font-bold text-[#111827]">{formatNaira(order.price)}</span>
+                    <span className="rounded-full bg-[#4F46E5]/10 px-2 py-0.5 text-[10px] font-bold text-[#4F46E5]">{order.order_type}</span>
+                    <span className="text-xs font-bold tabular-nums text-[#111827]">{formatNaira(order.price)}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-[#9CA3AF]">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[10px] font-bold tabular-nums text-[#9CA3AF]">
                       {order.filled_quantity}/{order.quantity}
                     </span>
                     {["waiting", "partial"].includes(order.status) && (
                       <button
                         onClick={() => cancelOrderHandler(order.id)}
-                        className="rounded-lg bg-[#E85D5D]/10 px-2 py-1 text-[10px] font-bold text-[#B42318] transition hover:bg-[#E85D5D]/20"
+                        className="rounded-lg bg-[#E85D5D]/[0.08] px-2.5 py-1 text-[10px] font-bold text-[#B42318] transition hover:bg-[#E85D5D]/[0.16]"
                       >
                         Cancel
                       </button>
@@ -794,31 +850,47 @@ export default function MarketDetail() {
 
       {/* ── Sticky Action Bar ── */}
       <div className="fixed bottom-[calc(68px+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-[#E5E7EB]/60 bg-white/90 p-2.5 backdrop-blur-xl md:bottom-0 md:border-t md:bg-white/95 xl:left-64">
-        <div className="mx-auto grid max-w-5xl grid-cols-2 gap-2">
-          <button
-            disabled={!marketIsActive}
-            aria-label={`Back YES at ${formatNairaPrice(market.yesPrice)}`}
-            onClick={() => setSheetSide("YES")}
-            className="group h-11 rounded-xl bg-[#12B886] text-sm font-bold text-white transition-all duration-150 hover:bg-[#0ea371] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#D1D5DB] disabled:text-[#9CA3AF]"
-          >
-            <span className="flex items-center justify-center gap-1.5">
-              YES {formatNairaPrice(market.yesPrice)}
-            </span>
-          </button>
-          <button
-            disabled={!marketIsActive}
-            aria-label={`Back NO at ${formatNairaPrice(market.noPrice)}`}
-            onClick={() => setSheetSide("NO")}
-            className="group h-11 rounded-xl bg-[#E85D5D] text-sm font-bold text-white transition-all duration-150 hover:bg-[#d94c4c] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#D1D5DB] disabled:text-[#9CA3AF]"
-          >
-            <span className="flex items-center justify-center gap-1.5">
-              NO {formatNairaPrice(market.noPrice)}
-            </span>
-          </button>
+        <div className="mx-auto flex max-w-5xl gap-2">
+          {/* Market price summary */}
+          <div className="hidden flex-1 items-center justify-center gap-6 sm:flex">
+            <div className="flex items-baseline gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">YES</span>
+              <span className="text-sm font-bold tabular-nums text-[#047857]">{formatNairaPrice(market.yesPrice)}</span>
+            </div>
+            <div className="h-4 w-px bg-[#E5E7EB]" />
+            <div className="flex items-baseline gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">NO</span>
+              <span className="text-sm font-bold tabular-nums text-[#B42318]">{formatNairaPrice(market.noPrice)}</span>
+            </div>
+          </div>
+
+          {/* Trade buttons */}
+          <div className="flex flex-1 gap-2 sm:flex-none sm:w-[320px]">
+            <button
+              disabled={!marketIsActive}
+              aria-label={`Trade YES at ${formatNairaPrice(market.yesPrice)}`}
+              onClick={() => setSheetSide("YES")}
+              className="group flex-1 h-12 rounded-xl bg-[#12B886] text-sm font-bold text-white transition-all duration-150 hover:bg-[#0ea371] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#D1D5DB] disabled:text-[#9CA3AF]"
+            >
+              <span className="flex items-center justify-center gap-1.5">
+                <span className="hidden sm:inline">Trade</span> YES {formatNairaPrice(market.yesPrice)}
+              </span>
+            </button>
+            <button
+              disabled={!marketIsActive}
+              aria-label={`Trade NO at ${formatNairaPrice(market.noPrice)}`}
+              onClick={() => setSheetSide("NO")}
+              className="group flex-1 h-12 rounded-xl bg-[#E85D5D] text-sm font-bold text-white transition-all duration-150 hover:bg-[#d94c4c] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#D1D5DB] disabled:text-[#9CA3AF]"
+            >
+              <span className="flex items-center justify-center gap-1.5">
+                <span className="hidden sm:inline">Trade</span> NO {formatNairaPrice(market.noPrice)}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ── Prediction Sheet ── */}
+      {/* ── Order Entry Sheet ── */}
       {sheetSide && (
         <div
           className={`fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
@@ -830,42 +902,52 @@ export default function MarketDetail() {
             ref={sheetRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Place your prediction"
-            className={`absolute bottom-0 left-0 right-0 max-h-[88vh] overflow-y-auto rounded-t-3xl border border-[#E5E7EB] bg-white p-5 pb-[calc(90px+env(safe-area-inset-bottom))] text-[#111827] shadow-[0_-24px_80px_rgba(17,24,39,0.18)] transition-transform duration-300 ease-out md:left-auto md:right-6 md:top-24 md:h-fit md:w-[380px] md:rounded-2xl md:pb-5 ${
+            aria-label="Place your order"
+            className={`absolute bottom-0 left-0 right-0 max-h-[88vh] overflow-y-auto rounded-t-3xl border border-[#E5E7EB] bg-white p-5 pb-[calc(90px+env(safe-area-inset-bottom))] text-[#111827] shadow-[0_-24px_80px_rgba(17,24,39,0.18)] transition-transform duration-300 ease-out md:left-auto md:right-6 md:top-24 md:h-fit md:w-[400px] md:rounded-2xl md:pb-5 ${
               sheetVisible ? "translate-y-0" : "translate-y-full"
             }`}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <p
-                  className={`text-[10px] font-bold uppercase tracking-[0.16em] ${
-                    sheetSide === "YES" ? "text-[#12B886]" : "text-[#E85D5D]"
-                  }`}
+            {/* Header with accent bar */}
+            <div className="mb-4">
+              <div
+                className={`mb-3 h-1 w-12 rounded-full ${
+                  sheetSide === "YES" ? "bg-[#12B886]" : "bg-[#E85D5D]"
+                }`}
+              />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p
+                    className={`text-[10px] font-bold uppercase tracking-[0.16em] ${
+                      sheetSide === "YES" ? "text-[#12B886]" : "text-[#E85D5D]"
+                    }`}
+                  >
+                    Order Entry
+                  </p>
+                  <h2 className="mt-0.5 text-xl font-bold">
+                    {isOrderBook ? "Place your order" : `Trading ${sheetSide}`}
+                  </h2>
+                </div>
+                <button
+                  onClick={closeSheet}
+                  aria-label="Close order entry"
+                  disabled={submitting}
+                  className="grid h-9 w-9 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] transition hover:bg-[#F3F4F6] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isOrderBook ? "Order slip" : "Prediction slip"}
-                </p>
-                <h2 className="mt-0.5 text-xl font-bold">
-                  {isOrderBook ? "Place your order" : `You picked ${sheetSide}`}
-                </h2>
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <button
-                onClick={closeSheet}
-                aria-label="Close prediction sheet"
-                disabled={submitting}
-                className="grid h-9 w-9 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] transition hover:bg-[#F3F4F6] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <X className="h-4 w-4" />
-              </button>
             </div>
+
             {slipDataMissing ? (
               <div className="rounded-xl border border-[#E85D5D]/30 bg-[#E85D5D]/10 p-4 text-sm font-bold leading-relaxed text-[#B42318]">
-                Unable to open prediction slip. Please try again.
+                Unable to open order entry. Please try again.
               </div>
             ) : (
               <>
+                {/* Order Type (Order Book Markets) */}
                 {isOrderBook && (
-                  <div className="mb-3">
+                  <div className="mb-4">
                     <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">
                       Order Type
                     </label>
@@ -873,10 +955,10 @@ export default function MarketDetail() {
                       <button
                         onClick={() => setOrderType("BUY")}
                         disabled={submitting}
-                        className={`h-10 rounded-lg border text-xs font-bold transition ${
+                        className={`flex h-11 items-center justify-center gap-1.5 rounded-xl border-2 text-xs font-bold transition ${
                           orderType === "BUY"
-                            ? "border-[#12B886]/45 bg-[#12B886]/18 text-[#047857]"
-                            : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280]"
+                            ? "border-[#12B886] bg-[#12B886]/[0.06] text-[#047857]"
+                            : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:border-[#D1D5DB]"
                         }`}
                       >
                         BUY
@@ -884,10 +966,10 @@ export default function MarketDetail() {
                       <button
                         onClick={() => setOrderType("SELL")}
                         disabled={submitting}
-                        className={`h-10 rounded-lg border text-xs font-bold transition ${
+                        className={`flex h-11 items-center justify-center gap-1.5 rounded-xl border-2 text-xs font-bold transition ${
                           orderType === "SELL"
-                            ? "border-[#E85D5D]/45 bg-[#E85D5D]/18 text-[#B42318]"
-                            : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280]"
+                            ? "border-[#E85D5D] bg-[#E85D5D]/[0.06] text-[#B42318]"
+                            : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:border-[#D1D5DB]"
                         }`}
                       >
                         SELL
@@ -896,10 +978,36 @@ export default function MarketDetail() {
                   </div>
                 )}
 
+                {/* Side Indicator */}
+                <div className={`mb-4 flex items-center gap-2 rounded-xl p-3 ${
+                  sheetSide === "YES"
+                    ? "bg-[#12B886]/[0.06] border border-[#12B886]/20"
+                    : "bg-[#E85D5D]/[0.06] border border-[#E85D5D]/20"
+                }`}>
+                  <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                    sheetSide === "YES"
+                      ? "bg-[#12B886] text-white"
+                      : "bg-[#E85D5D] text-white"
+                  }`}>
+                    {sheetSide}
+                  </span>
+                  <div>
+                    <div className="text-xs font-bold text-[#111827]">
+                      {isOrderBook
+                        ? `${orderType} ${sheetSide}`
+                        : `Backing ${sheetSide}`}
+                    </div>
+                    <div className="text-[10px] text-[#6B7280]">
+                      at {formatNairaPrice(selectedPrice)} per share
+                    </div>
+                  </div>
+                </div>
+
+                {/* Price (Order Book Markets) */}
                 {isOrderBook && (
-                  <div className="mb-3">
+                  <div className="mb-4">
                     <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">
-                      Price per share
+                      Price per Share
                     </label>
                     <div className="relative">
                       <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-[#6B7280]">
@@ -916,33 +1024,38 @@ export default function MarketDetail() {
                         className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-lg font-bold text-[#111827] placeholder:text-[#D1D5DB] focus:border-[#4F46E5] focus:ring-[#4F46E5]/20"
                       />
                     </div>
-                    <p className="mt-1 text-[10px] font-bold text-[#9CA3AF]">Price between 1 and 99</p>
+                    <p className="mt-1 text-[10px] font-bold text-[#9CA3AF]">Price must be between 1 and 99</p>
                   </div>
                 )}
 
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">
-                  {isOrderBook ? "Amount (NGN)" : "Amount"}
-                </label>
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-[#6B7280]">
-                    NGN
-                  </span>
-                  <Input
-                    type="number"
-                    value={amount}
-                    onChange={(event) => setAmount(event.target.value)}
-                    disabled={submitting}
-                    placeholder="0"
-                    className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-lg font-bold text-[#111827] placeholder:text-[#D1D5DB] focus:border-[#4F46E5] focus:ring-[#4F46E5]/20"
-                  />
+                {/* Amount */}
+                <div className="mb-3">
+                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">
+                    {isOrderBook ? "Quantity" : "Amount"}
+                  </label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-[#6B7280]">
+                      NGN
+                    </span>
+                    <Input
+                      type="number"
+                      value={amount}
+                      onChange={(event) => setAmount(event.target.value)}
+                      disabled={submitting}
+                      placeholder="0"
+                      className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-lg font-bold text-[#111827] placeholder:text-[#D1D5DB] focus:border-[#4F46E5] focus:ring-[#4F46E5]/20"
+                    />
+                  </div>
                 </div>
-                <div className="mt-2.5 grid grid-cols-4 gap-1.5">
+
+                {/* Quick Amount Buttons */}
+                <div className="mb-4 grid grid-cols-4 gap-1.5">
                   {[100, 500, 1000, 2000].map((value) => (
                     <button
                       key={value}
                       onClick={() => setAmount(value.toString())}
                       disabled={submitting}
-                      className={`rounded-lg border py-2 text-[11px] font-bold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${
+                      className={`rounded-xl border py-2.5 text-[11px] font-bold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${
                         amount === value.toString()
                           ? "border-[#4F46E5] bg-[#EEF2FF] text-[#4F46E5]"
                           : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:border-[#D1D5DB] hover:bg-white"
@@ -953,55 +1066,60 @@ export default function MarketDetail() {
                   ))}
                 </div>
 
+                {/* Order Summary - Order Book */}
                 {isOrderBook && numericAmount > 0 && numericPrice > 0 && (
-                  <div className="mt-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3 space-y-1.5">
+                  <div className="mb-4 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3.5 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-[#6B7280]">Est. Shares</span>
-                      <span className="text-sm font-bold text-[#101828]">{estimatedShares}</span>
+                      <span className="text-sm font-bold tabular-nums text-[#101828]">{estimatedShares}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-[#6B7280]">Price/Share</span>
-                      <span className="text-sm font-bold text-[#101828]">{formatNaira(numericPrice)}</span>
+                      <span className="text-sm font-bold tabular-nums text-[#101828]">{formatNaira(numericPrice)}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-[#6B7280]">Order Value</span>
-                      <span className="text-sm font-bold text-[#101828]">{formatNaira(numericAmount)}</span>
+                      <span className="text-sm font-bold tabular-nums text-[#101828]">{formatNaira(numericAmount)}</span>
                     </div>
-                    <div className="flex items-center justify-between border-t border-[#E5E7EB] pt-1.5">
-                      <span className="text-xs font-bold text-[#6B7280]">Possible Outcome</span>
-                      <span className="text-sm font-bold text-[#12B886]">
-                        {orderType === "BUY"
-                          ? `Win ${formatNaira(estimatedShares * 100)}`
-                          : `Sell ${estimatedShares} shares`}
-                      </span>
+                    <div className="border-t border-[#E5E7EB] pt-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-[#6B7280]">Possible Outcome</span>
+                        <span className="text-sm font-bold tabular-nums text-[#12B886]">
+                          {orderType === "BUY"
+                            ? `Win ${formatNaira(estimatedShares * 100)}`
+                            : `Sell ${estimatedShares} shares`}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}
 
+                {/* Order Summary - Market */}
                 {!isOrderBook && numericAmount > 0 && selectedPrice && (
-                  <div className="mt-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3">
+                  <div className="mb-4 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#6B7280]">Est. return</span>
-                      <span className="text-sm font-bold text-[#101828]">
+                      <span className="text-xs font-bold text-[#6B7280]">Est. Return</span>
+                      <span className="text-sm font-bold tabular-nums text-[#101828]">
                         {formatNaira(estimatedReturn)}
                       </span>
                     </div>
-                    <div className="mt-1 flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#6B7280]">Est. profit</span>
-                      <span className="text-sm font-bold text-[#12B886]">
+                    <div className="mt-1.5 flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#6B7280]">Est. Profit</span>
+                      <span className="text-sm font-bold tabular-nums text-[#12B886]">
                         +{formatNaira(estimatedProfit)}
                       </span>
                     </div>
                   </div>
                 )}
 
-                <div className="mt-3 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3">
+                {/* Account Info */}
+                <div className="mb-4 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3.5">
                   <Row
                     label="Balance"
                     value={user ? formatNaira(user.balance || 0) : "Login required"}
                   />
                   <Row
-                    label="Crowd View"
+                    label="Market Price"
                     value={`YES ${formatNairaPrice(market.yesPrice)} / NO ${formatNairaPrice(market.noPrice)}`}
                   />
                   {activation.isProtected && (
@@ -1018,7 +1136,7 @@ export default function MarketDetail() {
                         <Info className="h-3.5 w-3.5 text-[#4F46E5]/60" />
                       </div>
                       <p className="mt-1.5 text-[10px] font-bold leading-relaxed text-[#344054]">
-                        Stake is protected if market doesn&apos;t reach enough activity.
+                        Order is protected if market doesn&apos;t reach enough activity.
                       </p>
                     </button>
                   )}
@@ -1028,10 +1146,12 @@ export default function MarketDetail() {
                     </p>
                   )}
                 </div>
+
+                {/* Submit */}
                 <Button
                   onClick={confirmPrediction}
                   disabled={submitting || numericAmount <= 0 || exceedsProtectedLimit || (isOrderBook && (numericPrice <= 0 || numericPrice >= 100))}
-                  className={`mt-4 h-11 w-full rounded-xl text-sm font-bold shadow-lg transition-all duration-200 hover:shadow-xl active:scale-[0.98] disabled:shadow-none ${
+                  className={`h-12 w-full rounded-xl text-sm font-bold shadow-lg transition-all duration-200 hover:shadow-xl active:scale-[0.98] disabled:shadow-none ${
                     sheetSide === "YES"
                       ? "bg-[#12B886] text-white shadow-[#12B886]/20 hover:bg-[#0ea371]"
                       : "bg-[#E85D5D] text-white shadow-[#E85D5D]/20 hover:bg-[#d94c4c]"
@@ -1045,8 +1165,8 @@ export default function MarketDetail() {
                   {user
                     ? isOrderBook
                       ? `Place ${orderType} Order`
-                      : `Confirm ${sheetSide}`
-                    : "Login to trade"}
+                      : `Place Order`
+                    : "Login to Trade"}
                 </Button>
               </>
             )}
@@ -1054,7 +1174,7 @@ export default function MarketDetail() {
         </div>
       )}
 
-      {/* ── Prediction Success ── */}
+      {/* ── Order Placed Success Modal ── */}
       {justPredicted && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-black/35 p-4 backdrop-blur-[2px]">
           {showConfetti && (
@@ -1082,6 +1202,7 @@ export default function MarketDetail() {
             </div>
           )}
           <div role="alert" aria-live="assertive" className="animate-fade-up relative w-full max-w-sm overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-7 text-center shadow-[0_24px_90px_rgba(17,24,39,0.22)]">
+            {/* Accent bar */}
             <div
               className={`absolute inset-x-0 top-0 h-1 ${
                 justPredicted === "YES"
@@ -1089,25 +1210,31 @@ export default function MarketDetail() {
                   : "bg-[#E85D5D]"
               }`}
             />
-            <div
-              className={`mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full text-white shadow-lg ${
-                justPredicted === "YES"
-                  ? "bg-[#12B886] shadow-[#12B886]/25"
-                  : "bg-[#E85D5D] shadow-[#E85D5D]/25"
-              }`}
-            >
-              <CheckCircle className="h-8 w-8" />
+
+            {/* Icon */}
+            <div className="relative mx-auto mb-5">
+              <div
+                className={`mx-auto grid h-16 w-16 place-items-center rounded-full text-white shadow-lg ${
+                  justPredicted === "YES"
+                    ? "bg-[#12B886] shadow-[#12B886]/25"
+                    : "bg-[#E85D5D] shadow-[#E85D5D]/25"
+                }`}
+              >
+                <CheckCircle className="h-8 w-8" />
+              </div>
             </div>
+
             <h3 className="text-2xl font-black text-[#101828]">
-              Prediction Locked
+              Order Placed
             </h3>
-            <p className="mt-2 text-sm font-bold text-[#101828]">
-              You backed {justPredicted}
+            <p className="mt-2 text-sm font-bold text-[#6B7280]">
+              Position opened on <span className={justPredicted === "YES" ? "text-[#047857]" : "text-[#B42318]"}>{justPredicted}</span>
             </p>
             <p className="mt-1 text-xs text-[#9CA3AF]">
-              Track in My Predictions
+              Track in My Positions
             </p>
-            <div className="mt-5 grid gap-2">
+
+            <div className="mt-6 grid gap-2">
               <Link
                 to="/portfolio"
                 onClick={() => {
@@ -1116,7 +1243,7 @@ export default function MarketDetail() {
                 }}
                 className="flex h-11 items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-bold text-white shadow-lg shadow-[#4F46E5]/20 transition hover:bg-[#4338CA]"
               >
-                View Prediction
+                View Position
               </Link>
               <button
                 onClick={() => {
@@ -1125,7 +1252,7 @@ export default function MarketDetail() {
                 }}
                 className="h-11 rounded-xl border border-[#E5E7EB] bg-white text-sm font-bold text-[#344054] transition hover:bg-[#F3F4F6]"
               >
-                Continue Browsing
+                Continue Trading
               </button>
             </div>
           </div>
@@ -1303,8 +1430,8 @@ const Chart = ({
               const point = filteredHistory[items[0]?.dataIndex ?? 0];
               if (!point) return [];
               return [
-                `Pool: ${formatNaira(point.volume || 0)}`,
-                `Predictions: ${point.tradeCount || 0}`,
+                `Volume: ${formatNaira(point.volume || 0)}`,
+                `Trades: ${point.tradeCount || 0}`,
               ];
             },
           },
@@ -1359,7 +1486,7 @@ const Chart = ({
             </span>
           </div>
           <span className="rounded-full bg-[#F3F4F6] px-2.5 py-1 text-[10px] font-bold text-[#6B7280]">
-            {market.tradeCount || 0} predictions
+            {market.tradeCount || 0} trades
           </span>
         </div>
         <div className="grid h-[220px] place-items-center rounded-xl border border-dashed border-[#D1D5DB] bg-[#F8F7F4]/60 p-4 text-center sm:h-[280px]">
@@ -1369,7 +1496,7 @@ const Chart = ({
             </div>
             <p className="text-sm font-bold text-[#111827]">No movement yet</p>
             <p className="mt-1 text-xs text-[#9CA3AF]">
-              Updates when people back YES or NO
+              Updates when people trade YES or NO
             </p>
           </div>
         </div>
@@ -1391,20 +1518,20 @@ const Chart = ({
           </span>
         </div>
         <span className="rounded-full bg-[#F3F4F6] px-2.5 py-1 text-[10px] font-bold text-[#6B7280]">
-          {market.tradeCount || 0} predictions
+          {market.tradeCount || 0} trades
         </span>
       </div>
       <div className="relative overflow-hidden rounded-xl border border-[#E5E7EB] bg-white p-3">
         <div className="mb-2 flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-bold text-[#667085]">YES price</p>
-            <p className="text-lg font-bold text-[#101828]">
+            <p className="text-[10px] font-bold text-[#667085]">YES Price</p>
+            <p className="text-lg font-bold tabular-nums text-[#101828]">
               {formatNairaPrice(market.yesPrice)}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-bold text-[#667085]">NO price</p>
-            <p className="text-lg font-bold text-[#101828]">
+            <p className="text-[10px] font-bold text-[#667085]">NO Price</p>
+            <p className="text-lg font-bold tabular-nums text-[#101828]">
               {formatNairaPrice(market.noPrice)}
             </p>
           </div>

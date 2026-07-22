@@ -16,7 +16,9 @@ const sizeClasses = {
 };
 
 export const FlippeSymbol = ({ size = "md", className = "" }: FlippeSymbolProps) => (
-  <span className={`inline-grid shrink-0 place-items-center overflow-hidden border border-white/10 bg-[#080C10] shadow-[0_10px_30px_rgba(0,0,0,0.35)] ${sizeClasses[size]} ${className}`}>
+  <span
+    className={`inline-grid shrink-0 place-items-center overflow-hidden border border-white/10 bg-[#080C10] shadow-[0_8px_24px_rgba(0,0,0,0.3)] ${sizeClasses[size]} ${className}`}
+  >
     <img src={symbolUrl} alt="FLIPPE" className="h-full w-full object-cover" />
   </span>
 );
@@ -29,8 +31,14 @@ export const FlippeWordmark = ({
   <span className={`inline-flex items-center gap-3 ${className}`}>
     <FlippeSymbol size={size} />
     <span className="leading-tight">
-      <span className="block text-xl font-black tracking-[0.16em] text-white drop-shadow-[0_0_18px_rgba(245,247,250,0.18)]">FLIPPE</span>
-      {tagline && <span className="block text-xs font-semibold text-[#667085]">{tagline}</span>}
+      <span className="block text-xl font-black tracking-[0.16em] text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.12)]">
+        FLIPPE
+      </span>
+      {tagline && (
+        <span className="block text-[11px] font-semibold tracking-wide text-[#667085]">
+          {tagline}
+        </span>
+      )}
     </span>
   </span>
 );

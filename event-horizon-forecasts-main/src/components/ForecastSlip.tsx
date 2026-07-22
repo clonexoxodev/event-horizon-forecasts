@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle, Loader2, X, RefreshCw, Clock, AlertCircle } from "lucide-react";
+import { CheckCircle, Loader2, X, RefreshCw, Clock, AlertCircle, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
@@ -172,7 +172,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm, onOrderConfirm }: 
       } else {
         await onConfirm(selection, numAmount);
         setPhase("success");
-        toast.success("Prediction placed successfully.");
+        toast.success("Order placed successfully.");
         successTimerRef.current = window.setTimeout(() => {
           handleClose();
         }, 4000);
@@ -199,7 +199,7 @@ export const ForecastSlip = ({ selection, onClose, onConfirm, onOrderConfirm }: 
   return (
     <>
       <div
-        className="fixed inset-0 z-40 bg-[#111827]/35 backdrop-blur-sm"
+        className="fixed inset-0 z-40 bg-[#111827]/40 backdrop-blur-sm"
         onClick={() => handleClose()}
         aria-hidden="true"
       />
@@ -208,8 +208,8 @@ export const ForecastSlip = ({ selection, onClose, onConfirm, onOrderConfirm }: 
         ref={slipRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Order slip"
-        className="fixed bottom-0 left-0 right-0 z-50 max-h-[88vh] overflow-y-auto rounded-t-2xl border border-[#E5E7EB] bg-white pb-[calc(90px+env(safe-area-inset-bottom))] shadow-[0_-24px_80px_rgba(17,24,39,0.16)] md:bottom-auto md:left-auto md:top-0 md:h-screen md:w-[460px] md:rounded-none md:border-l md:pb-0"
+        aria-label="Order entry"
+        className="fixed bottom-0 left-0 right-0 z-50 max-h-[92vh] overflow-y-auto rounded-t-3xl border border-[#E5E7EB] bg-white pb-[calc(90px+env(safe-area-inset-bottom))] shadow-[0_-32px_80px_rgba(17,24,39,0.18)] md:bottom-auto md:left-auto md:top-0 md:h-screen md:w-[460px] md:rounded-none md:border-l md:pb-0"
       >
         <div className="flex justify-center pt-3 md:hidden">
           <div className="h-1 w-10 rounded-full bg-[#E5E7EB]" />
@@ -239,21 +239,22 @@ export const ForecastSlip = ({ selection, onClose, onConfirm, onOrderConfirm }: 
           <div className="space-y-4 p-5 sm:p-6">
             <SlipHeader onClose={handleClose} loading={loading} isOrderBook={isOrderBook} />
 
-            <div className={`rounded-2xl p-4 ${isPositiveSide ? "bg-[#12B886]/8" : "bg-[#E85D5D]/8"}`}>
+            <div className={`rounded-2xl border p-4 ${isPositiveSide ? "border-[#12B886]/20 bg-[#12B886]/[0.05]" : "border-[#E85D5D]/20 bg-[#E85D5D]/[0.05]"}`}>
               <div className="flex items-start gap-3">
                 <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white text-2xl shadow-sm">
                   {selection.marketIcon}
                 </div>
                 <div className="min-w-0">
-                  <div className="line-clamp-3 text-sm font-black leading-snug text-[#111827]">
+                  <div className="line-clamp-2 text-sm font-black leading-snug text-[#111827]">
                     {selection.marketQuestion}
                   </div>
                   <div className="mt-2 flex items-center gap-2">
-                    <span className={`rounded-full px-3 py-1 text-xs font-black ${isPositiveSide ? "bg-[#12B886]/12 text-[#047857]" : "bg-[#E85D5D]/12 text-[#B42318]"}`}>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${isPositiveSide ? "bg-[#12B886]/12 text-[#047857]" : "bg-[#E85D5D]/12 text-[#B42318]"}`}>
+                      {isPositiveSide ? <ArrowUpCircle className="h-3 w-3" /> : <ArrowDownCircle className="h-3 w-3" />}
                       {selection.side}
                     </span>
-                    <span className="rounded-full border border-[#E5E7EB] bg-white px-3 py-1 text-xs font-bold text-[#6B7280]">
-                      {formatNairaPrice(selection.currentPrice)}
+                    <span className="rounded-full border border-[#E5E7EB] bg-white px-2.5 py-0.5 text-[10px] font-bold text-[#6B7280]">
+                      Current: {formatNairaPrice(selection.currentPrice)}
                     </span>
                   </div>
                 </div>
@@ -261,41 +262,46 @@ export const ForecastSlip = ({ selection, onClose, onConfirm, onOrderConfirm }: 
             </div>
 
             {!user && (
-              <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
-                <div className="font-black text-[#111827]">Login to place an order</div>
-                <p className="mt-1 text-sm text-[#6B7280]">Sign in to trade on this market.</p>
-                <button onClick={() => { handleClose(); setAuthOpen(true); }} aria-label="Log in to place order" className="mt-4 flex h-11 w-full items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-black text-white hover:bg-[#4338CA]">
-                  Continue
+              <div className="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4 text-center">
+                <p className="text-sm font-black text-[#111827]">Sign in to trade</p>
+                <p className="mt-1 text-xs font-bold text-[#6B7280]">Log in to place orders on this market.</p>
+                <button
+                  onClick={() => { handleClose(); setAuthOpen(true); }}
+                  className="mt-3 h-11 w-full rounded-xl bg-[#4F46E5] text-sm font-black text-white transition hover:bg-[#4338CA]"
+                >
+                  Log In
                 </button>
               </div>
             )}
 
             {isOrderBook && (
               <div>
-                <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">
-                  Order Type
+                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">
+                  Side
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setOrderType("BUY")}
                     disabled={loading}
-                    className={`h-11 rounded-xl border text-sm font-black transition ${
+                    className={`flex h-12 items-center justify-center gap-1.5 rounded-xl border-2 text-sm font-black transition-all ${
                       orderType === "BUY"
-                        ? "border-[#12B886]/45 bg-[#12B886]/18 text-[#047857]"
-                        : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:text-[#111827]"
+                        ? "border-[#12B886] bg-[#12B886]/10 text-[#047857] shadow-[0_2px_8px_rgba(18,184,134,0.15)]"
+                        : "border-[#E5E7EB] bg-white text-[#6B7280] hover:border-[#D1D5DB] hover:text-[#111827]"
                     }`}
                   >
+                    <ArrowUpCircle className="h-4 w-4" />
                     BUY
                   </button>
                   <button
                     onClick={() => setOrderType("SELL")}
                     disabled={loading}
-                    className={`h-11 rounded-xl border text-sm font-black transition ${
+                    className={`flex h-12 items-center justify-center gap-1.5 rounded-xl border-2 text-sm font-black transition-all ${
                       orderType === "SELL"
-                        ? "border-[#E85D5D]/45 bg-[#E85D5D]/18 text-[#B42318]"
-                        : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:text-[#111827]"
+                        ? "border-[#E85D5D] bg-[#E85D5D]/10 text-[#B42318] shadow-[0_2px_8px_rgba(232,93,93,0.15)]"
+                        : "border-[#E5E7EB] bg-white text-[#6B7280] hover:border-[#D1D5DB] hover:text-[#111827]"
                     }`}
                   >
+                    <ArrowDownCircle className="h-4 w-4" />
                     SELL
                   </button>
                 </div>
@@ -304,11 +310,11 @@ export const ForecastSlip = ({ selection, onClose, onConfirm, onOrderConfirm }: 
 
             {isOrderBook && (
               <div>
-                <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">
-                  Price per share
+                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">
+                  Price per Share
                 </label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-[#6B7280]">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-[#9CA3AF]">
                     NGN
                   </span>
                   <Input
@@ -320,19 +326,19 @@ export const ForecastSlip = ({ selection, onClose, onConfirm, onOrderConfirm }: 
                     value={price}
                     onChange={(event) => setPrice(event.target.value)}
                     disabled={loading}
-                    className="h-14 rounded-xl border-2 bg-[#F8F7F4] pl-14 text-xl font-black text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5] border-[#E5E7EB]"
+                    className="h-14 rounded-xl border-2 border-[#E5E7EB] bg-white pl-14 text-xl font-black text-[#111828] placeholder:text-[#D1D5DB] focus:border-[#4F46E5] focus:ring-0"
                   />
                 </div>
-                <p className="mt-1 text-[10px] font-bold text-[#9CA3AF]">Price between 1 and 99 kobo per share</p>
+                <p className="mt-1.5 text-[10px] font-bold text-[#9CA3AF]">Set price between NGN 1 and 99 per share</p>
               </div>
             )}
 
             <div>
-              <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">
-                {isOrderBook ? "Amount (NGN)" : "Amount"}
+              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">
+                {isOrderBook ? "Amount" : "Trade Amount"}
               </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-[#6B7280]">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-[#9CA3AF]">
                   NGN
                 </span>
                 <Input
@@ -342,13 +348,13 @@ export const ForecastSlip = ({ selection, onClose, onConfirm, onOrderConfirm }: 
                   value={amount}
                   onChange={(event) => setAmount(event.target.value)}
                   disabled={loading}
-                  className={`h-14 rounded-xl border-2 bg-[#F8F7F4] pl-14 text-xl font-black text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#4F46E5] ${
+                  className={`h-14 rounded-xl border-2 bg-white pl-14 text-xl font-black text-[#111828] placeholder:text-[#D1D5DB] focus:border-[#4F46E5] focus:ring-0 ${
                     insufficientBalance && numAmount > 0 ? "border-[#E85D5D]" : "border-[#E5E7EB]"
                   }`}
                 />
               </div>
               {insufficientBalance && numAmount > 0 && (
-                <p className="mt-2 text-xs font-bold text-[#B42318]">Insufficient balance.</p>
+                <p className="mt-1.5 text-[10px] font-bold text-[#B42318]">Insufficient balance</p>
               )}
             </div>
 
@@ -359,12 +365,12 @@ export const ForecastSlip = ({ selection, onClose, onConfirm, onOrderConfirm }: 
                   onClick={() => setAmount(value.toString())}
                   aria-label={`Set amount to ${formatNaira(value).replace(".00", "")}`}
                   disabled={loading}
-                  className={`h-11 rounded-xl border text-sm font-black transition ${
+                  className={`h-10 rounded-xl border-2 text-[13px] font-black transition-all ${
                     amount === value.toString()
                       ? isPositiveSide
-                        ? "border-[#12B886]/45 bg-[#12B886]/18 text-[#047857]"
-                        : "border-[#E85D5D]/45 bg-[#E85D5D]/18 text-[#B42318]"
-                      : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:text-[#111827]"
+                        ? "border-[#12B886] bg-[#12B886]/10 text-[#047857]"
+                        : "border-[#E85D5D] bg-[#E85D5D]/10 text-[#B42318]"
+                      : "border-[#E5E7EB] bg-white text-[#6B7280] hover:border-[#D1D5DB] hover:text-[#111827]"
                   }`}
                 >
                   {formatNaira(value).replace(".00", "")}
@@ -372,28 +378,35 @@ export const ForecastSlip = ({ selection, onClose, onConfirm, onOrderConfirm }: 
               ))}
             </div>
 
-            <div className="border-y border-[#E5E7EB] py-3 space-y-2">
-              <InfoCard label="Available Balance" value={user ? formatNaira(userBalance) : "Login required"} />
-              {lockedBalance > 0 && (
-                <InfoCard label="Locked in Orders" value={formatNaira(lockedBalance)} />
-              )}
+            <div className="border-t border-[#E5E7EB] pt-3">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">Balance</span>
+                  <p className="text-sm font-black text-[#111827]">{user ? formatNaira(userBalance) : "---"}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">Locked</span>
+                  <p className="text-sm font-black text-[#111827]">{lockedBalance > 0 ? formatNaira(lockedBalance) : "---"}</p>
+                </div>
+              </div>
             </div>
 
             {isOrderBook && numAmount > 0 && numPrice > 0 && (
-              <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4 space-y-2">
+              <div className="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4 space-y-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">Order Summary</p>
                 <div className="grid grid-cols-2 gap-3">
                   <InfoCard label="Est. Shares" value={`${estimatedShares}`} />
                   <InfoCard label="Order Value" value={formatNaira(orderValue)} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <InfoCard label="Price/Share" value={formatNaira(numPrice)} />
-                  <InfoCard label="Remaining Balance" value={formatNaira(remainingBalance)} />
+                  <InfoCard label="Price / Share" value={formatNaira(numPrice)} />
+                  <InfoCard label="After Order" value={formatNaira(remainingBalance)} />
                 </div>
-                <div className="mt-2 border-t border-[#E5E7EB] pt-2">
+                <div className="border-t border-[#E5E7EB] pt-3">
                   <InfoCard
                     label="Possible Outcome"
                     value={orderType === "BUY"
-                      ? `Win ${estimatedShares} shares × 100k = ${formatNaira(estimatedShares * 100)}`
+                      ? `Win ${estimatedShares} shares = ${formatNaira(estimatedShares * 100)}`
                       : `Sell ${estimatedShares} shares at ${formatNaira(numPrice)}`}
                   />
                 </div>
@@ -401,8 +414,9 @@ export const ForecastSlip = ({ selection, onClose, onConfirm, onOrderConfirm }: 
             )}
 
             {!isOrderBook && numAmount > 0 && (
-              <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
-                <p className="text-sm font-bold text-[#6B7280]">Market order — fills at current price</p>
+              <div className="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">Order Type</p>
+                <p className="mt-1 text-sm font-bold text-[#6B7280]">Market order — fills at current price</p>
               </div>
             )}
 
@@ -410,28 +424,28 @@ export const ForecastSlip = ({ selection, onClose, onConfirm, onOrderConfirm }: 
               onClick={handleConfirm}
               disabled={!isFormValid}
               aria-disabled={!isFormValid}
-              className={`h-12 w-full rounded-xl text-base font-bold text-white transition ${
+              className={`h-13 w-full rounded-xl text-sm font-black uppercase tracking-wider text-white transition-all ${
                 isPositiveSide
-                  ? "bg-[#12B886] text-[#06100d] hover:bg-[#2dd4a0]"
-                  : "bg-[#E85D5D] hover:bg-[#f07575]"
-              } disabled:opacity-50`}
+                  ? "bg-[#12B886] hover:bg-[#0EA371] hover:shadow-[0_4px_12px_rgba(18,184,134,0.3)]"
+                  : "bg-[#E85D5D] hover:bg-[#D54C4C] hover:shadow-[0_4px_12px_rgba(232,93,93,0.3)]"
+              } disabled:opacity-40 disabled:shadow-none`}
             >
               {phase === "submitting" ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin" />
                   Placing Order...
-                </>
+                </span>
               ) : isOrderBook ? (
-                <>Place {orderType} Order</>
+                `Place ${orderType} Order`
               ) : (
-                <>Confirm {selection.side}</>
+                `Trade ${selection.side}`
               )}
             </Button>
 
             <button
               onClick={handleClose}
               disabled={loading}
-              className="w-full text-sm font-bold text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
+              className="w-full text-sm font-bold text-[#6B7280] transition hover:text-[#111827] disabled:opacity-40"
             >
               Cancel
             </button>
@@ -445,18 +459,18 @@ export const ForecastSlip = ({ selection, onClose, onConfirm, onOrderConfirm }: 
 const SlipHeader = ({ onClose, loading, isOrderBook }: { onClose: () => void; loading: boolean; isOrderBook: boolean }) => (
   <div className="flex items-center justify-between">
     <div>
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6B7280]">
-        {isOrderBook ? "Order slip" : "Prediction slip"}
+      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#9CA3AF]">
+        Order Entry
       </p>
       <h2 className="mt-1 text-2xl font-black text-[#111827]">
-        {isOrderBook ? "Place your order" : "Back your opinion"}
+        {isOrderBook ? "Place Your Order" : "Trade"}
       </h2>
     </div>
     <button
       onClick={onClose}
       disabled={loading}
-      aria-label="Close order slip"
-      className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
+      aria-label="Close order entry"
+      className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-white text-[#6B7280] transition hover:bg-[#F3F4F6] hover:text-[#111827] disabled:opacity-40"
     >
       <X className="h-5 w-5" aria-hidden="true" />
     </button>
@@ -467,20 +481,20 @@ const UnavailableState = ({ loading, onClose }: { loading: boolean; onClose: () 
   <div className="space-y-5 p-5 sm:p-6">
     <div className="flex items-center justify-between">
       <div>
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#B42318]">Order slip</p>
-        <h2 className="mt-1 text-2xl font-black text-[#111827]">Market not available</h2>
+        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#B42318]">Order Entry</p>
+        <h2 className="mt-1 text-2xl font-black text-[#111827]">Market Unavailable</h2>
       </div>
       <button
         onClick={onClose}
         disabled={loading}
-        aria-label="Close order slip"
-        className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
+        aria-label="Close order entry"
+        className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-white text-[#6B7280] transition hover:bg-[#F3F4F6] hover:text-[#111827] disabled:opacity-40"
       >
         <X className="h-5 w-5" aria-hidden="true" />
       </button>
     </div>
-    <div className="rounded-xl border border-[#E85D5D]/30 bg-[#E85D5D]/10 p-4 text-sm font-bold leading-relaxed text-[#B42318]">
-      Market not available. Please go back and try again.
+    <div className="rounded-xl border border-[#E85D5D]/30 bg-[#E85D5D]/[0.06] p-4 text-sm font-bold leading-relaxed text-[#B42318]">
+      This market is currently unavailable. Please go back and try again.
     </div>
   </div>
 );
@@ -543,7 +557,7 @@ const SuccessState = ({
           {selection.side} order for {formatNaira(amount)}
         </p>
         {isOrderBook && (
-          <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-[#F8F7F4] p-3 text-left">
+          <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-[#F9FAFB] p-3 text-left">
             <InfoCard label="Shares" value={`${estimatedShares}`} />
             <InfoCard label="Price" value={formatNaira(price)} />
           </div>
@@ -559,7 +573,7 @@ const SuccessState = ({
         <div className="mt-7">
           <button
             onClick={onClose}
-            className="flex h-12 w-full items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-bold text-white transition hover:bg-[#4338CA]"
+            className="flex h-12 w-full items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-black text-white transition hover:bg-[#4338CA]"
           >
             Continue Trading
           </button>
@@ -587,29 +601,29 @@ const ErrorState = ({
   <div className="space-y-5 p-5 sm:p-6">
     <div className="flex items-center justify-between">
       <div>
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#B42318]">Order slip</p>
-        <h2 className="mt-1 text-2xl font-black text-[#111827]">Something went wrong</h2>
+        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#B42318]">Order Entry</p>
+        <h2 className="mt-1 text-2xl font-black text-[#111827]">Something Went Wrong</h2>
       </div>
       <button
         onClick={onClose}
         disabled={loading}
-        aria-label="Close order slip"
-        className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
+        aria-label="Close order entry"
+        className="grid h-10 w-10 place-items-center rounded-xl border border-[#E5E7EB] bg-white text-[#6B7280] transition hover:bg-[#F3F4F6] hover:text-[#111827] disabled:opacity-40"
       >
         <X className="h-5 w-5" aria-hidden="true" />
       </button>
     </div>
-    <div className="rounded-xl border border-[#E85D5D]/30 bg-[#E85D5D]/10 p-4 text-sm font-bold leading-relaxed text-[#B42318]">
+    <div className="rounded-xl border border-[#E85D5D]/30 bg-[#E85D5D]/[0.06] p-4 text-sm font-bold leading-relaxed text-[#B42318]">
       {message}
     </div>
-    <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-4">
+    <div className="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4">
       <div className="flex items-start gap-3">
         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-xl shadow-sm">
           {selection.marketIcon}
         </div>
         <div className="min-w-0">
           <div className="line-clamp-2 text-sm font-bold text-[#111827]">{selection.marketQuestion}</div>
-          <div className="mt-1 text-xs font-bold text-[#6B7280]">{selection.side} &middot; {formatNaira(amount)}</div>
+          <div className="mt-1 text-xs font-bold text-[#6B7280]">{selection.side} · {formatNaira(amount)}</div>
         </div>
       </div>
     </div>
@@ -617,7 +631,7 @@ const ErrorState = ({
       <button
         onClick={onRetry}
         disabled={loading}
-        className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[#4F46E5] text-sm font-bold text-white transition hover:bg-[#4338CA] disabled:opacity-50"
+        className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[#4F46E5] text-sm font-black text-white transition hover:bg-[#4338CA] disabled:opacity-40"
       >
         <RefreshCw className="h-4 w-4" />
         Try Again
@@ -625,7 +639,7 @@ const ErrorState = ({
       <button
         onClick={onClose}
         disabled={loading}
-        className="w-full text-sm font-bold text-[#6B7280] transition hover:text-[#111827] disabled:opacity-50"
+        className="w-full text-sm font-bold text-[#6B7280] transition hover:text-[#111827] disabled:opacity-40"
       >
         Cancel
       </button>
@@ -635,7 +649,7 @@ const ErrorState = ({
 
 const InfoCard = ({ label, value }: { label: string; value: string }) => (
   <div>
-    <div className="text-[10px] font-bold uppercase tracking-wider text-[#6B7280]">{label}</div>
+    <div className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">{label}</div>
     <div className="mt-0.5 text-sm font-black text-[#111827]">{value}</div>
   </div>
 );

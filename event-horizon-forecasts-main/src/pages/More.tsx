@@ -46,10 +46,10 @@ export default function More() {
     <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-3xl px-4 py-5 sm:px-6 lg:py-8">
-        {/* Header Card */}
-        <section className="rounded-xl border border-[#E5E7EB] bg-white p-4">
+        {/* ── User Card ── */}
+        <section className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
           <div className="flex items-center gap-4">
-            <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full border border-[#E5E7EB] bg-[#F3F4F6] text-sm font-bold text-[#111827]">
+            <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full border border-[#E5E7EB] bg-[#EEF2FF] text-sm font-bold text-[#4F46E5]">
               {user?.avatarUrl ? (
                 <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
               ) : (
@@ -67,14 +67,14 @@ export default function More() {
               ) : (
                 <>
                   <div className="text-sm font-bold text-[#111827]">Guest</div>
-                  <div className="text-xs text-[#9CA3AF]">Sign in to start</div>
+                  <div className="text-xs text-[#9CA3AF]">Sign in to start trading</div>
                 </>
               )}
             </div>
           </div>
         </section>
 
-        {/* Navigation Groups */}
+        {/* ── Navigation Groups ── */}
         <div className="mt-4 space-y-4">
           <Group title="Account">
             <Item to="/profile" icon={User} label="Profile" subtitle="View and edit your profile" />
@@ -83,7 +83,7 @@ export default function More() {
           </Group>
 
           <Group title="Learn">
-            <Item to="/about" icon={BookOpen} label="How It Works" subtitle="Understand pooled prediction markets" />
+            <Item to="/about" icon={BookOpen} label="How It Works" subtitle="Understand prediction market trading" />
             <Item to="/faq" icon={HelpCircle} label="FAQ" subtitle="Common questions and answers" />
           </Group>
 
@@ -104,12 +104,12 @@ export default function More() {
           )}
         </div>
 
-        {/* Logout */}
+        {/* ── Logout ── */}
         {user && (
           <>
             <button
               onClick={() => setShowLogoutDialog(true)}
-              className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#E5E7EB] bg-white text-sm font-bold text-[#E85D5D] transition hover:bg-[#FEF2F2]"
+              className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#E85D5D]/20 bg-[#FEF2F2] text-sm font-bold text-[#E85D5D] transition hover:bg-red-100"
             >
               <LogOut className="h-4 w-4" />
               Log out
@@ -117,7 +117,7 @@ export default function More() {
             <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Log out of Flippe?</AlertDialogTitle>
+                  <AlertDialogTitle>Log out of Flippi?</AlertDialogTitle>
                   <AlertDialogDescription>
                     You will be signed out and redirected to the login page.
                   </AlertDialogDescription>
@@ -133,8 +133,8 @@ export default function More() {
           </>
         )}
 
-        {/* Version */}
-        <p className="mt-6 pb-4 text-center text-xs text-[#9CA3AF]">FLIPPE {APP_VERSION}</p>
+        {/* ── Version ── */}
+        <p className="mt-6 pb-4 text-center text-xs text-[#D1D5DB]">FLIPPI {APP_VERSION}</p>
       </main>
       <MobileNav />
     </div>
@@ -144,7 +144,7 @@ export default function More() {
 const Group = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section>
     <h2 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[#9CA3AF]">{title}</h2>
-    <nav role="navigation" aria-label={title} className="overflow-hidden rounded-xl border border-[#E5E7EB] bg-white">
+    <nav role="navigation" aria-label={title} className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
       {children}
     </nav>
   </section>
@@ -163,15 +163,15 @@ const Item = ({
 }) => (
   <Link
     to={to}
-    className="group flex items-center gap-3 border-b border-[#F3F4F6] px-3.5 py-3 transition last:border-b-0 hover:bg-[#F8F7F4]"
+    className="group flex items-center gap-3 border-b border-[#F3F4F6] px-4 py-3.5 transition last:border-b-0 hover:bg-[#F9FAFB]"
   >
-    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F3F4F6] text-[#6B7280] group-hover:bg-[#EEF2FF] group-hover:text-[#4F46E5] transition-colors">
+    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#F3F4F6] text-[#9CA3AF] group-hover:bg-[#EEF2FF] group-hover:text-[#4F46E5] transition-colors">
       <Icon className="h-4 w-4" />
     </div>
     <div className="min-w-0 flex-1">
       <div className="text-sm font-bold text-[#111827]">{label}</div>
       <div className="text-[11px] text-[#9CA3AF]">{subtitle}</div>
     </div>
-    <ChevronRight className="h-4 w-4 shrink-0 text-[#D1D5DB] transition group-hover:translate-x-0.5 group-hover:text-[#6B7280]" />
+    <ChevronRight className="h-4 w-4 shrink-0 text-[#D1D5DB] transition group-hover:translate-x-0.5 group-hover:text-[#9CA3AF]" />
   </Link>
 );

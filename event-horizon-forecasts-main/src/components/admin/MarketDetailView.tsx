@@ -389,7 +389,7 @@ export const MarketDetailView = ({
     confirmType === "YES" || confirmType === "NO"
       ? `This will settle the market in favor of ${confirmType}. All YES holders ${confirmType === "NO" ? "will lose" : "will be paid out"}. This action cannot be undone.`
       : confirmType === "REFUND"
-        ? "This will refund all eligible stakes back to participants. This action cannot be undone."
+        ? "This will refund all eligible stakes back to traders. This action cannot be undone."
         : confirmType === "CANCEL"
           ? "This will cancel the market and refund all eligible stakes. This action cannot be undone."
           : `Are you sure you want to change the market status to "${statusLabel(pendingStatus || "")}"? This may affect market visibility.`;
@@ -468,7 +468,7 @@ export const MarketDetailView = ({
                 <InfoRow label="Volume">{formatNaira(volumeKobo)}</InfoRow>
                 <InfoRow label="YES%">{yesPercent}%</InfoRow>
                 <InfoRow label="NO%">{noPercent}%</InfoRow>
-                <InfoRow label="Participants">
+                <InfoRow label="Traders">
                   <span className="flex items-center gap-1.5">
                     <Users className="h-3.5 w-3.5 text-gray-400" />
                     {market.participant_count || 0}
@@ -536,7 +536,7 @@ export const MarketDetailView = ({
                   </div>
                 </div>
                 <div className="rounded-xl border border-gray-200 p-4">
-                  <div className="text-xs font-semibold text-gray-500">Participants</div>
+                  <div className="text-xs font-semibold text-gray-500">Traders</div>
                   <div className="mt-1 text-lg font-black text-gray-900">
                     {activationProgress.currentParticipants} / {activationProgress.minParticipants}
                   </div>
@@ -668,7 +668,7 @@ export const MarketDetailView = ({
                       <table className="w-full text-left text-xs">
                         <thead className="border-b border-gray-100 bg-gray-50/80 uppercase tracking-wider text-gray-500">
                           <tr>
-                            <th className="px-4 py-2.5">User</th>
+                            <th className="px-4 py-2.5">Trader</th>
                             <th>Side</th>
                             <th>Stake</th>
                             <th>Payout</th>
@@ -726,7 +726,7 @@ export const MarketDetailView = ({
             <Card>
               <SectionHeader
                 title="Refund Complete"
-                description="All eligible stakes have been returned to participants."
+                description="All eligible stakes have been returned to traders."
               />
               <div className="flex items-center gap-3 rounded-xl bg-purple-50 px-4 py-3 text-sm font-bold text-purple-700">
                 <ShieldCheck className="h-4 w-4" />

@@ -130,10 +130,10 @@ export const EditMarketView = ({
     }
     if (protectedMarket) {
       if (!activationThreshold) errs.activationThreshold = "Activation threshold is required";
-      if (!maxStakePerUser) errs.maxStakePerUser = "Max stake per user is required";
+      if (!maxStakePerUser) errs.maxStakePerUser = "Max stake per trader is required";
       if (!minYesPool) errs.minYesPool = "Min YES pool is required";
       if (!minNoPool) errs.minNoPool = "Min NO pool is required";
-      if (!minParticipants) errs.minParticipants = "Min participants is required";
+      if (!minParticipants) errs.minParticipants = "Min traders is required";
     }
     return errs;
   };
@@ -411,13 +411,13 @@ export const EditMarketView = ({
               disabled={isReadOnly}
             />
             <InputField
-              label="Max Stake Per User (₦)"
+              label="Max Stake Per Trader (₦)"
               value={maxStakePerUser}
               onChange={setMaxStakePerUser}
               type="number"
               placeholder="e.g. 10000"
               required
-              hint="Maximum amount a single user can stake"
+              hint="Maximum amount a single trader can stake"
               error={errors.maxStakePerUser}
               disabled={isReadOnly}
             />
@@ -444,13 +444,13 @@ export const EditMarketView = ({
               disabled={isReadOnly}
             />
             <InputField
-              label="Min Participants"
+              label="Min Traders"
               value={minParticipants}
               onChange={setMinParticipants}
               type="number"
               placeholder="e.g. 10"
               required
-              hint="Minimum number of participants to activate"
+              hint="Minimum number of traders to activate"
               error={errors.minParticipants}
               disabled={isReadOnly}
             />

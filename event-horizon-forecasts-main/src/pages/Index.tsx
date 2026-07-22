@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, Sparkles } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Search, Sparkles, TrendingUp } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { MarketCard } from "@/components/MarketCard";
@@ -108,63 +107,74 @@ const Index = () => {
   return (
     <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
-      <main className="mx-auto max-w-[1320px] px-4 py-5 sm:px-6 lg:py-6">
+      <main className="mx-auto max-w-[1320px] px-4 py-6 sm:px-6 lg:py-8">
 
         {/* ── Hero ── */}
         {!isSearching && category === "Trending" && (
-          <section className="mb-6">
-            <h1 className="text-2xl font-black tracking-tight text-[#111827] sm:text-3xl">
+          <section className="mb-8">
+            <h1 className="font-display text-3xl font-extrabold tracking-tight text-[#111827] sm:text-4xl">
               {heroGreeting}
             </h1>
-            <p className="mt-1 text-sm font-medium text-[#9CA3AF]">
-              {liveCount > 0 ? `${liveCount} live markets` : "Loading markets..."}
+            <p className="mt-2 flex items-center gap-1.5 text-sm font-medium text-[#6B7280]">
+              {liveCount > 0 ? (
+                <>
+                  <span className="inline-flex h-2 w-2 rounded-full bg-[#12B886] shadow-[0_0_6px_rgba(18,184,134,0.5)]" />
+                  {liveCount} live markets
+                </>
+              ) : (
+                "Loading markets..."
+              )}
             </p>
           </section>
         )}
 
         {/* ── Search Bar ── */}
-        <section className="mb-4">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+        <section className="mb-5">
+          <div className="relative group">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#9CA3AF] transition-colors group-focus-within:text-[#4F46E5]" />
             <input
               ref={searchInputRef}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search markets..."
+              placeholder="Search markets, topics, events..."
               aria-label="Search markets"
               role="searchbox"
-              className="h-11 w-full rounded-xl border border-[#E5E7EB] bg-white pl-10 pr-16 text-[14px] font-medium text-[#111827] shadow-sm outline-none placeholder:text-[#9CA3AF] focus:border-[#4F46E5]/50 focus:ring-2 focus:ring-[#4F46E5]/10 transition-all"
+              className="h-12 w-full rounded-2xl border border-[#E5E7EB] bg-white pl-11 pr-20 text-sm font-medium text-[#111827] shadow-sm outline-none placeholder:text-[#9CA3AF] focus:border-[#4F46E5] focus:ring-4 focus:ring-[#4F46E5]/[0.06] transition-all duration-200"
             />
-            <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-md border border-[#E5E7EB] bg-[#F3F4F6] px-1.5 py-0.5 text-[10px] font-bold text-[#9CA3AF]">
+            <kbd className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-2 py-1 text-[11px] font-semibold text-[#9CA3AF] tabular-nums">
               Ctrl K
             </kbd>
           </div>
         </section>
 
         {/* ── Category Pills ── */}
-        <section className="mb-5">
+        <section className="mb-6">
           <div
-            className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none"
+            className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
             style={{ WebkitOverflowScrolling: "touch", scrollBehavior: "smooth" }}
             role="tablist"
           >
             {HOME_MARKET_FILTERS.map((chip) => {
               const count = chip === "Trending" ? liveCount : Number(categoryCounts[chip] || 0);
+              const isActive = category === chip;
               return (
                 <button
                   key={chip}
                   onClick={() => setCategory(chip)}
                   role="tab"
-                  aria-selected={category === chip}
-                  className={`relative shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-all duration-200 ${
-                    category === chip
-                      ? "bg-[#4F46E5] text-white shadow-[0_2px_8px_rgba(79,70,229,0.25)]"
-                      : "border border-[#E5E7EB] bg-white text-[#667085] hover:border-[#C7D2FE] hover:text-[#111827]"
+                  aria-selected={isActive}
+                  className={`relative shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold transition-all duration-200 ${
+                    isActive
+                      ? "bg-[#4F46E5] text-white shadow-[0_2px_12px_rgba(79,70,229,0.3)]"
+                      : "border border-[#E5E7EB] bg-white text-[#6B7280] hover:border-[#C7D2FE] hover:bg-[#EEF2FF] hover:text-[#4F46E5]"
                   }`}
                 >
+                  {isActive && chip === "Trending" && <TrendingUp className="inline h-3.5 w-3.5 -mt-0.5 mr-1" />}
                   {chip}
-                  {count > 0 && category !== chip && (
-                    <span className="ml-1 text-[10px] opacity-60">{count}</span>
+                  {count > 0 && !isActive && (
+                    <span className="ml-1.5 rounded-full bg-[#F3F4F6] px-1.5 py-0.5 text-[10px] font-bold tabular-nums">
+                      {count}
+                    </span>
                   )}
                 </button>
               );
@@ -174,29 +184,37 @@ const Index = () => {
 
         {/* ── Market Grid ── */}
         <section>
-          <div className="mb-4">
-            <h2 className="text-lg font-black tracking-tight">{sectionTitle}</h2>
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-lg font-bold tracking-tight text-[#111827]">{sectionTitle}</h2>
+            {!isSearching && filtered.length > 0 && (
+              <span className="rounded-full bg-[#EEF2FF] px-2.5 py-1 text-xs font-bold text-[#4F46E5] tabular-nums">
+                {filtered.length}
+              </span>
+            )}
           </div>
 
           {isLoadingMarkets && markets.length === 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
               {[1, 2, 3, 4, 5, 6].map((item) => (
-                <div key={item} className="h-56 rounded-2xl border border-[#E5E7EB] soft-shimmer" />
+                <div key={item} className="h-56 rounded-2xl border border-[#E5E7EB] bg-white soft-shimmer" />
               ))}
             </div>
           ) : marketError && filtered.length === 0 ? (
-            <div className="rounded-2xl border border-[#E5E7EB] bg-white p-10 text-center">
-              <h3 className="text-lg font-bold">Could not load markets</h3>
-              <p className="mt-1 text-sm text-[#6B7280]">{marketError}</p>
+            <div className="rounded-2xl border border-[#E5E7EB] bg-white p-12 text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-red-50">
+                <Sparkles className="h-5 w-5 text-[#E85D5D]" />
+              </div>
+              <h3 className="text-base font-bold text-[#111827]">Could not load markets</h3>
+              <p className="mt-1.5 text-sm text-[#6B7280]">{marketError}</p>
               <button
                 onClick={() => loadMarkets({ force: true })}
-                className="mt-5 rounded-xl border border-[#E5E7EB] bg-white px-5 py-2.5 text-sm font-bold text-[#111827] transition hover:bg-[#F3F4F6]"
+                className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-6 py-2.5 text-sm font-bold text-[#111827] transition hover:bg-[#F3F4F6]"
               >
                 Retry
               </button>
             </div>
           ) : filtered.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3" role="list">
+            <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3" role="list">
               {filtered.map((market, index) => (
                 <div
                   key={market.id}
@@ -209,16 +227,16 @@ const Index = () => {
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-[#D1D5DB] bg-white/60 p-12 text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[#4F46E5]/8">
+            <div className="rounded-2xl border border-dashed border-[#D1D5DB] bg-white/60 p-14 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#EEF2FF]">
                 {isSearching ? (
-                  <Search className="h-5 w-5 text-[#4F46E5]" />
+                  <Search className="h-6 w-6 text-[#4F46E5]" />
                 ) : (
-                  <Sparkles className="h-5 w-5 text-[#4F46E5]" />
+                  <TrendingUp className="h-6 w-6 text-[#4F46E5]" />
                 )}
               </div>
-              <h3 className="text-base font-bold">{emptyTitle}</h3>
-              <p className="mt-1.5 max-w-sm mx-auto text-sm text-[#9CA3AF]">
+              <h3 className="text-base font-bold text-[#111827]">{emptyTitle}</h3>
+              <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-[#9CA3AF]">
                 {emptyBody}
               </p>
             </div>

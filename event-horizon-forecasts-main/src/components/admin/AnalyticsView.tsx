@@ -98,14 +98,14 @@ export function AnalyticsView() {
               icon={<Activity className="h-4 w-4" />}
               label="Today's Trades"
               value={(stats?.todaysTrades ?? 0).toLocaleString()}
-              sub="Predictions placed today"
+              sub="Positions placed today"
               tone="indigo"
             />
             <MetricCard
               icon={<DollarSign className="h-4 w-4" />}
               label="Today's Volume"
               value={formatNaira(stats?.todaysVolume ?? 0)}
-              sub="Total staked today"
+              sub="Total traded today"
               tone="amber"
             />
           </div>

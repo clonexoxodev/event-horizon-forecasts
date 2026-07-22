@@ -124,7 +124,7 @@ export const RiskCenterView = () => {
                 <DataTable>
                   <thead>
                     <tr>
-                      <Th>User</Th>
+                      <Th>Trader</Th>
                       <Th>Market</Th>
                       <Th className="text-right">Amount</Th>
                       <Th className="text-right">Risk</Th>
@@ -218,18 +218,18 @@ export const RiskCenterView = () => {
 
             <Card>
               <SectionHeader
-                title="Top Exposed Users"
-                description="Users with the highest total exposure"
+                title="Top Exposed Traders"
+                description="Traders with the highest total exposure"
               />
               {data.topExposedUsers.length === 0 ? (
                 <div className="grid min-h-[120px] place-items-center rounded-2xl border border-dashed border-gray-300 bg-gray-50/50 p-8 text-center">
-                  <p className="text-xs text-gray-500">No exposed users</p>
+                  <p className="text-xs text-gray-500">No exposed traders</p>
                 </div>
               ) : (
                 <DataTable>
                   <thead>
                     <tr>
-                      <Th>User</Th>
+                      <Th>Trader</Th>
                       <Th className="text-right">Total Exposure</Th>
                     </tr>
                   </thead>

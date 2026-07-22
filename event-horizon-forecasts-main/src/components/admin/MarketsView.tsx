@@ -164,7 +164,7 @@ export const MarketsView = ({
                 <Th>Status</Th>
                 <Th>Pool</Th>
                 <Th>Volume</Th>
-                <Th className="text-right">Participants</Th>
+                <Th className="text-right">Traders</Th>
                 <Th>Countdown</Th>
                 <Th className="text-right">Actions</Th>
               </tr>
