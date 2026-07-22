@@ -9,14 +9,12 @@ import {
   Filter,
   Gift,
   History,
-  Landmark,
   RefreshCw,
   ShieldCheck,
   TrendingDown,
   TrendingUp,
   Wallet as WalletIcon,
   X,
-  Zap,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { DelayedFlippeLoader } from "@/components/FlippeBrand";
@@ -280,14 +278,6 @@ export default function Wallet() {
           </div>
         </section>
 
-        {/* ── Quick Stats Row ── */}
-        <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatPill icon={Landmark} label="Available" value={formatNaira(ngnBalance)} />
-          <StatPill icon={ShieldCheck} label="Locked" value={formatNaira(lockedBalance)} />
-          <StatPill icon={Zap} label="Total" value={formatNaira(totalBalance)} />
-          <StatPill icon={History} label="History" value={historyLoading ? "..." : `${transactions.length}`} />
-        </section>
-
         {/* ── Security Notice ── */}
         <section className="mt-3">
           <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-xs text-[#6B7280]">
@@ -442,28 +432,6 @@ export default function Wallet() {
     </div>
   );
 }
-
-const StatPill = ({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: any;
-  label: string;
-  value: string;
-}) => (
-  <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3">
-    <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#EEF2FF] text-[#4F46E5]">
-      <Icon className="h-4 w-4" />
-    </div>
-    <div>
-      <div className="text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF]">
-        {label}
-      </div>
-      <div className="text-sm font-black text-[#111827]">{value}</div>
-    </div>
-  </div>
-);
 
 const TransactionTypeIcon = ({
   type,

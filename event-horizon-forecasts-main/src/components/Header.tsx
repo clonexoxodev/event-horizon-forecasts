@@ -1,4 +1,4 @@
-import { Home, Menu, PieChart, Shield, Wallet } from "lucide-react";
+import { Home, ListOrdered, Menu, PieChart, Shield, Wallet } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
@@ -7,7 +7,8 @@ import { FlippeSymbol, FlippeWordmark } from "@/components/FlippeBrand";
 
 const primaryNav = [
   { to: "/", label: "Home", icon: Home },
-  { to: "/portfolio", label: "My Positions", icon: PieChart },
+  { to: "/positions", label: "Positions", icon: PieChart },
+  { to: "/orders", label: "Orders", icon: ListOrdered },
   { to: "/wallet", label: "Wallet", icon: Wallet },
   { to: "/more", label: "More", icon: Menu },
 ];
@@ -18,9 +19,7 @@ export const Header = () => {
 
   return (
     <>
-      {/* ═══════════════════════════════════════════════════════════
-          MOBILE HEADER (below md) — single source of truth on mobile
-          ═══════════════════════════════════════════════════════════ */}
+      {/* MOBILE HEADER */}
       <header
         className="sticky top-0 z-40 border-b border-[#E5E7EB]/60 bg-white/80 backdrop-blur-2xl md:hidden"
         role="banner"
@@ -57,9 +56,7 @@ export const Header = () => {
         </div>
       </header>
 
-      {/* ═══════════════════════════════════════════════════════════
-          TABLET TOP BAR (md to xl) — sidebar takes over at xl
-          ═══════════════════════════════════════════════════════════ */}
+      {/* TABLET TOP BAR */}
       <header
         className="sticky top-0 z-40 border-b border-[#E5E7EB]/60 bg-white/80 backdrop-blur-2xl hidden md:block xl:hidden"
         role="banner"
@@ -95,9 +92,7 @@ export const Header = () => {
         </div>
       </header>
 
-      {/* ═══════════════════════════════════════════════════════════
-          DESKTOP SIDEBAR (xl+) — sole navigation on desktop
-          ═══════════════════════════════════════════════════════════ */}
+      {/* DESKTOP SIDEBAR */}
       <aside
         className="fixed left-0 top-0 z-50 hidden h-screen w-64 border-r border-[#E5E7EB]/60 bg-white xl:flex xl:flex-col"
         role="navigation"

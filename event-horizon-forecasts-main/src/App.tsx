@@ -16,9 +16,9 @@ import Index from "./pages/Index.tsx";
 import Login from "./pages/Login.tsx";
 import Signup from "./pages/Signup.tsx";
 import MarketDetail from "./pages/MarketDetail.tsx";
-import Dashboard from "./pages/Dashboard.tsx";
+import Positions from "./pages/Positions.tsx";
+import Orders from "./pages/Orders.tsx";
 import Wallet from "./pages/Wallet.tsx";
-import Notifications from "./pages/Notifications.tsx";
 import Profile from "./pages/Profile.tsx";
 import Settings from "./pages/Settings.tsx";
 import Support from "./pages/Support.tsx";
@@ -154,13 +154,14 @@ const App = () => (
                   <Route path="/login" element={<Login />} />
                   <Route path="/signup" element={<Signup />} />
                   <Route path="/market/:id" element={<MarketDetail />} />
-                  <Route path="/portfolio" element={<Dashboard />} />
-                  <Route path="/dashboard" element={<Navigate to="/portfolio" replace />} />
+                  <Route path="/positions" element={<ProtectedRoute><Positions /></ProtectedRoute>} />
+                  <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
                   <Route path="/wallet" element={<Wallet />} />
-                  <Route path="/listing/:code" element={<Navigate to="/portfolio" replace />} />
-                  <Route path="/activity" element={<Navigate to="/portfolio" replace />} />
+                  <Route path="/portfolio" element={<Navigate to="/positions" replace />} />
+                  <Route path="/dashboard" element={<Navigate to="/positions" replace />} />
+                  <Route path="/activity" element={<Navigate to="/orders" replace />} />
+                  <Route path="/listing/:code" element={<Navigate to="/positions" replace />} />
                   <Route path="/discussion" element={<Navigate to="/" replace />} />
-                  <Route path="/notifications" element={<Notifications />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/support" element={<Support />} />
