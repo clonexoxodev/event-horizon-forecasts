@@ -815,6 +815,7 @@ export default function MarketDetail() {
               expanded={!!expandedSections["matching"]}
               onToggle={() => toggleSection("matching")}
               border
+              last
             >
               <div className="space-y-3">
                 <p className="text-sm leading-relaxed text-[#475467]">
@@ -839,42 +840,6 @@ export default function MarketDetail() {
             </ExpandableSection>
           )}
 
-          {/* Risk Notice */}
-          <ExpandableSection
-            icon={AlertTriangle}
-            title="Risk Notice"
-            expanded={!!expandedSections["risk"]}
-            onToggle={() => toggleSection("risk")}
-            border
-          >
-            <div className="rounded-xl border border-[#F59E0B]/30 bg-[#FEF3C7]/40 p-4">
-              <p className="text-sm leading-relaxed text-[#92400E]">
-                Prediction markets involve financial risk. You may lose some or all of your staked amount.
-                Prices can be volatile and may not reflect the true probability of an outcome.
-                Only stake what you can afford to lose. This is not financial advice.
-              </p>
-            </div>
-          </ExpandableSection>
-
-          {/* Market Metadata */}
-          <ExpandableSection
-            icon={Info}
-            title="Market Metadata"
-            expanded={!!expandedSections["metadata"]}
-            onToggle={() => toggleSection("metadata")}
-            border
-            last
-          >
-            <div className="space-y-0">
-              <MetaRow label="Market ID" value={market.id} />
-              <MetaRow label="Category" value={marketCategoryLabel} />
-              <MetaRow label="Pricing Model" value={market.pricing_model === "orderbook" ? "Order Book" : "AMM Pool"} />
-              <MetaRow label="Currency" value="Nigerian Naira (NGN)" />
-              <MetaRow label="Status" value={market.status.charAt(0).toUpperCase() + market.status.slice(1)} />
-              {(market as any).createdAt && <MetaRow label="Created" value={new Date((market as any).createdAt).toLocaleDateString()} />}
-              {market.resolvedAt && <MetaRow label="Resolved" value={new Date(market.resolvedAt).toLocaleDateString()} />}
-            </div>
-          </ExpandableSection>
         </section>
       </main>
       {/* ── Sticky Action Bar ── */}
@@ -1228,7 +1193,7 @@ export default function MarketDetail() {
 
             <div className="mt-6 grid gap-2">
               <Link
-                to="/portfolio"
+                to="/positions"
                 onClick={() => { setJustPredicted(null); setShowConfetti(false); }}
                 className="flex h-11 items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-bold text-white shadow-lg shadow-[#4F46E5]/20 transition hover:bg-[#4338CA]"
               >
@@ -1446,21 +1411,6 @@ const Chart = ({
   if (emptyHistory) {
     return (
       <div>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#12B886]/10 px-2.5 py-1 text-[10px] font-bold text-[#12B886]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#12B886]" />
-              YES {formatNairaPrice(currentYes)}
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#E85D5D]/10 px-2.5 py-1 text-[10px] font-bold text-[#E85D5D]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#E85D5D]" />
-              NO {formatNairaPrice(currentNo)}
-            </span>
-          </div>
-          <span className="rounded-full bg-[#F3F4F6] px-2.5 py-1 text-[10px] font-bold text-[#6B7280]">
-            {market.tradeCount || 0} trades
-          </span>
-        </div>
         <div className="grid h-[220px] place-items-center rounded-xl border border-dashed border-[#D1D5DB] bg-[#F8F7F4]/60 p-4 text-center sm:h-[280px]">
           <div>
             <div className="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-xl bg-[#F3F4F6]">
@@ -1476,32 +1426,7 @@ const Chart = ({
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full bg-[#12B886]/10 px-2.5 py-1 text-[10px] font-bold text-[#12B886]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#12B886]" />
-            YES {formatNairaPrice(market.yesPrice)}
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-[#E85D5D]/10 px-2.5 py-1 text-[10px] font-bold text-[#E85D5D]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#E85D5D]" />
-            NO {formatNairaPrice(market.noPrice)}
-          </span>
-        </div>
-        <span className="rounded-full bg-[#F3F4F6] px-2.5 py-1 text-[10px] font-bold text-[#6B7280]">
-          {market.tradeCount || 0} trades
-        </span>
-      </div>
       <div className="relative overflow-hidden rounded-xl border border-[#E5E7EB] bg-white p-3">
-        <div className="mb-2 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-bold text-[#667085]">YES Price</p>
-            <p className="text-lg font-bold tabular-nums text-[#101828]">{formatNairaPrice(market.yesPrice)}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] font-bold text-[#667085]">NO Price</p>
-            <p className="text-lg font-bold tabular-nums text-[#101828]">{formatNairaPrice(market.noPrice)}</p>
-          </div>
-        </div>
         <div className="h-[220px] w-full sm:h-[300px]">
           <Line data={chartData} options={chartOptions} />
         </div>

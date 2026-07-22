@@ -1,11 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Award,
+  BarChart3,
   Camera,
+  ChevronDown,
   ChevronRight,
   Crown,
+  Flame,
   LineChart,
   LogOut,
+  Medal,
   Settings,
   Target,
   TrendingUp,
@@ -23,6 +27,11 @@ import apiService, { type ApiPosition, type ApiProfileStats } from "@/lib/api";
 import { toast } from "sonner";
 import { getCategoryLabel } from "@/lib/categories";
 import { LEVELS } from "@/lib/levels";
+import { AnimatedNumber } from "@/components/AnimatedNumber";
+import {
+  getCurrentWinStreak, getBestWinStreak, getScore, getTraderLevel,
+  getLevelProgress, getNextLevel,
+} from "@/lib/levels";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -112,7 +121,7 @@ export default function Profile() {
           apiService.getPositions(),
         ]);
         setStats(statsResponse.stats);
-        setPositions(positionsResponse.positions.slice(0, 5));
+        setPositions(positionsResponse.positions || []);
       } catch (error: any) {
         toast("Could not load profile", {
           description: error.message || "Please refresh and try again.",
@@ -429,6 +438,9 @@ export default function Profile() {
           </div>
         </section>
 
+        {/* ── Trader Progress ── */}
+        <TraderProgress stats={stats} positions={positions} />
+
         {/* ── Recent Positions ── */}
         <section className="mt-4 rounded-3xl border border-[#E5E7EB] bg-white p-5">
           <div className="mb-4 flex items-center justify-between">
@@ -457,7 +469,7 @@ export default function Profile() {
             </div>
           ) : (
             <ul className="space-y-3">
-              {positions.map((position) => (
+              {positions.slice(0, 5).map((position) => (
                 <li
                   key={position.id}
                   className="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4"
@@ -570,3 +582,86 @@ const Mini = ({ label, value }: { label: string; value: string }) => (
     </div>
   </div>
 );
+
+const TraderProgress = ({ stats, positions }: { stats: ApiProfileStats; positions: ApiPosition[] }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  const resolvedPositions = useMemo(() => positions.filter((p) => p.resolvedAt), [positions]);
+  const wonPositions = useMemo(() => resolvedPositions.filter((p) => p.isWinner), [resolvedPositions]);
+  const activePositions = useMemo(
+    () => positions.filter((p) => p.marketStatus === "active" && ["active", "open"].includes(String(p.status || "active").toLowerCase())),
+    [positions]
+  );
+
+  const totalScore = getScore(stats.totalPredictions, wonPositions.length);
+  const level = stats.level || getTraderLevel(stats.totalPredictions, wonPositions.length);
+  const nextLevel = getNextLevel(level);
+  const progress = getLevelProgress(stats.totalPredictions, wonPositions.length);
+  const winRate = resolvedPositions.length ? Math.round((wonPositions.length / resolvedPositions.length) * 100) : 0;
+  const bestStreak = getBestWinStreak(resolvedPositions);
+  const currentStreak = getCurrentWinStreak(resolvedPositions);
+  const lvlIdx = Math.max(0, LEVELS.findIndex((l) => l.name === level));
+  const ptsToNext = level === nextLevel ? 0 : Math.max(0, (LEVELS[Math.min(lvlIdx + 1, LEVELS.length - 1)]?.score || 0) - totalScore);
+
+  return (
+    <section className="mt-4 rounded-3xl border border-[#E5E7EB] bg-white p-5">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center justify-between"
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#EEF2FF] text-[#4F46E5]">
+            <Medal className="h-4 w-4" />
+          </div>
+          <div className="text-left">
+            <div className="text-sm font-bold text-[#111827]">Trader Progress</div>
+            <div className="text-[10px] font-bold text-[#9CA3AF]">
+              {level === nextLevel ? "Max level reached" : `${ptsToNext} pts to ${nextLevel}`}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <AnimatedNumber value={totalScore} className="text-lg font-black text-[#4F46E5]" />
+            <div className="text-[9px] font-bold text-[#9CA3AF]">points</div>
+          </div>
+          <ChevronDown className={`h-4 w-4 text-[#9CA3AF] transition-transform ${expanded ? "rotate-180" : ""}`} />
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="mt-4 space-y-4 border-t border-[#F3F4F6] pt-4">
+          <div className="h-2 overflow-hidden rounded-full bg-[#F3F4F6]">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] transition-all duration-700"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl bg-[#F8F7F4] p-2.5 text-center">
+              <div className="mx-auto mb-1 grid h-6 w-6 place-items-center rounded-lg bg-white text-[#4F46E5]">
+                <BarChart3 className="h-3 w-3" />
+              </div>
+              <div className="text-sm font-bold text-[#111827]">{winRate}%</div>
+              <div className="text-[9px] font-bold text-[#9CA3AF]">Win rate</div>
+            </div>
+            <div className="rounded-xl bg-[#F8F7F4] p-2.5 text-center">
+              <div className="mx-auto mb-1 grid h-6 w-6 place-items-center rounded-lg bg-white text-[#4F46E5]">
+                <Target className="h-3 w-3" />
+              </div>
+              <div className="text-sm font-bold text-[#111827]">{activePositions.length}</div>
+              <div className="text-[9px] font-bold text-[#9CA3AF]">Active</div>
+            </div>
+            <div className="rounded-xl bg-[#F8F7F4] p-2.5 text-center">
+              <div className="mx-auto mb-1 grid h-6 w-6 place-items-center rounded-lg bg-white text-[#4F46E5]">
+                <Flame className="h-3 w-3" />
+              </div>
+              <div className="text-sm font-bold text-[#111827]">{bestStreak}</div>
+              <div className="text-[9px] font-bold text-[#9CA3AF]">Best streak</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+};

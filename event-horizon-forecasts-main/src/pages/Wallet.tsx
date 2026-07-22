@@ -140,8 +140,6 @@ export default function Wallet() {
   }, []);
 
   const ngnBalance = walletSnapshot?.availableNgn ?? user?.balance ?? 0;
-  const lockedBalance = walletSnapshot?.lockedNgn ?? 0;
-  const totalBalance = ngnBalance + lockedBalance;
 
   const filteredTransactions =
     activeTab === "all"
@@ -188,16 +186,6 @@ export default function Wallet() {
     <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8 w-full">
-        <div className="mb-6">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF]">
-            Wallet
-          </p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
-            Cash Management
-          </h1>
-        </div>
-
-        {/* ── Total Balance Hero ── */}
         <section>
           <div className="relative overflow-hidden rounded-3xl shadow-[0_8px_30px_rgba(79,70,229,0.25)]">
             <div className="absolute inset-0 bg-gradient-to-br from-[#4F46E5] via-[#6366F1] to-[#4338CA]" />
@@ -209,14 +197,14 @@ export default function Wallet() {
                 <circle cx="350" cy="140" r="60" fill="white" />
               </svg>
             </div>
-            <div className="relative p-6 sm:p-8" aria-label="Total wallet balance">
+            <div className="relative p-6 sm:p-8" aria-label="Wallet balance">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-[11px] font-bold uppercase tracking-widest text-white/60">
-                    Total Balance
+                    Balance
                   </div>
                   <div className="mt-3 text-5xl font-black tracking-tight text-white sm:text-6xl">
-                    {formatNaira(totalBalance)}
+                    {formatNaira(ngnBalance)}
                   </div>
                 </div>
                 <button
@@ -229,33 +217,6 @@ export default function Wallet() {
                     className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
                   />
                 </button>
-              </div>
-
-              <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl bg-white/10 px-4 py-3 backdrop-blur-sm">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-white/50">
-                    Available
-                  </div>
-                  <div className="mt-1 text-lg font-black text-white">
-                    {formatNaira(ngnBalance)}
-                  </div>
-                </div>
-                <div className="rounded-2xl bg-white/10 px-4 py-3 backdrop-blur-sm">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-white/50">
-                    Locked
-                  </div>
-                  <div className="mt-1 text-lg font-black text-white">
-                    {formatNaira(lockedBalance)}
-                  </div>
-                </div>
-                <div className="hidden sm:block rounded-2xl bg-white/10 px-4 py-3 backdrop-blur-sm">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-white/50">
-                    Transactions
-                  </div>
-                  <div className="mt-1 text-lg font-black text-white">
-                    {historyLoading ? "—" : transactions.length}
-                  </div>
-                </div>
               </div>
 
               <div className="mt-6 grid grid-cols-2 gap-3">

@@ -11,17 +11,19 @@ import {
   Info,
   X,
   Layers,
+  TrendingUp,
+  Target,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
-import apiService, { type ApiOrder } from "@/lib/api";
-import { formatNaira } from "@/lib/markets";
+import apiService, { type ApiOrder, type ApiPosition } from "@/lib/api";
+import { formatCountdown, formatNaira, formatNairaPrice } from "@/lib/markets";
 import { toast } from "sonner";
 import { DelayedFlippeLoader } from "@/components/FlippeBrand";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 
-type OrderTab = "pending" | "filled" | "cancelled";
+type OrderTab = "pending" | "live" | "resolved";
 
 const DISMISS_KEY = "orders_info_dismissed";
 
@@ -35,14 +37,32 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; i
   refunded: { label: "Refunded", color: "text-[#B45309]", bg: "bg-[#FEF3C7]", icon: <AlertCircle className="h-3 w-3" /> },
 };
 
+const getCloseTime = (p: ApiPosition) => p.tradingCloseTime || p.marketCloseTime || "";
+
+const getDisplayStatus = (p: ApiPosition, now = Date.now()) => {
+  const status = String(p.status || p.marketStatus || "active").toLowerCase();
+  const closeMs = getCloseTime(p) ? new Date(getCloseTime(p)).getTime() : NaN;
+  const hasEnded = Number.isFinite(closeMs) && closeMs <= now;
+  const unresolvedClosed = hasEnded && ["active", "open", "closed"].includes(status);
+  const isOpen = !hasEnded && p.marketStatus === "active" && ["active", "open"].includes(status);
+  return { isOpen, hasEnded, label: unresolvedClosed ? "pending resolution" : status.replace(/_/g, " ") };
+};
+
 const Orders = () => {
   const { user, isLoading: authLoading } = useAuth();
   const [allOrders, setAllOrders] = useState<ApiOrder[]>([]);
+  const [positions, setPositions] = useState<ApiPosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<OrderTab>("pending");
   const [infoDismissed, setInfoDismissed] = useState(() => {
     try { return localStorage.getItem(DISMISS_KEY) === "true"; } catch { return false; }
   });
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -52,13 +72,23 @@ const Orders = () => {
     const loadOrders = async () => {
       try {
         const positionsRes = await apiService.getPositions();
-        const positions = positionsRes.positions || [];
+        const posList = positionsRes.positions || [];
+        if (!mounted) return;
+        setPositions(posList);
+
+        if (posList.length === 0) {
+          setAllOrders([]);
+          return;
+        }
+
         const allOrdersList: ApiOrder[] = [];
-        for (const pos of positions) {
-          try {
-            const res = await apiService.getUserOrders(pos.marketId);
-            allOrdersList.push(...(res.orders || []));
-          } catch { /* best-effort */ }
+        const results = await Promise.allSettled(
+          posList.map((pos) => apiService.getUserOrders(pos.marketId))
+        );
+        for (const result of results) {
+          if (result.status === "fulfilled") {
+            allOrdersList.push(...(result.value.orders || []));
+          }
         }
         if (!mounted) return;
         setAllOrders(allOrdersList.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
@@ -76,13 +106,17 @@ const Orders = () => {
     () => allOrders.filter((o) => ["waiting", "partial", "pending"].includes(o.status)),
     [allOrders]
   );
-  const filledOrders = useMemo(() => allOrders.filter((o) => o.status === "filled"), [allOrders]);
-  const cancelledOrders = useMemo(
-    () => allOrders.filter((o) => ["cancelled", "expired", "refunded"].includes(o.status)),
-    [allOrders]
+  const livePositions = useMemo(
+    () => positions.filter((p) => getDisplayStatus(p, now).isOpen),
+    [positions, now]
+  );
+  const resolvedPositions = useMemo(
+    () => positions.filter((p) => !getDisplayStatus(p, now).isOpen),
+    [positions, now]
   );
 
-  const currentOrders = activeTab === "pending" ? pendingOrders : activeTab === "filled" ? filledOrders : cancelledOrders;
+  const currentOrders = activeTab === "pending" ? pendingOrders : [];
+  const currentPositions = activeTab === "live" ? livePositions : activeTab === "resolved" ? resolvedPositions : [];
 
   const cancelOrderHandler = async (orderId: string, marketId: string) => {
     try {
@@ -180,18 +214,21 @@ const Orders = () => {
 
         {/* Tabs */}
         <div className="mb-5 flex gap-1 rounded-xl bg-[#F3F4F6] p-1">
-          {(["pending", "filled", "cancelled"] as OrderTab[]).map((tab) => {
-            const count = tab === "pending" ? pendingOrders.length : tab === "filled" ? filledOrders.length : cancelledOrders.length;
-            const isActive = activeTab === tab;
+          {([
+            { key: "pending" as OrderTab, label: "Pending", count: pendingOrders.length },
+            { key: "live" as OrderTab, label: "Live Trades", count: livePositions.length },
+            { key: "resolved" as OrderTab, label: "Resolved", count: resolvedPositions.length },
+          ]).map(({ key, label, count }) => {
+            const isActive = activeTab === key;
             return (
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
+                key={key}
+                onClick={() => setActiveTab(key)}
                 className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition ${
                   isActive ? "bg-white text-[#111827] shadow-sm" : "text-[#6B7280] hover:text-[#111827]"
                 }`}
               >
-                {tab === "pending" ? "Pending" : tab === "filled" ? "Filled" : "Cancelled"}
+                {label}
                 {count > 0 && (
                   <span className={`ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] ${
                     isActive ? "bg-[#4F46E5] text-white" : "bg-[#D1D5DB] text-[#6B7280]"
@@ -209,14 +246,36 @@ const Orders = () => {
           <div className="grid min-h-[200px] place-items-center">
             <Loader2 className="h-6 w-6 animate-spin text-[#4F46E5]" />
           </div>
-        ) : currentOrders.length === 0 ? (
-          <EmptyOrders tab={activeTab} />
+        ) : activeTab === "pending" ? (
+          currentOrders.length === 0 ? (
+            <EmptyOrders tab="pending" />
+          ) : (
+            <div className="grid gap-2.5">
+              {currentOrders.map((order) => (
+                <OrderRow key={order.id} order={order} onCancel={cancelOrderHandler} />
+              ))}
+            </div>
+          )
+        ) : activeTab === "live" ? (
+          currentPositions.length === 0 ? (
+            <EmptyOrders tab="live" />
+          ) : (
+            <div className="grid gap-2.5">
+              {currentPositions.map((pos) => (
+                <LivePositionRow key={pos.id} position={pos} now={now} />
+              ))}
+            </div>
+          )
         ) : (
-          <div className="grid gap-2.5">
-            {currentOrders.map((order) => (
-              <OrderRow key={order.id} order={order} onCancel={cancelOrderHandler} />
-            ))}
-          </div>
+          currentPositions.length === 0 ? (
+            <EmptyOrders tab="resolved" />
+          ) : (
+            <div className="grid gap-2.5">
+              {currentPositions.map((pos) => (
+                <ResolvedPositionRow key={pos.id} position={pos} />
+              ))}
+            </div>
+          )
         )}
       </main>
       <MobileNav />
@@ -231,15 +290,15 @@ const EmptyOrders = ({ tab }: { tab: OrderTab }) => {
       title: "No pending orders",
       body: "When you place an order, it appears here while waiting to be matched.",
     },
-    filled: {
-      icon: <CheckCircle className="h-5 w-5 text-[#047857]" />,
-      title: "No filled orders yet",
-      body: "Once your orders are matched, they'll show up here.",
+    live: {
+      icon: <TrendingUp className="h-5 w-5 text-[#047857]" />,
+      title: "No live trades",
+      body: "Once your orders are matched, they'll appear here as active positions.",
     },
-    cancelled: {
-      icon: <XCircle className="h-5 w-5 text-[#6B7280]" />,
-      title: "No cancelled orders",
-      body: "Cancelled or expired orders will appear here.",
+    resolved: {
+      icon: <CheckCircle className="h-5 w-5 text-[#6B7280]" />,
+      title: "No resolved trades",
+      body: "Resolved positions will appear here once the market settles.",
     },
   };
   const { icon, title, body } = config[tab];
@@ -370,6 +429,108 @@ const OrderRow = ({
         )}
       </div>
     </div>
+  );
+};
+
+const LivePositionRow = ({ position, now }: { position: ApiPosition; now: number }) => {
+  const entry = Number(position.entryPrice || 0);
+  const current = Number(position.currentPrice || position.entryPrice || 0);
+  const stake = Number(position.stake || 0);
+  const currentValue = Number(position.currentValue || position.positionValue || 0);
+  const profitLoss = currentValue > 0 ? currentValue - stake : 0;
+  const positive = profitLoss >= 0;
+  const timeLeft = formatCountdown(getCloseTime(position));
+
+  return (
+    <Link
+      to={`/market/${position.marketId}`}
+      className="group block rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-px hover:border-[#4F46E5]/20 hover:shadow-[0_4px_20px_rgba(17,24,39,0.06)] active:scale-[0.99]"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1 rounded-full bg-[#4F46E5]/10 px-2 py-0.5 text-[10px] font-bold text-[#4F46E5]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#4F46E5]" />
+          Active
+        </span>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+          position.side === "YES" ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#E85D5D]/10 text-[#B42318]"
+        }`}>{position.side}</span>
+      </div>
+      <h3 className="mt-2.5 line-clamp-2 text-[14px] font-bold leading-snug text-[#111827]">{position.marketQuestion}</h3>
+      <div className="mt-3 grid grid-cols-4 gap-2 border-t border-[#F3F4F6] pt-3">
+        <div>
+          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Entry</div>
+          <div className="mt-0.5 text-xs font-bold text-[#111827]">{entry ? formatNairaPrice(entry) : "-"}</div>
+        </div>
+        <div>
+          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Now</div>
+          <div className="mt-0.5 text-xs font-bold text-[#111827]">{current ? formatNairaPrice(current) : "-"}</div>
+        </div>
+        <div>
+          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">P&L</div>
+          <div className={`mt-0.5 text-xs font-bold ${positive ? "text-[#12B886]" : "text-[#E85D5D]"}`}>
+            {positive ? "+" : ""}{formatNaira(profitLoss)}
+          </div>
+        </div>
+        <div>
+          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Payout</div>
+          <div className="mt-0.5 text-xs font-bold text-[#111827]">{currentValue > 0 ? formatNaira(currentValue) : "-"}</div>
+        </div>
+      </div>
+      <div className="mt-3 flex items-center justify-between">
+        <span className="text-[10px] font-bold text-[#9CA3AF]">{timeLeft}</span>
+        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-[#6B7280] transition group-hover:text-[#4F46E5]">
+          View <ChevronRight className="h-3 w-3" />
+        </span>
+      </div>
+    </Link>
+  );
+};
+
+const ResolvedPositionRow = ({ position }: { position: ApiPosition }) => {
+  const stake = Number(position.stake || 0);
+  const currentValue = Number(position.currentValue || position.positionValue || 0);
+  const profitLoss = currentValue > 0 ? currentValue - stake : -stake;
+  const isWin = position.isWinner;
+  const won = isWin && profitLoss > 0;
+
+  return (
+    <Link
+      to={`/market/${position.marketId}`}
+      className="group block rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-px hover:border-[#4F46E5]/20 hover:shadow-[0_4px_20px_rgba(17,24,39,0.06)] active:scale-[0.99]"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+          won ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#E85D5D]/10 text-[#B42318]"
+        }`}>
+          {won ? <CheckCircle className="h-2.5 w-2.5" /> : <XCircle className="h-2.5 w-2.5" />}
+          {won ? "Won" : "Lost"}
+        </span>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+          position.side === "YES" ? "bg-[#12B886]/10 text-[#047857]" : "bg-[#E85D5D]/10 text-[#B42318]"
+        }`}>{position.side}</span>
+      </div>
+      <h3 className="mt-2.5 line-clamp-2 text-[14px] font-bold leading-snug text-[#111827]">{position.marketQuestion}</h3>
+      <div className="mt-3 flex items-center gap-4 border-t border-[#F3F4F6] pt-3">
+        <div>
+          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Stake</div>
+          <div className="mt-0.5 text-xs font-bold text-[#111827]">{formatNaira(stake)}</div>
+        </div>
+        <div>
+          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">P&L</div>
+          <div className={`mt-0.5 text-xs font-bold ${profitLoss >= 0 ? "text-[#12B886]" : "text-[#E85D5D]"}`}>
+            {profitLoss >= 0 ? "+" : ""}{formatNaira(profitLoss)}
+          </div>
+        </div>
+        {position.resolvedAt && (
+          <div className="ml-auto">
+            <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Resolved</div>
+            <div className="mt-0.5 text-xs font-bold text-[#6B7280]">
+              {new Date(position.resolvedAt).toLocaleDateString("en-NG", { day: "numeric", month: "short" })}
+            </div>
+          </div>
+        )}
+      </div>
+    </Link>
   );
 };
 

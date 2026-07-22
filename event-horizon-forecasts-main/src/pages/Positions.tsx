@@ -1,39 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  ArrowRight, Award, BarChart3, CheckCircle, ChevronDown, ChevronRight, ChevronUp,
-  Flame, Info, LineChart, Loader2, Medal, Shield, Target, Trophy, X, Zap,
+  ArrowRight, CheckCircle, ChevronRight, Info, Loader2, Target, Trophy, X,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { ProtectedMarketInfo } from "@/components/ProtectedMarketInfo";
 import { useAuth } from "@/lib/auth";
 import apiService, { type ApiPosition, type ApiProfileStats } from "@/lib/api";
-import { formatCountdown, formatNaira, formatNairaPrice, MARKET_ACTIVATION_REQUIREMENTS } from "@/lib/markets";
+import { formatCountdown, formatNairaPrice, MARKET_ACTIVATION_REQUIREMENTS } from "@/lib/markets";
 import { DelayedFlippeLoader } from "@/components/FlippeBrand";
-import { AnimatedNumber } from "@/components/AnimatedNumber";
-import {
-  getCurrentWinStreak, getBestWinStreak, getScore, getTraderLevel,
-  getLevelProgress, LEVELS, getNextLevel,
-} from "@/lib/levels";
 
 type PositionFilterTab = "active" | "resolved";
 
 const emptyStats: ApiProfileStats = {
   totalPredictions: 0, activePredictions: 0, wonPredictions: 0, winRate: 0,
   totalStaked: 0, totalEarnings: 0, rank: null, score: 0, level: "Rookie", totalRankedUsers: 0,
-};
-
-const getLevelIcon = (levelName: string) => {
-  switch (levelName) {
-    case "Rookie": return Shield;
-    case "Sharp Thinker": return Zap;
-    case "Analyst": return BarChart3;
-    case "Expert": return Award;
-    case "Elite Trader": return Medal;
-    case "Market Master": return Trophy;
-    default: return Shield;
-  }
 };
 
 const getCloseTime = (p: ApiPosition) => p.tradingCloseTime || p.marketCloseTime || "";
@@ -83,7 +65,6 @@ const Positions = () => {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<PositionFilterTab>("active");
   const [now, setNow] = useState(Date.now());
-  const [showProgress, setShowProgress] = useState(false);
   const [showProtectedInfo, setShowProtectedInfo] = useState(false);
 
   useEffect(() => {
@@ -113,20 +94,7 @@ const Positions = () => {
 
   const activePositions = useMemo(() => positions.filter(p => getDisplayStatus(p, now).isOpen), [positions, now]);
   const settledPositions = useMemo(() => positions.filter(p => !getDisplayStatus(p, now).isOpen), [positions, now]);
-  const resolvedPositions = useMemo(() => positions.filter(p => p.resolvedAt), [positions]);
-  const wonPositions = useMemo(() => resolvedPositions.filter(p => p.isWinner), [resolvedPositions]);
   const filtered = tab === "active" ? activePositions : settledPositions;
-
-  const totalScore = getScore(stats.totalPredictions, wonPositions.length);
-  const level = stats.level || getTraderLevel(stats.totalPredictions, wonPositions.length);
-  const nextLevel = getNextLevel(level);
-  const progress = getLevelProgress(stats.totalPredictions, wonPositions.length);
-  const winRate = resolvedPositions.length ? Math.round((wonPositions.length / resolvedPositions.length) * 100) : 0;
-  const bestStreak = getBestWinStreak(resolvedPositions);
-  const currentStreak = getCurrentWinStreak(resolvedPositions);
-  const LevelIcon = getLevelIcon(level);
-  const lvlIdx = Math.max(0, LEVELS.findIndex(l => l.name === level));
-  const ptsToNext = level === nextLevel ? 0 : Math.max(0, (LEVELS[Math.min(lvlIdx + 1, LEVELS.length - 1)]?.score || 0) - totalScore);
 
   if (authLoading) {
     return (
@@ -221,55 +189,6 @@ const Positions = () => {
             </div>
           )}
         </section>
-
-        <section className="mt-6">
-          <button onClick={() => setShowProgress(!showProgress)}
-            className="flex w-full items-center justify-between rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3.5 shadow-sm transition hover:shadow-md">
-            <div className="flex items-center gap-2.5">
-              <div className="grid h-7 w-7 place-items-center rounded-lg bg-[#4F46E5]/10">
-                <Medal className="h-3.5 w-3.5 text-[#4F46E5]" />
-              </div>
-              <span className="text-sm font-bold text-[#111827]">Trader Progress</span>
-            </div>
-            {showProgress ? <ChevronUp className="h-4 w-4 text-[#9CA3AF]" /> : <ChevronDown className="h-4 w-4 text-[#9CA3AF]" />}
-          </button>
-          {showProgress && (
-            <div className="mt-2 space-y-3 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#4F46E5]/10 text-[#4F46E5]">
-                    <LevelIcon className="h-4.5 w-4.5" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-[#111827]">{level}</div>
-                    <div className="text-[10px] font-bold text-[#9CA3AF]">
-                      {level === nextLevel ? "Max level reached" : `${ptsToNext} pts to ${nextLevel}`}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <AnimatedNumber value={totalScore} className="text-xl font-black text-[#4F46E5]" />
-                  <div className="text-[9px] font-bold text-[#9CA3AF]">points</div>
-                </div>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-[#F3F4F6]">
-                <div className="h-full rounded-full bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] transition-all duration-700" style={{ width: `${progress}%` }} />
-              </div>
-              <div className="grid grid-cols-3 gap-2 border-t border-[#F3F4F6] pt-3">
-                <QuickStat label="Win rate" value={`${winRate}%`} icon={BarChart3} />
-                <QuickStat label="Active" value={activePositions.length} icon={Target} />
-                <QuickStat label="Best streak" value={bestStreak} icon={Flame} />
-              </div>
-              <div className="border-t border-[#F3F4F6] pt-3">
-                <div className="mb-2 text-xs font-bold text-[#111827]">Achievements</div>
-                <AchievementsGrid
-                  totalPredictions={stats.totalPredictions} wins={wonPositions.length}
-                  currentStreak={currentStreak} bestStreak={bestStreak} rank={stats.rank}
-                />
-              </div>
-            </div>
-          )}
-        </section>
       </main>
       {showProtectedInfo && <ProtectedMarketInfo isOpen={showProtectedInfo} onClose={() => setShowProtectedInfo(false)} />}
       <MobileNav />
@@ -343,55 +262,6 @@ const PositionCard = ({ position, now, onLearnProtected }: {
         </span>
       </div>
     </Link>
-  );
-};
-
-/* ═══════════════════════════════════════════════════════════════
-   Quick Stat
-   ═══════════════════════════════════════════════════════════════ */
-
-const QuickStat = ({ label, value, icon: Icon }: { label: string; value: string | number; icon: any }) => (
-  <div className="rounded-xl bg-[#F8F7F4] p-2.5 text-center">
-    <div className="mx-auto mb-1 grid h-6 w-6 place-items-center rounded-lg bg-white text-[#4F46E5]">
-      <Icon className="h-3 w-3" />
-    </div>
-    <div className="text-sm font-bold text-[#111827]">{value}</div>
-    <div className="text-[9px] font-bold text-[#9CA3AF]">{label}</div>
-  </div>
-);
-
-/* ═══════════════════════════════════════════════════════════════
-   Achievements Grid (6 badges)
-   ═══════════════════════════════════════════════════════════════ */
-
-const AchievementsGrid = ({ totalPredictions, wins, currentStreak, bestStreak, rank }: {
-  totalPredictions: number; wins: number; currentStreak: number;
-  bestStreak: number; rank: number | null | undefined;
-}) => {
-  const items: { icon: any; title: string; unlocked: boolean }[] = [
-    { icon: Target, title: "First Trade", unlocked: totalPredictions >= 1 },
-    { icon: Trophy, title: "First Win", unlocked: wins >= 1 },
-    { icon: Flame, title: "3 Win Streak", unlocked: currentStreak >= 3 || bestStreak >= 3 },
-    { icon: Flame, title: "5 Win Streak", unlocked: currentStreak >= 5 || bestStreak >= 5 },
-    { icon: CheckCircle, title: "10 Trades", unlocked: totalPredictions >= 10 },
-    { icon: Medal, title: "Top 100", unlocked: Boolean(rank && rank <= 100) },
-  ];
-  return (
-    <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-      {items.map(({ icon: I, title, unlocked }) => (
-        <div key={title} className={`rounded-xl border p-2.5 text-center transition ${
-          unlocked ? "border-[#4F46E5]/20 bg-[#4F46E5]/[0.04]" : "border-[#E5E7EB] bg-[#F8F7F4]"
-        }`}>
-          <div className={`mx-auto mb-1 grid h-7 w-7 place-items-center rounded-lg ${
-            unlocked ? "bg-[#4F46E5] text-white" : "bg-white text-[#9CA3AF]"
-          }`}><I className="h-3.5 w-3.5" /></div>
-          <div className="text-[9px] font-bold leading-tight text-[#111827]">{title}</div>
-          <div className={`mt-0.5 text-[8px] font-bold ${unlocked ? "text-[#4F46E5]" : "text-[#9CA3AF]"}`}>
-            {unlocked ? "Done" : "Locked"}
-          </div>
-        </div>
-      ))}
-    </div>
   );
 };
 
