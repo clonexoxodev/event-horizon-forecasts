@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { Banknote, Check, ChevronDown, ChevronUp, Eye, Loader2, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Banknote, Calendar, Check, ChevronDown, ChevronUp, Download, Eye, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import apiService, { type WithdrawalRequest } from "@/lib/api";
 import {
@@ -16,6 +16,7 @@ import {
 } from "./ui";
 import {
   formatNaira,
+  formatDateTime,
   formatDate,
   statusLabel,
   statusColor,
@@ -61,6 +62,107 @@ export const WithdrawalQueueView = () => {
   const [rejecting, setRejecting] = useState(false);
 
   const [detailTarget, setDetailTarget] = useState<WithdrawalRequest | null>(null);
+
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkApproving, setBulkApproving] = useState(false);
+  const [bulkRejecting, setBulkRejecting] = useState(false);
+
+  const filteredWithdrawals = useMemo(() => {
+    return withdrawals.filter((w) => {
+      if (dateFrom) {
+        const from = new Date(dateFrom);
+        if (new Date(w.createdAt) < from) return false;
+      }
+      if (dateTo) {
+        const to = new Date(dateTo);
+        to.setHours(23, 59, 59, 999);
+        if (new Date(w.createdAt) > to) return false;
+      }
+      return true;
+    });
+  }, [withdrawals, dateFrom, dateTo]);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === filteredWithdrawals.length) return new Set();
+      return new Set(filteredWithdrawals.map((w) => w.id));
+    });
+  }, [filteredWithdrawals]);
+
+  const exportCsv = useCallback(() => {
+    const headers = ["User", "Amount", "Bank Name", "Account Number", "Account Name", "Status", "Date", "Reference"];
+    const rows = filteredWithdrawals.map((w) => [
+      w.user?.username || w.user?.email || w.userId || "",
+      String(Number(w.amount || 0)),
+      w.bankName || "",
+      w.accountNumber || "",
+      w.accountName || "",
+      w.status || "",
+      w.createdAt ? new Date(w.createdAt).toISOString() : "",
+      w.reference || "",
+    ]);
+    const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `withdrawals-${statusFilter}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${filteredWithdrawals.length} withdrawals.`);
+  }, [filteredWithdrawals, statusFilter]);
+
+  const handleBulkApprove = useCallback(async () => {
+    const pending = filteredWithdrawals.filter((w) => selectedIds.has(w.id) && w.status === "pending");
+    if (pending.length === 0) {
+      toast.warning("No pending withdrawals selected.");
+      return;
+    }
+    setBulkApproving(true);
+    try {
+      await Promise.all(pending.map((w) => apiService.approveAdminWithdrawal(w.id)));
+      toast.success(`Approved ${pending.length} withdrawal(s).`);
+      setSelectedIds(new Set());
+      fetchWithdrawals(statusFilter);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Bulk approve failed.";
+      toast.error(msg);
+    } finally {
+      setBulkApproving(false);
+    }
+  }, [filteredWithdrawals, selectedIds, statusFilter, fetchWithdrawals]);
+
+  const handleBulkReject = useCallback(async () => {
+    const pending = filteredWithdrawals.filter((w) => selectedIds.has(w.id) && w.status === "pending");
+    if (pending.length === 0) {
+      toast.warning("No pending withdrawals selected.");
+      return;
+    }
+    setBulkRejecting(true);
+    try {
+      await Promise.all(pending.map((w) => apiService.rejectAdminWithdrawal(w.id, "Bulk rejected")));
+      toast.success(`Rejected ${pending.length} withdrawal(s).`);
+      setSelectedIds(new Set());
+      fetchWithdrawals(statusFilter);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Bulk reject failed.";
+      toast.error(msg);
+    } finally {
+      setBulkRejecting(false);
+    }
+  }, [filteredWithdrawals, selectedIds, statusFilter, fetchWithdrawals]);
 
   const fetchWithdrawals = useCallback(async (status: StatusTab) => {
     setLoading(true);
@@ -147,13 +249,85 @@ export const WithdrawalQueueView = () => {
         ))}
       </div>
 
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500">From</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500">To</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+          />
+        </div>
+        {(dateFrom || dateTo) && (
+          <button
+            onClick={() => { setDateFrom(""); setDateTo(""); }}
+            className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-100"
+          >
+            <X className="h-3 w-3" />
+            Clear Dates
+          </button>
+        )}
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={exportCsv}
+            disabled={filteredWithdrawals.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export CSV ({filteredWithdrawals.length})
+          </button>
+        </div>
+      </div>
+
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5">
+          <span className="text-xs font-bold text-indigo-700">
+            {selectedIds.size} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleBulkApprove}
+              disabled={bulkApproving}
+              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {bulkApproving && <Loader2 className="h-3 w-3 animate-spin" />}
+              Bulk Approve
+            </button>
+            <button
+              onClick={handleBulkReject}
+              disabled={bulkRejecting}
+              className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-red-700 disabled:opacity-50"
+            >
+              {bulkRejecting && <Loader2 className="h-3 w-3 animate-spin" />}
+              Bulk Reject
+            </button>
+          </div>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="ml-auto text-xs font-semibold text-indigo-600 transition hover:text-indigo-800"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <SkeletonCard key={i} />
           ))}
         </div>
-      ) : withdrawals.length === 0 ? (
+      ) : filteredWithdrawals.length === 0 ? (
         <EmptyState
           icon={<Banknote className="h-5 w-5" />}
           title="No withdrawals found"
@@ -168,6 +342,14 @@ export const WithdrawalQueueView = () => {
           <DataTable>
             <thead>
               <tr>
+                <Th className="w-10">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.size === filteredWithdrawals.length && filteredWithdrawals.length > 0}
+                    onChange={toggleSelectAll}
+                    className="h-3.5 w-3.5 rounded border-gray-300 accent-indigo-600"
+                  />
+                </Th>
                 <Th>User</Th>
                 <Th>Amount</Th>
                 <Th>Bank Name</Th>
@@ -179,7 +361,7 @@ export const WithdrawalQueueView = () => {
               </tr>
             </thead>
             <tbody>
-              {withdrawals.map((w) => {
+              {filteredWithdrawals.map((w) => {
                 const isPending = w.status === "pending";
 
                 return (
@@ -192,6 +374,15 @@ export const WithdrawalQueueView = () => {
                     } cursor-pointer`}
                     onClick={() => setDetailTarget(w)}
                   >
+                    <Td>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(w.id)}
+                        onChange={() => toggleSelect(w.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-3.5 w-3.5 rounded border-gray-300 accent-indigo-600"
+                      />
+                    </Td>
                     <Td>
                       <span className="font-semibold text-gray-900">
                         {userLabel(w)}
@@ -419,19 +610,60 @@ export const WithdrawalQueueView = () => {
                 <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">
                   Timeline
                 </h4>
-                <div className="space-y-2 rounded-xl bg-gray-50 p-4 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-gray-500">Requested</span>
-                    <span className="text-gray-700">
-                      {formatRelativeTime(detailTarget.createdAt)}
-                    </span>
+                <div className="space-y-0 rounded-xl bg-gray-50 p-4">
+                  <div className="relative flex gap-3">
+                    <div className="flex flex-col items-center">
+                      <div className="h-2.5 w-2.5 rounded-full bg-indigo-500" />
+                      <div className="w-px flex-1 bg-gray-200" />
+                    </div>
+                    <div className="pb-4 text-sm">
+                      <span className="font-semibold text-gray-900">Created</span>
+                      <span className="ml-2 text-xs text-gray-500">
+                        {formatDateTime(detailTarget.createdAt)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-gray-500">Status</span>
-                    <Badge variant={BADGE_VARIANT(detailTarget.status)}>
-                      {statusLabel(detailTarget.status)}
-                    </Badge>
-                  </div>
+                  {detailTarget.status === "pending" && (
+                    <div className="relative flex gap-3">
+                      <div className="flex flex-col items-center">
+                        <div className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+                      </div>
+                      <div className="text-sm">
+                        <span className="font-semibold text-gray-900">Awaiting Review</span>
+                        <span className="ml-2 text-xs text-gray-500">In queue</span>
+                      </div>
+                    </div>
+                  )}
+                  {(detailTarget.status === "completed" || detailTarget.status === "approved") && (
+                    <div className="relative flex gap-3">
+                      <div className="flex flex-col items-center">
+                        <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                      </div>
+                      <div className="text-sm">
+                        <span className="font-semibold text-gray-900">Approved</span>
+                        <span className="ml-2 text-xs text-gray-500">
+                          <Badge variant={BADGE_VARIANT(detailTarget.status)}>
+                            {statusLabel(detailTarget.status)}
+                          </Badge>
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {(detailTarget.status === "rejected" || detailTarget.status === "failed") && (
+                    <div className="relative flex gap-3">
+                      <div className="flex flex-col items-center">
+                        <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                      </div>
+                      <div className="text-sm">
+                        <span className="font-semibold text-gray-900">Rejected</span>
+                        <span className="ml-2 text-xs text-gray-500">
+                          <Badge variant={BADGE_VARIANT(detailTarget.status)}>
+                            {statusLabel(detailTarget.status)}
+                          </Badge>
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

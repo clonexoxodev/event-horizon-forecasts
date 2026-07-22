@@ -1,16 +1,22 @@
 import { useState, type ReactNode } from "react";
 import {
+  Activity,
   BarChart3,
-  ChevronLeft,
   ClipboardList,
   CreditCard,
+  Download,
+  Flag,
   Gavel,
+  Heart,
   LayoutDashboard,
   LogOut,
   Menu,
+  Search,
+  Settings,
   Shield,
   TrendingUp,
   Users,
+  Zap,
   X,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -35,10 +41,22 @@ const NAV_SECTIONS: { label: string; items: { view: AdminView; icon: typeof Layo
     ],
   },
   {
+    label: "Intelligence",
+    items: [
+      { view: "analytics", icon: Zap, label: "Analytics" },
+      { view: "risk-center", icon: Heart, label: "Risk Center" },
+      { view: "system-health", icon: Activity, label: "System Health" },
+      { view: "search", icon: Search, label: "Search" },
+      { view: "export", icon: Download, label: "Export" },
+    ],
+  },
+  {
     label: "Administration",
     items: [
       { view: "admins", icon: Shield, label: "Admins", superAdminOnly: true },
       { view: "audit-log", icon: ClipboardList, label: "Audit Log" },
+      { view: "feature-flags", icon: Flag, label: "Feature Flags", superAdminOnly: true },
+      { view: "settings", icon: Settings, label: "Settings", superAdminOnly: true },
     ],
   },
 ];
@@ -55,6 +73,13 @@ const VIEW_TITLES: Record<AdminView, string> = {
   admins: "Admin Management",
   "audit-log": "Audit Log",
   "settlement-dashboard": "Settlement Dashboard",
+  analytics: "Platform Analytics",
+  "risk-center": "Risk Center",
+  "system-health": "System Health",
+  "feature-flags": "Feature Flags",
+  settings: "Settings",
+  search: "Search",
+  export: "Export Center",
 };
 
 export const AdminLayout = ({

@@ -11,7 +11,14 @@ export type AdminView =
   | "users"
   | "admins"
   | "audit-log"
-  | "settlement-dashboard";
+  | "settlement-dashboard"
+  | "analytics"
+  | "risk-center"
+  | "system-health"
+  | "feature-flags"
+  | "settings"
+  | "search"
+  | "export";
 
 export type MarketStatusFilter =
   | "all"
@@ -140,6 +147,12 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   market_resolved: "Market Resolved",
   market_refunded: "Market Refunded",
   market_published: "Market Published",
+  market_cancelled: "Market Cancelled",
+  settlement_started: "Settlement Started",
+  settlement_finished: "Settlement Finished",
+  settlement_failed: "Settlement Failed",
+  refund_started: "Refund Started",
+  refund_finished: "Refund Finished",
   withdrawal_approved: "Withdrawal Approved",
   withdrawal_rejected: "Withdrawal Rejected",
   deposit_approved: "Deposit Approved",
@@ -150,6 +163,131 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   user_activated: "User Activated",
   admin_login: "Admin Login",
   permission_changed: "Permission Changed",
+  emergency_stop: "Emergency Stop",
+  settings_changed: "Settings Changed",
+  feature_flag_changed: "Feature Flag Changed",
+};
+
+export type PlatformStats = {
+  totalUsers: number;
+  verifiedUsers: number;
+  pendingVerification: number;
+  activeMarkets: number;
+  pendingMarkets: number;
+  resolvedMarkets: number;
+  cancelledMarkets: number;
+  protectedMarkets: number;
+  todaysTrades: number;
+  todaysVolume: number;
+  todaysDeposits: number;
+  todaysWithdrawals: number;
+  todaysRefunds: number;
+  todaysPayouts: number;
+  walletBalances: number;
+  lockedBalances: number;
+  platformRevenue: number;
+  pendingSettlements: number;
+  failedSettlements: number;
+  avgSettlementTime: number;
+};
+
+export type FeatureFlag = {
+  id: string;
+  key: string;
+  label: string;
+  description: string;
+  enabled: boolean;
+  category: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PlatformSetting = {
+  id: string;
+  key: string;
+  value: any;
+  category: string;
+  description: string;
+  updated_at: string;
+};
+
+export type FraudAlert = {
+  id: string;
+  user_id: string;
+  alert_type: string;
+  severity: string;
+  title: string;
+  description: string;
+  evidence: Record<string, unknown>;
+  status: string;
+  review_notes: string;
+  reviewed_at: string;
+  created_at: string;
+  user_email?: string;
+  user_username?: string;
+};
+
+export type AdminNotification = {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  severity: string;
+  metadata: Record<string, unknown>;
+  read_by: string[];
+  created_at: string;
+};
+
+export type RiskCenterData = {
+  topPositions: Array<{ user_id: string; market_id: string; amount: number; username?: string; market_question?: string }>;
+  exposedMarkets: Array<{ id: string; question: string; total_exposure: number }>;
+  imbalancedMarkets: Array<{ id: string; question: string; yes_pct: number; no_pct: number }>;
+  topExposedUsers: Array<{ user_id: string; username: string; total_exposure: number }>;
+  potentialPayouts: number;
+  totalLiabilities: number;
+  riskScore: number;
+};
+
+export type SystemHealth = {
+  database: { status: string; latency: number };
+  matchingEngine: { status: string };
+  settlementEngine: { status: string };
+  walletService: { status: string };
+  paymentGateway: { status: string };
+  notifications: { status: string };
+  api: { status: string; responseTime: number };
+  uptime: number;
+};
+
+export type MarketAnalytics = {
+  totalOrders: number;
+  matchedOrders: number;
+  waitingOrders: number;
+  partiallyFilled: number;
+  cancelledOrders: number;
+  totalVolume: number;
+  yesVolume: number;
+  noVolume: number;
+  avgPrice: number;
+  highestPrice: number;
+  lowestPrice: number;
+  liquidity: number;
+  exposure: number;
+};
+
+export type UserAnalytics = {
+  lifetimeVolume: number;
+  totalOrders: number;
+  matchedOrders: number;
+  cancelledOrders: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  profit: number;
+  roi: number;
+  largestWin: number;
+  largestLoss: number;
+  avgOrderSize: number;
 };
 
 export const ADMIN_MEDIA_ACCEPT = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm";

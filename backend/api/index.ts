@@ -67,6 +67,16 @@ app.use(cors({
   exposedHeaders: ['Set-Cookie']
 }));
 
+// Security headers
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
+
 // Capture raw body for webhook signature verification before JSON parsing
 app.use(express.json({
   verify: (req: any, _res: any, buf: any) => {
@@ -74,6 +84,32 @@ app.use(express.json({
   },
 }));
 app.use(cookieParser());
+
+// Input sanitization - strip XSS vectors from string values
+const sanitizeValue = (val: any): any => {
+  if (typeof val === 'string') {
+    return val
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+\s*=/gi, 'data-blocked=');
+  }
+  if (val && typeof val === 'object' && !Array.isArray(val)) {
+    const clean: Record<string, any> = {};
+    for (const [k, v] of Object.entries(val)) clean[k] = sanitizeValue(v);
+    return clean;
+  }
+  if (Array.isArray(val)) return val.map(sanitizeValue);
+  return val;
+};
+app.use((_req: Request, _res: Response, next: NextFunction) => {
+  if (_req.body && typeof _req.body === 'object') _req.body = sanitizeValue(_req.body);
+  if (_req.query && typeof _req.query === 'object') {
+    const q: Record<string, any> = {};
+    for (const [k, v] of Object.entries(_req.query)) q[k] = sanitizeValue(v);
+    (_req as any).query = q;
+  }
+  next();
+});
 
 // ============================================================================
 // RATE LIMITER (in-memory sliding window)
@@ -6200,6 +6236,900 @@ app.get('/api/users/:userId/orders', authenticate, async (req: Request, res: Res
   } catch (error: any) {
     console.error('Get user orders error:', error);
     res.status(500).json({ error: { code: 'GET_USER_ORDERS_FAILED', message: 'Failed to get user orders', timestamp: new Date().toISOString() } });
+  }
+});
+
+// ============================================================
+// Sprint 6 — Admin Routes
+// ============================================================
+
+// 1. GET /api/admin/platform-stats
+app.get('/api/admin/platform-stats', authenticate, requireRole('admin'), async (_req: Request, res: Response) => {
+  try {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const todayIso = startOfToday.toISOString();
+
+    const [
+      usersTotalResult,
+      usersVerifiedResult,
+      usersPendingResult,
+      marketsTotalResult,
+      marketsActiveResult,
+      marketsPendingResult,
+      marketsResolvedResult,
+      marketsCancelledResult,
+      marketsProtectedResult,
+      ordersTodayResult,
+      tradesTodayResult,
+      tradesTodayVolumeResult,
+      txTodayDepositsResult,
+      txTodayWithdrawalsResult,
+      txTodayRefundsResult,
+      txTodayPayoutsResult,
+      walletsResult,
+      revenueResult,
+      pendingWithdrawalsResult,
+      settlementsPendingResult,
+      settlementsFailedResult,
+    ] = await Promise.all([
+      supabase.from('users').select('id', { count: 'exact', head: true }),
+      supabase.from('users').select('id', { count: 'exact', head: true }).eq('email_verified', true),
+      supabase.from('users').select('id', { count: 'exact', head: true }).eq('account_status', 'pending'),
+      supabase.from('markets').select('id', { count: 'exact', head: true }),
+      supabase.from('markets').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+      supabase.from('markets').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('markets').select('id', { count: 'exact', head: true }).eq('status', 'resolved'),
+      supabase.from('markets').select('id', { count: 'exact', head: true }).eq('status', 'cancelled'),
+      supabase.from('markets').select('id', { count: 'exact', head: true }).eq('is_protected', true),
+      supabase.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', todayIso),
+      supabase.from('trades').select('id', { count: 'exact', head: true }).gte('created_at', todayIso),
+      supabase.from('trades').select('total_cost_smallest_unit').gte('created_at', todayIso),
+      supabase.from('transactions').select('amount_smallest_unit').eq('type', 'deposit').eq('status', 'completed').gte('created_at', todayIso),
+      supabase.from('transactions').select('amount_smallest_unit').eq('type', 'withdrawal').eq('status', 'completed').gte('created_at', todayIso),
+      supabase.from('transactions').select('amount_smallest_unit').eq('type', 'refund').eq('status', 'completed').gte('created_at', todayIso),
+      supabase.from('transactions').select('amount_smallest_unit').eq('type', 'payout').eq('status', 'completed').gte('created_at', todayIso),
+      supabase.from('wallets').select('balance_ngn_kobo, locked_ngn_kobo'),
+      supabase.from('transactions').select('platform_fee_smallest_unit'),
+      supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('settlements').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('settlements').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
+    ]);
+
+    const sum = (rows?: any[] | null, field?: string) => (rows || []).reduce((total: number, row: any) => total + Number(field ? row[field] : row.amount_smallest_unit || 0), 0);
+
+    const totalWalletBalance = (walletsResult.data || []).reduce((t: number, w: any) => t + Number(w.balance_ngn_kobo || 0), 0);
+    const totalLocked = (walletsResult.data || []).reduce((t: number, w: any) => t + Number(w.locked_ngn_kobo || 0), 0);
+    const totalRevenue = sum(revenueResult.data, 'platform_fee_smallest_unit');
+
+    let avgSettlementTime = 0;
+    const { data: settlementLogs } = await supabase
+      .from('settlement_audit_log')
+      .select('created_at, settled_at')
+      .not('settled_at', 'is', null)
+      .limit(100);
+    if (settlementLogs && settlementLogs.length > 0) {
+      const totalMs = settlementLogs.reduce((acc: number, log: any) => {
+        const created = new Date(log.created_at).getTime();
+        const settled = new Date(log.settled_at).getTime();
+        return acc + Math.max(0, settled - created);
+      }, 0);
+      avgSettlementTime = Math.round(totalMs / settlementLogs.length / 1000);
+    }
+
+    res.json({
+      success: true,
+      stats: {
+        users: {
+          total: usersTotalResult.count || 0,
+          verified: usersVerifiedResult.count || 0,
+          pending: usersPendingResult.count || 0,
+        },
+        markets: {
+          total: marketsTotalResult.count || 0,
+          active: marketsActiveResult.count || 0,
+          pending: marketsPendingResult.count || 0,
+          resolved: marketsResolvedResult.count || 0,
+          cancelled: marketsCancelledResult.count || 0,
+          protected: marketsProtectedResult.count || 0,
+        },
+        orders: {
+          today: ordersTodayResult.count || 0,
+        },
+        trades: {
+          todayCount: tradesTodayResult.count || 0,
+          todayVolume: toAmount(sum(tradesTodayVolumeResult.data, 'total_cost_smallest_unit')),
+        },
+        transactions: {
+          todayDeposits: toAmount(sum(txTodayDepositsResult.data)),
+          todayWithdrawals: toAmount(sum(txTodayWithdrawalsResult.data)),
+          todayRefunds: toAmount(sum(txTodayRefundsResult.data)),
+          todayPayouts: toAmount(sum(txTodayPayoutsResult.data)),
+        },
+        wallets: {
+          totalBalance: toAmount(totalWalletBalance),
+          totalLocked: toAmount(totalLocked),
+        },
+        revenue: {
+          total: toAmount(totalRevenue),
+        },
+        withdrawalRequests: {
+          pending: pendingWithdrawalsResult.count || 0,
+        },
+        settlements: {
+          pending: settlementsPendingResult.count || 0,
+          failed: settlementsFailedResult.count || 0,
+        },
+        avgSettlementTimeSeconds: avgSettlementTime,
+      },
+    });
+  } catch (error: any) {
+    console.error('Platform stats error:', error);
+    res.status(500).json({ error: { code: 'PLATFORM_STATS_FAILED', message: 'Could not load platform stats.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// 2. GET /api/admin/market-analytics/:marketId
+app.get('/api/admin/market-analytics/:marketId', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const marketId = req.params.marketId;
+
+    const { data: market, error: marketError } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('id', marketId)
+      .single();
+    if (marketError || !market) {
+      return res.status(404).json({ error: { code: 'MARKET_NOT_FOUND', message: 'Market not found.', timestamp: new Date().toISOString() } });
+    }
+
+    const [
+      ordersTotalResult,
+      ordersFilledResult,
+      ordersOpenResult,
+      ordersPartialResult,
+      ordersCancelledResult,
+      ordersExpiredResult,
+      ordersRefundedResult,
+      tradesData,
+      ordersPriceData,
+      largestOrderResult,
+      largestTradeResult,
+      openOrdersLiq,
+      positionsData,
+      settlementsResult,
+    ] = await Promise.all([
+      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('market_id', marketId),
+      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('market_id', marketId).eq('status', 'filled'),
+      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('market_id', marketId).eq('status', 'open'),
+      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('market_id', marketId).eq('status', 'partially_filled'),
+      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('market_id', marketId).eq('status', 'cancelled'),
+      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('market_id', marketId).eq('status', 'expired'),
+      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('market_id', marketId).eq('status', 'refunded'),
+      supabase.from('trades').select('total_cost_smallest_unit, side, created_at').eq('market_id', marketId),
+      supabase.from('orders').select('price_per_unit').eq('market_id', marketId).not('price_per_unit', 'is', null),
+      supabase.from('orders').select('*').eq('market_id', marketId).order('amount_smallest_unit', { ascending: false }).limit(1),
+      supabase.from('trades').select('*').eq('market_id', marketId).order('total_cost_smallest_unit', { ascending: false }).limit(1),
+      supabase.from('orders').select('remaining_amount_smallest_unit').eq('market_id', marketId).eq('status', 'open'),
+      supabase.from('positions').select('side, amount_smallest_unit').eq('market_id', marketId),
+      supabase.from('settlements').select('*').eq('market_id', marketId).order('created_at', { ascending: false }).limit(1),
+    ]);
+
+    const volumeYes = (tradesData.data || []).filter((t: any) => t.side === 'yes').reduce((s: number, t: any) => s + Number(t.total_cost_smallest_unit || 0), 0);
+    const volumeNo = (tradesData.data || []).filter((t: any) => t.side === 'no').reduce((s: number, t: any) => s + Number(t.total_cost_smallest_unit || 0), 0);
+
+    const prices = (ordersPriceData.data || []).map((o: any) => Number(o.price_per_unit)).filter((p: number) => !isNaN(p));
+    const avgPrice = prices.length > 0 ? prices.reduce((a: number, b: number) => a + b, 0) / prices.length : 0;
+    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+
+    const liquidity = (openOrdersLiq.data || []).reduce((s: number, o: any) => s + Number(o.remaining_amount_smallest_unit || 0), 0);
+    const exposure = (positionsData.data || []).reduce((s: number, p: any) => s + Number(p.amount_smallest_unit || 0), 0);
+
+    const now = Date.now();
+    const closeTime = market.close_time ? new Date(market.close_time).getTime() : null;
+    const timeRemaining = closeTime ? Math.max(0, closeTime - now) : null;
+
+    let settlementStatus = null;
+    if (settlementsResult.data && settlementsResult.data.length > 0) {
+      settlementStatus = settlementsResult.data[0].status;
+    }
+
+    const protectedThreshold = market.protected_threshold || null;
+    const yesPositions = (positionsData.data || []).filter((p: any) => p.side === 'yes').reduce((s: number, p: any) => s + Number(p.amount_smallest_unit || 0), 0);
+    const noPositions = (positionsData.data || []).filter((p: any) => p.side === 'no').reduce((s: number, p: any) => s + Number(p.amount_smallest_unit || 0), 0);
+    const totalPos = yesPositions + noPositions;
+    const progress = totalPos > 0 ? (yesPositions / totalPos) : 0.5;
+
+    res.json({
+      success: true,
+      analytics: {
+        marketId,
+        question: market.question,
+        status: market.status,
+        orders: {
+          total: ordersTotalResult.count || 0,
+          matched: ordersFilledResult.count || 0,
+          waiting: ordersOpenResult.count || 0,
+          partiallyFilled: ordersPartialResult.count || 0,
+          cancelled: ordersCancelledResult.count || 0,
+          expired: ordersExpiredResult.count || 0,
+          refunded: ordersRefundedResult.count || 0,
+        },
+        volume: {
+          yes: toAmount(volumeYes),
+          no: toAmount(volumeNo),
+          total: toAmount(volumeYes + volumeNo),
+        },
+        prices: {
+          avg: avgPrice,
+          max: maxPrice,
+          min: minPrice,
+        },
+        largestOrder: largestOrderResult.data?.[0] || null,
+        largestTrade: largestTradeResult.data?.[0] || null,
+        timeRemainingMs: timeRemaining,
+        liquidity: toAmount(liquidity),
+        exposure: toAmount(exposure),
+        settlementStatus,
+        protectedThreshold,
+        progress,
+      },
+    });
+  } catch (error: any) {
+    console.error('Market analytics error:', error);
+    res.status(500).json({ error: { code: 'MARKET_ANALYTICS_FAILED', message: 'Could not load market analytics.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// 3. GET /api/admin/user-analytics/:userId
+app.get('/api/admin/user-analytics/:userId', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const userId = req.params.userId;
+
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, email, username, name, role, created_at, account_status')
+      .eq('id', userId)
+      .single();
+    if (userError || !user) {
+      return res.status(404).json({ error: { code: 'USER_NOT_FOUND', message: 'User not found.', timestamp: new Date().toISOString() } });
+    }
+
+    const [
+      ordersTotalResult,
+      ordersFilledResult,
+      ordersCancelledResult,
+      tradesData,
+      positionsData,
+      walletResult,
+      recentTransactionsResult,
+      depositsResult,
+      withdrawalsResult,
+    ] = await Promise.all([
+      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'filled'),
+      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'cancelled'),
+      supabase.from('trades').select('total_cost_smallest_unit, profit_smallest_unit, created_at').eq('user_id', userId),
+      supabase.from('positions').select('side, amount_smallest_unit, status, resolved_outcome, market_id').eq('user_id', userId),
+      supabase.from('wallets').select('balance_ngn_kobo, available_ngn_kobo, locked_ngn_kobo').eq('user_id', userId).maybeSingle(),
+      supabase.from('transactions').select('id, type, amount_smallest_unit, status, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(10),
+      supabase.from('transactions').select('amount_smallest_unit, status').eq('user_id', userId).eq('type', 'deposit').eq('status', 'completed'),
+      supabase.from('transactions').select('amount_smallest_unit, status').eq('user_id', userId).eq('type', 'withdrawal').eq('status', 'completed'),
+    ]);
+
+    const lifetimeVolume = (tradesData.data || []).reduce((s: number, t: any) => s + Number(t.total_cost_smallest_unit || 0), 0);
+    const wins = (positionsData.data || []).filter((p: any) => p.status === 'won').length;
+    const losses = (positionsData.data || []).filter((p: any) => p.status === 'lost').length;
+    const totalResolved = wins + losses;
+    const winRate = totalResolved > 0 ? wins / totalResolved : 0;
+
+    const profit = (tradesData.data || []).reduce((s: number, t: any) => s + Number(t.profit_smallest_unit || 0), 0);
+    const totalInvested = lifetimeVolume;
+    const roi = totalInvested > 0 ? (profit / totalInvested) * 100 : 0;
+
+    let largestWin = 0;
+    let largestLoss = 0;
+    for (const t of tradesData.data || []) {
+      const p = Number(t.profit_smallest_unit || 0);
+      if (p > largestWin) largestWin = p;
+      if (p < largestLoss) largestLoss = p;
+    }
+
+    const ordersCount = ordersTotalResult.count || 0;
+    const avgOrderSize = ordersCount > 0 ? lifetimeVolume / ordersCount : 0;
+
+    const categoryCount = new Map<string, number>();
+    for (const pos of positionsData.data || []) {
+      if (pos.market_id) {
+        const { data: mkt } = await supabase.from('markets').select('category').eq('id', pos.market_id).single();
+        if (mkt?.category) {
+          categoryCount.set(mkt.category, (categoryCount.get(mkt.category) || 0) + 1);
+        }
+      }
+    }
+    let favouriteCategory = '';
+    let maxCatCount = 0;
+    for (const [cat, count] of categoryCount) {
+      if (count > maxCatCount) { maxCatCount = count; favouriteCategory = cat; }
+    }
+
+    const totalDeposits = (depositsResult.data || []).reduce((s: number, d: any) => s + Number(d.amount_smallest_unit || 0), 0);
+    const totalWithdrawals = (withdrawalsResult.data || []).reduce((s: number, w: any) => s + Number(w.amount_smallest_unit || 0), 0);
+
+    res.json({
+      success: true,
+      userAnalytics: {
+        user: {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          name: user.name,
+          role: user.role,
+          createdAt: user.created_at,
+          accountStatus: user.account_status,
+        },
+        orders: {
+          total: ordersTotalResult.count || 0,
+          matched: ordersFilledResult.count || 0,
+          cancelled: ordersCancelledResult.count || 0,
+        },
+        volume: {
+          lifetime: toAmount(lifetimeVolume),
+        },
+        wins,
+        losses,
+        winRate: Math.round(winRate * 10000) / 100,
+        profit: toAmount(profit),
+        roi: Math.round(roi * 100) / 100,
+        largestWin: toAmount(largestWin),
+        largestLoss: toAmount(largestLoss),
+        avgOrderSize: toAmount(avgOrderSize),
+        favouriteCategory,
+        recentActivity: (recentTransactionsResult.data || []).map((tx: any) => ({
+          id: tx.id,
+          type: tx.type,
+          amount: toAmount(tx.amount_smallest_unit),
+          status: tx.status,
+          createdAt: tx.created_at,
+        })),
+        wallet: (walletResult as any) ? {
+          balance: toAmount((walletResult as any).balance_ngn_kobo),
+          available: toAmount((walletResult as any).available_ngn_kobo),
+          locked: toAmount((walletResult as any).locked_ngn_kobo),
+        } : null,
+        deposits: {
+          total: toAmount(totalDeposits),
+          count: (depositsResult.data || []).length,
+        },
+        withdrawals: {
+          total: toAmount(totalWithdrawals),
+          count: (withdrawalsResult.data || []).length,
+        },
+      },
+    });
+  } catch (error: any) {
+    console.error('User analytics error:', error);
+    res.status(500).json({ error: { code: 'USER_ANALYTICS_FAILED', message: 'Could not load user analytics.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// 4. GET /api/admin/fraud-alerts
+app.get('/api/admin/fraud-alerts', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const status = typeof req.query.status === 'string' ? req.query.status : '';
+    let query = supabase.from('fraud_alerts').select('*').order('created_at', { ascending: false }).limit(200);
+    if (status && status !== 'all') query = query.eq('status', status);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ success: true, alerts: data || [] });
+  } catch (error: any) {
+    console.error('Fraud alerts error:', error);
+    res.status(500).json({ error: { code: 'FRAUD_ALERTS_FAILED', message: 'Could not load fraud alerts.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// 5. POST /api/admin/fraud-alerts/:id/review
+app.post('/api/admin/fraud-alerts/:id/review', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const alertId = req.params.id;
+    const { status, review_notes } = req.body;
+    const adminUser = (req as any).user;
+
+    if (!status) {
+      return res.status(400).json({ error: { code: 'MISSING_STATUS', message: 'Status is required.', timestamp: new Date().toISOString() } });
+    }
+
+    const { data, error } = await supabase
+      .from('fraud_alerts')
+      .update({
+        status,
+        review_notes: review_notes || null,
+        reviewed_by: adminUser.id,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq('id', alertId)
+      .select()
+      .single();
+    if (error) throw error;
+
+    res.json({ success: true, alert: data });
+  } catch (error: any) {
+    console.error('Review fraud alert error:', error);
+    res.status(500).json({ error: { code: 'REVIEW_FRAUD_ALERT_FAILED', message: 'Could not review fraud alert.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// 6. GET /api/admin/risk-center
+app.get('/api/admin/risk-center', authenticate, requireRole('admin'), async (_req: Request, res: Response) => {
+  try {
+    const [
+      topPositionsResult,
+      marketsResult,
+      walletsResult,
+      settlementsPendingResult,
+    ] = await Promise.all([
+      supabase.from('positions').select('id, user_id, market_id, side, amount_smallest_unit, status').eq('status', 'active').order('amount_smallest_unit', { ascending: false }).limit(10),
+      supabase.from('markets').select('id, question, status, close_time').in('status', ['active', 'closed']),
+      supabase.from('wallets').select('user_id, balance_ngn_kobo, locked_ngn_kobo'),
+      supabase.from('settlements').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    ]);
+
+    const topPositions = (topPositionsResult.data || []).map((p: any) => ({
+      ...p,
+      amount: toAmount(p.amount_smallest_unit),
+    }));
+
+    const positionsByMarket = new Map<string, { yes: number; no: number }>();
+    for (const p of (topPositionsResult.data || [])) {
+      const current = positionsByMarket.get(p.market_id) || { yes: 0, no: 0 };
+      if (p.side === 'yes') current.yes += Number(p.amount_smallest_unit || 0);
+      else current.no += Number(p.amount_smallest_unit || 0);
+      positionsByMarket.set(p.market_id, current);
+    }
+
+    const { data: allPositions } = await supabase
+      .from('positions')
+      .select('user_id, market_id, side, amount_smallest_unit')
+      .eq('status', 'active');
+
+    const marketExposure = new Map<string, { yes: number; no: number; total: number }>();
+    for (const p of allPositions || []) {
+      const current = marketExposure.get(p.market_id) || { yes: 0, no: 0, total: 0 };
+      const amt = Number(p.amount_smallest_unit || 0);
+      if (p.side === 'yes') current.yes += amt;
+      else current.no += amt;
+      current.total += amt;
+      marketExposure.set(p.market_id, current);
+    }
+
+    const mostExposedMarkets = (marketsResult.data || [])
+      .map((m: any) => {
+        const exp = marketExposure.get(m.id) || { yes: 0, no: 0, total: 0 };
+        return { id: m.id, question: m.question, status: m.status, totalExposure: toAmount(exp.total) };
+      })
+      .sort((a: any, b: any) => b.totalExposure - a.totalExposure)
+      .slice(0, 10);
+
+    const imbalancedMarkets = (marketsResult.data || [])
+      .filter((m: any) => m.status === 'active')
+      .map((m: any) => {
+        const exp = marketExposure.get(m.id) || { yes: 0, no: 0, total: 0 };
+        const ratio = exp.total > 0 ? exp.yes / exp.total : 0.5;
+        return { id: m.id, question: m.question, yesRatio: Math.round(ratio * 100), noRatio: Math.round((1 - ratio) * 100), totalExposure: toAmount(exp.total) };
+      })
+      .filter((m: any) => m.yesRatio >= 80 || m.yesRatio <= 20);
+
+    const userExposure = new Map<string, number>();
+    for (const p of allPositions || []) {
+      userExposure.set(p.user_id, (userExposure.get(p.user_id) || 0) + Number(p.amount_smallest_unit || 0));
+    }
+    const topExposedUsers = Array.from(userExposure.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([uid, amt]) => ({ userId: uid, exposure: toAmount(amt) }));
+
+    const totalLiabilities = (allPositions || []).reduce((s: number, p: any) => s + Number(p.amount_smallest_unit || 0), 0);
+    const totalBalances = (walletsResult.data || []).reduce((s: number, w: any) => s + Number(w.balance_ngn_kobo || 0), 0);
+    const totalLocked = (walletsResult.data || []).reduce((s: number, w: any) => s + Number(w.locked_ngn_kobo || 0), 0);
+
+    const potentialPayouts = totalLocked;
+
+    const riskScore = Math.min(100, Math.round(
+      (imbalancedMarkets.length * 10) +
+      (settlementsPendingResult.count || 0) * 5 +
+      (topPositions.length > 0 ? 10 : 0)
+    ));
+
+    res.json({
+      success: true,
+      riskCenter: {
+        topPositions,
+        mostExposedMarkets,
+        imbalancedMarkets,
+        topExposedUsers,
+        potentialPayouts: toAmount(potentialPayouts),
+        totalLiabilities: toAmount(totalLiabilities),
+        totalBalances: toAmount(totalBalances),
+        pendingSettlements: settlementsPendingResult.count || 0,
+        riskScore,
+      },
+    });
+  } catch (error: any) {
+    console.error('Risk center error:', error);
+    res.status(500).json({ error: { code: 'RISK_CENTER_FAILED', message: 'Could not load risk center.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// 7. GET /api/admin/system-health
+app.get('/api/admin/system-health', authenticate, requireRole('admin'), async (_req: Request, res: Response) => {
+  try {
+    const apiStart = Date.now();
+
+    let databaseStatus = 'healthy';
+    let databaseLatency = 0;
+    try {
+      const dbStart = Date.now();
+      const { error: dbError } = await supabase.from('users').select('id', { count: 'exact', head: true });
+      databaseLatency = Date.now() - dbStart;
+      if (dbError) databaseStatus = 'error';
+    } catch {
+      databaseStatus = 'error';
+    }
+
+    let matchingEngineStatus = 'healthy';
+    try {
+      const { error } = await supabase.from('orders').select('id', { count: 'exact', head: true });
+      if (error) matchingEngineStatus = 'degraded';
+    } catch {
+      matchingEngineStatus = 'error';
+    }
+
+    let settlementEngineStatus = 'healthy';
+    try {
+      const { error } = await supabase.from('settlements').select('id', { count: 'exact', head: true });
+      if (error) settlementEngineStatus = 'degraded';
+    } catch {
+      settlementEngineStatus = 'error';
+    }
+
+    let walletServiceStatus = 'healthy';
+    try {
+      const { error } = await supabase.from('wallets').select('id', { count: 'exact', head: true });
+      if (error) walletServiceStatus = 'degraded';
+    } catch {
+      walletServiceStatus = 'error';
+    }
+
+    const apiResponseTime = Date.now() - apiStart;
+
+    const overallStatus =
+      databaseStatus === 'error' || matchingEngineStatus === 'error' || settlementEngineStatus === 'error' || walletServiceStatus === 'error'
+        ? 'unhealthy'
+        : databaseStatus === 'degraded' || matchingEngineStatus === 'degraded' || settlementEngineStatus === 'degraded' || walletServiceStatus === 'degraded'
+          ? 'degraded'
+          : 'healthy';
+
+    res.json({
+      success: true,
+      health: {
+        status: overallStatus,
+        timestamp: new Date().toISOString(),
+        components: {
+          database: { status: databaseStatus, latencyMs: databaseLatency },
+          matchingEngine: { status: matchingEngineStatus },
+          settlementEngine: { status: settlementEngineStatus },
+          walletService: { status: walletServiceStatus },
+        },
+        apiResponseTimeMs: apiResponseTime,
+      },
+    });
+  } catch (error: any) {
+    console.error('System health error:', error);
+    res.status(500).json({ error: { code: 'SYSTEM_HEALTH_FAILED', message: 'Could not check system health.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// 8. GET /api/admin/feature-flags
+app.get('/api/admin/feature-flags', authenticate, requireRole('admin'), async (_req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('feature_flags')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json({ success: true, flags: data || [] });
+  } catch (error: any) {
+    console.error('Feature flags error:', error);
+    res.status(500).json({ error: { code: 'FEATURE_FLAGS_FAILED', message: 'Could not load feature flags.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// 9. PUT /api/admin/feature-flags/:key
+app.put('/api/admin/feature-flags/:key', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const flagKey = req.params.key;
+    const { enabled } = req.body;
+
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ error: { code: 'INVALID_BODY', message: 'enabled must be a boolean.', timestamp: new Date().toISOString() } });
+    }
+
+    const { data: existing } = await supabase
+      .from('feature_flags')
+      .select('id')
+      .eq('key', flagKey)
+      .single();
+
+    let result;
+    if (existing) {
+      const { data, error } = await supabase
+        .from('feature_flags')
+        .update({ enabled, updated_at: new Date().toISOString() })
+        .eq('key', flagKey)
+        .select()
+        .single();
+      if (error) throw error;
+      result = data;
+    } else {
+      const { data, error } = await supabase
+        .from('feature_flags')
+        .insert({ key: flagKey, enabled, created_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .select()
+        .single();
+      if (error) throw error;
+      result = data;
+    }
+
+    res.json({ success: true, flag: result });
+  } catch (error: any) {
+    console.error('Update feature flag error:', error);
+    res.status(500).json({ error: { code: 'UPDATE_FEATURE_FLAG_FAILED', message: 'Could not update feature flag.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// 10. GET /api/admin/settings
+app.get('/api/admin/settings', authenticate, requireRole('admin'), async (_req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('platform_settings')
+      .select('*')
+      .order('key', { ascending: true });
+    if (error) throw error;
+    res.json({ success: true, settings: data || [] });
+  } catch (error: any) {
+    console.error('Settings error:', error);
+    res.status(500).json({ error: { code: 'SETTINGS_FAILED', message: 'Could not load settings.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// 11. PUT /api/admin/settings
+app.put('/api/admin/settings', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const { settings } = req.body;
+
+    if (!settings || typeof settings !== 'object') {
+      return res.status(400).json({ error: { code: 'INVALID_BODY', message: 'settings must be an object.', timestamp: new Date().toISOString() } });
+    }
+
+    const upserts = Object.entries(settings).map(([key, value]) => {
+      return supabase
+        .from('platform_settings')
+        .upsert({ key, value: JSON.stringify(value), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    });
+
+    await Promise.all(upserts);
+
+    const { data, error } = await supabase
+      .from('platform_settings')
+      .select('*')
+      .order('key', { ascending: true });
+    if (error) throw error;
+
+    res.json({ success: true, settings: data || [] });
+  } catch (error: any) {
+    console.error('Update settings error:', error);
+    res.status(500).json({ error: { code: 'UPDATE_SETTINGS_FAILED', message: 'Could not update settings.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// 12. GET /api/admin/search?q=term
+app.get('/api/admin/search', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    if (!q) {
+      return res.status(400).json({ error: { code: 'MISSING_QUERY', message: 'Search query is required.', timestamp: new Date().toISOString() } });
+    }
+
+    const term = `%${q}%`;
+
+    const [usersResult, marketsResult, ordersResult, txResult] = await Promise.all([
+      supabase.from('users').select('id, email, username, name, role, created_at').or(`email.ilike.${term},username.ilike.${term}`).limit(20),
+      supabase.from('markets').select('id, question, category, status, created_at').ilike('question', term).limit(20),
+      supabase.from('orders').select('id, market_id, user_id, side, status, amount_smallest_unit, created_at').eq('id', q).limit(10),
+      supabase.from('transactions').select('id, user_id, type, amount_smallest_unit, status, reference_id, created_at').or(`id.eq.${q},reference_id.eq.${q}`).limit(20),
+    ]);
+
+    res.json({
+      success: true,
+      results: {
+        users: usersResult.data || [],
+        markets: marketsResult.data || [],
+        orders: ordersResult.data || [],
+        transactions: txResult.data || [],
+      },
+    });
+  } catch (error: any) {
+    console.error('Admin search error:', error);
+    res.status(500).json({ error: { code: 'ADMIN_SEARCH_FAILED', message: 'Could not perform search.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// 13. GET /api/admin/export/:type
+app.get('/api/admin/export/:type', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const exportType = req.params.type;
+    const from = typeof req.query.from === 'string' ? req.query.from : null;
+    const to = typeof req.query.to === 'string' ? req.query.to : null;
+
+    const validTypes: Record<string, { table: string; fields: string }> = {
+      trades: { table: 'trades', fields: '*' },
+      orders: { table: 'orders', fields: '*' },
+      markets: { table: 'markets', fields: '*' },
+      users: { table: 'users', fields: 'id, email, username, name, role, created_at, account_status' },
+      withdrawals: { table: 'withdrawal_requests', fields: '*' },
+      deposits: { table: 'deposit_requests', fields: '*' },
+      settlements: { table: 'settlements', fields: '*' },
+      'audit-logs': { table: 'admin_audit_log', fields: '*' },
+    };
+
+    const config = validTypes[exportType as keyof typeof validTypes];
+    if (!config) {
+      return res.status(400).json({ error: { code: 'INVALID_EXPORT_TYPE', message: `Invalid export type: ${exportType}. Valid types: ${Object.keys(validTypes).join(', ')}`, timestamp: new Date().toISOString() } });
+    }
+
+    let query = supabase.from(config.table).select(config.fields).order('created_at', { ascending: false }).limit(5000);
+    if (from) query = query.gte('created_at', from);
+    if (to) query = query.lte('created_at', to);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, type: exportType, count: (data || []).length, data: data || [] });
+  } catch (error: any) {
+    console.error('Export error:', error);
+    res.status(500).json({ error: { code: 'EXPORT_FAILED', message: 'Could not export data.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// 14. GET /api/admin/admin-notifications
+app.get('/api/admin/admin-notifications', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const unreadOnly = req.query.unread === 'true';
+    let query = supabase.from('admin_notifications').select('*').order('created_at', { ascending: false }).limit(100);
+    if (unreadOnly) {
+      const adminUser = (req as any).user;
+      query = query.not('read_by', 'cs', `{${adminUser.id}}`);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ success: true, notifications: data || [] });
+  } catch (error: any) {
+    console.error('Admin notifications error:', error);
+    res.status(500).json({ error: { code: 'ADMIN_NOTIFICATIONS_FAILED', message: 'Could not load notifications.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// 15. POST /api/admin/admin-notifications/:id/read
+app.post('/api/admin/admin-notifications/:id/read', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const notificationId = req.params.id;
+    const adminUser = (req as any).user;
+
+    const { data: existing, error: fetchError } = await supabase
+      .from('admin_notifications')
+      .select('read_by')
+      .eq('id', notificationId)
+      .single();
+    if (fetchError || !existing) {
+      return res.status(404).json({ error: { code: 'NOTIFICATION_NOT_FOUND', message: 'Notification not found.', timestamp: new Date().toISOString() } });
+    }
+
+    const currentReadBy = existing.read_by || [];
+    if (!currentReadBy.includes(adminUser.id)) {
+      currentReadBy.push(adminUser.id);
+    }
+
+    const { data, error } = await supabase
+      .from('admin_notifications')
+      .update({ read_by: currentReadBy })
+      .eq('id', notificationId)
+      .select()
+      .single();
+    if (error) throw error;
+
+    res.json({ success: true, notification: data });
+  } catch (error: any) {
+    console.error('Mark notification read error:', error);
+    res.status(500).json({ error: { code: 'MARK_NOTIFICATION_READ_FAILED', message: 'Could not mark notification as read.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// 16. GET /api/admin/permissions
+app.get('/api/admin/permissions', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+
+    const permissionMatrix: Record<string, Record<string, boolean>> = {
+      user: {
+        view_markets: true,
+        place_orders: true,
+        view_own_orders: true,
+        view_own_positions: true,
+        view_own_wallet: true,
+        deposit: true,
+        withdraw: true,
+      },
+      admin: {
+        view_markets: true,
+        place_orders: true,
+        view_own_orders: true,
+        view_own_positions: true,
+        view_own_wallet: true,
+        deposit: true,
+        withdraw: true,
+        manage_users: true,
+        manage_markets: true,
+        view_analytics: true,
+        view_transactions: true,
+        manage_finance: true,
+        resolve_markets: true,
+        view_audit_log: true,
+        manage_feature_flags: true,
+        manage_settings: true,
+        view_fraud_alerts: true,
+        view_risk_center: true,
+        view_system_health: true,
+        export_data: true,
+        global_search: true,
+        manage_notifications: true,
+      },
+      super_admin: {
+        view_markets: true,
+        place_orders: true,
+        view_own_orders: true,
+        view_own_positions: true,
+        view_own_wallet: true,
+        deposit: true,
+        withdraw: true,
+        manage_users: true,
+        manage_markets: true,
+        view_analytics: true,
+        view_transactions: true,
+        manage_finance: true,
+        resolve_markets: true,
+        view_audit_log: true,
+        manage_feature_flags: true,
+        manage_settings: true,
+        view_fraud_alerts: true,
+        view_risk_center: true,
+        view_system_health: true,
+        export_data: true,
+        global_search: true,
+        manage_notifications: true,
+        manage_admins: true,
+        manage_roles: true,
+      },
+    };
+
+    res.json({
+      success: true,
+      role: user.role,
+      permissions: permissionMatrix[user.role] || permissionMatrix.user,
+    });
+  } catch (error: any) {
+    console.error('Permissions error:', error);
+    res.status(500).json({ error: { code: 'PERMISSIONS_FAILED', message: 'Could not load permissions.', timestamp: new Date().toISOString() } });
   }
 });
 

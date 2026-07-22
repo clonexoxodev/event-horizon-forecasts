@@ -1035,6 +1035,86 @@ class ApiService {
     return this.request<{ success: boolean; audit: any[] }>(`/api/admin/settlement-audit?${params.toString()}`);
   }
 
+  async getPlatformStats() {
+    return this.request<{ success: boolean; stats: any }>(`/api/admin/platform-stats`);
+  }
+
+  async getMarketAnalytics(marketId: string) {
+    return this.request<{ success: boolean; analytics: any }>(`/api/admin/market-analytics/${encodeURIComponent(marketId)}`);
+  }
+
+  async getUserAnalytics(userId: string) {
+    return this.request<{ success: boolean; analytics: any }>(`/api/admin/user-analytics/${encodeURIComponent(userId)}`);
+  }
+
+  async getFraudAlerts(status?: string) {
+    const params = status ? `?status=${status}` : '';
+    return this.request<{ success: boolean; alerts: any[] }>(`/api/admin/fraud-alerts${params}`);
+  }
+
+  async reviewFraudAlert(id: string, data: { status: string; review_notes: string }) {
+    return this.request<{ success: boolean }>(`/api/admin/fraud-alerts/${encodeURIComponent(id)}/review`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getRiskCenter() {
+    return this.request<{ success: boolean; risk: any }>(`/api/admin/risk-center`);
+  }
+
+  async getSystemHealth() {
+    return this.request<{ success: boolean; health: any }>(`/api/admin/system-health`);
+  }
+
+  async getFeatureFlags() {
+    return this.request<{ success: boolean; flags: any[] }>(`/api/admin/feature-flags`);
+  }
+
+  async updateFeatureFlag(key: string, enabled: boolean) {
+    return this.request<{ success: boolean }>(`/api/admin/feature-flags/${encodeURIComponent(key)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ enabled }),
+    });
+  }
+
+  async getSettings() {
+    return this.request<{ success: boolean; settings: any[] }>(`/api/admin/settings`);
+  }
+
+  async updateSettings(settings: Record<string, any>) {
+    return this.request<{ success: boolean }>(`/api/admin/settings`, {
+      method: 'PUT',
+      body: JSON.stringify({ settings }),
+    });
+  }
+
+  async globalSearch(query: string) {
+    return this.request<{ success: boolean; results: any }>(`/api/admin/search?q=${encodeURIComponent(query)}`);
+  }
+
+  async exportData(type: string, from?: string, to?: string) {
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    return this.request<{ success: boolean; data: any[] }>(`/api/admin/export/${encodeURIComponent(type)}?${params.toString()}`);
+  }
+
+  async getAdminNotifications(unread?: boolean) {
+    const params = unread ? '?unread=true' : '';
+    return this.request<{ success: boolean; notifications: any[] }>(`/api/admin/admin-notifications${params}`);
+  }
+
+  async markAdminNotificationRead(id: string) {
+    return this.request<{ success: boolean }>(`/api/admin/admin-notifications/${encodeURIComponent(id)}/read`, {
+      method: 'POST',
+    });
+  }
+
+  async getPermissions() {
+    return this.request<{ success: boolean; permissions: Record<string, boolean> }>(`/api/admin/permissions`);
+  }
+
   async healthCheck() {
     return this.request('/api/health');
   }

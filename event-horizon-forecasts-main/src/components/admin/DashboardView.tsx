@@ -1,13 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   BarChart3,
   Clock,
   Eye,
+  Gavel,
   Inbox,
+  Search,
   TrendingUp,
   Users,
   Wallet,
   AlertTriangle,
+  Download,
+  Activity,
+  RefreshCw,
 } from "lucide-react";
 import { apiService } from "@/lib/api";
 import type { AdminMarket, WithdrawalRequest } from "@/lib/api";
@@ -21,6 +26,7 @@ import {
 } from "./ui";
 import {
   formatNaira,
+  formatRelativeTime,
   marketVolume,
   statusLabel,
 } from "./utils";
@@ -37,41 +43,40 @@ export const DashboardView = ({
   const [analytics, setAnalytics] = useState<any>(null);
   const [pendingMarkets, setPendingMarkets] = useState<AdminMarket[]>([]);
   const [pendingWithdrawals, setPendingWithdrawals] = useState<WithdrawalRequest[]>([]);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+
+  const loadData = useCallback(async () => {
+    try {
+      const [statsRes, analyticsRes, marketsRes, withdrawalsRes] = await Promise.allSettled([
+        apiService.getAdminDashboardStats(),
+        apiService.getAnalytics(),
+        apiService.listAdminMarkets({ status: "pending_resolution" }),
+        apiService.listAdminFinanceWithdrawals("pending"),
+      ]);
+
+      if (statsRes.status === "fulfilled") setStats(statsRes.value.stats);
+      if (analyticsRes.status === "fulfilled") setAnalytics(analyticsRes.value.data || analyticsRes.value);
+      if (marketsRes.status === "fulfilled") setPendingMarkets(marketsRes.value.markets || []);
+      if (withdrawalsRes.status === "fulfilled") setPendingWithdrawals(withdrawalsRes.value.withdrawals || []);
+      setLastRefresh(new Date());
+    } catch {
+      // Silent fail for auto-refresh
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
       setLoading(true);
-      try {
-        const [statsRes, analyticsRes, marketsRes, withdrawalsRes] = await Promise.allSettled([
-          apiService.getAdminDashboardStats(),
-          apiService.getAnalytics(),
-          apiService.listAdminMarkets({ status: "pending_resolution" }),
-          apiService.listAdminFinanceWithdrawals("pending"),
-        ]);
-
-        if (cancelled) return;
-
-        if (statsRes.status === "fulfilled") setStats(statsRes.value.stats);
-        if (analyticsRes.status === "fulfilled") setAnalytics(analyticsRes.value.data || analyticsRes.value);
-        if (marketsRes.status === "fulfilled") setPendingMarkets(marketsRes.value.markets || []);
-        if (withdrawalsRes.status === "fulfilled") setPendingWithdrawals(withdrawalsRes.value.withdrawals || []);
-      } catch {
-        if (!cancelled) {
-          setStats(null);
-          setAnalytics(null);
-          setPendingMarkets([]);
-          setPendingWithdrawals([]);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      await loadData();
+      if (!cancelled) setLoading(false);
     };
 
     load();
-    return () => { cancelled = true; };
-  }, []);
+    const interval = setInterval(() => { if (!cancelled) loadData(); }, 60_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [loadData]);
 
   const s = stats || analytics || {};
   const totalUsers = s.totalUsers ?? 0;
@@ -83,6 +88,32 @@ export const DashboardView = ({
 
   return (
     <div className="space-y-6">
+      {/* Quick Actions */}
+      {!loading && (
+        <div className="flex flex-wrap gap-2">
+          {[
+            { view: "analytics" as AdminView, icon: Activity, label: "Analytics" },
+            { view: "search" as AdminView, icon: Search, label: "Search" },
+            { view: "export" as AdminView, icon: Download, label: "Export" },
+            { view: "risk-center" as AdminView, icon: AlertTriangle, label: "Risk" },
+            { view: "system-health" as AdminView, icon: RefreshCw, label: "Health" },
+          ].map(({ view: v, icon: Icon, label }) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-indigo-200 hover:text-indigo-600"
+            >
+              <Icon className="h-3 w-3" />
+              {label}
+            </button>
+          ))}
+          <span className="ml-auto flex items-center gap-1 text-[10px] text-gray-400">
+            <RefreshCw className="h-3 w-3" />
+            {formatRelativeTime(lastRefresh)}
+          </span>
+        </div>
+      )}
+
       {loading ? (
         <>
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">

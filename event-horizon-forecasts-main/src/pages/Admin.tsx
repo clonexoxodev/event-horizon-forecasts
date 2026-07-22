@@ -11,6 +11,13 @@ import { UsersView } from "@/components/admin/UsersView";
 import { AdminsView } from "@/components/admin/AdminsView";
 import { AuditLogView } from "@/components/admin/AuditLogView";
 import { SettlementDashboardView } from "@/components/admin/SettlementDashboardView";
+import { AnalyticsView } from "@/components/admin/AnalyticsView";
+import { RiskCenterView } from "@/components/admin/RiskCenterView";
+import { SystemHealthView } from "@/components/admin/SystemHealthView";
+import { FeatureFlagsView } from "@/components/admin/FeatureFlagsView";
+import { SettingsView } from "@/components/admin/SettingsView";
+import { SearchView } from "@/components/admin/SearchView";
+import { ExportView } from "@/components/admin/ExportView";
 import { useAuth } from "@/lib/auth";
 import type { AdminView } from "@/components/admin/types";
 import { DelayedFlippeLoader } from "@/components/FlippeBrand";
@@ -99,6 +106,20 @@ const Admin = () => {
         return <AuditLogView />;
       case "settlement-dashboard":
         return <SettlementDashboardView setSelectedMarketId={handleMarketSelect} />;
+      case "analytics":
+        return <AnalyticsView />;
+      case "risk-center":
+        return <RiskCenterView />;
+      case "system-health":
+        return <SystemHealthView />;
+      case "feature-flags":
+        return <FeatureFlagsView />;
+      case "settings":
+        return <SettingsView />;
+      case "search":
+        return <SearchView setSelectedMarketId={handleMarketSelect} />;
+      case "export":
+        return <ExportView />;
       default:
         return <DashboardView setView={handleViewChange} setSelectedMarketId={handleMarketSelect} />;
     }
