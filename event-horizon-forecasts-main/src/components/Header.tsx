@@ -1,4 +1,4 @@
-import { Home, ListOrdered, Menu, PieChart, Shield, Wallet } from "lucide-react";
+import { Home, Briefcase, Menu, Shield, Wallet } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
@@ -7,8 +7,7 @@ import { FlippeSymbol, FlippeWordmark } from "@/components/FlippeBrand";
 
 const primaryNav = [
   { to: "/", label: "Home", icon: Home },
-  { to: "/positions", label: "Positions", icon: PieChart },
-  { to: "/orders", label: "Orders", icon: ListOrdered },
+  { to: "/portfolio", label: "Portfolio", icon: Briefcase },
   { to: "/wallet", label: "Wallet", icon: Wallet },
   { to: "/more", label: "More", icon: Menu },
 ];

@@ -1,10 +1,9 @@
-import { Home, ListOrdered, Menu, PieChart, Wallet } from "lucide-react";
+import { Home, Briefcase, Menu, Wallet } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 const navItems = [
   { to: "/", icon: Home, label: "Home" },
-  { to: "/positions", icon: PieChart, label: "Positions" },
-  { to: "/orders", icon: ListOrdered, label: "Orders" },
+  { to: "/portfolio", icon: Briefcase, label: "Portfolio" },
   { to: "/wallet", icon: Wallet, label: "Wallet" },
   { to: "/more", icon: Menu, label: "More" },
 ];
@@ -19,7 +18,7 @@ export const MobileNav = () => {
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
       }}
     >
-      <div className="grid h-16 grid-cols-5 px-1 pt-1.5">
+      <div className="grid h-16 grid-cols-4 px-1 pt-1.5">
         {navItems.map((item) => (
           <NavLink
             key={item.to}

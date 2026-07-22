@@ -614,14 +614,14 @@ const labelForTransaction = (tx: ApiTransaction) => {
   ) {
     return tx.type === "position_payout" || tx.type === "market_payout"
       ? `Payout Credited: ${marketQuestion}`
-      : `Position Opened: ${marketQuestion}`;
+      : `Trade Placed: ${marketQuestion}`;
   }
 
   const labels: Record<ApiTransaction["type"], string> = {
     deposit: tx.status === "failed" ? "Deposit Failed" : "Deposit Successful",
     withdrawal:
       tx.status === "failed" ? "Withdrawal Rejected" : "Withdrawal Approved",
-    position_entry: "Position Opened",
+    position_entry: "Trade Placed",
     position_payout: "Payout Credited",
     refund: "Refund Credited",
     deposit_request: "Deposit Pending",
@@ -630,7 +630,7 @@ const labelForTransaction = (tx: ApiTransaction) => {
     withdrawal_request: "Withdrawal Pending",
     withdrawal_approved: "Withdrawal Approved",
     withdrawal_rejected: "Withdrawal Rejected",
-    prediction_stake: "Position Opened",
+    prediction_stake: "Trade Placed",
     market_payout: "Payout Credited",
     admin_adjustment: "Admin Adjustment",
   };

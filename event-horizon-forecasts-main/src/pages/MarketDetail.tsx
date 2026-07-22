@@ -1281,11 +1281,11 @@ export default function MarketDetail() {
 
             <div className="mt-6 grid gap-2">
               <Link
-                to={orderJustPlaced ? "/orders" : "/positions"}
+                to="/portfolio"
                 onClick={() => { setJustPredicted(null); setShowConfetti(false); }}
                 className="flex h-11 items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-bold text-white shadow-lg shadow-[#4F46E5]/20 transition hover:bg-[#4338CA]"
               >
-                {orderJustPlaced ? "View Orders" : "View Position"}
+                View Portfolio
               </Link>
               <button
                 onClick={() => { setJustPredicted(null); setShowConfetti(false); }}
