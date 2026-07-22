@@ -48,8 +48,8 @@ const TYPE_LABELS: Record<string, string> = {
   withdrawal_request: "Withdrawal",
   withdrawal_approved: "Withdrawal",
   withdrawal_rejected: "Rejected",
-  position_entry: "Prediction Stake",
-  prediction_stake: "Prediction Stake",
+  position_entry: "Position",
+  prediction_stake: "Position",
   position_payout: "Settlement Won",
   market_payout: "Settlement Won",
   refund: "Refund",
@@ -237,7 +237,7 @@ export default function TransactionHistory() {
                 Transaction History
               </h1>
               <p className="mt-1 text-sm text-[#6B7280]">
-                Deposits, withdrawals, predictions, and winnings.
+                Deposits, withdrawals, positions, and winnings.
               </p>
             </div>
             <div className="hidden items-center gap-2 sm:flex">
@@ -381,7 +381,7 @@ export default function TransactionHistory() {
               <p className="mt-2 text-sm text-[#6B7280]">
                 {(typeFilter !== "all" || directionFilter !== "all" || dateRange !== "all" || searchQuery)
                   ? "Try adjusting your filters to see more results."
-                  : "Your transaction history will appear here once you add money or make a prediction."}
+                  : "Your transaction history will appear here once you add money or open a position."}
               </p>
               {!searchQuery && typeFilter === "all" && (
                 <Link

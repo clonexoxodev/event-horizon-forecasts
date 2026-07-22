@@ -3,13 +3,13 @@ export const LEVELS = [
   { name: "Sharp Thinker", score: 5 },
   { name: "Analyst", score: 18 },
   { name: "Expert", score: 40 },
-  { name: "Elite Forecaster", score: 70 },
+  { name: "Elite Trader", score: 70 },
   { name: "Market Master", score: 120 },
 ] as const;
 
 export const getScore = (totalPredictions: number, wins: number) => totalPredictions + wins * 2;
 
-export const getForecasterLevel = (totalPredictions: number, wins: number) => {
+export const getTraderLevel = (totalPredictions: number, wins: number) => {
   const score = getScore(totalPredictions, wins);
   return [...LEVELS].reverse().find((level) => score >= level.score)?.name || "Rookie";
 };
@@ -42,7 +42,7 @@ export const getNextLevel = (levelName: string) => {
 
 export const getLevelProgress = (totalPredictions: number, wins: number) => {
   const score = totalPredictions + wins * 2;
-  const currentIndex = Math.max(0, LEVELS.findIndex((level) => level.name === getForecasterLevel(totalPredictions, wins)));
+  const currentIndex = Math.max(0, LEVELS.findIndex((level) => level.name === getTraderLevel(totalPredictions, wins)));
   const current = LEVELS[currentIndex] || LEVELS[0];
   const next = LEVELS[Math.min(currentIndex + 1, LEVELS.length - 1)] || current;
   if (current.name === next.name) return 100;

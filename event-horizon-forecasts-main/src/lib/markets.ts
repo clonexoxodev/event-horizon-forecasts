@@ -138,7 +138,7 @@ export const placePosition = async (
     await apiService.placePrediction(marketId, { side, amount: stake, currency: "NGN" });
     return { error: null };
   } catch (error: any) {
-    return { error: error.message || "Failed to place prediction" };
+    return { error: error.message || "Failed to place order" };
   }
 };
 

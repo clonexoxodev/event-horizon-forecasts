@@ -36,7 +36,7 @@ export const Hero = () => {
 
         <div className="mx-auto mt-12 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-3">
           <Feature icon={<ShieldCheck className="h-5 w-5" />} title="Refund Protected" body="Stakes return automatically if a market never goes live." ariaLabel="Refund protection feature" />
-          <Feature icon={<TrendingUp className="h-5 w-5" />} title="Live prices" body="Crowd View moves with every prediction, in real time." ariaLabel="Live pricing feature" />
+          <Feature icon={<TrendingUp className="h-5 w-5" />} title="Live prices" body="Crowd View moves with every trade, in real time." ariaLabel="Live pricing feature" />
           <Feature icon={<Users className="h-5 w-5" />} title="Community intelligence" body="See where others stand before you back a side." ariaLabel="Community intelligence feature" />
         </div>
       </div>

@@ -11,7 +11,7 @@ type AuthLayoutProps = {
 
 export const AuthLayout = ({
   children,
-  eyebrow = "Real-world prediction markets",
+  eyebrow = "Real-world trading markets",
   title = "Predict real-world events.",
   benefits = ["Build your forecasting record", "Track your streak and score", "Follow markets as they move"],
 }: AuthLayoutProps) => (

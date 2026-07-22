@@ -35,7 +35,7 @@ import {
   getCurrentWinStreak,
   getBestWinStreak,
   getScore,
-  getForecasterLevel,
+  getTraderLevel,
   getLevelProgress,
   LEVELS,
 } from "@/lib/levels";
@@ -183,7 +183,7 @@ const Dashboard = () => {
   }, [positionTab, activePositions, settledPositions, positions]);
 
   const totalScore = getScore(stats.totalPredictions, wonPositions.length);
-  const level = stats.level || getForecasterLevel(stats.totalPredictions, wonPositions.length);
+  const level = stats.level || getTraderLevel(stats.totalPredictions, wonPositions.length);
   const nextLevel = getNextLevel(level);
   const progress = getLevelProgress(stats.totalPredictions, wonPositions.length);
   const winRate = resolvedPositions.length ? Math.round((wonPositions.length / resolvedPositions.length) * 100) : 0;
@@ -816,7 +816,7 @@ const AchievementsSection = ({
   const currentStreak = getCurrentWinStreak(resolved);
   const bestStreak = getBestWinStreak(resolved);
   const accuracy = resolved.length ? Math.round((won.length / resolved.length) * 100) : 0;
-  const level = stats.level || getForecasterLevel(stats.totalPredictions, won.length);
+  const level = stats.level || getTraderLevel(stats.totalPredictions, won.length);
 
   const achievements = getAchievements({
     totalPredictions: stats.totalPredictions,

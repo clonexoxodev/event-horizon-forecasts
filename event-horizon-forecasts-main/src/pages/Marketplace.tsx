@@ -84,7 +84,7 @@ export default function Marketplace() {
             Marketplace
           </h1>
           <p className="text-graphite text-sm">
-            Buy and sell positions from other forecasters
+            Buy and sell positions from other traders
           </p>
         </div>
 

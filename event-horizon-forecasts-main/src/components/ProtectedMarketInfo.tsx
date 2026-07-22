@@ -42,7 +42,7 @@ export const ProtectedMarketInfo = ({
     ]}
     example={{
       label: "Example",
-      body: "You back YES with ₦500 in a Protected market. If the total pool doesn't reach the activation threshold before closing, your full ₦500 is refunded. If it does activate, your prediction works like any normal market.",
+      body: "You back YES with ₦500 in a Protected market. If the total pool doesn't reach the activation threshold before closing, your full ₦500 is refunded. If it does activate, your position works like any normal market.",
     }}
     footer={
       activation ? (

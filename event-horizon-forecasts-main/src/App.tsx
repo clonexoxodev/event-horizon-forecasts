@@ -67,13 +67,13 @@ const ForecastSlipContainer = () => {
         upsertMarket(result.market);
       }
     } catch (err) {
-      console.warn("Market upsert after prediction failed", err);
+      console.warn("Market upsert after trade failed", err);
     }
 
     try {
       await refreshUser();
     } catch (err) {
-      console.warn("User refresh after prediction failed", err);
+      console.warn("User refresh after trade failed", err);
     }
 
     try {
@@ -89,7 +89,7 @@ const ForecastSlipContainer = () => {
         notifyWalletLow(newBalance);
       }
     } catch (err) {
-      console.warn("Notification after prediction failed", err);
+      console.warn("Notification after trade failed", err);
     }
   };
 

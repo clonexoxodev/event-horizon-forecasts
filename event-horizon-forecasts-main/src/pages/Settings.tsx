@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
-import { Bell, ChevronRight, ExternalLink, Info, Lock, Mail, Shield, User } from "lucide-react";
+import {
+  Bell,
+  ChevronRight,
+  ExternalLink,
+  Info,
+  Lock,
+  Mail,
+  Shield,
+  User,
+} from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
@@ -24,12 +33,14 @@ const defaultPreferences: Preferences = {
 
 export default function Settings() {
   const { user } = useAuth();
-  const [preferences, setPreferences] = useState<Preferences>(defaultPreferences);
+  const [preferences, setPreferences] =
+    useState<Preferences>(defaultPreferences);
 
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(SETTINGS_KEY);
-      if (saved) setPreferences({ ...defaultPreferences, ...JSON.parse(saved) });
+      if (saved)
+        setPreferences({ ...defaultPreferences, ...JSON.parse(saved) });
     } catch {
       setPreferences(defaultPreferences);
     }
@@ -46,14 +57,17 @@ export default function Settings() {
       <Header />
       <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:py-8">
         <div className="mb-6">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9CA3AF]">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF]">
             Settings
           </p>
-          <h1 className="mt-2 text-2xl font-black tracking-tight">Settings</h1>
-          <p className="mt-1 text-sm text-[#6B7280]">Manage your account and preferences.</p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight">Settings</h1>
+          <p className="mt-1 text-sm text-[#6B7280]">
+            Manage your account, preferences, and security.
+          </p>
         </div>
 
         <div className="space-y-4">
+          {/* ── Account ── */}
           <Card>
             <CardHeader icon={User} title="Account" />
             <div className="space-y-2">
@@ -75,6 +89,36 @@ export default function Settings() {
             </div>
           </Card>
 
+          {/* ── Security ── */}
+          <Card>
+            <CardHeader icon={Lock} title="Security" />
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5 opacity-50 cursor-not-allowed">
+                <Lock className="h-4 w-4 shrink-0 text-[#9CA3AF]" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold text-[#111827]">
+                    Change password
+                  </div>
+                  <div className="mt-0.5 text-xs text-[#9CA3AF]">
+                    Coming soon
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5 opacity-50 cursor-not-allowed">
+                <Shield className="h-4 w-4 shrink-0 text-[#9CA3AF]" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold text-[#111827]">
+                    Two-factor authentication
+                  </div>
+                  <div className="mt-0.5 text-xs text-[#9CA3AF]">
+                    Coming soon
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* ── Notifications ── */}
           <Card>
             <CardHeader icon={Bell} title="Notifications" />
             <div className="space-y-2">
@@ -82,63 +126,50 @@ export default function Settings() {
                 label="Push notifications"
                 description="Receive push notifications on this device."
                 checked={preferences.pushNotifications}
-                onChange={(value) => updatePreference("pushNotifications", value)}
+                onChange={(value) =>
+                  updatePreference("pushNotifications", value)
+                }
               />
               <Toggle
                 label="Market updates"
                 description="New prices, market status changes, and activity reminders."
                 checked={preferences.marketUpdates}
-                onChange={(value) => updatePreference("marketUpdates", value)}
+                onChange={(value) =>
+                  updatePreference("marketUpdates", value)
+                }
               />
               <Toggle
                 label="Wallet alerts"
                 description="Deposit, withdrawal, and payout updates."
                 checked={preferences.walletAlerts}
-                onChange={(value) => updatePreference("walletAlerts", value)}
+                onChange={(value) =>
+                  updatePreference("walletAlerts", value)
+                }
               />
               <Toggle
                 label="Resolution alerts"
                 description="Market ended, pending resolution, resolved, or cancelled."
                 checked={preferences.resolutionAlerts}
-                onChange={(value) => updatePreference("resolutionAlerts", value)}
+                onChange={(value) =>
+                  updatePreference("resolutionAlerts", value)
+                }
               />
               <Toggle
                 label="Email notifications"
                 description="Receive summary emails about your account activity."
                 checked={preferences.emailNotifications}
-                onChange={(value) => updatePreference("emailNotifications", value)}
+                onChange={(value) =>
+                  updatePreference("emailNotifications", value)
+                }
               />
             </div>
           </Card>
 
-          <Card>
-            <CardHeader icon={Lock} title="Security" />
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5 opacity-50 cursor-not-allowed">
-                <Lock className="h-4 w-4 shrink-0 text-[#9CA3AF]" />
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold text-[#111827]">Change password</div>
-                  <div className="mt-0.5 text-xs text-[#9CA3AF]">Coming soon</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5 opacity-50 cursor-not-allowed">
-                <Shield className="h-4 w-4 shrink-0 text-[#9CA3AF]" />
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold text-[#111827]">Two-factor authentication</div>
-                  <div className="mt-0.5 text-xs text-[#9CA3AF]">Coming soon</div>
-                </div>
-              </div>
-            </div>
-          </Card>
-
+          {/* ── About ── */}
           <Card>
             <CardHeader icon={Info} title="About" />
             <div className="space-y-2">
-              <InfoRow
-                icon={Info}
-                label="App version"
-                value="Flippi v1.0.0"
-              />
+              <InfoRow icon={Info} label="App version" value="Flippi v1.0.0" />
               <LinkRow
                 icon={ExternalLink}
                 label="Terms of service"
@@ -172,7 +203,13 @@ const Card = ({ children }: { children: React.ReactNode }) => (
   </section>
 );
 
-const CardHeader = ({ icon: Icon, title }: { icon: any; title: string }) => (
+const CardHeader = ({
+  icon: Icon,
+  title,
+}: {
+  icon: any;
+  title: string;
+}) => (
   <div className="mb-4 flex items-center gap-3">
     <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#EEF2FF] text-[#4F46E5]">
       <Icon className="h-4 w-4" />
@@ -181,12 +218,24 @@ const CardHeader = ({ icon: Icon, title }: { icon: any; title: string }) => (
   </div>
 );
 
-const InfoRow = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
+const InfoRow = ({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: any;
+  label: string;
+  value: string;
+}) => (
   <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5">
     <Icon className="h-4 w-4 shrink-0 text-[#9CA3AF]" />
     <div className="min-w-0 flex-1">
-      <div className="text-[11px] font-bold uppercase tracking-wider text-[#9CA3AF]">{label}</div>
-      <div className="mt-0.5 truncate text-sm font-semibold text-[#111827]">{value}</div>
+      <div className="text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF]">
+        {label}
+      </div>
+      <div className="mt-0.5 truncate text-sm font-semibold text-[#111827]">
+        {value}
+      </div>
     </div>
   </div>
 );
@@ -204,8 +253,12 @@ const Toggle = ({
 }) => (
   <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5 transition hover:bg-[#F3F4F6]">
     <div className="min-w-0 flex-1">
-      <span className="block text-sm font-semibold text-[#111827]">{label}</span>
-      <span className="mt-0.5 block text-xs text-[#9CA3AF]">{description}</span>
+      <span className="block text-sm font-semibold text-[#111827]">
+        {label}
+      </span>
+      <span className="mt-0.5 block text-xs text-[#9CA3AF]">
+        {description}
+      </span>
     </div>
     <button
       type="button"
@@ -213,10 +266,14 @@ const Toggle = ({
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors ${checked ? "bg-[#4F46E5]" : "bg-[#D1D5DB]"}`}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors ${
+        checked ? "bg-[#4F46E5]" : "bg-[#D1D5DB]"
+      }`}
     >
       <span
-        className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm ring-0 transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"} mt-0.5`}
+        className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm ring-0 transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0.5"
+        } mt-0.5`}
       />
     </button>
   </label>

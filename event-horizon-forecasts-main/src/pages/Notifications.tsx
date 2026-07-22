@@ -1,10 +1,24 @@
 import { useMemo } from "react";
-import { Bell, CheckCheck, Clock, Inbox, Loader2, TrendingUp, Trophy, Wallet, Zap } from "lucide-react";
+import {
+  Bell,
+  CheckCheck,
+  Clock,
+  Inbox,
+  Loader2,
+  TrendingUp,
+  Trophy,
+  Wallet,
+  Zap,
+} from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
 import { useNotifications } from "@/lib/notification-context";
-import { formatNotificationTime, getNotificationStyle, type NotificationType } from "@/lib/notifications";
+import {
+  formatNotificationTime,
+  getNotificationStyle,
+  type NotificationType,
+} from "@/lib/notifications";
 
 const typeIcon: Record<string, any> = {
   market_closing_soon: Clock,
@@ -22,10 +36,15 @@ const typeIcon: Record<string, any> = {
 
 export default function Notifications() {
   const { user, isLoading: authLoading } = useAuth();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } =
+    useNotifications();
 
   const sorted = useMemo(
-    () => [...notifications].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    () =>
+      [...notifications].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ),
     [notifications]
   );
 
@@ -36,7 +55,9 @@ export default function Notifications() {
         <main className="grid min-h-[70vh] place-items-center px-4">
           <div className="text-center">
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#4F46E5]" />
-            <p className="mt-3 text-sm font-bold text-[#9CA3AF]">Loading notifications...</p>
+            <p className="mt-3 text-sm font-bold text-[#9CA3AF]">
+              Loading notifications...
+            </p>
           </div>
         </main>
         <MobileNav />
@@ -53,7 +74,9 @@ export default function Notifications() {
             <Bell className="h-7 w-7" />
           </div>
           <h2 className="text-xl font-black">Log in to see notifications</h2>
-          <p className="mt-1 text-sm text-[#9CA3AF]">Your alerts and activity feed will appear here.</p>
+          <p className="mt-1 text-sm text-[#9CA3AF]">
+            Your alerts and activity feed will appear here.
+          </p>
         </main>
         <MobileNav />
       </div>
@@ -66,20 +89,22 @@ export default function Notifications() {
       <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:py-8">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9CA3AF]">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF]">
               Notifications
             </p>
-            <h1 className="mt-1 text-2xl font-black tracking-tight">Notifications</h1>
+            <h1 className="mt-1 text-3xl font-black tracking-tight">
+              Notifications
+            </h1>
             <p className="mt-1 text-sm text-[#9CA3AF]">
               {unreadCount > 0
-                ? `${unreadCount} unread`
+                ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}`
                 : "All caught up"}
             </p>
           </div>
           {unreadCount > 0 && (
             <button
               onClick={markAllAsRead}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 text-xs font-bold text-[#4F46E5] transition hover:bg-[#F3F4F6]"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#4F46E5]/20 bg-[#EEF2FF] px-4 py-2 text-xs font-bold text-[#4F46E5] transition hover:bg-[#4F46E5]/10"
             >
               <CheckCheck className="h-3.5 w-3.5" />
               Mark all read
@@ -88,22 +113,28 @@ export default function Notifications() {
         </div>
 
         {sorted.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-[#E5E7EB] bg-white/60 py-16 text-center">
-            <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-[#F3F4F6]">
-              <Bell className="h-7 w-7 text-[#D1D5DB]" />
+          <div className="rounded-3xl border border-dashed border-[#E5E7EB] bg-white/60 py-20 text-center">
+            <div className="mx-auto mb-5 grid h-20 w-20 place-items-center rounded-2xl bg-[#F3F4F6]">
+              <Bell className="h-10 w-10 text-[#D1D5DB]" />
             </div>
-            <h3 className="text-base font-bold text-[#111827]">No notifications yet</h3>
-            <p className="mt-1 text-sm text-[#9CA3AF]">
-              Updates will appear here when you place trades.
+            <h3 className="text-lg font-bold text-[#111827]">
+              No notifications yet
+            </h3>
+            <p className="mt-2 max-w-xs mx-auto text-sm text-[#9CA3AF]">
+              When you place trades, make deposits, or win positions, updates
+              will appear here.
             </p>
           </div>
         ) : (
           <div className="rounded-3xl border border-[#E5E7EB] bg-white">
             <ul role="log" aria-label="Notifications" aria-live="polite">
-              {sorted.map((notification, index) => {
+              {sorted.map((notification) => {
                 const isRead = notification.read;
-                const style = getNotificationStyle(notification.type as NotificationType);
-                const Icon = typeIcon[notification.type] || Bell;
+                const style = getNotificationStyle(
+                  notification.type as NotificationType
+                );
+                const Icon =
+                  typeIcon[notification.type] || Bell;
 
                 return (
                   <li
@@ -117,7 +148,7 @@ export default function Notifications() {
                       onClick={() => {
                         if (!isRead) markAsRead(notification.id);
                       }}
-                      aria-label={`${notification.title}. ${notification.message}. ${formatNotificationTime(notification.createdAt)}${!isRead ? '. Unread' : ''}`}
+                      aria-label={`${notification.title}. ${notification.message}. ${formatNotificationTime(notification.createdAt)}${!isRead ? ". Unread" : ""}`}
                       className="flex w-full items-start gap-3.5 p-4 text-left"
                     >
                       <div
@@ -130,7 +161,9 @@ export default function Notifications() {
                         <div className="flex items-start justify-between gap-2">
                           <h3
                             className={`text-sm leading-tight ${
-                              isRead ? "font-semibold text-[#9CA3AF]" : "font-bold text-[#111827]"
+                              isRead
+                                ? "font-semibold text-[#9CA3AF]"
+                                : "font-bold text-[#111827]"
                             }`}
                           >
                             {notification.title}
@@ -139,7 +172,9 @@ export default function Notifications() {
                             <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#4F46E5]" />
                           )}
                         </div>
-                        <p className="mt-1 text-xs text-[#9CA3AF] line-clamp-2">{notification.message}</p>
+                        <p className="mt-1 text-xs text-[#9CA3AF] line-clamp-2">
+                          {notification.message}
+                        </p>
                         <div className="mt-1.5 flex items-center gap-1 text-[11px] text-[#D1D5DB]">
                           <Clock className="h-3 w-3" />
                           {formatNotificationTime(notification.createdAt)}

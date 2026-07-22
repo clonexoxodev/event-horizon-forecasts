@@ -64,8 +64,8 @@ export const notificationTemplates = {
   }),
 
   forecast_confirmed: (marketQuestion: string, side: "YES" | "NO", amount: number) => ({
-    title: "Forecast Confirmed",
-    message: `Your ${side} forecast of ₦${(amount / 1000).toFixed(1)}K on "${marketQuestion}" is active.`,
+    title: "Position Confirmed",
+    message: `Your ${side} position of ₦${(amount / 1000).toFixed(1)}K on "${marketQuestion}" is active.`,
   }),
 
   market_resolved: (marketQuestion: string, outcome: "YES" | "NO", won: boolean, payout?: number) => ({
@@ -77,7 +77,7 @@ export const notificationTemplates = {
 
   wallet_low: (balance: number) => ({
     title: "Low Balance",
-    message: `Your balance is ₦${(balance / 1000).toFixed(1)}K. Add funds to continue forecasting.`,
+    message: `Your balance is ₦${(balance / 1000).toFixed(1)}K. Add funds to continue trading.`,
   }),
 
   position_sold: (marketQuestion: string, amount: number) => ({

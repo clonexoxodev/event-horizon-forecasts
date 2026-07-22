@@ -14,6 +14,14 @@ type ForecastSelection = {
   minAmount?: number;
   maxAmount?: number;
   pricingModel?: "pool" | "orderbook";
+  marketStatus?: string;
+  closeTime?: string;
+  tradingCloseTime?: string;
+  totalPool?: number;
+  totalVolume?: number;
+  protectedMarketEnabled?: boolean;
+  activationThreshold?: number;
+  activationProgress?: number;
 };
 
 type ForecastSlipContextType = {
