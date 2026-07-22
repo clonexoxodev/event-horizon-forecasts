@@ -33,7 +33,7 @@ const writeCachedMarkets = (markets: Market[]) => {
 const marketFreshnessScore = (market: Market) => {
   const tradeScore = Number(market.tradeCount || 0) * 1_000_000;
   const historyScore = Number(market.priceHistory?.length || 0) * 10_000;
-  const volumeScore = Number(market.totalVolume || market.totalPool || market.pool || 0);
+  const volumeScore = Number(market.totalVolume || 0);
   return tradeScore + historyScore + volumeScore;
 };
 

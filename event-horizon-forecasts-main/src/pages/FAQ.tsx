@@ -8,7 +8,7 @@ const faqs = [
   {
     section: "Basics",
     items: [
-      ["What is Flippe?", "Flippe is a pooled position market. Traders stop arguing and back YES or NO on public outcomes."],
+      ["What is Flippe?", "Flippe is a prediction exchange. Traders stop arguing and back YES or NO on public outcomes."],
       ["Is Flippe betting?", "Flippe is designed as a position market. It still involves financial risk, so traders should treat every order carefully and only use money they can afford to lose."],
       ["What kinds of markets can appear?", "Markets may cover public events in sports, crypto, politics, entertainment, economy, and other topics with clear resolution sources."],
     ],
@@ -18,16 +18,16 @@ const faqs = [
     items: [
       ["How do YES and NO work?", "YES and NO show the Crowd View. If YES is 61, NO is 39. Together they always add up to 100."],
       ["Why do YES and NO always add up to 100?", "A market resolves to one of the two outcomes. The two prices are shown as opposite sides of the same position."],
-      ["What happens when I back a side?", "Your wallet is debited, your order is recorded, and your stake joins the market pool for that side."],
-      ["What are units?", "Units are a background calculation Flippe may use to settle markets fairly. The main idea is simple: you backed a side in a pool."],
+      ["What happens when I back a side?", "Your wallet is debited, your order is recorded, and it enters the order book to be matched."],
+      ["What are units?", "Units are the number of shares your order receives when matched. The main idea is simple: you backed a side at a price."],
       ["Why does the Crowd View change?", "Crowd View changes as other traders back YES or NO. It is not withdrawable money and it is not guaranteed profit."],
     ],
   },
   {
     section: "Payouts and resolution",
     items: [
-      ["How is final payout calculated?", "If your side is correct, you receive your stake plus a share of the losing side's pool. The exact amount is finalized only after resolution."],
-      ["Is any payout guaranteed before resolution?", "No. Anything shown before resolution is only informational. Final payout depends on the result and the final pool."],
+      ["How is final payout calculated?", "If your side is correct, your matched shares settle at 100 each. The exact amount is finalized only after resolution."],
+      ["Is any payout guaranteed before resolution?", "No. Anything shown before resolution is only informational. Final payout depends on the result and matched positions."],
       ["When do I receive winnings?", "Winnings are credited after the market closes and an admin resolves the outcome using the stated source."],
       ["How are markets resolved?", "Each market has rules and a resolution source. Admins use those rules to resolve YES, NO, or cancel/refund if the market cannot resolve fairly."],
       ["What happens if a market is cancelled?", "The platform should refund eligible stakes according to the market status and wallet ledger."],
@@ -61,7 +61,7 @@ export default function FAQ() {
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#4F46E5]">FAQs</p>
               <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">Questions before you trade</h1>
               <p className="mt-3 max-w-2xl text-base leading-relaxed text-[#667085]">
-                Simple answers about Crowd View, market pools, wallet movement, and responsible use.
+                Simple answers about Crowd View, order matching, wallet movement, and responsible use.
               </p>
             </div>
           </div>

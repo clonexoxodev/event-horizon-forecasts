@@ -35,14 +35,9 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
       marketIcon: m.icon,
       side,
       currentPrice: side === "YES" ? m.yesPrice : m.noPrice,
-      yesPool: m.yesPool,
-      noPool: m.noPool,
-      totalYesShares: m.totalYesShares,
-      totalNoShares: m.totalNoShares,
       participants: m.participants,
       minAmount: m.minAmount,
       maxAmount: m.maxAmount,
-      pricingModel: m.pricing_model,
     });
   };
 
@@ -188,7 +183,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
               ) : (
                 <span className="inline-flex items-center gap-1 rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[10px] font-bold text-[#6B7280]">
                   <TrendingUp className="h-2.5 w-2.5" aria-hidden="true" />
-                  {formatNaira(m.totalPool || m.totalVolume || 0)} pool
+                  {formatNaira(m.totalVolume || 0)}
                 </span>
               )}
               {m.pricing_model === "orderbook" && (
@@ -211,7 +206,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
           onClose={() => setShowProtectedInfo(false)}
           activation={{
             progress: activation.progress,
-            totalPool: activation.totalPool,
+            totalVolume: activation.totalVolume,
             requirements: activation.requirements,
           }}
         />

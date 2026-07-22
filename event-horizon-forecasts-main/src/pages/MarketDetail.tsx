@@ -519,7 +519,7 @@ export default function MarketDetail() {
                 <div className="h-full rounded-full bg-[#4F46E5] transition-all duration-500" style={{ width: `${activation.progress}%` }} />
               </div>
               <p className="mt-1.5 text-[10px] font-bold text-[#475467]">
-                {formatNaira(activation.totalPool)} / {formatNaira(activation.requirements.totalPool)}
+                {formatNaira(activation.totalVolume)} / {formatNaira(activation.requirements.totalVolume)}
               </p>
             </div>
           )}
@@ -795,10 +795,10 @@ export default function MarketDetail() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <MiniStat label="Total Pool" value={`${formatNaira(activation.totalPool)} / ${formatNaira(activation.requirements.totalPool)}`} />
+                  <MiniStat label="Total Volume" value={`${formatNaira(activation.totalVolume)} / ${formatNaira(activation.requirements.totalVolume)}`} />
                   <MiniStat label="Participants" value={`${activation.participants} / ${activation.requirements.participants}`} />
-                  <MiniStat label="YES Pool" value={`${formatNaira(activation.yesPool)} / ${formatNaira(activation.requirements.yesPool)}`} />
-                  <MiniStat label="NO Pool" value={`${formatNaira(activation.noPool)} / ${formatNaira(activation.requirements.noPool)}`} />
+                  <MiniStat label="YES Volume" value={`${formatNaira(activation.yesVolume)} / ${formatNaira(activation.requirements.yesVolume)}`} />
+                  <MiniStat label="NO Volume" value={`${formatNaira(activation.noVolume)} / ${formatNaira(activation.requirements.noVolume)}`} />
                 </div>
                 <p className="text-xs font-bold text-[#6B7280]">
                   Max stake per user: {formatNaira(activation.requirements.protectedMaxStake)}
@@ -1217,7 +1217,7 @@ export default function MarketDetail() {
           onClose={() => setShowProtectedInfo(false)}
           activation={{
             progress: activation.progress,
-            totalPool: activation.totalPool,
+            totalVolume: activation.totalVolume,
             requirements: activation.requirements,
           }}
         />

@@ -113,9 +113,9 @@ export type ResolutionPreview = {
     totalLosers?: number;
     totalPayout?: number;
     totalRefunded?: number;
-    yesPool?: number;
-    noPool?: number;
-    totalPool?: number;
+    yesVolume?: number;
+    noVolume?: number;
+    totalVolume?: number;
     eligibleForRefund?: boolean;
     refundReason?: string;
     winners?: Array<{

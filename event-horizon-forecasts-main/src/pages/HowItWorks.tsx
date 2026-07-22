@@ -6,10 +6,10 @@ import { MobileNav } from "@/components/MobileNav";
 const steps = [
   ["Pick a market", "Browse live markets and read the question, category, rules, and closing time.", Search],
   ["Choose YES or NO", "YES and NO show the Crowd View. They always add up to 100.", BarChart3],
-  ["Enter amount", "The order slip shows your stake, the total pool, the opposing pool, and participants.", WalletCards],
+  ["Enter amount", "The order slip shows your price per share, quantity, and total order value.", WalletCards],
   ["Back your position", "Your wallet is debited and your order is saved. There is no cashout before resolution.", LockKeyhole],
   ["Track it", "My Positions shows your pick, amount backed, Crowd View, time left, and status.", Clock],
-  ["Market resolves", "After the deadline, admins resolve using the stated source. The correct side shares the losing side's pool.", CheckCircle2],
+  ["Market resolves", "After the deadline, admins resolve using the stated source. Winning positions are settled at 100 per share.", CheckCircle2],
 ];
 
 export default function HowItWorks() {
@@ -46,7 +46,7 @@ export default function HowItWorks() {
             <p>Crowd View helps people understand the market. It is not a guarantee of profit and it is not a cashout value.</p>
           </InfoPanel>
           <InfoPanel title="How final payout works">
-            <p>When a market resolves, the correct side receives its stake plus a share of the losing side's pool. The final pool can change until the market closes.</p>
+            <p>When a market resolves, winning positions are settled at 100 per share. Losing positions are worth 0. Payout depends on the shares you hold and the settlement result.</p>
             <p>If your side loses, your position settles at zero. If the market is cancelled, eligible stakes should be refunded through the wallet ledger.</p>
           </InfoPanel>
         </section>
@@ -59,7 +59,7 @@ export default function HowItWorks() {
             <Example label="Final payout" value="Calculated after resolution" />
           </div>
           <p className="mt-5 text-sm leading-relaxed text-[#667085]">
-            The amount you finally receive depends on the result and the final pool when the market closes.
+            The amount you finally receive depends on the result and your matched position when the market closes.
           </p>
         </section>
 

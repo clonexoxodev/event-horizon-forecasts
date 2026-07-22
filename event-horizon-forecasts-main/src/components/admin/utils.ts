@@ -76,8 +76,8 @@ export const statusColor = (status: string): string => {
   }
 };
 
-export const marketVolume = (m: { total_volume_smallest_unit?: number; pool_amount_smallest_unit?: number; totalVolume?: number; pool?: number; total_pool?: number }) =>
-  koboToNaira(m.total_volume_smallest_unit || m.pool_amount_smallest_unit || m.totalVolume || m.pool || m.total_pool || 0);
+export const marketVolume = (m: { total_volume_smallest_unit?: number; totalVolume?: number }) =>
+  koboToNaira(m.total_volume_smallest_unit || m.totalVolume || 0);
 
 export const isEndingSoon = (m: { close_date?: string; trading_close_at?: string; closeTime?: string; tradingCloseTime?: string }) => {
   const close = m.trading_close_at || m.tradingCloseTime || m.close_date || m.closeTime;

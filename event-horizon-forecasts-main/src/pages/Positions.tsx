@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  ArrowRight, CheckCircle, ChevronRight, Info, Loader2, Target, Trophy, X,
+  ArrowRight, CheckCircle, ChevronRight, Loader2, Target, Trophy, X,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { ProtectedMarketInfo } from "@/components/ProtectedMarketInfo";
 import { useAuth } from "@/lib/auth";
 import apiService, { type ApiPosition, type ApiProfileStats } from "@/lib/api";
-import { formatCountdown, formatNairaPrice, MARKET_ACTIVATION_REQUIREMENTS } from "@/lib/markets";
+import { formatCountdown, formatNairaPrice } from "@/lib/markets";
 import { DelayedFlippeLoader } from "@/components/FlippeBrand";
 
 type PositionFilterTab = "active" | "resolved";
@@ -43,18 +43,11 @@ const getStatusDisplay = (p: ApiPosition, now: number) => {
 const getInsight = (p: ApiPosition) => {
   const entry = Number(p.entryPrice || 0);
   const current = Number(p.currentPrice || p.entryPrice || 0);
-  const totalPool = Number(p.totalPool || 0);
-  const sidePool = Number(p.sidePool || 0);
-  const opposingPool = Number(p.opposingPool || 0);
   const stake = Number(p.stake || 0);
   const currentValue = Number(p.currentValue || p.positionValue || p.projectedPayout || 0);
   const profitLoss = currentValue > 0 ? currentValue - stake : Number(p.projectedProfit || p.estimatedProfit || 0);
-  const isProtected = totalPool < MARKET_ACTIVATION_REQUIREMENTS.totalPool
-    || sidePool < MARKET_ACTIVATION_REQUIREMENTS.yesPool
-    || opposingPool < MARKET_ACTIVATION_REQUIREMENTS.noPool;
   const projected = Number(p.projectedPayout || p.estimatedPayout || 0);
-  const fallback = opposingPool > 0 && sidePool > 0 && stake > 0 ? stake + (stake / sidePool) * opposingPool : 0;
-  return { entry, current, isProtected, currentValue, profitLoss, payout: projected > 0 ? projected : fallback };
+  return { entry, current, currentValue, profitLoss, payout: projected > 0 ? projected : currentValue > 0 ? currentValue : 0 };
 };
 
 const Positions = () => {
@@ -224,17 +217,7 @@ const PositionCard = ({ position, now, onLearnProtected }: {
         }`}>{position.side}</span>
       </div>
       <h3 className="mt-2.5 line-clamp-2 text-[14px] font-bold leading-snug text-[#111827]">{position.marketQuestion}</h3>
-      {insight.isProtected ? (
-        <div className={`mt-3 rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] p-2.5 ${onLearnProtected ? "cursor-pointer transition hover:bg-[#E0E7FF]" : ""}`}
-          onClick={onLearnProtected ? (e) => { e.stopPropagation(); e.preventDefault(); onLearnProtected(); } : undefined}>
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-bold text-[#101828]">Refund Protected</div>
-            {onLearnProtected && <Info className="h-3.5 w-3.5 text-[#4F46E5]/60" />}
-          </div>
-          <p className="mt-0.5 text-[10px] font-bold text-[#475467]">Value appears once market goes live.</p>
-        </div>
-      ) : (
-        <div className="mt-3 grid grid-cols-4 gap-2 border-t border-[#F3F4F6] pt-3">
+      <div className="mt-3 grid grid-cols-4 gap-2 border-t border-[#F3F4F6] pt-3">
           <div>
             <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Entry</div>
             <div className="mt-0.5 text-xs font-bold text-[#111827]">{insight.entry ? formatNairaPrice(insight.entry) : "-"}</div>
@@ -254,7 +237,6 @@ const PositionCard = ({ position, now, onLearnProtected }: {
             <div className="mt-0.5 text-xs font-bold text-[#111827]">{insight.payout > 0 ? formatNaira(insight.payout) : "-"}</div>
           </div>
         </div>
-      )}
       <div className="mt-3 flex items-center justify-between">
         <span className="text-[10px] font-bold text-[#9CA3AF]">{timeLeft}</span>
         <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-[#6B7280] transition group-hover:text-[#4F46E5]">

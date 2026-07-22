@@ -1,16 +1,14 @@
 import apiService, { type ApiMarket } from "./api";
 import { getCategoryLabel, normalizeCategory } from "./categories";
-import { calculateMarketPrices } from "./market-pricing";
 
 export type Market = ApiMarket;
 
 export const MARKET_ACTIVATION_REQUIREMENTS = {
-  totalPool: 10000,
-  yesPool: 2000,
-  noPool: 2000,
+  totalVolume: 10000,
+  yesVolume: 2000,
+  noVolume: 2000,
   participants: 5,
   protectedMaxStake: 1000,
-  buildingMaxStake: 1000,
 };
 
 export type MarketActivationState = "PROTECTED" | "LIVE" | "RESOLVED" | "REFUNDED";
@@ -26,32 +24,31 @@ export const getMarketActivation = (
 ) => {
   const status = String(market.status || "").toLowerCase();
   const configuredRequirements = {
-    totalPool: amountFromSmallestUnit(market.activation_threshold_smallest_unit, requirements.totalPool),
-    yesPool: amountFromSmallestUnit(market.activation_yes_min_smallest_unit, requirements.yesPool),
-    noPool: amountFromSmallestUnit(market.activation_no_min_smallest_unit, requirements.noPool),
+    totalVolume: amountFromSmallestUnit(market.activation_threshold_smallest_unit, requirements.totalVolume),
+    yesVolume: amountFromSmallestUnit(market.activation_yes_min_smallest_unit, requirements.yesVolume),
+    noVolume: amountFromSmallestUnit(market.activation_no_min_smallest_unit, requirements.noVolume),
     participants: Number(market.activation_min_participants ?? requirements.participants),
     protectedMaxStake: amountFromSmallestUnit(market.protected_max_stake_smallest_unit, requirements.protectedMaxStake),
-    buildingMaxStake: amountFromSmallestUnit(market.protected_max_stake_smallest_unit, requirements.protectedMaxStake),
   };
-  const yesPool = Number(market.yesPool ?? market.yesVolume ?? 0);
-  const noPool = Number(market.noPool ?? market.noVolume ?? 0);
-  const totalPool = Number(market.totalPool ?? market.totalVolume ?? yesPool + noPool);
+  const yesVolume = Number(market.yesVolume ?? market.yesPool ?? 0);
+  const noVolume = Number(market.noVolume ?? market.noPool ?? 0);
+  const totalVolume = Number(market.totalVolume ?? market.totalPool ?? yesVolume + noVolume);
   const participants = Number(market.participants || 0);
   const protectionDisabled = market.protected_market_enabled === false || market.protectedMarketEnabled === false;
 
   const checks = [
-    totalPool / configuredRequirements.totalPool,
-    yesPool / configuredRequirements.yesPool,
-    noPool / configuredRequirements.noPool,
+    totalVolume / configuredRequirements.totalVolume,
+    yesVolume / configuredRequirements.yesVolume,
+    noVolume / configuredRequirements.noVolume,
     participants / configuredRequirements.participants,
   ];
   const progress = Math.max(0, Math.min(100, Math.floor(Math.min(...checks) * 100)));
   const activated =
     protectionDisabled ||
     market.activation_state === "live" ||
-    totalPool >= configuredRequirements.totalPool &&
-    yesPool >= configuredRequirements.yesPool &&
-    noPool >= configuredRequirements.noPool &&
+    totalVolume >= configuredRequirements.totalVolume &&
+    yesVolume >= configuredRequirements.yesVolume &&
+    noVolume >= configuredRequirements.noVolume &&
     participants >= configuredRequirements.participants;
 
   let state: MarketActivationState = activated ? "LIVE" : "PROTECTED";
@@ -64,26 +61,21 @@ export const getMarketActivation = (
     isBuilding: state === "PROTECTED",
     isLive: state === "LIVE",
     progress,
-    yesPool,
-    noPool,
-    totalPool,
+    yesVolume,
+    noVolume,
+    totalVolume,
     participants,
     requirements: {
       ...configuredRequirements,
-      buildingMaxStake: configuredRequirements.protectedMaxStake,
       protectedMaxStake: configuredRequirements.protectedMaxStake,
     },
     activated,
   };
 };
 
-export const calculatePrices = (yesPool: number, noPool: number) => {
-  return calculateMarketPrices(yesPool, noPool);
-};
-
 /**
- * Local price projection helper for read-only previews. Authoritative market
- * pool updates happen on the backend through placePrediction.
+ * Local optimistic update for order book markets.
+ * Adjusts volumes after a trade; authoritative prices come from the API.
  */
 export const updateMarketPricing = (
   market: Market,
@@ -95,29 +87,14 @@ export const updateMarketPricing = (
   const nextYesVolume = Number(market.yesVolume ?? market.yesPool ?? 0) + (side === "YES" ? amount : 0);
   const nextNoVolume = Number(market.noVolume ?? market.noPool ?? 0) + (side === "NO" ? amount : 0);
   const nextTotalVolume = nextYesVolume + nextNoVolume;
-  const startingYes = Number(market.startingYesPrice ?? market.yesPrice ?? 50);
-  const activityWeight = nextTotalVolume > 0 ? Math.min(0.95, nextTotalVolume / (nextTotalVolume + 5000)) : 0;
-  const activityYes = nextTotalVolume > 0 ? (nextYesVolume / nextTotalVolume) * 100 : startingYes;
-  const yesPrice = Math.max(1, Math.min(99, Math.round((startingYes * (1 - activityWeight) + activityYes * activityWeight) * 10) / 10));
-  const noPrice = Math.round((100 - yesPrice) * 10) / 10;
-  const sidePrice = side === "YES" ? market.yesPrice : market.noPrice;
-  const sharesReceived = sidePrice > 0 ? amount / sidePrice : 0;
+  const totalVolume = Number(market.totalVolume || 0) + amount;
 
   return {
     ...market,
-    yesPool: nextYesVolume,
-    noPool: nextNoVolume,
     yesVolume: nextYesVolume,
     noVolume: nextNoVolume,
-    totalPool: nextTotalVolume,
-    totalVolume: Number(market.totalVolume || 0) + amount,
-    totalYesShares: Number(market.totalYesShares || 0) + (side === "YES" ? sharesReceived : 0),
-    totalNoShares: Number(market.totalNoShares || 0) + (side === "NO" ? sharesReceived : 0),
+    totalVolume,
     participants: newParticipants,
-    yesPrice,
-    noPrice,
-    yesPercent: yesPrice,
-    pool: nextTotalVolume,
   };
 };
 
@@ -167,7 +144,7 @@ export const getMarketActivityCount = (market: Market) =>
   Number((market as any).activityCount ?? (market as any).activity_count ?? market.priceHistory?.length ?? 0);
 
 export const getTrendingScore = (market: Market) => {
-  const volume = Number(market.totalPool || market.pool || 0);
+  const volume = Number(market.totalVolume || market.totalPool || 0);
   const participants = Number(market.participants || 0);
   const comments = getMarketCommentCount(market);
   const activity = getMarketActivityCount(market);

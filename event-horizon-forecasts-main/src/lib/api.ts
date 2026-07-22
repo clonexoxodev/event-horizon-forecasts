@@ -71,14 +71,10 @@ export type ApiMarket = {
   question: string;
   category: string;
   yesPercent: number;
-  pool: number;
   closesIn: string;
   description: string;
   source: string;
   icon: string;
-  yesPool: number;
-  noPool: number;
-  totalPool: number;
   totalVolume?: number;
   yesVolume?: number;
   noVolume?: number;
@@ -86,8 +82,6 @@ export type ApiMarket = {
   totalNoShares?: number;
   startingYesPrice?: number;
   startingNoPrice?: number;
-  seedLiquidityYes?: number;
-  seedLiquidityNo?: number;
   participants: number;
   tradeCount?: number;
   yesPrice: number;
@@ -95,7 +89,7 @@ export type ApiMarket = {
   closeTime: string;
   tradingCloseTime?: string;
   status: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived' | 'refunded';
-  pricing_model?: 'pool' | 'orderbook';
+  pricing_model?: 'orderbook';
   matched_volume?: number;
   open_interest?: number;
   rules?: string;
@@ -103,9 +97,6 @@ export type ApiMarket = {
   maxAmount?: number;
   winningOutcome?: 'YES' | 'NO' | null;
   resolvedAt?: string | null;
-  confidence?: number;
-  volatility?: number;
-  liquidity?: number;
   imageUrl?: string | null;
   videoUrl?: string | null;
   image_url?: string | null;
@@ -128,7 +119,7 @@ export type ApiMarket = {
   total_settled_payout_smallest_unit?: number;
   total_refunded_smallest_unit?: number;
   refundedAt?: string | null;
-  priceHistory?: Array<{ timestamp: string; yesPrice: number; noPrice: number; yesPool?: number; noPool?: number; volume?: number; tradeCount?: number; side?: 'YES' | 'NO' | null; amount?: number }>;
+  priceHistory?: Array<{ timestamp: string; yesPrice: number; noPrice: number; volume?: number; tradeCount?: number; side?: 'YES' | 'NO' | null; amount?: number }>;
 };
 
 export type ApiPriceHistoryPoint = NonNullable<ApiMarket['priceHistory']>[number];
@@ -236,9 +227,6 @@ export type ApiPosition = {
   unrealizedPnl?: number;
   projectedPayout?: number;
   projectedProfit?: number;
-  totalPool?: number;
-  sidePool?: number;
-  opposingPool?: number;
   sentimentMarkValue?: number;
   currentValue: number;
   estimatedPayout?: number;

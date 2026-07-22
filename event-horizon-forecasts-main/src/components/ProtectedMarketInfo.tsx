@@ -6,9 +6,9 @@ interface ProtectedMarketInfoProps {
   onClose: () => void;
   activation?: {
     progress: number;
-    totalPool: number;
+    totalVolume: number;
     requirements: {
-      totalPool: number;
+      totalVolume: number;
       protectedMaxStake: number;
     };
   };
@@ -42,7 +42,7 @@ export const ProtectedMarketInfo = ({
     ]}
     example={{
       label: "Example",
-      body: "You back YES with ₦500 in a Protected market. If the total pool doesn't reach the activation threshold before closing, your full ₦500 is refunded. If it does activate, your position works like any normal market.",
+      body: "You back YES with ₦500 in a Protected market. If the total volume doesn't reach the activation threshold before closing, your full ₦500 is refunded. If it does activate, your position works like any normal market.",
     }}
     footer={
       activation ? (
@@ -60,8 +60,8 @@ export const ProtectedMarketInfo = ({
             />
           </div>
           <p className="mt-2 text-xs text-[#9CA3AF]">
-            ₦{activation.totalPool.toLocaleString()} / ₦{activation.requirements.totalPool.toLocaleString()}{" "}
-            pool activity needed
+            ₦{activation.totalVolume.toLocaleString()} / ₦{activation.requirements.totalVolume.toLocaleString()}{" "}
+            volume needed
           </p>
         </div>
       ) : undefined

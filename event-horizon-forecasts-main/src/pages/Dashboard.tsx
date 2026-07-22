@@ -10,7 +10,6 @@ import {
   ChevronUp,
   Clock,
   Flame,
-  Info,
   Layers,
   LineChart,
   Loader2,
@@ -27,7 +26,7 @@ import { MobileNav } from "@/components/MobileNav";
 import { ProtectedMarketInfo } from "@/components/ProtectedMarketInfo";
 import { useAuth } from "@/lib/auth";
 import apiService, { type ApiPosition, type ApiProfileStats, type ApiOrder, type ApiTrade } from "@/lib/api";
-import { formatCountdown, formatNaira, formatNairaPrice, MARKET_ACTIVATION_REQUIREMENTS } from "@/lib/markets";
+import { formatCountdown, formatNaira, formatNairaPrice } from "@/lib/markets";
 import { toast } from "sonner";
 import { DelayedFlippeLoader } from "@/components/FlippeBrand";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
@@ -630,21 +629,7 @@ const PositionCard = ({
         {position.marketQuestion}
       </h3>
 
-      {insight.isProtected ? (
-        <div
-          className={`mt-3 rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] p-2.5 ${onLearnProtected ? "cursor-pointer transition hover:bg-[#E0E7FF]" : ""}`}
-          onClick={onLearnProtected ? (e) => { e.stopPropagation(); onLearnProtected(); } : undefined}
-        >
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-bold text-[#101828]">Refund Protected</div>
-            {onLearnProtected && <Info className="h-3.5 w-3.5 text-[#4F46E5]/60" />}
-          </div>
-          <p className="mt-0.5 text-[10px] font-bold text-[#475467]">
-            Value appears once market goes live.
-          </p>
-        </div>
-      ) : (
-        <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[#F3F4F6] pt-3">
+      <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[#F3F4F6] pt-3">
           <div>
             <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Stake</div>
             <div className="mt-0.5 text-xs font-bold text-[#111827]">{formatNaira(position.stake)}</div>
@@ -660,7 +645,6 @@ const PositionCard = ({
             </div>
           </div>
         </div>
-      )}
 
       <div className="mt-3 flex items-center justify-between">
         <span className="text-[10px] font-bold text-[#9CA3AF]">{timeLeft} left</span>
@@ -935,10 +919,6 @@ type PredictionInsight = {
   movement: number;
   direction: "toward" | "against" | "unchanged";
   multiplier: number | null;
-  totalPool: number;
-  sidePool: number;
-  opposingPool: number;
-  isProtected: boolean;
   currentValue: number;
   profitLoss: number;
 };
@@ -948,17 +928,12 @@ const getPredictionInsight = (position: ApiPosition): PredictionInsight => {
   const currentCrowdView = Number(position.currentPrice || position.entryPrice || 0);
   const movement = currentCrowdView - entryCrowdView;
   const direction = movement > 0.4 ? "toward" : movement < -0.4 ? "against" : "unchanged";
-  const totalPool = Number(position.totalPool || 0);
-  const sidePool = Number(position.sidePool || 0);
-  const opposingPool = Number(position.opposingPool || 0);
   const stake = Number(position.stake || 0);
   const currentValue = Number(position.currentValue || position.positionValue || position.projectedPayout || 0);
   const profitLoss = currentValue > 0 ? currentValue - stake : Number(position.projectedProfit || position.estimatedProfit || 0);
-  const isProtected = totalPool < MARKET_ACTIVATION_REQUIREMENTS.totalPool || sidePool < MARKET_ACTIVATION_REQUIREMENTS.yesPool || opposingPool < MARKET_ACTIVATION_REQUIREMENTS.noPool;
   const projectedPayout = Number(position.projectedPayout || position.estimatedPayout || 0);
-  const fallbackPayout = opposingPool > 0 && sidePool > 0 && stake > 0 ? stake + (stake / sidePool) * opposingPool : 0;
-  const currentPayoutEstimate = projectedPayout > 0 ? projectedPayout : fallbackPayout;
-  const multiplier = !isProtected && opposingPool > 0 && stake > 0 && currentPayoutEstimate > 0 ? currentPayoutEstimate / stake : null;
+  const currentPayoutEstimate = projectedPayout > 0 ? projectedPayout : currentValue > 0 ? currentValue : 0;
+  const multiplier = stake > 0 && currentPayoutEstimate > 0 ? currentPayoutEstimate / stake : null;
 
   return {
     entryCrowdView,
@@ -966,10 +941,6 @@ const getPredictionInsight = (position: ApiPosition): PredictionInsight => {
     movement,
     direction,
     multiplier,
-    totalPool,
-    sidePool,
-    opposingPool,
-    isProtected,
     currentValue,
     profitLoss,
   };
@@ -1084,22 +1055,7 @@ const PositionDetailModal = ({
             </div>
           </div>
 
-          {insight.isProtected ? (
-            <button
-              type="button"
-              onClick={() => { onClose(); onLearnProtected?.(); }}
-              className="w-full rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] p-3 text-left transition hover:bg-[#E0E7FF]"
-            >
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold text-[#101828]">Refund Protected</h4>
-                <Info className="h-3.5 w-3.5 text-[#4F46E5]/60" />
-              </div>
-              <p className="mt-1 text-xs font-bold leading-relaxed text-[#344054]">
-                Your stake is protected. Value appears once market goes live.
-              </p>
-            </button>
-          ) : (
-            <section className="grid grid-cols-2 gap-3 border-t border-[#E5E7EB] pt-3">
+          <section className="grid grid-cols-2 gap-3 border-t border-[#E5E7EB] pt-3">
               <Metric label="Current Value" value={formatNaira(insight.currentValue)} large />
               <Metric
                 label="Profit/Loss"
@@ -1108,7 +1064,6 @@ const PositionDetailModal = ({
                 large
               />
             </section>
-          )}
 
           <details className="group border-t border-[#E5E7EB] pt-3">
             <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-bold text-[#111827]">

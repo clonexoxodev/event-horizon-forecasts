@@ -4,9 +4,9 @@ import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 
 const principles = [
-  ["Simple", "Markets should be understandable in seconds: question, YES/NO Crowd View, amount backed, pool, and status.", Target],
+  ["Simple", "Markets should be understandable in seconds: question, YES/NO Crowd View, amount backed, price, and status.", Target],
   ["Transparent", "Rules, resolution source, wallet movement, and market status should be visible before traders participate.", Shield],
-  ["Pool-safe", "Flippe's MVP market design should settle from locked market stakes, not from hidden company-funded promises.", BarChart3],
+  ["Self-settling", "Flippe's design settles from matched market positions, not from hidden company-funded promises.", BarChart3],
   ["Responsible", "Final payout is only known after resolution. Traders should size positions carefully and never treat outcomes as guaranteed income.", CheckCircle2],
 ];
 
@@ -19,7 +19,7 @@ export default function About() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#4F46E5]">About Flippe</p>
           <h1 className="mt-3 max-w-3xl text-4xl font-extrabold tracking-tight sm:text-5xl">Stop arguing. Back your opinion.</h1>
           <p className="mt-4 max-w-3xl text-base leading-relaxed text-[#667085]">
-            Flippe is a pooled position market where traders back YES or NO on real-world questions. Final payout is calculated after market resolution.
+            Flippe is a prediction exchange where traders back YES or NO on real-world questions. Final payout is calculated after market resolution.
           </p>
         </section>
 
@@ -39,7 +39,7 @@ export default function About() {
           <Panel title="What Flippe is">
             <p>A platform for taking positions on outcomes of public events.</p>
             <p>A wallet-linked experience where traders pick a side, track open positions, and wait for resolution.</p>
-            <p>A product designed to make market rules, pools, Crowd View, and resolution status easier to understand.</p>
+            <p>A product designed to make market rules, order matching, Crowd View, and resolution status easier to understand.</p>
           </Panel>
           <Panel title="What Flippe is not">
             <p>Flippe should not be treated as guaranteed income or financial advice.</p>

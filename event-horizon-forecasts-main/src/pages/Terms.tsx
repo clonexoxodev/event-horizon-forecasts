@@ -57,7 +57,7 @@ export default function Terms() {
         <section className="mt-8 rounded-3xl border border-[#E5E7EB] bg-white p-8 shadow-sm">
           <h2 className="text-xl font-bold">Before locking a position</h2>
           <p className="mt-3 text-sm leading-relaxed text-[#667085]">
-            By participating in a market, a trader should understand that positions involve risk, early estimates are not guaranteed, and final payout depends on market resolution and the final pool.
+            By participating in a market, a trader should understand that positions involve risk, early estimates are not guaranteed, and final payout depends on market resolution and matched positions.
           </p>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <Link to="/responsible-use" className="rounded-2xl bg-[#4F46E5] px-6 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-[#4338CA] hover:shadow-md">Responsible Use</Link>

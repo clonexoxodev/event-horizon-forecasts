@@ -24,7 +24,7 @@ export default function Privacy() {
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#4F46E5]">Privacy</p>
               <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">Privacy notice</h1>
               <p className="mt-3 max-w-3xl text-base leading-relaxed text-[#667085]">
-                This page explains the account, wallet, and market data Flippe uses to run pooled position markets safely.
+                This page explains the account, wallet, and market data Flippe uses to run its prediction exchange safely.
               </p>
             </div>
           </div>
