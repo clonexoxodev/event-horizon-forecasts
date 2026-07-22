@@ -128,7 +128,7 @@ export const ForecastSlip = ({
   const remaining = Math.max(0, balance - numAmount);
   const insufficient = numAmount > balance;
   const effectivePrice = isLimit ? numPrice : selection?.currentPrice ?? 0;
-  const displayShares = effectivePrice > 0 ? Math.floor(numAmount / effectivePrice) : 0;
+  const displayShares = effectivePrice > 0 ? Math.floor((numAmount * 100) / effectivePrice) : 0;
 
   const isValid = useMemo(() => {
     if (!user || numAmount <= 0 || insufficient) return false;
@@ -150,17 +150,18 @@ export const ForecastSlip = ({
     if (!selection || !isValid) return;
     setPhase("submitting");
     try {
+      const sharesQty = effectivePrice > 0 ? Math.floor((numAmount * 100) / effectivePrice) : 0;
       const result = await onOrderConfirm({
         side: selection.side,
         orderType,
         price: effectivePrice,
-        quantity: numAmount,
+        quantity: sharesQty,
       });
       setOrderResult({
         id: result?.id ?? Date.now().toString(),
         status: "submitted",
         filled_quantity: 0,
-        total_quantity: displayShares || Math.floor(numAmount / effectivePrice),
+        total_quantity: displayShares,
         price: effectivePrice,
         amount: numAmount,
         side: selection.side,

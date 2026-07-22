@@ -791,11 +791,11 @@ app.get('/api/auth/me', authenticate, async (req: Request, res: Response) => {
     const user = (req as any).user;
     const { data: wallet } = await supabase
       .from('wallets')
-      .select('balance_ngn_kobo')
+      .select('available_ngn_kobo, balance_ngn_kobo')
       .eq('user_id', user.id)
       .maybeSingle();
 
-    const balance = (wallet?.balance_ngn_kobo ? wallet.balance_ngn_kobo / 100 : 0);
+    const balance = (wallet?.available_ngn_kobo != null ? wallet.available_ngn_kobo / 100 : wallet?.balance_ngn_kobo ? wallet.balance_ngn_kobo / 100 : 0);
 
     res.json({
       user: toAuthUser(user, balance)
@@ -3186,6 +3186,18 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
     const pricesAfter = trade.after;
     const entryPrice = trade.entryPrice;
     const priceChange = trade.priceChange;
+
+    // CRITICAL: Verify balance BEFORE creating position to prevent phantom records
+    const { data: preTradeWallet } = await supabase
+      .from('wallets')
+      .select('available_ngn_kobo')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (Number(preTradeWallet?.available_ngn_kobo || 0) < amountSmallestUnit) {
+      return res.status(422).json({
+        error: { code: 'INSUFFICIENT_BALANCE', message: 'Insufficient available balance', timestamp: new Date().toISOString() }
+      });
+    }
 
     let positionResult = await supabase
       .from('positions')
@@ -5975,12 +5987,15 @@ app.post('/api/markets/:marketId/orders', authenticate, rateLimitMiddleware(ORDE
 
     const { data: wallet } = await supabase.from('wallets').select('*').eq('user_id', user.id).single();
     if (!wallet) return res.status(404).json({ error: { code: 'WALLET_NOT_FOUND', message: 'Wallet not found', timestamp: new Date().toISOString() } });
-    if (Number(wallet.available_ngn_kobo || 0) < quantity) {
+
+    // Total cost = price (kobo per share) * quantity (number of shares) = kobo
+    const lockedAmount = price * quantity;
+    if (Number(wallet.available_ngn_kobo || 0) < lockedAmount) {
       return res.status(422).json({ error: { code: 'INSUFFICIENT_BALANCE', message: 'Insufficient available balance', timestamp: new Date().toISOString() } });
     }
 
     const { error: lockErr } = await supabase.rpc('atomic_lock_for_order', {
-      p_user_id: user.id, p_amount: quantity, p_currency: 'NGN'
+      p_user_id: user.id, p_amount: lockedAmount, p_currency: 'NGN'
     });
     if (lockErr) {
       return res.status(500).json({ error: { code: 'LOCK_FAILED', message: 'Failed to lock funds', timestamp: new Date().toISOString() } });
@@ -5989,10 +6004,10 @@ app.post('/api/markets/:marketId/orders', authenticate, rateLimitMiddleware(ORDE
     const { data: order, error: oErr } = await supabase.from('orders').insert({
       user_id: user.id, market_id: marketId, side, order_type: order_type,
       price, quantity, filled_quantity: 0, status: 'pending',
-      locked_amount: quantity, filled_amount: 0, source: 'user'
+      locked_amount: lockedAmount, filled_amount: 0, source: 'user'
     }).select().single();
     if (oErr || !order) {
-      await supabase.rpc('atomic_unlock_from_order', { p_user_id: user.id, p_amount: quantity, p_currency: 'NGN' });
+      await supabase.rpc('atomic_unlock_from_order', { p_user_id: user.id, p_amount: lockedAmount, p_currency: 'NGN' });
       return res.status(500).json({ error: { code: 'ORDER_CREATE_FAILED', message: 'Failed to create order', timestamp: new Date().toISOString() } });
     }
 
@@ -6094,15 +6109,16 @@ app.delete('/api/markets/:marketId/orders/:orderId', authenticate, async (req: R
     }
 
     const remaining = (order.quantity || 0) - (order.filled_quantity || 0);
-    if (remaining > 0) {
-      await supabase.rpc('atomic_unlock_from_order', { p_user_id: user.id, p_amount: remaining, p_currency: 'NGN' });
+    const unlockAmount = remaining * (order.price || 0);
+    if (unlockAmount > 0) {
+      await supabase.rpc('atomic_unlock_from_order', { p_user_id: user.id, p_amount: unlockAmount, p_currency: 'NGN' });
     }
 
     const now = new Date().toISOString();
     await supabase.from('orders').update({ status: 'cancelled', cancelled_at: now, updated_at: now }).eq('id', orderId);
     await supabase.from('order_events').insert([
       { order_id: orderId, market_id: order.market_id, user_id: user.id, event_type: 'cancelled', quantity_affected: remaining },
-      { order_id: orderId, market_id: order.market_id, user_id: user.id, event_type: 'unlock', quantity_affected: remaining },
+      { order_id: orderId, market_id: order.market_id, user_id: user.id, event_type: 'unlock', quantity_affected: unlockAmount },
     ]);
 
     const { data: updatedOrder } = await supabase.from('orders').select('*').eq('id', orderId).single();

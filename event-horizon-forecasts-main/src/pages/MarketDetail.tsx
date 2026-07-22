@@ -274,8 +274,9 @@ export default function MarketDetail() {
     setSubmitting(true);
     try {
       if (isOrderBook) {
+        const sharesQty = numericPrice > 0 ? Math.floor((numericAmount * 100) / numericPrice) : 0;
         const result = await apiService.createOrder(market.id, {
-          side: sheetSide, order_type: orderType, price: numericPrice, quantity: numericAmount,
+          side: sheetSide, order_type: orderType, price: numericPrice, quantity: sharesQty,
         });
         setOrderJustPlaced(result);
         setJustPredicted(sheetSide);
