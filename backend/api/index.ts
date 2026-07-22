@@ -4065,6 +4065,25 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
     throw new Error('This market did not reach enough activity. Refund it instead of resolving winners.');
   }
 
+  // SERIALIZABLE SETTLEMENT LOCK — prevent concurrent settlement of the same market
+  const lockOwner = crypto.randomUUID();
+  const { data: lockResult, error: lockError } = await supabase
+    .rpc('acquire_settlement_lock', {
+      p_market_id: market.id,
+      p_lock_owner: lockOwner,
+      p_timeout_seconds: 120,
+    })
+    .single();
+
+  if (lockError) {
+    console.error('Failed to acquire settlement lock:', lockError);
+    throw new Error(`Settlement lock failed: ${lockError.message}`);
+  }
+  if (!(lockResult as any)?.acquired) {
+    throw new Error((lockResult as any)?.error || 'Market is currently being settled by another request. Please retry.');
+  }
+
+  try {
   const allPositions = await loadSettlementPositions(market.id);
   const preview = buildSettlementPreview(market, outcome, allPositions);
   const now = new Date().toISOString();
@@ -4247,7 +4266,35 @@ const resolveMarketWithPayouts = async (market: any, outcome: PredictionSide, ad
   }
 
   if (marketError) throw marketError;
+
+  // Release settlement lock on success
+  try {
+    await supabase.rpc('release_settlement_lock', {
+      p_market_id: market.id,
+      p_lock_owner: lockOwner,
+      p_final_status: 'resolved',
+      p_error: null,
+    });
+  } catch {
+    // Non-fatal: lock has expiry, best-effort release
+  }
+
   return { market: updatedMarket, payoutSummary: preview };
+
+  } catch (settlementErr: any) {
+    // Release settlement lock on failure
+    try {
+      await supabase.rpc('release_settlement_lock', {
+        p_market_id: market.id,
+        p_lock_owner: lockOwner,
+        p_final_status: 'failed',
+        p_error: settlementErr?.message || 'Settlement failed',
+      });
+    } catch {
+      // Non-fatal: lock has expiry
+    }
+    throw settlementErr;
+  }
 };
 
 /**

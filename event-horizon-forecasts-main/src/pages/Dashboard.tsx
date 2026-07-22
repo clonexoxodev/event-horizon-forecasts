@@ -1180,7 +1180,6 @@ const OrderCard = ({
     cancelled: { label: "Cancelled", color: "text-[#6B7280]", bg: "bg-[#F3F4F6]" },
     expired: { label: "Expired", color: "text-[#6B7280]", bg: "bg-[#F3F4F6]" },
     refunded: { label: "Refunded", color: "text-[#B45309]", bg: "bg-[#FEF3C7]" },
-    resolved: { label: "Resolved", color: "text-[#047857]", bg: "bg-[#D1FAE5]" },
   };
   const status = statusConfig[order.status] || statusConfig.pending;
   const canCancel = ["waiting", "partial", "pending"].includes(order.status);
@@ -1196,15 +1195,15 @@ const OrderCard = ({
           </span>
           <span
             className={`inline-flex h-6 items-center rounded-full px-2 text-[10px] font-bold ${
-              order.side === "BUY"
+              order.order_type === "BUY"
                 ? "bg-[#12B886]/10 text-[#047857]"
                 : "bg-[#E85D5D]/10 text-[#B42318]"
             }`}
           >
-            {order.side}
+            {order.order_type}
           </span>
           <span className="text-[10px] font-bold text-[#9CA3AF]">
-            {order.outcome === "yes" ? "YES" : "NO"}
+            {order.side}
           </span>
         </div>
         {canCancel && (
@@ -1218,16 +1217,16 @@ const OrderCard = ({
       </div>
       <div className="mt-2 grid grid-cols-3 gap-2">
         <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Shares</div>
-          <div className="text-xs font-bold text-[#111827]">{order.shares}</div>
+          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Quantity</div>
+          <div className="text-xs font-bold text-[#111827]">{order.quantity}</div>
         </div>
         <div>
           <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Price</div>
-          <div className="text-xs font-bold text-[#111827]">{formatNaira(order.price_kobo / 100)}</div>
+          <div className="text-xs font-bold text-[#111827]">{formatNaira(order.price)}</div>
         </div>
         <div>
           <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Value</div>
-          <div className="text-xs font-bold text-[#111827]">{formatNaira(order.amount_kobo / 100)}</div>
+          <div className="text-xs font-bold text-[#111827]">{formatNaira(order.filled_amount || order.locked_amount)}</div>
         </div>
       </div>
       <div className="mt-1.5 flex items-center justify-between text-[10px] text-[#9CA3AF]">
@@ -1239,9 +1238,9 @@ const OrderCard = ({
             minute: "2-digit",
           })}
         </span>
-        {order.filled_shares > 0 && (
+        {order.filled_quantity > 0 && (
           <span className="font-bold text-[#047857]">
-            Filled: {order.filled_shares} shares
+            Filled: {order.filled_quantity}/{order.quantity}
           </span>
         )}
       </div>
@@ -1260,25 +1259,25 @@ const TradeCard = ({ trade }: { trade: ApiTrade }) => {
         <div className="flex items-center gap-2">
           <Zap className="h-3.5 w-3.5 text-[#4F46E5]" />
           <span className="text-xs font-bold text-[#111827]">
-            {trade.outcome === "yes" ? "YES" : "NO"} Trade
+            {trade.side} Trade
           </span>
         </div>
         <span className="text-xs font-bold text-[#047857]">
-          {formatNaira(trade.total_kobo / 100)}
+          {formatNaira(trade.trade_price * trade.trade_quantity)}
         </span>
       </div>
       <div className="mt-2 grid grid-cols-3 gap-2">
         <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Shares</div>
-          <div className="text-xs font-bold text-[#111827]">{trade.shares}</div>
+          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Quantity</div>
+          <div className="text-xs font-bold text-[#111827]">{trade.trade_quantity}</div>
         </div>
         <div>
           <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Price</div>
-          <div className="text-xs font-bold text-[#111827]">{formatNaira(trade.price_kobo / 100)}</div>
+          <div className="text-xs font-bold text-[#111827]">{formatNaira(trade.trade_price)}</div>
         </div>
         <div>
           <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Total</div>
-          <div className="text-xs font-bold text-[#111827]">{formatNaira(trade.total_kobo / 100)}</div>
+          <div className="text-xs font-bold text-[#111827]">{formatNaira(trade.trade_price * trade.trade_quantity)}</div>
         </div>
       </div>
       <div className="mt-1.5 text-[10px] text-[#9CA3AF]">

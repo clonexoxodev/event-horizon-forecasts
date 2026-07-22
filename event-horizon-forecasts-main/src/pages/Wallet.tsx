@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -255,6 +256,11 @@ export default function Wallet() {
             <span className="rounded-full border border-[#E5E7EB] bg-[#F8F7F4] px-3 py-1 text-xs font-bold text-[#6B7280]">
               {historyLoading ? "Loading" : `${transactions.length} items`}
             </span>
+            {transactions.length > 0 && (
+              <Link to="/transaction-history" className="ml-2 text-xs font-bold text-[#4F46E5] hover:underline">
+                View All
+              </Link>
+            )}
           </div>
 
           {transactions.length === 0 ? (

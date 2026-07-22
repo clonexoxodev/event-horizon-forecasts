@@ -10,7 +10,8 @@ export type AdminView =
   | "withdrawals"
   | "users"
   | "admins"
-  | "audit-log";
+  | "audit-log"
+  | "settlement-dashboard";
 
 export type MarketStatusFilter =
   | "all"

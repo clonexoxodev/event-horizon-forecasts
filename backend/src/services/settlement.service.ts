@@ -1,5 +1,6 @@
 import { supabase } from '../db/supabase-client.js';
 import { MatchingEngine } from './matching.engine.js';
+import { randomUUID } from 'crypto';
 
 export type ResolutionOutcome = 'YES' | 'NO' | 'REFUND' | 'CANCEL';
 
@@ -154,6 +155,19 @@ export class SettlementService {
       throw new Error(`Market must be closed before resolution. Current status: ${market.status}`);
     }
 
+    // Acquire settlement lock to prevent concurrent settlement
+    const lockOwner = randomUUID();
+    const { data: lockResult } = await supabase
+      .rpc('acquire_settlement_lock', {
+        p_market_id: marketId,
+        p_lock_owner: lockOwner,
+        p_timeout_seconds: 300,
+      });
+
+    if (lockResult && !lockResult.locked) {
+      throw new Error(lockResult.error_message || 'Could not acquire settlement lock. Settlement may already be in progress.');
+    }
+
     const pricingModel = market.pricing_model || 'pool';
 
     await this.transitionMarketStatus(marketId, 'resolving', {
@@ -188,6 +202,13 @@ export class SettlementService {
         }]),
       });
 
+      // Release settlement lock on success
+      await supabase.rpc('release_settlement_lock', {
+        p_market_id: marketId,
+        p_lock_owner: lockOwner,
+        p_final_status: 'completed',
+      });
+
       await this.logAudit({
         market_id: marketId,
         admin_user_id: adminUserId,
@@ -218,6 +239,18 @@ export class SettlementService {
 
     } catch (err: any) {
       result.errors.push(err.message);
+
+      // Release settlement lock on failure
+      try {
+        await supabase.rpc('release_settlement_lock', {
+          p_market_id: marketId,
+          p_lock_owner: lockOwner,
+          p_final_status: 'failed',
+          p_error: err.message,
+        });
+      } catch {
+        // Non-fatal: lock cleanup failure should not prevent settlement error handling
+      }
 
       try {
         await this.transitionMarketStatus(marketId, 'failed', {

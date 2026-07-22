@@ -14,6 +14,10 @@ const typeIcon: Record<string, any> = {
   wallet_low: Wallet,
   position_sold: Wallet,
   new_market_added: Inbox,
+  settlement_won: Trophy,
+  settlement_lost: TrendingUp,
+  order_refunded: Wallet,
+  refund: Wallet,
 };
 
 export default function Notifications() {

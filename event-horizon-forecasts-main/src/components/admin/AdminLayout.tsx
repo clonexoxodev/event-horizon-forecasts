@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ClipboardList,
   CreditCard,
+  Gavel,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -27,6 +28,7 @@ const NAV_SECTIONS: { label: string; items: { view: AdminView; icon: typeof Layo
     label: "Operations",
     items: [
       { view: "markets", icon: TrendingUp, label: "Markets" },
+      { view: "settlement-dashboard", icon: Gavel, label: "Settlements" },
       { view: "withdrawals", icon: CreditCard, label: "Withdrawals" },
       { view: "finance", icon: BarChart3, label: "Finance" },
       { view: "users", icon: Users, label: "Users" },
@@ -52,6 +54,7 @@ const VIEW_TITLES: Record<AdminView, string> = {
   users: "Users",
   admins: "Admin Management",
   "audit-log": "Audit Log",
+  "settlement-dashboard": "Settlement Dashboard",
 };
 
 export const AdminLayout = ({

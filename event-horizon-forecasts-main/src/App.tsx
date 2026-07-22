@@ -35,6 +35,7 @@ import Contact from "./pages/Contact.tsx";
 import Terms from "./pages/Terms.tsx";
 import Privacy from "./pages/Privacy.tsx";
 import RiskDisclaimer from "./pages/RiskDisclaimer.tsx";
+import TransactionHistory from "./pages/TransactionHistory.tsx";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -175,6 +176,7 @@ const App = () => (
                   <Route path="/privacy" element={<Privacy />} />
                   <Route path="/risk-disclaimer" element={<RiskDisclaimer />} />
                   <Route path="/responsible-use" element={<RiskDisclaimer />} />
+                  <Route path="/transaction-history" element={<ProtectedRoute><TransactionHistory /></ProtectedRoute>} />
                   <Route
                     path="/admin"
                     element={

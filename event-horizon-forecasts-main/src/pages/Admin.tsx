@@ -10,6 +10,7 @@ import { FinanceView } from "@/components/admin/FinanceView";
 import { UsersView } from "@/components/admin/UsersView";
 import { AdminsView } from "@/components/admin/AdminsView";
 import { AuditLogView } from "@/components/admin/AuditLogView";
+import { SettlementDashboardView } from "@/components/admin/SettlementDashboardView";
 import { useAuth } from "@/lib/auth";
 import type { AdminView } from "@/components/admin/types";
 import { DelayedFlippeLoader } from "@/components/FlippeBrand";
@@ -96,6 +97,8 @@ const Admin = () => {
         return <AdminsView />;
       case "audit-log":
         return <AuditLogView />;
+      case "settlement-dashboard":
+        return <SettlementDashboardView setSelectedMarketId={handleMarketSelect} />;
       default:
         return <DashboardView setView={handleViewChange} setSelectedMarketId={handleMarketSelect} />;
     }
