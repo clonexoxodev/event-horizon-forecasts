@@ -89,9 +89,6 @@ export type ApiMarket = {
   closeTime: string;
   tradingCloseTime?: string;
   status: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived' | 'refunded';
-  pricing_model?: 'orderbook';
-  matched_volume?: number;
-  open_interest?: number;
   rules?: string;
   minAmount?: number;
   maxAmount?: number;
@@ -393,58 +390,6 @@ export type ApiSearchUser = {
   role: UserRole;
 };
 
-export type OrderSide = 'YES' | 'NO';
-export type OrderType = 'BUY' | 'SELL';
-export type OrderStatus = 'pending' | 'waiting' | 'partial' | 'filled' | 'cancelled' | 'expired' | 'refunded';
-
-export type ApiOrder = {
-  id: string;
-  user_id: string;
-  market_id: string;
-  side: OrderSide;
-  order_type: OrderType;
-  price: number;
-  quantity: number;
-  filled_quantity: number;
-  filled_amount: number;
-  locked_amount: number;
-  status: OrderStatus;
-  source: string;
-  created_at: string;
-  updated_at: string;
-  filled_at: string | null;
-  cancelled_at: string | null;
-  expired_at: string | null;
-};
-
-export type ApiOrderBookLevel = {
-  price: number;
-  total_quantity: number;
-  order_count: number;
-};
-
-export type ApiOrderBook = {
-  market_id: string;
-  bids: ApiOrderBookLevel[];
-  asks: ApiOrderBookLevel[];
-  best_bid: number | null;
-  best_ask: number | null;
-  spread: number | null;
-};
-
-export type ApiTrade = {
-  id: string;
-  market_id: string;
-  buy_order_id: string;
-  sell_order_id: string;
-  buyer_id: string;
-  seller_id: string;
-  side: OrderSide;
-  trade_price: number;
-  trade_quantity: number;
-  created_at: string;
-};
-
 export type WalletResponse = {
   wallet: ApiWallet;
   display?: unknown;
@@ -653,52 +598,6 @@ class ApiService {
         currency,
       }),
     });
-  }
-
-  async createOrder(
-    marketId: string,
-    order: { side: OrderSide; order_type: OrderType; price: number; quantity: number }
-  ): Promise<{ order: ApiOrder; matched: number }> {
-    return this.request(`/api/markets/${encodeURIComponent(marketId)}/orders`, {
-      method: 'POST',
-      body: JSON.stringify(order),
-    });
-  }
-
-  async cancelOrder(marketId: string, orderId: string): Promise<{ order: ApiOrder }> {
-    return this.request(`/api/markets/${encodeURIComponent(marketId)}/orders/${encodeURIComponent(orderId)}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async getOrderBook(marketId: string): Promise<ApiOrderBook> {
-    return this.request(`/api/markets/${encodeURIComponent(marketId)}/orderbook`);
-  }
-
-  async getUserOrders(marketId: string, status?: string): Promise<{ orders: ApiOrder[] }> {
-    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
-    return this.request(`/api/markets/${encodeURIComponent(marketId)}/orders${qs}`);
-  }
-
-  async getMarketTrades(marketId: string): Promise<{ trades: ApiTrade[] }> {
-    return this.request(`/api/markets/${encodeURIComponent(marketId)}/trades`);
-  }
-
-  async getOpenOrders(marketId: string): Promise<{ orders: ApiOrder[] }> {
-    return this.request(`/api/markets/${encodeURIComponent(marketId)}/open-orders`);
-  }
-
-  async getPendingOrders(marketId: string): Promise<{ orders: ApiOrder[] }> {
-    return this.request(`/api/markets/${encodeURIComponent(marketId)}/pending-orders`);
-  }
-
-  async getPartialOrders(marketId: string): Promise<{ orders: ApiOrder[] }> {
-    return this.request(`/api/markets/${encodeURIComponent(marketId)}/partial-orders`);
-  }
-
-  async getUserOrderHistory(userId: string, marketId?: string): Promise<{ orders: ApiOrder[] }> {
-    const qs = marketId ? `?market_id=${encodeURIComponent(marketId)}` : '';
-    return this.request(`/api/users/${encodeURIComponent(userId)}/orders${qs}`);
   }
 
   async getPositions(): Promise<{ positions: ApiPosition[]; count: number }> {

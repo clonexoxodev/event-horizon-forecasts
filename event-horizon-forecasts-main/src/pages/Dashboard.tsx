@@ -10,7 +10,6 @@ import {
   ChevronUp,
   Clock,
   Flame,
-  Layers,
   LineChart,
   Loader2,
   Medal,
@@ -25,7 +24,7 @@ import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { ProtectedMarketInfo } from "@/components/ProtectedMarketInfo";
 import { useAuth } from "@/lib/auth";
-import apiService, { type ApiPosition, type ApiProfileStats, type ApiOrder, type ApiTrade } from "@/lib/api";
+import apiService, { type ApiPosition, type ApiProfileStats } from "@/lib/api";
 import { formatCountdown, formatNaira, formatNairaPrice } from "@/lib/markets";
 import { toast } from "sonner";
 import { DelayedFlippeLoader } from "@/components/FlippeBrand";
@@ -40,7 +39,7 @@ import {
 } from "@/lib/levels";
 
 type PositionFilterTab = "active" | "resolved" | "all";
-type PortfolioTab = "positions" | "orders" | "trades" | "history";
+type PortfolioTab = "positions";
 
 const emptyStats: ApiProfileStats = {
   totalPredictions: 0,
@@ -88,9 +87,6 @@ const Dashboard = () => {
   const [showActivity, setShowActivity] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showProtectedInfo, setShowProtectedInfo] = useState(false);
-  const [allOrders, setAllOrders] = useState<ApiOrder[]>([]);
-  const [allTrades, setAllTrades] = useState<ApiTrade[]>([]);
-  const [ordersLoading, setOrdersLoading] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -121,34 +117,6 @@ const Dashboard = () => {
     }, 30000);
     return () => { mounted = false; window.clearInterval(refresh); };
   }, [authLoading, userId]);
-
-  useEffect(() => {
-    if (!userId || (portfolioTab !== "orders" && portfolioTab !== "trades" && portfolioTab !== "history")) return;
-    let mounted = true;
-    const load = async () => {
-      setOrdersLoading(true);
-      try {
-        const allOrdersList: ApiOrder[] = [];
-        const allTradesList: ApiTrade[] = [];
-        for (const pos of positions) {
-          try {
-            const [ordersRes, tradesRes] = await Promise.all([
-              apiService.getUserOrders(pos.marketId).catch(() => ({ orders: [] as ApiOrder[] })),
-              apiService.getMarketTrades(pos.marketId).catch(() => ({ trades: [] as ApiTrade[] })),
-            ]);
-            allOrdersList.push(...(ordersRes.orders || []));
-            allTradesList.push(...(tradesRes.trades || []));
-          } catch { /* best-effort */ }
-        }
-        if (!mounted) return;
-        setAllOrders(allOrdersList.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-        setAllTrades(allTradesList.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-      } catch { /* best-effort */ }
-      if (mounted) setOrdersLoading(false);
-    };
-    load();
-    return () => { mounted = false; };
-  }, [userId, portfolioTab, positions]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -193,21 +161,6 @@ const Dashboard = () => {
   const nextLevelObj = LEVELS[Math.min(currentLevelIndex + 1, LEVELS.length - 1)];
   const nextLevelScore = nextLevelObj?.score || currentLevelScore;
   const pointsToNext = level === nextLevel ? 0 : Math.max(0, nextLevelScore - totalScore);
-
-  const openOrders = useMemo(
-    () => allOrders.filter((o) => ["waiting", "partial", "pending"].includes(o.status)),
-    [allOrders]
-  );
-
-  const cancelOrderHandler = async (orderId: string, marketId: string) => {
-    try {
-      await apiService.cancelOrder(marketId, orderId);
-      setAllOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: "cancelled" as const } : o));
-      toast.success("Order cancelled.");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to cancel order.");
-    }
-  };
 
   if (authLoading) {
     return <SessionLoading label="Loading your positions..." />;
@@ -306,8 +259,6 @@ const Dashboard = () => {
           <div role="tablist" className="flex gap-1 rounded-2xl border border-[#E5E7EB] bg-[#F8F7F4] p-1">
             {([
               { key: "positions", label: "Positions", icon: Target, count: positions.length },
-              { key: "orders", label: "Orders", icon: Layers, count: openOrders.length },
-              { key: "trades", label: "Trades", icon: Zap, count: allTrades.length },
             ] as const).map(({ key, label, icon: Icon, count }) => {
               const isActive = portfolioTab === key;
               return (
@@ -430,62 +381,6 @@ const Dashboard = () => {
             </div>
           )}
         </div>
-        )}
-
-        {/* Orders Tab */}
-        {portfolioTab === "orders" && (
-          <div role="tabpanel">
-            {ordersLoading ? (
-              <div className="grid min-h-[200px] place-items-center">
-                <Loader2 className="h-6 w-6 animate-spin text-[#4F46E5]" />
-              </div>
-            ) : allOrders.length === 0 ? (
-              <EmptyState
-                icon={Layers}
-                title="No orders yet"
-                body="Your order history will appear here."
-                action={
-                  <Link to="/" className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#4F46E5] px-4 text-sm font-bold text-white hover:bg-[#4338CA]">
-                    Explore markets <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
-                }
-              />
-            ) : (
-              <div className="grid gap-2.5">
-                {allOrders.map((order) => (
-                  <OrderCard key={order.id} order={order} onCancel={cancelOrderHandler} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Trades Tab */}
-        {portfolioTab === "trades" && (
-          <div role="tabpanel">
-            {ordersLoading ? (
-              <div className="grid min-h-[200px] place-items-center">
-                <Loader2 className="h-6 w-6 animate-spin text-[#4F46E5]" />
-              </div>
-            ) : allTrades.length === 0 ? (
-              <EmptyState
-                icon={Zap}
-                title="No trades yet"
-                body="Your executed trades will appear here."
-                action={
-                  <Link to="/" className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#4F46E5] px-4 text-sm font-bold text-white hover:bg-[#4338CA]">
-                    Explore markets <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
-                }
-              />
-            ) : (
-              <div className="grid gap-2.5">
-                {allTrades.map((trade) => (
-                  <TradeCard key={trade.id} trade={trade} />
-                ))}
-              </div>
-            )}
-          </div>
         )}
 
         {/* Activity Feed */}
@@ -1131,143 +1026,6 @@ const getAchievements = ({
   { icon: Trophy, title: "Top 10", description: "", unlocked: Boolean(rank && rank <= 10) },
   { icon: Medal, title: "Elite Trader", description: "", unlocked: ["Elite Trader", "Market Master"].includes(level) },
 ];
-
-/* ═══════════════════════════════════════════════════════════════
-   Order Card
-   ═══════════════════════════════════════════════════════════════ */
-
-const OrderCard = ({
-  order,
-  onCancel,
-}: {
-  order: ApiOrder;
-  onCancel: (orderId: string, marketId: string) => void;
-}) => {
-  const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
-    pending: { label: "Pending", color: "text-[#D97706]", bg: "bg-[#FEF3C7]" },
-    waiting: { label: "Waiting", color: "text-[#2563EB]", bg: "bg-[#DBEAFE]" },
-    partial: { label: "Partial", color: "text-[#7C3AED]", bg: "bg-[#EDE9FE]" },
-    filled: { label: "Filled", color: "text-[#047857]", bg: "bg-[#D1FAE5]" },
-    cancelled: { label: "Cancelled", color: "text-[#6B7280]", bg: "bg-[#F3F4F6]" },
-    expired: { label: "Expired", color: "text-[#6B7280]", bg: "bg-[#F3F4F6]" },
-    refunded: { label: "Refunded", color: "text-[#B45309]", bg: "bg-[#FEF3C7]" },
-  };
-  const status = statusConfig[order.status] || statusConfig.pending;
-  const canCancel = ["waiting", "partial", "pending"].includes(order.status);
-
-  return (
-    <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm transition hover:shadow-md">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span
-            className={`inline-flex h-6 items-center rounded-full px-2.5 text-[10px] font-bold ${status.bg} ${status.color}`}
-          >
-            {status.label}
-          </span>
-          <span
-            className={`inline-flex h-6 items-center rounded-full px-2.5 text-[10px] font-bold ${
-              order.order_type === "BUY"
-                ? "bg-[#12B886]/10 text-[#047857]"
-                : "bg-[#E85D5D]/10 text-[#B42318]"
-            }`}
-          >
-            {order.order_type}
-          </span>
-          <span className="text-[10px] font-bold text-[#9CA3AF]">
-            {order.side}
-          </span>
-        </div>
-        {canCancel && (
-          <button
-            onClick={() => onCancel(order.id, order.market_id)}
-            className="flex h-7 items-center gap-1 rounded-lg border border-[#E85D5D]/30 bg-[#E85D5D]/5 px-2.5 text-[10px] font-bold text-[#E85D5D] transition hover:bg-[#E85D5D]/10"
-          >
-            <X className="h-3 w-3" /> Cancel
-          </button>
-        )}
-      </div>
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Quantity</div>
-          <div className="mt-0.5 text-xs font-bold text-[#111827]">{order.quantity}</div>
-        </div>
-        <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Price</div>
-          <div className="mt-0.5 text-xs font-bold text-[#111827]">{formatNaira(order.price)}</div>
-        </div>
-        <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Value</div>
-          <div className="mt-0.5 text-xs font-bold text-[#111827]">{formatNaira(order.filled_amount || order.locked_amount)}</div>
-        </div>
-      </div>
-      <div className="mt-2 flex items-center justify-between text-[10px] text-[#9CA3AF]">
-        <span>
-          {new Date(order.created_at).toLocaleDateString("en-NG", {
-            day: "numeric",
-            month: "short",
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </span>
-        {order.filled_quantity > 0 && (
-          <span className="font-bold text-[#047857]">
-            Filled: {order.filled_quantity}/{order.quantity}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-};
-
-/* ═══════════════════════════════════════════════════════════════
-   Trade Card
-   ═══════════════════════════════════════════════════════════════ */
-
-const TradeCard = ({ trade }: { trade: ApiTrade }) => {
-  return (
-    <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm transition hover:shadow-md">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className={`grid h-7 w-7 place-items-center rounded-lg ${
-            trade.side === "YES" ? "bg-[#12B886]/10 text-[#12B886]" : "bg-[#E85D5D]/10 text-[#E85D5D]"
-          }`}>
-            <Zap className="h-3.5 w-3.5" />
-          </div>
-          <div>
-            <span className="text-xs font-bold text-[#111827]">
-              {trade.side} Trade
-            </span>
-            <div className="text-[10px] font-bold text-[#9CA3AF]">
-              {new Date(trade.created_at).toLocaleDateString("en-NG", {
-                day: "numeric",
-                month: "short",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </div>
-          </div>
-        </div>
-        <span className="text-sm font-bold text-[#047857]">
-          {formatNaira(trade.trade_price * trade.trade_quantity)}
-        </span>
-      </div>
-      <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[#F3F4F6] pt-3">
-        <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Quantity</div>
-          <div className="mt-0.5 text-xs font-bold text-[#111827]">{trade.trade_quantity}</div>
-        </div>
-        <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Price</div>
-          <div className="mt-0.5 text-xs font-bold text-[#111827]">{formatNaira(trade.trade_price)}</div>
-        </div>
-        <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Total</div>
-          <div className="mt-0.5 text-xs font-bold text-[#111827]">{formatNaira(trade.trade_price * trade.trade_quantity)}</div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 /* ═══════════════════════════════════════════════════════════════
    Session Loading

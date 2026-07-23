@@ -32,7 +32,7 @@ export default function Support() {
         </p>
 
         <section className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-          <ActionLink to="/faq" icon={CircleHelp} title="FAQs" body="Read answers about Crowd View, order matching, payouts, and wallet flows." />
+          <ActionLink to="/faq" icon={CircleHelp} title="FAQs" body="Read answers about Crowd View, pool predictions, payouts, and wallet flows." />
           <a href="#market-disputes" className="block">
             <ActionShell icon={FileWarning} title="Market disputes" body="Save structured dispute details for unclear outcomes." />
           </a>

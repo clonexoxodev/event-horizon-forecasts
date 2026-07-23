@@ -186,11 +186,6 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
                   {formatNaira(m.totalVolume || 0)}
                 </span>
               )}
-              {m.pricing_model === "orderbook" && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-[#4F46E5]/8 px-2 py-0.5 text-[10px] font-bold text-[#4F46E5]">
-                  Peer-to-Peer
-                </span>
-              )}
             </div>
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#9CA3AF]">
               <Users className="h-2.5 w-2.5" aria-hidden="true" />

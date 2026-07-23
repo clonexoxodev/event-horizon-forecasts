@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Search, Users, TrendingUp, Receipt, CreditCard, X, Loader2 } from "lucide-react";
+import { Search, Users, TrendingUp, CreditCard, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import apiService from "@/lib/api";
 import { Card, Badge, EmptyState, SkeletonCard } from "./ui";
@@ -8,7 +8,6 @@ import { classNames, formatNaira, formatDateTime, statusLabel } from "./utils";
 type SearchResults = {
   users?: any[];
   markets?: any[];
-  orders?: any[];
   transactions?: any[];
 };
 
@@ -73,7 +72,7 @@ export function SearchView({ setSelectedMarketId }: { setSelectedMarketId: (id: 
     setQuery(term);
   };
 
-  const totalCount = (results.users?.length || 0) + (results.markets?.length || 0) + (results.orders?.length || 0) + (results.transactions?.length || 0);
+  const totalCount = (results.users?.length || 0) + (results.markets?.length || 0) + (results.transactions?.length || 0);
   const hasQuery = query.trim().length > 0;
   const hasResults = totalCount > 0;
 
@@ -96,15 +95,6 @@ export function SearchView({ setSelectedMarketId }: { setSelectedMarketId: (id: 
       case "super_admin": return "info";
       case "admin": return "default";
       default: return "muted";
-    }
-  };
-
-  const orderStatusBadge = (s: string): "default" | "success" | "warning" | "danger" | "info" | "muted" => {
-    switch (s) {
-      case "matched": case "filled": case "completed": return "success";
-      case "pending": case "partially_filled": return "warning";
-      case "cancelled": case "failed": return "danger";
-      default: return "default";
     }
   };
 
@@ -162,7 +152,7 @@ export function SearchView({ setSelectedMarketId }: { setSelectedMarketId: (id: 
         <EmptyState
           icon={<Search className="h-5 w-5" />}
           title="Search across all platform data"
-          body="Type to search users, markets, orders, and transactions."
+          body="Type to search users, markets, and transactions."
           action={
             recentSearches.length > 0 ? (
               <div className="flex flex-wrap items-center justify-center gap-2">
@@ -246,41 +236,6 @@ export function SearchView({ setSelectedMarketId }: { setSelectedMarketId: (id: 
                     </div>
                     <Badge variant={marketStatusBadge(market.status || "draft")}>
                       {statusLabel(market.status || "draft")}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {results.orders && results.orders.length > 0 && (
-            <Card>
-              <div className="mb-3 flex items-center gap-2">
-                <div className="grid h-7 w-7 place-items-center rounded-lg bg-amber-50 text-amber-600">
-                  <Receipt className="h-4 w-4" />
-                </div>
-                <h3 className="text-sm font-bold text-gray-900">Orders</h3>
-                <Badge variant="info">{results.orders.length}</Badge>
-              </div>
-              <div className="divide-y divide-gray-100">
-                {results.orders.map((order: any) => (
-                  <div
-                    key={order.id}
-                    className="flex items-center justify-between gap-3 py-2.5 transition hover:bg-gray-50/50 -mx-5 px-5 rounded-xl cursor-pointer"
-                    onClick={() => toast.info(`Order: ${order.id}\nSide: ${statusLabel(order.side || "—")}\nAmount: ${formatNaira(order.amount || order.amount_smallest_unit ? Math.round((order.amount || order.amount_smallest_unit || 0) / 100) : 0)}`)}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-mono text-xs text-gray-900">
-                        {order.id}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {order.side ? statusLabel(order.side) : "—"}
-                        {" · "}
-                        {order.created_at ? formatDateTime(order.created_at) : "—"}
-                      </p>
-                    </div>
-                    <Badge variant={orderStatusBadge(order.status || "pending")}>
-                      {statusLabel(order.status || "pending")}
                     </Badge>
                   </div>
                 ))}

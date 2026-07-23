@@ -18,11 +18,9 @@ import {
   BarChart3,
   CheckCircle,
   ChevronDown,
-  ChevronUp,
   Clock,
   FileText,
   Info,
-  Layers,
   Loader2,
   Share2,
   Shield,
@@ -32,15 +30,13 @@ import {
   AlertCircle,
   Calendar,
   CircleDollarSign,
-  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ForecastSlip } from "@/components/ForecastSlip";
 import { ProtectedMarketInfo, ProtectedMarketTooltip } from "@/components/ProtectedMarketInfo";
-import apiService, { ApiRequestError, type ApiOrderBook, type ApiTrade, type ApiOrder } from "@/lib/api";
+import apiService, { ApiRequestError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useMarketState } from "@/lib/market-state";
 import {
@@ -64,6 +60,7 @@ ChartJS.register(
   ChartTooltip,
   Legend
 );
+
 export default function MarketDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -72,27 +69,15 @@ export default function MarketDetail() {
   const [market, setMarket] = useState<Market | null>(null);
   const [loading, setLoading] = useState(true);
   const [sheetSide, setSheetSide] = useState<"YES" | "NO" | null>(null);
-  const [amount, setAmount] = useState("");
-  const [price, setPrice] = useState("");
-  const [orderType, setOrderType] = useState<"BUY" | "SELL">("BUY");
-  const [submitting, setSubmitting] = useState(false);
-  const [justPredicted, setJustPredicted] = useState<"YES" | "NO" | null>(null);
-  const [orderJustPlaced, setOrderJustPlaced] = useState<{ order: ApiOrder; matched: number } | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>("24H");
   const [now, setNow] = useState(Date.now());
-  const [sheetVisible, setSheetVisible] = useState(false);
+  const [justPredicted, setJustPredicted] = useState<"YES" | "NO" | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showProtectedInfo, setShowProtectedInfo] = useState(false);
-  const [orderBook, setOrderBook] = useState<ApiOrderBook | null>(null);
-  const [recentTrades, setRecentTrades] = useState<ApiTrade[]>([]);
-  const [userOrders, setUserOrders] = useState<ApiOrder[]>([]);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const marketsRef = useRef(markets);
   const marketRef = useRef<Market | null>(null);
   const latestLoadRef = useRef(0);
-  const sheetRef = useRef<HTMLDivElement>(null);
-
-  const isOrderBook = market?.pricing_model === "orderbook";
 
   useEffect(() => { marketsRef.current = markets; }, [markets]);
   useEffect(() => { marketRef.current = market; }, [market]);
@@ -120,15 +105,6 @@ export default function MarketDetail() {
         };
         setMarket(enrichedMarket);
         upsertMarket(enrichedMarket);
-        if (enrichedMarket.pricing_model === "orderbook") {
-          const [bookRes, tradesRes] = await Promise.all([
-            apiService.getOrderBook(id).catch(() => null),
-            apiService.getMarketTrades(id).catch(() => null),
-          ]);
-          if (latestLoadRef.current !== loadId) return;
-          if (bookRes) setOrderBook(bookRes);
-          if (tradesRes) setRecentTrades(tradesRes.trades || []);
-        }
       } catch (error: any) {
         if (latestLoadRef.current !== loadId) return;
         const cached = readCachedMarket();
@@ -154,82 +130,33 @@ export default function MarketDetail() {
   }, []);
 
   useEffect(() => {
-    if (!id || !isOrderBook) return;
-    const interval = window.setInterval(async () => {
-      if (document.visibilityState !== "visible") return;
-      try {
-        const [bookRes, tradesRes, mktRes] = await Promise.all([
-          apiService.getOrderBook(id),
-          apiService.getMarketTrades(id),
-          apiService.getMarket(id),
-        ]);
-        setOrderBook(bookRes);
-        setRecentTrades(tradesRes.trades || []);
-        if (mktRes?.market) {
-          const updated = { ...mktRes.market, priceHistory: market?.priceHistory };
-          setMarket(updated);
-          upsertMarket(updated);
-        }
-      } catch { /* polling is best-effort */ }
-    }, 5000);
-    return () => window.clearInterval(interval);
-  }, [id, isOrderBook, upsertMarket]);
-
-  useEffect(() => {
-    if (!id || !isOrderBook || !user) return;
-    const interval = window.setInterval(async () => {
-      if (document.visibilityState !== "visible") return;
-      try {
-        const res = await apiService.getUserOrders(id);
-        setUserOrders(res.orders || []);
-      } catch { /* polling is best-effort */ }
-    }, 10000);
-    return () => window.clearInterval(interval);
-  }, [id, isOrderBook, user]);
-
-  useEffect(() => {
     if (sheetSide) {
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => setSheetVisible(true));
+        requestAnimationFrame(() => {});
       });
-    } else {
-      setSheetVisible(false);
     }
   }, [sheetSide]);
 
-  useEffect(() => {
-    if (isOrderBook && sheetSide && !price) {
-      const currentPrice = sheetSide === "YES" ? (market?.yesPrice || 50) : (market?.noPrice || 50);
-      setPrice(String(Math.round(currentPrice)));
-    }
-  }, [sheetSide, isOrderBook, market?.yesPrice, market?.noPrice]);
-
   const closeSheet = () => {
-    setSheetVisible(false);
-    setTimeout(() => {
-      setSheetSide(null);
-      setAmount("");
-      setPrice("");
-      setOrderType("BUY");
-      setOrderJustPlaced(null);
-    }, 300);
+    setSheetSide(null);
   };
 
   useEffect(() => {
     if (sheetSide) {
       const handleEsc = (e: KeyboardEvent) => {
-        if (e.key === "Escape" && !submitting) closeSheet();
+        if (e.key === "Escape") closeSheet();
       };
       window.addEventListener("keydown", handleEsc);
       return () => window.removeEventListener("keydown", handleEsc);
     }
-  }, [sheetSide, submitting]);
+  }, [sheetSide]);
 
   const toggleSection = (key: string) => {
     setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const marketCategoryLabel = market ? getMarketCategoryLabel(market) : "Other";
+
   const handleShare = async () => {
     if (!market) return;
     const media = getMarketMedia(market);
@@ -257,73 +184,35 @@ export default function MarketDetail() {
     }
   };
 
-  const confirmPrediction = async () => {
-    if (submitting) return;
-    if (!market || !sheetSide) return;
+  const handlePredictionConfirm = async (
+    selection: { marketId: string; marketQuestion: string; side: "YES" | "NO"; marketIcon?: string },
+    amount: number
+  ) => {
     if (!user) { setAuthOpen(true); return; }
-    const numericAmount = Number.parseFloat(amount) || 0;
-    const numericPrice = Number.parseFloat(price) || 0;
-    if (numericAmount <= 0) return toast.error("Enter an amount.");
-    if (isOrderBook && (numericPrice <= 0 || numericPrice >= 100)) {
-      return toast.error("Price must be between 1 and 99.");
+    const currentActivation = getMarketActivation(market!);
+    if (currentActivation.isProtected && amount > currentActivation.requirements.protectedMaxStake) {
+      throw new Error(`Protected markets are limited to ${formatNaira(currentActivation.requirements.protectedMaxStake)} per user until they go live.`);
     }
-    const currentActivation = getMarketActivation(market);
-    if (currentActivation.isProtected && numericAmount > currentActivation.requirements.protectedMaxStake) {
-      return toast.error(`Protected markets are limited to ${formatNaira(currentActivation.requirements.protectedMaxStake)} per user until they go live.`);
-    }
-    setSubmitting(true);
-    try {
-      if (isOrderBook) {
-        const sharesQty = numericPrice > 0 ? Math.floor((numericAmount * 100) / numericPrice) : 0;
-        const result = await apiService.createOrder(market.id, {
-          side: sheetSide, order_type: orderType, price: numericPrice, quantity: sharesQty,
-        });
-        setOrderJustPlaced(result);
-        setJustPredicted(sheetSide);
-        setShowConfetti(true);
-        toast.success(`Order placed: ${result.order.status === "filled" ? "Fully filled" : result.order.status === "partial" ? "Partially matched" : "Waiting for match"}`);
-        await refreshUser().catch(() => {});
-        setTimeout(() => setShowConfetti(false), 3000);
-      } else {
-        const result = await apiService.placePrediction(market.id, {
-          side: sheetSide, amount: numericAmount, currency: "NGN",
-        });
-        const historyResponse = await apiService.getMarketPriceHistory(market.id).catch(() => null);
-        const updatedMarket = {
-          ...result.market,
-          priceHistory: historyResponse?.priceHistory?.length
-            ? historyResponse.priceHistory
-            : result.market.priceHistory,
-        };
-        setMarket(updatedMarket);
-        upsertMarket(updatedMarket);
-        refreshUser().catch((error) => console.warn("User refresh after trade failed", error));
-        setJustPredicted(sheetSide);
-        setShowConfetti(true);
-        setAmount("");
-        closeSheet();
-        toast.success(`Trade placed: ${formatNaira(numericAmount)} on ${sheetSide}.`);
-        setTimeout(() => setShowConfetti(false), 3000);
-      }
-    } catch (error: any) {
-      console.error("Order submit failed", error);
-      toast.error(error.message || "Could not place order.");
-    } finally {
-      setSubmitting(false);
-    }
+    const result = await apiService.placePrediction(selection.marketId, {
+      side: selection.side,
+      amount,
+      currency: "NGN",
+    });
+    const historyResponse = await apiService.getMarketPriceHistory(selection.marketId).catch(() => null);
+    const updatedMarket = {
+      ...result.market,
+      priceHistory: historyResponse?.priceHistory?.length
+        ? historyResponse.priceHistory
+        : result.market.priceHistory,
+    };
+    setMarket(updatedMarket);
+    upsertMarket(updatedMarket);
+    refreshUser().catch((error) => console.warn("User refresh after trade failed", error));
+    setJustPredicted(selection.side);
+    setShowConfetti(true);
+    setTimeout(() => setShowConfetti(false), 3000);
   };
 
-  const cancelOrderHandler = async (orderId: string) => {
-    if (!market) return;
-    try {
-      await apiService.cancelOrder(market.id, orderId);
-      setUserOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: "cancelled" as const } : o)));
-      toast.success("Order cancelled.");
-      await refreshUser().catch(() => {});
-    } catch (error: any) {
-      toast.error(error.message || "Failed to cancel order.");
-    }
-  };
   if (loading && !market) {
     return (
       <div className="app-bg min-h-screen text-[#111827] xl:pl-64">
@@ -347,25 +236,16 @@ export default function MarketDetail() {
   if (!market) return null;
 
   const media = getMarketMedia(market);
-  const selectedPrice = sheetSide === "YES" ? market.yesPrice : market.noPrice;
-  const numericAmount = Number.parseFloat(amount) || 0;
-  const numericPrice = Number.parseFloat(price) || 0;
-  const slipDataMissing = Boolean(sheetSide && !Number.isFinite(Number(selectedPrice)));
   const tradingCloseTime = market.tradingCloseTime || market.closeTime;
   const hasTradingClosed = tradingCloseTime ? new Date(tradingCloseTime).getTime() <= now : false;
   const marketIsActive = market.status === "active" && !hasTradingClosed;
   const activation = getMarketActivation(market);
-  const exceedsProtectedLimit = activation.isProtected && numericAmount > activation.requirements.protectedMaxStake;
-  const estimatedReturn = numericAmount > 0 && selectedPrice ? (numericAmount / selectedPrice) * 100 : 0;
-  const estimatedProfit = estimatedReturn - numericAmount;
-  const estimatedShares = numericPrice > 0 ? numericAmount / numericPrice : 0;
-  const openOrders = userOrders.filter((o) => ["waiting", "partial", "pending"].includes(o.status));
 
   return (
     <div className="app-bg min-h-screen pb-[calc(140px+env(safe-area-inset-bottom))] text-[#111827] md:pb-24 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-5xl px-4 py-4 sm:px-6 lg:py-6">
-        {/* ── Top Bar ── */}
+        {/* Top Bar */}
         <div className="mb-4 flex items-center justify-between">
           <Link to="/" className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 text-xs font-bold text-[#6B7280] transition hover:text-[#111827]">
             <ArrowLeft className="h-3.5 w-3.5" />
@@ -373,7 +253,8 @@ export default function MarketDetail() {
           </Link>
           <IconButton onClick={handleShare} icon={Share2} label="Share" />
         </div>
-        {/* ── Market Header ── */}
+
+        {/* Market Header */}
         <section className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
           <div className="flex items-start gap-4">
             {media.src && (
@@ -435,26 +316,13 @@ export default function MarketDetail() {
             {!activation.isProtected && (
               <>
                 <StatChip icon={Users} value={market.participants || 0} label="trading" />
-                {isOrderBook ? (
-                  <>
-                    <StatChip icon={Layers} value={market.matched_volume || market.tradeCount || 0} label="matched" />
-                    <StatChip icon={BarChart3} value={market.open_interest || 0} label="open orders" />
-                  </>
-                ) : (
-                  <StatChip icon={BarChart3} value={market.tradeCount || 0} label="trades" />
-                )}
+                <StatChip icon={BarChart3} value={market.tradeCount || 0} label="trades" />
               </>
             )}
             <span className="inline-flex items-center gap-1 rounded-full bg-[#F3F4F6] px-2.5 py-1 text-[10px] font-bold text-[#9CA3AF]">
               <Clock className="h-3 w-3" />
               {formatCountdown(tradingCloseTime, market.closesIn)}
             </span>
-            {isOrderBook && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#4F46E5]/10 px-2.5 py-1 text-[10px] font-bold text-[#4F46E5]">
-                <Layers className="h-3 w-3" />
-                Peer-to-Peer
-              </span>
-            )}
           </div>
 
           {/* Resolved Market Banner */}
@@ -525,7 +393,8 @@ export default function MarketDetail() {
             </div>
           )}
         </section>
-        {/* ── Price Chart ── */}
+
+        {/* Price Chart */}
         <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
           <div className="mb-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -551,161 +420,7 @@ export default function MarketDetail() {
           <Chart market={market} timeframe={timeframe} />
         </section>
 
-        {/* ── Order Book ── */}
-        {isOrderBook && orderBook && (
-          <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold text-[#101828]">Order Book</h2>
-                <p className="mt-0.5 text-[10px] font-bold text-[#9CA3AF]">Live buy and sell orders from other traders</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-[#12B886]" />
-                  <span className="text-[10px] font-bold text-[#9CA3AF]">Bids</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-[#E85D5D]" />
-                  <span className="text-[10px] font-bold text-[#9CA3AF]">Asks</span>
-                </div>
-              </div>
-            </div>
-            <div className="mb-2 grid grid-cols-3 px-2.5 text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
-              <span>Price</span>
-              <span className="text-center">Size</span>
-              <span className="text-right">Orders</span>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#047857]">Bids (BUY)</div>
-                {orderBook.bids.length === 0 ? (
-                  <div className="py-3 text-center text-xs font-bold text-[#9CA3AF]">No bids</div>
-                ) : (
-                  <div className="space-y-0.5">
-                    {orderBook.bids.slice(0, 6).map((level) => {
-                      const maxQty = Math.max(...orderBook.bids.map((b) => b.total_quantity));
-                      const depth = maxQty > 0 ? (level.total_quantity / maxQty) * 100 : 0;
-                      return (
-                        <div key={level.price} className="relative overflow-hidden rounded-lg bg-[#12B886]/[0.04] px-2.5 py-1.5 transition-all duration-300">
-                          <div className="absolute inset-y-0 left-0 bg-[#12B886]/[0.08] transition-all duration-500" style={{ width: `${depth}%` }} />
-                          <div className="relative flex items-center justify-between">
-                            <span className="text-xs font-bold tabular-nums text-[#047857]">{formatNaira(level.price)}</span>
-                            <span className="text-[10px] font-bold tabular-nums text-[#6B7280]">{level.total_quantity}</span>
-                            <span className="text-[10px] font-bold tabular-nums text-[#9CA3AF]">{level.order_count}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-              <div>
-                <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#B42318]">Asks (SELL)</div>
-                {orderBook.asks.length === 0 ? (
-                  <div className="py-3 text-center text-xs font-bold text-[#9CA3AF]">No asks</div>
-                ) : (
-                  <div className="space-y-0.5">
-                    {orderBook.asks.slice(0, 6).map((level) => {
-                      const maxQty = Math.max(...orderBook.asks.map((a) => a.total_quantity));
-                      const depth = maxQty > 0 ? (level.total_quantity / maxQty) * 100 : 0;
-                      return (
-                        <div key={level.price} className="relative overflow-hidden rounded-lg bg-[#E85D5D]/[0.04] px-2.5 py-1.5 transition-all duration-300">
-                          <div className="absolute inset-y-0 right-0 bg-[#E85D5D]/[0.08] transition-all duration-500" style={{ width: `${depth}%` }} />
-                          <div className="relative flex items-center justify-between">
-                            <span className="text-xs font-bold tabular-nums text-[#B42318]">{formatNaira(level.price)}</span>
-                            <span className="text-[10px] font-bold tabular-nums text-[#6B7280]">{level.total_quantity}</span>
-                            <span className="text-[10px] font-bold tabular-nums text-[#9CA3AF]">{level.order_count}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="mt-3 grid grid-cols-3 items-center rounded-xl bg-[#F8F7F4] px-3 py-2.5 border border-[#E5E7EB]/60">
-              <div className="text-center">
-                <div className="text-[10px] font-bold text-[#9CA3AF]">Best Bid</div>
-                <div className="mt-0.5 text-xs font-bold tabular-nums text-[#047857] transition-all duration-300">
-                  {orderBook.best_bid ? formatNaira(orderBook.best_bid) : "—"}
-                </div>
-              </div>
-              <div className="text-center border-x border-[#E5E7EB]/60 px-3">
-                <div className="text-[10px] font-bold text-[#9CA3AF]">Spread</div>
-                <div className="mt-0.5 text-xs font-bold tabular-nums text-[#4F46E5] transition-all duration-300">
-                  {orderBook.spread != null ? formatNaira(orderBook.spread) : "—"}
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-[10px] font-bold text-[#9CA3AF]">Best Ask</div>
-                <div className="mt-0.5 text-xs font-bold tabular-nums text-[#B42318] transition-all duration-300">
-                  {orderBook.best_ask ? formatNaira(orderBook.best_ask) : "—"}
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-        {/* ── Recent Trades ── */}
-        {isOrderBook && recentTrades.length > 0 && (
-          <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-base font-bold text-[#101828]">Recent Trades</h2>
-              <span className="text-[10px] font-bold text-[#9CA3AF]">{recentTrades.length} trades</span>
-            </div>
-            <div className="mb-2 grid grid-cols-[auto_1fr_1fr_auto] items-center gap-3 px-3 text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
-              <span>Side</span>
-              <span>Price</span>
-              <span>Qty</span>
-              <span>Time</span>
-            </div>
-            <div className="space-y-0.5">
-              {recentTrades.slice(0, 10).map((trade) => (
-                <div key={trade.id} className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-3 rounded-lg bg-[#F8F7F4]/80 px-3 py-2 transition-colors hover:bg-[#F3F4F6]">
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${trade.side === "YES" ? "bg-[#12B886]/[0.1] text-[#047857]" : "bg-[#E85D5D]/[0.1] text-[#B42318]"}`}>
-                    {trade.side}
-                  </span>
-                  <span className="text-xs font-bold tabular-nums text-[#111827]">{formatNaira(trade.trade_price)}</span>
-                  <span className="text-xs font-bold tabular-nums text-[#6B7280]">{trade.trade_quantity}</span>
-                  <span className="text-[10px] tabular-nums text-[#9CA3AF]">{new Date(trade.created_at).toLocaleTimeString()}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ── User Open Orders ── */}
-        {isOrderBook && openOrders.length > 0 && (
-          <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-base font-bold text-[#101828]">Open Orders</h2>
-              <span className="text-[10px] font-bold text-[#9CA3AF]">{openOrders.length} active</span>
-            </div>
-            <div className="space-y-1.5">
-              {openOrders.slice(0, 5).map((order) => (
-                <div key={order.id} className="flex items-center justify-between rounded-xl bg-[#F8F7F4] px-3 py-2.5 border border-[#E5E7EB]/40">
-                  <div className="flex items-center gap-2.5">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${order.side === "YES" ? "bg-[#12B886]/[0.1] text-[#047857]" : "bg-[#E85D5D]/[0.1] text-[#B42318]"}`}>
-                      {order.side}
-                    </span>
-                    <span className="rounded-full bg-[#4F46E5]/10 px-2 py-0.5 text-[10px] font-bold text-[#4F46E5]">{order.order_type}</span>
-                    <span className="text-xs font-bold tabular-nums text-[#111827]">{formatNaira(order.price)}</span>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-[10px] font-bold tabular-nums text-[#9CA3AF]">
-                      {order.filled_quantity}/{order.quantity}
-                    </span>
-                    {["waiting", "partial"].includes(order.status) && (
-                      <button onClick={() => cancelOrderHandler(order.id)} className="rounded-lg bg-[#E85D5D]/[0.08] px-2.5 py-1 text-[10px] font-bold text-[#B42318] transition hover:bg-[#E85D5D]/[0.16]">
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-        {/* ── Market Information ── */}
+        {/* Market Information */}
         <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white shadow-sm">
           <div className="px-4 py-3 sm:px-5">
             <h2 className="text-base font-bold text-[#101828]">Market Information</h2>
@@ -757,7 +472,7 @@ export default function MarketDetail() {
             border
           >
             <p className="text-sm leading-relaxed text-[#475467]">
-              After resolution, winning positions are settled at ₦100 per share. Losing positions are worth ₦0.
+              After resolution, winning positions are settled at the pool payout rate. Losing positions are worth nothing.
               Settlement is processed automatically once the market resolves.
             </p>
             {market.settlement_status && (
@@ -814,42 +529,39 @@ export default function MarketDetail() {
             </ExpandableSection>
           )}
 
-          {/* Order Matching Rules */}
-          {isOrderBook && (
-            <ExpandableSection
-              icon={Layers}
-              title="Order Matching Rules"
-              expanded={!!expandedSections["matching"]}
-              onToggle={() => toggleSection("matching")}
-              border
-              last
-            >
-              <div className="space-y-3">
-                <p className="text-sm leading-relaxed text-[#475467]">
-                  Orders are matched using price-time priority. The best-priced orders are filled first.
-                  Orders at the same price are filled in the order they were received.
-                </p>
-                <div className="space-y-2">
-                  <div className="flex items-start gap-2">
-                    <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#12B886]" />
-                    <span className="text-xs text-[#475467]">BUY orders are matched from highest bid to lowest</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#E85D5D]" />
-                    <span className="text-xs text-[#475467]">SELL orders are matched from lowest ask to highest</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#4F46E5]" />
-                    <span className="text-xs text-[#475467]">Partial fills are possible when order sizes differ</span>
-                  </div>
+          {/* How Pool Predictions Work */}
+          <ExpandableSection
+            icon={BarChart3}
+            title="How Pool Predictions Work"
+            expanded={!!expandedSections["pool"]}
+            onToggle={() => toggleSection("pool")}
+            border
+            last
+          >
+            <div className="space-y-3">
+              <p className="text-sm leading-relaxed text-[#475467]">
+                Predictions are placed directly into the pool. Your stake immediately affects the probability.
+              </p>
+              <div className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#12B886]" />
+                  <span className="text-xs text-[#475467]">Place a stake on YES or NO to enter the pool</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#4F46E5]" />
+                  <span className="text-xs text-[#475467]">Larger stakes shift the probability further</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#E85D5D]" />
+                  <span className="text-xs text-[#475467]">When the market resolves, the winning side splits the pool</span>
                 </div>
               </div>
-            </ExpandableSection>
-          )}
-
+            </div>
+          </ExpandableSection>
         </section>
       </main>
-      {/* ── Sticky Action Bar ── */}
+
+      {/* Sticky Action Bar */}
       <div className="fixed bottom-[calc(68px+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-[#E5E7EB]/60 bg-white/90 p-2.5 backdrop-blur-xl md:bottom-0 md:border-t md:bg-white/95 xl:left-64">
         <div className="mx-auto flex max-w-5xl gap-2">
           <div className="hidden flex-1 items-center justify-center gap-6 sm:flex">
@@ -866,306 +578,42 @@ export default function MarketDetail() {
           <div className="flex flex-1 gap-2 sm:flex-none sm:w-[320px]">
             <button
               disabled={!marketIsActive}
-              aria-label={`Trade YES at ${formatNairaPrice(market.yesPrice)}`}
+              aria-label={`Predict YES at ${formatNairaPrice(market.yesPrice)}`}
               onClick={() => setSheetSide("YES")}
               className="group flex-1 h-12 rounded-xl bg-[#12B886] text-sm font-bold text-white transition-all duration-150 hover:bg-[#0ea371] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#D1D5DB] disabled:text-[#9CA3AF]"
             >
               <span className="flex items-center justify-center gap-1.5">
-                <span className="hidden sm:inline">Trade</span> YES {formatNairaPrice(market.yesPrice)}
+                <span className="hidden sm:inline">Predict</span> YES {formatNairaPrice(market.yesPrice)}
               </span>
             </button>
             <button
               disabled={!marketIsActive}
-              aria-label={`Trade NO at ${formatNairaPrice(market.noPrice)}`}
+              aria-label={`Predict NO at ${formatNairaPrice(market.noPrice)}`}
               onClick={() => setSheetSide("NO")}
               className="group flex-1 h-12 rounded-xl bg-[#E85D5D] text-sm font-bold text-white transition-all duration-150 hover:bg-[#d94c4c] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#D1D5DB] disabled:text-[#9CA3AF]"
             >
               <span className="flex items-center justify-center gap-1.5">
-                <span className="hidden sm:inline">Trade</span> NO {formatNairaPrice(market.noPrice)}
+                <span className="hidden sm:inline">Predict</span> NO {formatNairaPrice(market.noPrice)}
               </span>
             </button>
           </div>
         </div>
       </div>
-      {/* ── Order Entry Sheet ── */}
-      {sheetSide && (
-        <div
-          className={`fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${sheetVisible ? "opacity-100" : "opacity-0"}`}
-          onClick={() => !submitting && closeSheet()}
-        >
-          <div
-            ref={sheetRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Place your order"
-            className={`absolute bottom-0 left-0 right-0 max-h-[88vh] overflow-y-auto rounded-t-3xl border border-[#E5E7EB] bg-white p-5 pb-[calc(90px+env(safe-area-inset-bottom))] text-[#111827] shadow-[0_-24px_80px_rgba(17,24,39,0.18)] transition-transform duration-300 ease-out md:left-auto md:right-6 md:top-24 md:h-fit md:w-[400px] md:rounded-2xl md:pb-5 ${sheetVisible ? "translate-y-0" : "translate-y-full"}`}
-            onClick={(event) => event.stopPropagation()}
-          >
-            {/* Header with accent bar */}
-            <div className="mb-4">
-              <div className={`mb-3 h-1 w-12 rounded-full ${sheetSide === "YES" ? "bg-[#12B886]" : "bg-[#E85D5D]"}`} />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`text-[10px] font-bold uppercase tracking-[0.16em] ${sheetSide === "YES" ? "text-[#12B886]" : "text-[#E85D5D]"}`}>
-                    Order Entry
-                  </p>
-                  <h2 className="mt-0.5 text-xl font-bold">
-                    {isOrderBook ? "Place your order" : `Trading ${sheetSide}`}
-                  </h2>
-                </div>
-                <button
-                  onClick={closeSheet}
-                  aria-label="Close order entry"
-                  disabled={submitting}
-                  className="grid h-9 w-9 place-items-center rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] transition hover:bg-[#F3F4F6] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
 
-            {slipDataMissing ? (
-              <div className="rounded-xl border border-[#E85D5D]/30 bg-[#E85D5D]/10 p-4 text-sm font-bold leading-relaxed text-[#B42318]">
-                Unable to open order entry. Please try again.
-              </div>
-            ) : (
-              <>
-                {/* Order Type (Order Book Markets) */}
-                {isOrderBook && (
-                  <div className="mb-4">
-                    <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">What do you want to do?</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button onClick={() => setOrderType("BUY")} disabled={submitting} className={`flex h-11 items-center justify-center gap-1.5 rounded-xl border-2 text-xs font-bold transition ${orderType === "BUY" ? "border-[#12B886] bg-[#12B886]/[0.06] text-[#047857]" : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:border-[#D1D5DB]"}`}>
-                        Bet on Outcome
-                      </button>
-                      <button onClick={() => setOrderType("SELL")} disabled={submitting} className={`flex h-11 items-center justify-center gap-1.5 rounded-xl border-2 text-xs font-bold transition ${orderType === "SELL" ? "border-[#E85D5D] bg-[#E85D5D]/[0.06] text-[#B42318]" : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:border-[#D1D5DB]"}`}>
-                        Sell Shares
-                      </button>
-                    </div>
-                    <p className="mt-1.5 text-[10px] font-bold text-[#9CA3AF]">
-                      {orderType === "BUY" ? "Buy shares hoping the outcome wins. Each share pays ₦100 if correct." : "Sell shares you already own from a previous buy order."}
-                    </p>
-                  </div>
-                )}
+      {/* Prediction Slip */}
+      <ForecastSlip
+        selection={sheetSide ? {
+          marketId: market.id,
+          marketQuestion: market.question,
+          side: sheetSide,
+          marketIcon: getMarketMedia(market).imageUrl,
+          currentPrice: sheetSide === "YES" ? market.yesPrice : market.noPrice,
+        } : null}
+        onClose={closeSheet}
+        onConfirm={handlePredictionConfirm}
+      />
 
-                {/* Side Indicator */}
-                <div className={`mb-4 flex items-center gap-2 rounded-xl p-3 ${sheetSide === "YES" ? "bg-[#12B886]/[0.06] border border-[#12B886]/20" : "bg-[#E85D5D]/[0.06] border border-[#E85D5D]/20"}`}>
-                  <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${sheetSide === "YES" ? "bg-[#12B886] text-white" : "bg-[#E85D5D] text-white"}`}>
-                    {sheetSide}
-                  </span>
-                  <div>
-                    <div className="text-xs font-bold text-[#111827]">
-                      {isOrderBook
-                        ? `${orderType === "BUY" ? "Betting on" : "Selling"} ${sheetSide}`
-                        : `Backing ${sheetSide}`
-                      }
-                    </div>
-                    <div className="text-[10px] text-[#6B7280]">
-                      {isOrderBook
-                        ? `at up to ${formatNairaPrice(selectedPrice)} per share`
-                        : <>If <strong>{sheetSide}</strong> wins, each share pays <strong>₦100</strong></>
-                      }
-                    </div>
-                  </div>
-                </div>
-
-                {/* Price (Order Book Markets) */}
-                {isOrderBook && (
-                  <div className="mb-4">
-                    <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">Price per Share</label>
-                    <div className="relative">
-                      <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-[#6B7280]">NGN</span>
-                      <Input
-                        type="number"
-                        value={price}
-                        onChange={(event) => setPrice(event.target.value)}
-                        disabled={submitting}
-                        placeholder="0"
-                        min="1"
-                        max="99"
-                        className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] pl-11 text-lg font-bold text-[#111827] placeholder:text-[#D1D5DB] focus:border-[#4F46E5] focus:ring-[#4F46E5]/20"
-                      />
-                    </div>
-                    <p className="mt-1 text-[10px] font-bold text-[#9CA3AF]">
-                      What you pay per share (1–99). Lower price = cheaper but may take longer to match.
-                    </p>
-                  </div>
-                )}
-
-                {/* Amount */}
-                <div className="mb-3">
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">
-                    {isOrderBook ? "Number of Shares" : "Amount to Stake"}
-                  </label>
-                  <div className="relative">
-                    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-[#6B7280]">{isOrderBook ? "×" : "NGN"}</span>
-                    <Input
-                      type="number"
-                      value={amount}
-                      onChange={(event) => setAmount(event.target.value)}
-                      disabled={submitting}
-                      placeholder="0"
-                      className={`h-12 rounded-xl border-[#E5E7EB] bg-[#F8F7F4] text-lg font-bold text-[#111827] placeholder:text-[#D1D5DB] focus:border-[#4F46E5] focus:ring-[#4F46E5]/20 ${isOrderBook ? "pl-9" : "pl-11"}`}
-                    />
-                  </div>
-                </div>
-
-                {/* Quick Amount Buttons */}
-                <div className="mb-4 grid grid-cols-4 gap-1.5">
-                  {[100, 500, 1000, 2000].map((value) => (
-                    <button
-                      key={value}
-                      onClick={() => setAmount(value.toString())}
-                      disabled={submitting}
-                      className={`rounded-xl border py-2.5 text-[11px] font-bold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${amount === value.toString() ? "border-[#4F46E5] bg-[#EEF2FF] text-[#4F46E5]" : "border-[#E5E7EB] bg-[#F8F7F4] text-[#6B7280] hover:border-[#D1D5DB] hover:bg-white"}`}
-                    >
-                      {formatNaira(value)}
-                    </button>
-                  ))}
-                </div>
-                {/* Order Summary - Order Book */}
-                {isOrderBook && numericAmount > 0 && numericPrice > 0 && (
-                  <div className="mb-4 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3.5 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#6B7280]">Est. Shares</span>
-                      <span className="text-sm font-bold tabular-nums text-[#101828]">{estimatedShares.toFixed(2)}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#6B7280]">Price/Share</span>
-                      <span className="text-sm font-bold tabular-nums text-[#101828]">{formatNaira(numericPrice)}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#6B7280]">Total Cost</span>
-                      <span className="text-sm font-bold tabular-nums text-[#101828]">{formatNaira(numericAmount)}</span>
-                    </div>
-                    <div className="border-t border-[#E5E7EB] pt-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-[#6B7280]">If {sheetSide} wins</span>
-                        <span className="text-sm font-bold tabular-nums text-[#12B886]">
-                          {orderType === "BUY" ? `Pays ${formatNaira(estimatedShares * 100)}` : `Sell for ${formatNaira(numericAmount)}`}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-[10px] font-bold text-[#9CA3AF]">
-                        {orderType === "BUY" ? "Depends on order matching. Unmatched shares are refunded." : "You'll receive this amount from the buyer."}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Order Summary - Market */}
-                {!isOrderBook && numericAmount > 0 && selectedPrice && (
-                  <div className="mb-4 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#6B7280]">Shares You Get</span>
-                      <span className="text-sm font-bold tabular-nums text-[#101828]">{(numericAmount / selectedPrice * 100).toFixed(1)}</span>
-                    </div>
-                    <div className="mt-1.5 flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#6B7280]">If {sheetSide} wins, pays</span>
-                      <span className="text-sm font-bold tabular-nums text-[#12B886]">{formatNaira(numericAmount / selectedPrice * 100)}</span>
-                    </div>
-                    <p className="mt-2 text-[10px] font-bold leading-relaxed text-[#9CA3AF]">
-                      This is an estimate. Actual payout depends on market resolution. If {sheetSide} loses, the stake is not returned.
-                    </p>
-                  </div>
-                )}
-
-                {/* Account Info */}
-                <div className="mb-4 rounded-xl border border-[#E5E7EB] bg-[#F8F7F4] p-3.5">
-                  <Row label="Balance" value={user ? formatNaira(user.balance || 0) : "Login required"} />
-                  <Row label="Market Price" value={`YES ${formatNairaPrice(market.yesPrice)} / NO ${formatNairaPrice(market.noPrice)}`} />
-                  {activation.isProtected && (
-                    <button
-                      type="button"
-                      onClick={() => setShowProtectedInfo(true)}
-                      className="mt-2.5 w-full rounded-lg border border-[#C7D2FE] bg-[#EEF2FF] p-3 text-left transition hover:bg-[#E0E7FF]"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <Shield className="h-3.5 w-3.5 text-[#4F46E5]" />
-                          <span className="text-xs font-bold text-[#4F46E5]">Refund Protected</span>
-                        </div>
-                        <Info className="h-3.5 w-3.5 text-[#4F46E5]/60" />
-                      </div>
-                      <p className="mt-1.5 text-[10px] font-bold leading-relaxed text-[#344054]">
-                        Order is protected if market doesn&apos;t reach enough activity.
-                      </p>
-                    </button>
-                  )}
-                  {exceedsProtectedLimit && (
-                    <p className="mt-2 text-[10px] font-bold text-[#B42318]">
-                      Max {formatNaira(activation.requirements.protectedMaxStake)} per user.
-                    </p>
-                  )}
-                </div>
-
-                {/* What Happens Next */}
-                <div className="mb-4 rounded-xl border border-[#4F46E5]/15 bg-[#4F46E5]/[0.03] p-3.5">
-                  <div className="mb-2 flex items-center gap-1.5">
-                    <Info className="h-3.5 w-3.5 text-[#4F46E5]" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#4F46E5]">What happens next</span>
-                  </div>
-                  <ol className="space-y-1.5 text-[11px] leading-relaxed text-[#6B7280]">
-                    {isOrderBook ? (
-                      <>
-                        <li className="flex items-start gap-1.5">
-                          <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-[#4F46E5]" />
-                          Your funds are locked while the order is active
-                        </li>
-                        <li className="flex items-start gap-1.5">
-                          <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-[#4F46E5]" />
-                          We search for matching orders from other traders
-                        </li>
-                        <li className="flex items-start gap-1.5">
-                          <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-[#4F46E5]" />
-                          Once matched, your position is confirmed — track it in &ldquo;My Positions&rdquo;
-                        </li>
-                        <li className="flex items-start gap-1.5">
-                          <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-[#4F46E5]" />
-                          If the market closes before matching, your funds are refunded
-                        </li>
-                      </>
-                    ) : (
-                      <>
-                        <li className="flex items-start gap-1.5">
-                          <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-[#4F46E5]" />
-                          Your stake is placed immediately on the {sheetSide} side
-                        </li>
-                        <li className="flex items-start gap-1.5">
-                          <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-[#4F46E5]" />
-                          Track your position in &ldquo;My Positions&rdquo;
-                        </li>
-                        <li className="flex items-start gap-1.5">
-                          <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-[#4F46E5]" />
-                          When the market resolves, winners receive ₦100 per share
-                        </li>
-                      </>
-                    )}
-                  </ol>
-                </div>
-
-                {/* Submit */}
-                <Button
-                  onClick={confirmPrediction}
-                  disabled={submitting || numericAmount <= 0 || exceedsProtectedLimit || (isOrderBook && (numericPrice <= 0 || numericPrice >= 100))}
-                  className={`h-12 w-full rounded-xl text-sm font-bold shadow-lg transition-all duration-200 hover:shadow-xl active:scale-[0.98] disabled:shadow-none ${sheetSide === "YES" ? "bg-[#12B886] text-white shadow-[#12B886]/20 hover:bg-[#0ea371]" : "bg-[#E85D5D] text-white shadow-[#E85D5D]/20 hover:bg-[#d94c4c]"}`}
-                >
-                  {submitting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <TrendingUp className="mr-2 h-4 w-4" />
-                  )}
-                  {user
-                    ? isOrderBook
-                      ? orderType === "BUY" ? "Place Bet" : "Place Sell Order"
-                      : "Place Trade"
-                    : "Login to Trade"}
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-      {/* ── Order Placed Success Modal ── */}
+      {/* Prediction Placed Success Modal */}
       {justPredicted && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-black/35 p-4 backdrop-blur-[2px]">
           {showConfetti && (
@@ -1193,106 +641,34 @@ export default function MarketDetail() {
             <div className={`absolute inset-x-0 top-0 h-1 ${justPredicted === "YES" ? "bg-[#12B886]" : "bg-[#E85D5D]"}`} />
             <div className="relative mx-auto mb-5">
               <div className={`mx-auto grid h-16 w-16 place-items-center rounded-full text-white shadow-lg ${justPredicted === "YES" ? "bg-[#12B886] shadow-[#12B886]/25" : "bg-[#E85D5D] shadow-[#E85D5D]/25"}`}>
-                {orderJustPlaced?.order.status === "filled" ? (
-                  <CheckCircle className="h-8 w-8" />
-                ) : orderJustPlaced?.order.status === "partial" ? (
-                  <Zap className="h-8 w-8" />
-                ) : orderJustPlaced?.order.status === "waiting" ? (
-                  <Clock className="h-8 w-8" />
-                ) : (
-                  <CheckCircle className="h-8 w-8" />
-                )}
+                <CheckCircle className="h-8 w-8" />
               </div>
             </div>
-
-            <h3 className="text-2xl font-black text-[#101828]">
-              {orderJustPlaced
-                ? orderJustPlaced.order.status === "filled"
-                  ? "Order Fully Matched"
-                  : orderJustPlaced.order.status === "partial"
-                    ? "Partially Matched"
-                    : "Order Placed"
-                : `Trade Placed on ${justPredicted}`}
-            </h3>
-
-            {orderJustPlaced ? (
-              <div className="mt-3 space-y-2">
-                <p className="text-sm font-bold text-[#6B7280]">
-                  <span className={justPredicted === "YES" ? "text-[#047857]" : "text-[#B42318]"}>{orderJustPlaced.order.side}</span>
-                  {" "}
-                  {orderJustPlaced.order.order_type === "BUY" ? "Bet on" : "Sell"} at {formatNaira(orderJustPlaced.order.price)}
+            <h3 className="text-2xl font-black text-[#101828]">Prediction Placed!</h3>
+            <div className="mt-3 space-y-2">
+              <p className="text-sm font-bold text-[#6B7280]">
+                You predicted <span className={justPredicted === "YES" ? "text-[#047857]" : "text-[#B42318]"}>{justPredicted}</span>
+              </p>
+              <div className="rounded-lg bg-[#4F46E5]/[0.05] p-2.5">
+                <p className="text-[11px] font-bold leading-relaxed text-[#6B7280]">
+                  Your prediction is active. When the market resolves, the winning side splits the pool. Track it in &ldquo;My Predictions&rdquo;.
                 </p>
-                <div className="mx-auto w-fit rounded-lg bg-[#F8F7F4] px-3 py-2">
-                  <div className="flex items-center gap-4">
-                    <div className="text-center">
-                      <div className="text-[10px] font-bold uppercase text-[#9CA3AF]">Shares</div>
-                      <div className="text-sm font-bold tabular-nums text-[#111827]">{orderJustPlaced.order.quantity}</div>
-                    </div>
-                    <div className="h-6 w-px bg-[#E5E7EB]" />
-                    <div className="text-center">
-                      <div className="text-[10px] font-bold uppercase text-[#9CA3AF]">Matched</div>
-                      <div className="text-sm font-bold tabular-nums text-[#111827]">{orderJustPlaced.order.filled_quantity}</div>
-                    </div>
-                    <div className="h-6 w-px bg-[#E5E7EB]" />
-                    <div className="text-center">
-                      <div className="text-[10px] font-bold uppercase text-[#9CA3AF]">Status</div>
-                      <div className={`text-sm font-bold ${orderJustPlaced.order.status === "filled" ? "text-[#12B886]" : orderJustPlaced.order.status === "partial" ? "text-[#F59E0B]" : "text-[#4F46E5]"}`}>
-                        {orderJustPlaced.order.status === "filled" ? "Matched" : orderJustPlaced.order.status === "partial" ? "Partial" : "Waiting"}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {orderJustPlaced.order.status === "waiting" && (
-                  <div className="rounded-lg bg-[#4F46E5]/[0.05] p-2.5">
-                    <p className="text-[11px] font-bold leading-relaxed text-[#6B7280]">
-                      Your order is waiting for a matching trader. Funds are locked until matched or the market closes. You can cancel anytime.
-                    </p>
-                  </div>
-                )}
-                {orderJustPlaced.order.status === "partial" && (
-                  <div className="rounded-lg bg-[#F59E0B]/[0.05] p-2.5">
-                    <p className="text-[11px] font-bold leading-relaxed text-[#6B7280]">
-                      {orderJustPlaced.order.filled_quantity} of {orderJustPlaced.order.quantity} shares matched. Remaining shares will be matched as orders arrive.
-                    </p>
-                  </div>
-                )}
-                {orderJustPlaced.order.status === "filled" && (
-                  <div className="rounded-lg bg-[#12B886]/[0.05] p-2.5">
-                    <p className="text-[11px] font-bold leading-relaxed text-[#6B7280]">
-                      All shares matched! Your position is confirmed. Track it in &ldquo;My Positions&rdquo;.
-                    </p>
-                  </div>
-                )}
               </div>
-            ) : (
-              <div className="mt-3 space-y-2">
-                <p className="text-sm font-bold text-[#6B7280]">
-                  You backed <span className={justPredicted === "YES" ? "text-[#047857]" : "text-[#B42318]"}>{justPredicted}</span> with {formatNaira(Number.parseFloat(amount) || 0)}
-                </p>
-                <div className="rounded-lg bg-[#4F46E5]/[0.05] p-2.5">
-                  <p className="text-[11px] font-bold leading-relaxed text-[#6B7280]">
-                    Your position is active. When the market resolves, {justPredicted} side wins get ₦100 per share. Track it in &ldquo;My Positions&rdquo;.
-                  </p>
-                </div>
-              </div>
-            )}
-            <p className="mt-1 text-xs text-[#9CA3AF]">
-              {orderJustPlaced ? "Track your order status below" : "Track in My Positions"}
-            </p>
-
+            </div>
+            <p className="mt-1 text-xs text-[#9CA3AF]">Track in My Predictions</p>
             <div className="mt-6 grid gap-2">
               <Link
                 to="/portfolio"
                 onClick={() => { setJustPredicted(null); setShowConfetti(false); }}
                 className="flex h-11 items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-bold text-white shadow-lg shadow-[#4F46E5]/20 transition hover:bg-[#4338CA]"
               >
-                View Portfolio
+                View Predictions
               </Link>
               <button
                 onClick={() => { setJustPredicted(null); setShowConfetti(false); }}
                 className="h-11 rounded-xl border border-[#E5E7EB] bg-white text-sm font-bold text-[#344054] transition hover:bg-[#F3F4F6]"
               >
-                Continue Trading
+                Continue
               </button>
             </div>
           </div>
@@ -1323,6 +699,7 @@ export default function MarketDetail() {
     </div>
   );
 }
+
 /* ═══════════════════════════════════════════════════════════════
    Chart Component
    ═══════════════════════════════════════════════════════════════ */
@@ -1495,7 +872,6 @@ const Chart = ({
 
   const emptyHistory = savedHistory.length === 0;
   const currentYes = clampCrowdValue(Number(market.yesPrice || 50));
-  const currentNo = clampCrowdValue(100 - currentYes);
 
   if (emptyHistory) {
     return (
@@ -1506,7 +882,7 @@ const Chart = ({
               <TrendingUp className="h-4 w-4 text-[#9CA3AF]" />
             </div>
             <p className="text-sm font-bold text-[#111827]">No movement yet</p>
-            <p className="mt-1 text-xs text-[#9CA3AF]">Updates when people trade YES or NO</p>
+            <p className="mt-1 text-xs text-[#9CA3AF]">Updates when people predict YES or NO</p>
           </div>
         </div>
       </div>
@@ -1523,6 +899,7 @@ const Chart = ({
     </div>
   );
 };
+
 /* ═══════════════════════════════════════════════════════════════
    Small Components
    ═══════════════════════════════════════════════════════════════ */
@@ -1541,21 +918,6 @@ const StatChip = ({
     <span className="font-bold text-[#111827]">{value.toLocaleString()}</span>
     {label}
   </span>
-);
-
-const Row = ({
-  label,
-  value,
-  highlight = false,
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) => (
-  <div className="flex items-center justify-between border-b border-[#E5E7EB] py-2 last:border-0">
-    <span className="text-xs font-bold text-[#6B7280]">{label}</span>
-    <span className={`text-xs font-bold ${highlight ? "text-[#4F46E5]" : "text-[#111827]"}`}>{value}</span>
-  </div>
 );
 
 const IconButton = ({
@@ -1660,32 +1022,11 @@ const MiniStat = ({
   </div>
 );
 
-const MetaRow = ({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) => (
-  <div className="flex items-center justify-between border-b border-[#F3F4F6] py-2 last:border-0">
-    <span className="text-xs text-[#9CA3AF]">{label}</span>
-    <span className="text-xs font-bold text-[#111827]">{value}</span>
-  </div>
-);
-
 const ExternalLink = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
     <polyline points="15 3 21 3 21 9" />
     <line x1="10" y1="14" x2="21" y2="3" />
-  </svg>
-);
-
-const AlertTriangle = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-    <line x1="12" y1="9" x2="12" y2="13" />
-    <line x1="12" y1="17" x2="12.01" y2="17" />
   </svg>
 );
 

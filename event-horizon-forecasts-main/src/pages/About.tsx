@@ -39,7 +39,7 @@ export default function About() {
           <Panel title="What Flippe is">
             <p>A platform for taking positions on outcomes of public events.</p>
             <p>A wallet-linked experience where traders pick a side, track open positions, and wait for resolution.</p>
-            <p>A product designed to make market rules, order matching, Crowd View, and resolution status easier to understand.</p>
+            <p>A product designed to make market rules, pool predictions, Crowd View, and resolution status easier to understand.</p>
           </Panel>
           <Panel title="What Flippe is not">
             <p>Flippe should not be treated as guaranteed income or financial advice.</p>

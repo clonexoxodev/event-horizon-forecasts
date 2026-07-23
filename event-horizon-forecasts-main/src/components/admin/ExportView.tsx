@@ -12,8 +12,7 @@ import {
 } from "lucide-react";
 
 type ExportType =
-  | "trades"
-  | "orders"
+  | "positions"
   | "markets"
   | "users"
   | "withdrawals"
@@ -29,14 +28,9 @@ interface ExportOption {
 
 const EXPORT_OPTIONS: ExportOption[] = [
   {
-    type: "trades",
-    label: "Trades",
-    description: "All completed trades with prices and volumes",
-  },
-  {
-    type: "orders",
-    label: "Orders",
-    description: "All placed orders with statuses",
+    type: "positions",
+    label: "Positions",
+    description: "All user positions with stakes and payouts",
   },
   {
     type: "markets",

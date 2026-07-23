@@ -74,7 +74,7 @@ export const getMarketActivation = (
 };
 
 /**
- * Local optimistic update for order book markets.
+ * Local optimistic update for pool markets.
  * Adjusts volumes after a trade; authoritative prices come from the API.
  */
 export const updateMarketPricing = (

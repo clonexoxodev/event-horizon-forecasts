@@ -170,7 +170,7 @@ const Positions = () => {
                 <div className="text-sm font-bold">No positions yet</div>
                 <p className="mx-auto mt-1 max-w-xs text-xs text-[#9CA3AF]">
                   {tab === "active"
-                    ? "When your orders are matched with another trader, they become positions and appear here."
+                    ? "When you place a prediction, your position appears here."
                     : "Resolved positions will appear here once the market settles."
                   }
                 </p>

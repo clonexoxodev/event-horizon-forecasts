@@ -250,7 +250,6 @@ export type RiskCenterData = {
 
 export type SystemHealth = {
   database: { status: string; latency: number };
-  matchingEngine: { status: string };
   settlementEngine: { status: string };
   walletService: { status: string };
   paymentGateway: { status: string };

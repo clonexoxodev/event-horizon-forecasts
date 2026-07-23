@@ -93,41 +93,11 @@ const ForecastSlipContainer = () => {
     }
   };
 
-  const handleOrderConfirm = async (params: {
-    side: "YES" | "NO";
-    orderType: "BUY" | "SELL";
-    price: number;
-    quantity: number;
-  }) => {
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
-    if (!selection) {
-      throw new Error("No market selected");
-    }
-
-    const result = await apiService.createOrder(selection.marketId, {
-      side: params.side,
-      order_type: params.orderType,
-      price: params.price,
-      quantity: params.quantity,
-    });
-
-    try {
-      await refreshUser();
-    } catch (err) {
-      console.warn("User refresh after order failed", err);
-    }
-
-    return result;
-  };
-
   return (
     <ForecastSlip
       selection={selection}
       onClose={closeForecastSlip}
       onConfirm={handleConfirm}
-      onOrderConfirm={handleOrderConfirm}
     />
   );
 };

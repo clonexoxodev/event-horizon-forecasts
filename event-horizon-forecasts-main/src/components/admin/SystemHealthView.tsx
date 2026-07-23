@@ -10,7 +10,6 @@ import {
   Cpu,
   HardDrive,
   Wifi,
-  Zap,
 } from "lucide-react";
 import { apiService } from "@/lib/api";
 import { toast } from "sonner";
@@ -23,7 +22,6 @@ const SERVICE_CONFIG: Record<
   { label: string; icon: React.ElementType }
 > = {
   database: { label: "Database", icon: Database },
-  matchingEngine: { label: "Matching Engine", icon: Zap },
   settlementEngine: { label: "Settlement Engine", icon: Activity },
   walletService: { label: "Wallet Service", icon: HardDrive },
   paymentGateway: { label: "Payment Gateway", icon: Wifi },

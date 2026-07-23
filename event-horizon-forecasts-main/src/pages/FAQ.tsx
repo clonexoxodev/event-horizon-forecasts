@@ -18,8 +18,8 @@ const faqs = [
     items: [
       ["How do YES and NO work?", "YES and NO show the Crowd View. If YES is 61, NO is 39. Together they always add up to 100."],
       ["Why do YES and NO always add up to 100?", "A market resolves to one of the two outcomes. The two prices are shown as opposite sides of the same position."],
-      ["What happens when I back a side?", "Your wallet is debited, your order is recorded, and it enters the order book to be matched."],
-      ["What are units?", "Units are the number of shares your order receives when matched. The main idea is simple: you backed a side at a price."],
+      ["What happens when I back a side?", "Your wallet is debited, your stake is placed into the pool, and your position is recorded immediately."],
+      ["What are units?", "Units are the number of shares your position receives based on the pool distribution. The main idea is simple: you backed a side at a price."],
       ["Why does the Crowd View change?", "Crowd View changes as other traders back YES or NO. It is not withdrawable money and it is not guaranteed profit."],
     ],
   },
@@ -61,7 +61,7 @@ export default function FAQ() {
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#4F46E5]">FAQs</p>
               <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">Questions before you trade</h1>
               <p className="mt-3 max-w-2xl text-base leading-relaxed text-[#667085]">
-                Simple answers about Crowd View, order matching, wallet movement, and responsible use.
+                Simple answers about Crowd View, pool predictions, wallet movement, and responsible use.
               </p>
             </div>
           </div>

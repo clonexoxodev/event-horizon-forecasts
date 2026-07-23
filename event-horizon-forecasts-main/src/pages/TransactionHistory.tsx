@@ -23,7 +23,7 @@ import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
 import apiService, { type ApiTransaction } from "@/lib/api";
 
-type FilterType = "all" | "deposits" | "withdrawals" | "settlements" | "refunds" | "orders";
+type FilterType = "all" | "deposits" | "withdrawals" | "settlements" | "refunds" | "predictions";
 type FilterDirection = "all" | "IN" | "OUT";
 type FilterDateRange = "7" | "30" | "90" | "all";
 
@@ -31,13 +31,13 @@ const DEPOSIT_TYPES = ["deposit", "deposit_request", "deposit_approved"] as cons
 const WITHDRAWAL_TYPES = ["withdrawal", "withdrawal_request", "withdrawal_approved"] as const;
 const SETTLEMENT_TYPES = ["position_payout", "market_payout"] as const;
 const REFUND_TYPES = ["refund"] as const;
-const ORDER_TYPES = ["position_entry", "prediction_stake"] as const;
+const PREDICTION_TYPES = ["position_entry", "prediction_stake"] as const;
 
 const isDepositType = (t: ApiTransaction["type"]) => (DEPOSIT_TYPES as readonly string[]).includes(t);
 const isWithdrawalType = (t: ApiTransaction["type"]) => (WITHDRAWAL_TYPES as readonly string[]).includes(t);
 const isSettlementType = (t: ApiTransaction["type"]) => (SETTLEMENT_TYPES as readonly string[]).includes(t);
 const isRefundType = (t: ApiTransaction["type"]) => (REFUND_TYPES as readonly string[]).includes(t);
-const isOrderType = (t: ApiTransaction["type"]) => (ORDER_TYPES as readonly string[]).includes(t);
+const isPredictionType = (t: ApiTransaction["type"]) => (PREDICTION_TYPES as readonly string[]).includes(t);
 
 const TYPE_LABELS: Record<string, string> = {
   deposit: "Deposit",
@@ -133,7 +133,7 @@ export default function TransactionHistory() {
     else if (typeFilter === "withdrawals") result = result.filter((tx) => isWithdrawalType(tx.type));
     else if (typeFilter === "settlements") result = result.filter((tx) => isSettlementType(tx.type));
     else if (typeFilter === "refunds") result = result.filter((tx) => isRefundType(tx.type));
-    else if (typeFilter === "orders") result = result.filter((tx) => isOrderType(tx.type));
+    else if (typeFilter === "predictions") result = result.filter((tx) => isPredictionType(tx.type));
 
     if (directionFilter !== "all") result = result.filter((tx) => tx.direction === directionFilter);
 
@@ -173,7 +173,7 @@ export default function TransactionHistory() {
         totalWithdrawn += tx.amount;
       } else if (isSettlementType(tx.type) && tx.direction === "IN") {
         totalWon += tx.amount;
-      } else if (isOrderType(tx.type) && tx.direction === "OUT") {
+      } else if (isPredictionType(tx.type) && tx.direction === "OUT") {
         totalStaked += tx.amount;
       }
     }
@@ -322,7 +322,7 @@ export default function TransactionHistory() {
               <option value="withdrawals">Withdrawals</option>
               <option value="settlements">Settlements</option>
               <option value="refunds">Refunds</option>
-              <option value="orders">Orders</option>
+              <option value="predictions">Predictions</option>
             </select>
             <div className="flex gap-2">
               <select
