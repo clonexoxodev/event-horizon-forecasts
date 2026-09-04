@@ -9,7 +9,7 @@ const faqs = [
     section: "Basics",
     items: [
       ["What is Flippe?", "Flippe is a prediction exchange. Traders stop arguing and back YES or NO on public outcomes."],
-      ["Is Flippe betting?", "Flippe is designed as a position market. It still involves financial risk, so traders should treat every order carefully and only use money they can afford to lose."],
+      ["Is Flippe betting?", "Flippe is designed as a position market. It still involves financial risk, so users should treat every prediction carefully and only use money they can afford to lose."],
       ["What kinds of markets can appear?", "Markets may cover public events in sports, crypto, politics, entertainment, economy, and other topics with clear resolution sources."],
     ],
   },

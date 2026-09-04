@@ -474,7 +474,7 @@ export const MarketDetailView = ({
                     {market.participant_count || 0}
                   </span>
                 </InfoRow>
-                <InfoRow label="Trades">
+                <InfoRow label="Predictions">
                   <span className="flex items-center gap-1.5">
                     <Hash className="h-3.5 w-3.5 text-gray-400" />
                     {market.trade_count || 0}

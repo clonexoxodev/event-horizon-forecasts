@@ -8,7 +8,6 @@ export type NotificationType =
   | "new_market_added"
   | "settlement_won"
   | "settlement_lost"
-  | "order_refunded"
   | "refund";
 
 export type Notification = {
@@ -183,10 +182,6 @@ export const getNotificationStyle = (type: NotificationType) => {
     settlement_lost: {
       icon: "📉",
       color: "text-graphite bg-graphite/10",
-    },
-    order_refunded: {
-      icon: "💰",
-      color: "text-amber-600 bg-amber-50",
     },
     refund: {
       icon: "💰",

@@ -242,7 +242,7 @@ export default function Wallet() {
                 <div className="mt-4 flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2.5 backdrop-blur-sm">
                   <Clock className="h-3.5 w-3.5 text-white/60" />
                   <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">Locked in orders</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">Locked in predictions</span>
                     <span className="ml-2 text-xs font-bold text-white/80">{formatNaira(lockedBalance)}</span>
                   </div>
                 </div>

@@ -6,8 +6,8 @@ import { MobileNav } from "@/components/MobileNav";
 const steps = [
   ["Pick a market", "Browse live markets and read the question, category, rules, and closing time.", Search],
   ["Choose YES or NO", "YES and NO show the Crowd View. They always add up to 100.", BarChart3],
-  ["Enter amount", "The order slip shows your price per share, quantity, and total order value.", WalletCards],
-  ["Back your position", "Your wallet is debited and your order is saved. There is no cashout before resolution.", LockKeyhole],
+  ["Enter amount", "Set your stake. The prediction panel shows the current price your side will receive.", WalletCards],
+  ["Back your position", "Your wallet is debited and your position is saved to the pool. There is no cashout before resolution.", LockKeyhole],
   ["Track it", "My Positions shows your pick, amount backed, Crowd View, time left, and status.", Clock],
   ["Market resolves", "After the deadline, admins resolve using the stated source. Winning positions are settled at 100 per share.", CheckCircle2],
 ];
@@ -19,7 +19,7 @@ export default function HowItWorks() {
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
         <section className="rounded-3xl border border-[#E5E7EB] bg-white p-8 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#4F46E5]">How It Works</p>
-          <h1 className="mt-3 max-w-3xl text-4xl font-extrabold tracking-tight sm:text-5xl">Trade live events in a few clear steps</h1>
+          <h1 className="mt-3 max-w-3xl text-4xl font-extrabold tracking-tight sm:text-5xl">Predict live events in a few clear steps</h1>
           <p className="mt-4 max-w-3xl text-base leading-relaxed text-[#667085]">
             Flippe keeps the flow simple: choose a market, pick YES or NO, back your position with money, then track the result until resolution.
           </p>

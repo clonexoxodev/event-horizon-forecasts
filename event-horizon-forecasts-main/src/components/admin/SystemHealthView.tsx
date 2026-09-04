@@ -10,6 +10,7 @@ import {
   Cpu,
   HardDrive,
   Wifi,
+  Layers,
 } from "lucide-react";
 import { apiService } from "@/lib/api";
 import { toast } from "sonner";
@@ -22,6 +23,7 @@ const SERVICE_CONFIG: Record<
   { label: string; icon: React.ElementType }
 > = {
   database: { label: "Database", icon: Database },
+  poolEngine: { label: "Pool Engine", icon: Layers },
   settlementEngine: { label: "Settlement Engine", icon: Activity },
   walletService: { label: "Wallet Service", icon: HardDrive },
   paymentGateway: { label: "Payment Gateway", icon: Wifi },
@@ -57,7 +59,7 @@ const normalizeStatus = (s: string): "success" | "warning" | "danger" =>
 const overallStatus = (health: SystemHealth): "success" | "warning" | "danger" => {
   const statuses: string[] = [
     health.database?.status,
-    health.matchingEngine?.status,
+    health.poolEngine?.status,
     health.settlementEngine?.status,
     health.walletService?.status,
     health.paymentGateway?.status,

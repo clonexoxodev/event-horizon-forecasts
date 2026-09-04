@@ -44,7 +44,7 @@ export default function Privacy() {
 
         <section className="mt-8 grid gap-6 lg:grid-cols-2">
           <Panel icon={Lock} title="How data may be used">
-            <p>To keep traders logged in, show wallet balances, place orders, process deposits and withdrawals, resolve markets, prevent abuse, and improve app reliability.</p>
+            <p>To keep traders logged in, show wallet balances, place predictions, process deposits and withdrawals, resolve markets, prevent abuse, and improve app reliability.</p>
             <p>Financial ledger records may need to be retained for accounting, dispute, security, or legal reasons.</p>
           </Panel>
           <Panel icon={EyeOff} title="Public and private activity">

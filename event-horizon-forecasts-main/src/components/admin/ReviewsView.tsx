@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Inbox, CheckCircle2, XCircle, Loader2, RefreshCw, Clock } from "lucide-react";
 import { toast } from "sonner";
-import apiService, { type ApiRequestError } from "@/lib/api";
+import apiService, { ApiRequestError } from "@/lib/api";
 import { getCategoryLabel } from "@/lib/categories";
 import { classNames } from "./utils";
 

@@ -170,26 +170,15 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
 };
 
 export type PlatformStats = {
-  totalUsers: number;
-  verifiedUsers: number;
-  pendingVerification: number;
-  activeMarkets: number;
-  pendingMarkets: number;
-  resolvedMarkets: number;
-  cancelledMarkets: number;
-  protectedMarkets: number;
-  todaysTrades: number;
-  todaysVolume: number;
-  todaysDeposits: number;
-  todaysWithdrawals: number;
-  todaysRefunds: number;
-  todaysPayouts: number;
-  walletBalances: number;
-  lockedBalances: number;
-  platformRevenue: number;
-  pendingSettlements: number;
-  failedSettlements: number;
-  avgSettlementTime: number;
+  users: { total: number; verified: number; pending: number };
+  markets: { total: number; active: number; pending: number; resolved: number; cancelled: number; protected: number };
+  predictions: { today: number; staked: number };
+  transactions: { todayDeposits: number; todayWithdrawals: number; todayRefunds: number; todayPayouts: number };
+  wallets: { totalBalance: number; totalLocked: number };
+  revenue: { total: number };
+  withdrawalRequests: { pending: number };
+  settlements: { pending: number; failed: number };
+  avgSettlementTimeSeconds: number;
 };
 
 export type FeatureFlag = {
@@ -251,6 +240,7 @@ export type RiskCenterData = {
 
 export type SystemHealth = {
   database: { status: string; latency: number };
+  poolEngine: { status: string };
   settlementEngine: { status: string };
   walletService: { status: string };
   paymentGateway: { status: string };
@@ -260,11 +250,10 @@ export type SystemHealth = {
 };
 
 export type MarketAnalytics = {
-  totalOrders: number;
-  matchedOrders: number;
-  waitingOrders: number;
-  partiallyFilled: number;
-  cancelledOrders: number;
+  totalPositions: number;
+  matchedPositions: number;
+  activePositions: number;
+  refundedPositions: number;
   totalVolume: number;
   yesVolume: number;
   noVolume: number;
@@ -277,9 +266,8 @@ export type MarketAnalytics = {
 
 export type UserAnalytics = {
   lifetimeVolume: number;
-  totalOrders: number;
-  matchedOrders: number;
-  cancelledOrders: number;
+  totalPositions: number;
+  matchedPositions: number;
   wins: number;
   losses: number;
   winRate: number;
@@ -287,7 +275,7 @@ export type UserAnalytics = {
   roi: number;
   largestWin: number;
   largestLoss: number;
-  avgOrderSize: number;
+  avgStake: number;
 };
 
 export const ADMIN_MEDIA_ACCEPT = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm";

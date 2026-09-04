@@ -83,29 +83,29 @@ export function AnalyticsView() {
             <MetricCard
               icon={<Users className="h-4 w-4" />}
               label="Total Users"
-              value={(stats?.totalUsers ?? 0).toLocaleString()}
+              value={(stats?.users?.total ?? 0).toLocaleString()}
               sub="Registered accounts"
               tone="blue"
             />
             <MetricCard
               icon={<TrendingUp className="h-4 w-4" />}
               label="Active Markets"
-              value={(stats?.activeMarkets ?? 0).toLocaleString()}
-              sub="Currently trading"
+              value={(stats?.markets?.active ?? 0).toLocaleString()}
+              sub="Currently predicting"
               tone="green"
             />
             <MetricCard
               icon={<Activity className="h-4 w-4" />}
-              label="Today's Trades"
-              value={(stats?.todaysTrades ?? 0).toLocaleString()}
+              label="Today's Predictions"
+              value={(stats?.predictions?.today ?? 0).toLocaleString()}
               sub="Positions placed today"
               tone="indigo"
             />
             <MetricCard
               icon={<DollarSign className="h-4 w-4" />}
               label="Today's Volume"
-              value={formatNaira(stats?.todaysVolume ?? 0)}
-              sub="Total traded today"
+              value={formatNaira(stats?.predictions?.staked ?? 0)}
+              sub="Total staked today"
               tone="amber"
             />
           </div>
@@ -114,28 +114,28 @@ export function AnalyticsView() {
             <MetricCard
               icon={<ArrowUpRight className="h-4 w-4" />}
               label="Today's Deposits"
-              value={formatNaira(stats?.todaysDeposits ?? 0)}
+              value={formatNaira(stats?.transactions?.todayDeposits ?? 0)}
               sub="Funds deposited today"
               tone="green"
             />
             <MetricCard
               icon={<ArrowDownRight className="h-4 w-4" />}
               label="Today's Withdrawals"
-              value={formatNaira(stats?.todaysWithdrawals ?? 0)}
+              value={formatNaira(stats?.transactions?.todayWithdrawals ?? 0)}
               sub="Funds withdrawn today"
               tone="red"
             />
             <MetricCard
               icon={<BarChart3 className="h-4 w-4" />}
               label="Platform Revenue"
-              value={formatNaira(stats?.platformRevenue ?? 0)}
+              value={formatNaira(stats?.revenue?.total ?? 0)}
               sub="Total revenue earned"
               tone="blue"
             />
             <MetricCard
               icon={<DollarSign className="h-4 w-4" />}
               label="Pending Settlements"
-              value={(stats?.pendingSettlements ?? 0).toLocaleString()}
+              value={(stats?.settlements?.pending ?? 0).toLocaleString()}
               sub="Awaiting resolution"
               tone="amber"
             />
@@ -145,28 +145,28 @@ export function AnalyticsView() {
             <MetricCard
               icon={<Clock className="h-4 w-4" />}
               label="Avg Settlement Time"
-              value={`${stats?.avgSettlementTime ?? 0}s`}
+              value={`${stats?.avgSettlementTimeSeconds ?? 0}s`}
               sub="Average time to settle"
               tone="neutral"
             />
             <MetricCard
               icon={<Activity className="h-4 w-4" />}
               label="Failed Settlements"
-              value={(stats?.failedSettlements ?? 0).toLocaleString()}
+              value={(stats?.settlements?.failed ?? 0).toLocaleString()}
               sub="Requires attention"
               tone="red"
             />
             <MetricCard
               icon={<TrendingUp className="h-4 w-4" />}
               label="Wallet Balances"
-              value={formatNaira(stats?.walletBalances ?? 0)}
+              value={formatNaira(stats?.wallets?.totalBalance ?? 0)}
               sub="Total user wallet funds"
               tone="green"
             />
             <MetricCard
               icon={<DollarSign className="h-4 w-4" />}
               label="Locked Balances"
-              value={formatNaira(stats?.lockedBalances ?? 0)}
+              value={formatNaira(stats?.wallets?.totalLocked ?? 0)}
               sub="Funds locked in positions"
               tone="amber"
             />

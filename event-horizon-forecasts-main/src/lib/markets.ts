@@ -75,7 +75,7 @@ export const getMarketActivation = (
 
 /**
  * Local optimistic update for pool markets.
- * Adjusts volumes after a trade; authoritative prices come from the API.
+ * Adjusts volumes after a prediction; authoritative prices come from the API.
  */
 export const updateMarketPricing = (
   market: Market,
@@ -115,7 +115,7 @@ export const placePosition = async (
     await apiService.placePrediction(marketId, { side, amount: stake, currency: "NGN" });
     return { error: null };
   } catch (error: any) {
-    return { error: error.message || "Failed to place order" };
+    return { error: error.message || "Failed to place prediction" };
   }
 };
 

@@ -5482,12 +5482,6 @@ app.get('/api/admin/markets/:marketId/settlement-status', authenticate, requireR
       .is('resolved_at', null)
       .not('status', 'in', '("won","lost","settled","refunded")');
 
-    const { data: activeOrders } = await supabase
-      .from('orders')
-      .select('id, user_id, side, order_type, status, locked_amount')
-      .eq('market_id', marketId)
-      .in('status', ['waiting', 'partial', 'pending']);
-
     const { data: recentAudit } = await supabase
       .from('settlement_audit_log')
       .select('*')
@@ -5500,8 +5494,7 @@ app.get('/api/admin/markets/:marketId/settlement-status', authenticate, requireR
       settlement: {
         ...market,
         unsettledPositionCount: unsettledPositions?.length || 0,
-        activeOrderCount: activeOrders?.length || 0,
-        activeOrderLockedTotal: (activeOrders || []).reduce((sum: number, o: any) => sum + Number(o.locked_amount || 0), 0),
+        unsettledPositionLockedTotal: (unsettledPositions || []).reduce((sum: number, p: any) => sum + Number(p.amount_smallest_unit || 0), 0),
         recentAudit: recentAudit || [],
       },
     });
@@ -5513,7 +5506,7 @@ app.get('/api/admin/markets/:marketId/settlement-status', authenticate, requireR
 
 /**
  * POST /api/admin/markets/:marketId/refund
- * Refund all positions and orders for a market.
+ * Refund all positions for a market.
  */
 app.post('/api/admin/markets/:marketId/refund', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
   try {
@@ -6622,7 +6615,7 @@ app.get('/api/admin/platform-stats', authenticate, requireRole('admin'), async (
       supabase.from('markets').select('id', { count: 'exact', head: true }).eq('status', 'resolved'),
       supabase.from('markets').select('id', { count: 'exact', head: true }).eq('status', 'cancelled'),
       supabase.from('markets').select('id', { count: 'exact', head: true }).eq('is_protected', true),
-      supabase.from('positions').select('id', { count: 'exact', head: true }).gte('created_at', todayIso),
+      supabase.from('positions').select('amount_smallest_unit').gte('created_at', todayIso),
       supabase.from('transactions').select('amount_smallest_unit').eq('type', 'deposit').eq('status', 'completed').gte('created_at', todayIso),
       supabase.from('transactions').select('amount_smallest_unit').eq('type', 'withdrawal').eq('status', 'completed').gte('created_at', todayIso),
       supabase.from('transactions').select('amount_smallest_unit').eq('type', 'refund').eq('status', 'completed').gte('created_at', todayIso),
@@ -6672,7 +6665,8 @@ app.get('/api/admin/platform-stats', authenticate, requireRole('admin'), async (
           protected: marketsProtectedResult.count || 0,
         },
         predictions: {
-          today: predictionsTodayResult.count || 0,
+          today: (predictionsTodayResult.data || []).length,
+          staked: toAmount(sum(predictionsTodayResult.data)),
         },
         transactions: {
           todayDeposits: toAmount(sum(txTodayDepositsResult.data)),
@@ -6718,47 +6712,25 @@ app.get('/api/admin/market-analytics/:marketId', authenticate, requireRole('admi
     }
 
     const [
-      ordersTotalResult,
-      ordersFilledResult,
-      ordersOpenResult,
-      ordersPartialResult,
-      ordersCancelledResult,
-      ordersExpiredResult,
-      ordersRefundedResult,
-      tradesData,
-      ordersPriceData,
-      largestOrderResult,
-      largestTradeResult,
-      openOrdersLiq,
       positionsData,
       settlementsResult,
     ] = await Promise.all([
-      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('market_id', marketId),
-      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('market_id', marketId).eq('status', 'filled'),
-      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('market_id', marketId).eq('status', 'open'),
-      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('market_id', marketId).eq('status', 'partially_filled'),
-      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('market_id', marketId).eq('status', 'cancelled'),
-      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('market_id', marketId).eq('status', 'expired'),
-      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('market_id', marketId).eq('status', 'refunded'),
-      supabase.from('trades').select('total_cost_smallest_unit, side, created_at').eq('market_id', marketId),
-      supabase.from('orders').select('price_per_unit').eq('market_id', marketId).not('price_per_unit', 'is', null),
-      supabase.from('orders').select('*').eq('market_id', marketId).order('amount_smallest_unit', { ascending: false }).limit(1),
-      supabase.from('trades').select('*').eq('market_id', marketId).order('total_cost_smallest_unit', { ascending: false }).limit(1),
-      supabase.from('orders').select('remaining_amount_smallest_unit').eq('market_id', marketId).eq('status', 'open'),
-      supabase.from('positions').select('side, amount_smallest_unit').eq('market_id', marketId),
+      supabase.from('positions').select('side, amount_smallest_unit, entry_price, status, created_at').eq('market_id', marketId),
       supabase.from('settlements').select('*').eq('market_id', marketId).order('created_at', { ascending: false }).limit(1),
     ]);
 
-    const volumeYes = (tradesData.data || []).filter((t: any) => t.side === 'yes').reduce((s: number, t: any) => s + Number(t.total_cost_smallest_unit || 0), 0);
-    const volumeNo = (tradesData.data || []).filter((t: any) => t.side === 'no').reduce((s: number, t: any) => s + Number(t.total_cost_smallest_unit || 0), 0);
+    const positions = positionsData.data || [];
+    const livePositions = positions.filter((p: any) => !['won', 'lost', 'settled', 'refunded'].includes(p.status));
+    const volumeYes = positions.filter((p: any) => p.side === 'yes').reduce((s: number, p: any) => s + Number(p.amount_smallest_unit || 0), 0);
+    const volumeNo = positions.filter((p: any) => p.side === 'no').reduce((s: number, p: any) => s + Number(p.amount_smallest_unit || 0), 0);
 
-    const prices = (ordersPriceData.data || []).map((o: any) => Number(o.price_per_unit)).filter((p: number) => !isNaN(p));
+    const prices = positions.map((p: any) => Number(p.entry_price)).filter((p: number) => !isNaN(p) && p > 0);
     const avgPrice = prices.length > 0 ? prices.reduce((a: number, b: number) => a + b, 0) / prices.length : 0;
     const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
     const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
 
-    const liquidity = (openOrdersLiq.data || []).reduce((s: number, o: any) => s + Number(o.remaining_amount_smallest_unit || 0), 0);
-    const exposure = (positionsData.data || []).reduce((s: number, p: any) => s + Number(p.amount_smallest_unit || 0), 0);
+    const liquidity = livePositions.reduce((s: number, p: any) => s + Number(p.amount_smallest_unit || 0), 0);
+    const exposure = positions.reduce((s: number, p: any) => s + Number(p.amount_smallest_unit || 0), 0);
 
     const now = Date.now();
     const closeTime = market.close_time ? new Date(market.close_time).getTime() : null;
@@ -6770,8 +6742,8 @@ app.get('/api/admin/market-analytics/:marketId', authenticate, requireRole('admi
     }
 
     const protectedThreshold = market.protected_threshold || null;
-    const yesPositions = (positionsData.data || []).filter((p: any) => p.side === 'yes').reduce((s: number, p: any) => s + Number(p.amount_smallest_unit || 0), 0);
-    const noPositions = (positionsData.data || []).filter((p: any) => p.side === 'no').reduce((s: number, p: any) => s + Number(p.amount_smallest_unit || 0), 0);
+    const yesPositions = volumeYes;
+    const noPositions = volumeNo;
     const totalPos = yesPositions + noPositions;
     const progress = totalPos > 0 ? (yesPositions / totalPos) : 0.5;
 
@@ -6781,14 +6753,11 @@ app.get('/api/admin/market-analytics/:marketId', authenticate, requireRole('admi
         marketId,
         question: market.question,
         status: market.status,
-        orders: {
-          total: ordersTotalResult.count || 0,
-          matched: ordersFilledResult.count || 0,
-          waiting: ordersOpenResult.count || 0,
-          partiallyFilled: ordersPartialResult.count || 0,
-          cancelled: ordersCancelledResult.count || 0,
-          expired: ordersExpiredResult.count || 0,
-          refunded: ordersRefundedResult.count || 0,
+        positions: {
+          total: positions.length,
+          matched: positions.filter((p: any) => ['won', 'lost', 'settled'].includes(String(p.status))).length,
+          active: livePositions.length,
+          refunded: positions.filter((p: any) => String(p.status) === 'refunded').length,
         },
         volume: {
           yes: toAmount(volumeYes),
@@ -6800,8 +6769,6 @@ app.get('/api/admin/market-analytics/:marketId', authenticate, requireRole('admi
           max: maxPrice,
           min: minPrice,
         },
-        largestOrder: largestOrderResult.data?.[0] || null,
-        largestTrade: largestTradeResult.data?.[0] || null,
         timeRemainingMs: timeRemaining,
         liquidity: toAmount(liquidity),
         exposure: toAmount(exposure),
@@ -6831,50 +6798,44 @@ app.get('/api/admin/user-analytics/:userId', authenticate, requireRole('admin'),
     }
 
     const [
-      ordersTotalResult,
-      ordersFilledResult,
-      ordersCancelledResult,
-      tradesData,
-      positionsData,
+      positionsResult,
       walletResult,
       recentTransactionsResult,
       depositsResult,
       withdrawalsResult,
     ] = await Promise.all([
-      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'filled'),
-      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'cancelled'),
-      supabase.from('trades').select('total_cost_smallest_unit, profit_smallest_unit, created_at').eq('user_id', userId),
-      supabase.from('positions').select('side, amount_smallest_unit, status, resolved_outcome, market_id').eq('user_id', userId),
+      supabase.from('positions').select('side, amount_smallest_unit, status, profit_smallest_unit, market_id').eq('user_id', userId),
       supabase.from('wallets').select('balance_ngn_kobo, available_ngn_kobo, locked_ngn_kobo').eq('user_id', userId).maybeSingle(),
       supabase.from('transactions').select('id, type, amount_smallest_unit, status, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(10),
       supabase.from('transactions').select('amount_smallest_unit, status').eq('user_id', userId).eq('type', 'deposit').eq('status', 'completed'),
       supabase.from('transactions').select('amount_smallest_unit, status').eq('user_id', userId).eq('type', 'withdrawal').eq('status', 'completed'),
     ]);
 
-    const lifetimeVolume = (tradesData.data || []).reduce((s: number, t: any) => s + Number(t.total_cost_smallest_unit || 0), 0);
-    const wins = (positionsData.data || []).filter((p: any) => p.status === 'won').length;
-    const losses = (positionsData.data || []).filter((p: any) => p.status === 'lost').length;
+    const positions = positionsResult.data || [];
+    const lifetimeVolume = positions.reduce((s: number, p: any) => s + Number(p.amount_smallest_unit || 0), 0);
+    const wins = positions.filter((p: any) => p.status === 'won').length;
+    const losses = positions.filter((p: any) => p.status === 'lost').length;
     const totalResolved = wins + losses;
     const winRate = totalResolved > 0 ? wins / totalResolved : 0;
 
-    const profit = (tradesData.data || []).reduce((s: number, t: any) => s + Number(t.profit_smallest_unit || 0), 0);
+    const totalProfit = positions.reduce((s: number, p: any) => s + Number(p.profit_smallest_unit || 0), 0);
     const totalInvested = lifetimeVolume;
-    const roi = totalInvested > 0 ? (profit / totalInvested) * 100 : 0;
+    const roi = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
 
     let largestWin = 0;
     let largestLoss = 0;
-    for (const t of tradesData.data || []) {
-      const p = Number(t.profit_smallest_unit || 0);
+    for (const pos of positions) {
+      const p = Number(pos.profit_smallest_unit || 0);
       if (p > largestWin) largestWin = p;
       if (p < largestLoss) largestLoss = p;
     }
 
-    const ordersCount = ordersTotalResult.count || 0;
-    const avgOrderSize = ordersCount > 0 ? lifetimeVolume / ordersCount : 0;
+    const matchedPositions = positions.filter((p: any) => ['won', 'lost', 'settled'].includes(String(p.status))).length;
+    const totalPositions = positions.length;
+    const avgStake = totalPositions > 0 ? lifetimeVolume / totalPositions : 0;
 
     const categoryCount = new Map<string, number>();
-    for (const pos of positionsData.data || []) {
+    for (const pos of positions) {
       if (pos.market_id) {
         const { data: mkt } = await supabase.from('markets').select('category').eq('id', pos.market_id).single();
         if (mkt?.category) {
@@ -6903,10 +6864,9 @@ app.get('/api/admin/user-analytics/:userId', authenticate, requireRole('admin'),
           createdAt: user.created_at,
           accountStatus: user.account_status,
         },
-        orders: {
-          total: ordersTotalResult.count || 0,
-          matched: ordersFilledResult.count || 0,
-          cancelled: ordersCancelledResult.count || 0,
+        positions: {
+          total: totalPositions,
+          matched: matchedPositions,
         },
         volume: {
           lifetime: toAmount(lifetimeVolume),
@@ -6914,11 +6874,11 @@ app.get('/api/admin/user-analytics/:userId', authenticate, requireRole('admin'),
         wins,
         losses,
         winRate: Math.round(winRate * 10000) / 100,
-        profit: toAmount(profit),
+        profit: toAmount(totalProfit),
         roi: Math.round(roi * 100) / 100,
         largestWin: toAmount(largestWin),
         largestLoss: toAmount(largestLoss),
-        avgOrderSize: toAmount(avgOrderSize),
+        avgStake: toAmount(avgStake),
         favouriteCategory,
         recentActivity: (recentTransactionsResult.data || []).map((tx: any) => ({
           id: tx.id,
@@ -7111,12 +7071,12 @@ app.get('/api/admin/system-health', authenticate, requireRole('admin'), async (_
       databaseStatus = 'error';
     }
 
-    let matchingEngineStatus = 'healthy';
+    let poolEngineStatus = 'healthy';
     try {
-      const { error } = await supabase.from('orders').select('id', { count: 'exact', head: true });
-      if (error) matchingEngineStatus = 'degraded';
+      const { error } = await supabase.from('positions').select('id', { count: 'exact', head: true });
+      if (error) poolEngineStatus = 'degraded';
     } catch {
-      matchingEngineStatus = 'error';
+      poolEngineStatus = 'error';
     }
 
     let settlementEngineStatus = 'healthy';
@@ -7138,9 +7098,9 @@ app.get('/api/admin/system-health', authenticate, requireRole('admin'), async (_
     const apiResponseTime = Date.now() - apiStart;
 
     const overallStatus =
-      databaseStatus === 'error' || matchingEngineStatus === 'error' || settlementEngineStatus === 'error' || walletServiceStatus === 'error'
+      databaseStatus === 'error' || poolEngineStatus === 'error' || settlementEngineStatus === 'error' || walletServiceStatus === 'error'
         ? 'unhealthy'
-        : databaseStatus === 'degraded' || matchingEngineStatus === 'degraded' || settlementEngineStatus === 'degraded' || walletServiceStatus === 'degraded'
+        : databaseStatus === 'degraded' || poolEngineStatus === 'degraded' || settlementEngineStatus === 'degraded' || walletServiceStatus === 'degraded'
           ? 'degraded'
           : 'healthy';
 
@@ -7151,7 +7111,7 @@ app.get('/api/admin/system-health', authenticate, requireRole('admin'), async (_
         timestamp: new Date().toISOString(),
         components: {
           database: { status: databaseStatus, latencyMs: databaseLatency },
-          matchingEngine: { status: matchingEngineStatus },
+          poolEngine: { status: poolEngineStatus },
           settlementEngine: { status: settlementEngineStatus },
           walletService: { status: walletServiceStatus },
         },
@@ -7277,10 +7237,10 @@ app.get('/api/admin/search', authenticate, requireRole('admin'), async (req: Req
 
     const term = `%${q}%`;
 
-    const [usersResult, marketsResult, ordersResult, txResult] = await Promise.all([
+    const [usersResult, marketsResult, positionsResult, txResult] = await Promise.all([
       supabase.from('users').select('id, email, username, name, role, created_at').or(`email.ilike.${term},username.ilike.${term}`).limit(20),
       supabase.from('markets').select('id, question, category, status, created_at').ilike('question', term).limit(20),
-      supabase.from('orders').select('id, market_id, user_id, side, status, amount_smallest_unit, created_at').eq('id', q).limit(10),
+      supabase.from('positions').select('id, market_id, user_id, side, status, amount_smallest_unit, created_at').eq('id', q).limit(10),
       supabase.from('transactions').select('id, user_id, type, amount_smallest_unit, status, reference_id, created_at').or(`id.eq.${q},reference_id.eq.${q}`).limit(20),
     ]);
 
@@ -7289,7 +7249,7 @@ app.get('/api/admin/search', authenticate, requireRole('admin'), async (req: Req
       results: {
         users: usersResult.data || [],
         markets: marketsResult.data || [],
-        orders: ordersResult.data || [],
+        positions: positionsResult.data || [],
         transactions: txResult.data || [],
       },
     });
@@ -7307,8 +7267,7 @@ app.get('/api/admin/export/:type', authenticate, requireRole('admin'), async (re
     const to = typeof req.query.to === 'string' ? req.query.to : null;
 
     const validTypes: Record<string, { table: string; fields: string }> = {
-      trades: { table: 'trades', fields: '*' },
-      orders: { table: 'orders', fields: '*' },
+      positions: { table: 'positions', fields: '*' },
       markets: { table: 'markets', fields: '*' },
       users: { table: 'users', fields: 'id, email, username, name, role, created_at, account_status' },
       withdrawals: { table: 'withdrawal_requests', fields: '*' },
