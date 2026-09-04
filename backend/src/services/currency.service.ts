@@ -113,7 +113,7 @@ export class CurrencyService {
       throw new Error(`Exchange API returned ${response.status}: ${response.statusText}`);
     }
 
-    const data: CurrencyConversionResponse = await response.json();
+    const data = (await response.json()) as CurrencyConversionResponse;
     
     if (!data.success || !data.rates[to]) {
       throw new Error(`Invalid exchange rate response for ${from} to ${to}`);

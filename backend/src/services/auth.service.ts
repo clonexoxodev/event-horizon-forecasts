@@ -42,7 +42,6 @@ export class AuthService {
     }
 
     if (existingUsers && existingUsers.length > 0) {
-      const existingUser = existingUsers[0];
       const { data: emailCheck } = await supabase
         .from('users')
         .select('id')
@@ -82,7 +81,7 @@ export class AuthService {
       }
 
       // Create zero-balance wallet
-      const { data: newWallet, error: walletError } = await supabase
+      const { error: walletError } = await supabase
         .from('wallets')
         .insert({
           user_id: newUser.id,

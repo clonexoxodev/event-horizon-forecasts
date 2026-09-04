@@ -146,7 +146,7 @@ router.post('/login', async (req: Request, res: Response) => {
  * POST /api/auth/logout
  * Logout user
  */
-router.post('/logout', (req: Request, res: Response) => {
+router.post('/logout', (_req: Request, res: Response) => {
   try {
     // Clear httpOnly cookie
     res.clearCookie('auth_token', clearAuthCookieOptions);

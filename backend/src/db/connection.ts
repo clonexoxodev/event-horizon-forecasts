@@ -47,7 +47,7 @@ export async function testConnection(): Promise<boolean> {
     console.log('PostgreSQL connected successfully at:', result.rows[0].now);
     client.release();
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('PostgreSQL connection error details:', {
       message: error.message,
       code: error.code,

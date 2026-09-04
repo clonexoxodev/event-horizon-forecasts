@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { initializeDatabase, dropAllTables, resetDatabase } from './initialize.js';
+import { initializeDatabase, resetDatabase } from './initialize.js';
 import { query, testConnection } from './connection.js';
 
 describe('Database Initialization', () => {

@@ -1,11 +1,11 @@
-import { Home, Briefcase, Menu, Wallet } from "lucide-react";
+import { Home, Briefcase, Menu, Wallet, PlusCircle } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 const navItems = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/portfolio", icon: Briefcase, label: "Portfolio" },
+  { to: "/create", icon: PlusCircle, label: "Create" },
   { to: "/wallet", icon: Wallet, label: "Wallet" },
-  { to: "/more", icon: Menu, label: "More" },
 ];
 
 export const MobileNav = () => {

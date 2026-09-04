@@ -185,7 +185,7 @@ export default function Settings() {
               <LinkRow
                 icon={ExternalLink}
                 label="Risk disclaimer"
-                description="Important information about trading market risks."
+                description="Important information about prediction pool risks."
                 href="/responsible-use"
               />
             </div>

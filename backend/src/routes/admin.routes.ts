@@ -237,7 +237,7 @@ router.post('/remove-admin', authMiddleware.authenticate, requireRole('super_adm
  * GET /api/admin/list-admins
  * Get list of all admins (super_admin only)
  */
-router.get('/list-admins', authMiddleware.authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+router.get('/list-admins', authMiddleware.authenticate, requireRole('super_admin'), async (_req: Request, res: Response) => {
   try {
     // Query all users with admin or super_admin role
     const { data: admins, error } = await supabase
@@ -282,7 +282,7 @@ router.get('/list-admins', authMiddleware.authenticate, requireRole('super_admin
  * GET /api/admin/analytics
  * Get platform analytics (super_admin only)
  */
-router.get('/analytics', authMiddleware.authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+router.get('/analytics', authMiddleware.authenticate, requireRole('super_admin'), async (_req: Request, res: Response) => {
   try {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
@@ -396,7 +396,7 @@ router.get('/analytics', authMiddleware.authenticate, requireRole('super_admin')
  * GET /api/admin/users
  * View users (super_admin only)
  */
-router.get('/users', authMiddleware.authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+router.get('/users', authMiddleware.authenticate, requireRole('super_admin'), async (_req: Request, res: Response) => {
   try {
     const { data: users, error } = await supabase
       .from('users')
@@ -425,7 +425,7 @@ router.get('/users', authMiddleware.authenticate, requireRole('super_admin'), as
  * GET /api/admin/transactions
  * View transactions (super_admin only)
  */
-router.get('/transactions', authMiddleware.authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+router.get('/transactions', authMiddleware.authenticate, requireRole('super_admin'), async (_req: Request, res: Response) => {
   try {
     const { data: transactions, error } = await supabase
       .from('transactions')

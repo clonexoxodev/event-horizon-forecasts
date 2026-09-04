@@ -106,7 +106,7 @@ const Index = () => {
                 <Zap className="h-4 w-4" />{liveCount} Live Markets
               </div>
               <h1 className="font-display text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-                Trade Real-World Outcomes
+                Predict Real-World Outcomes
               </h1>
               <p className="mx-auto mt-4 max-w-lg text-base leading-relaxed text-white/80">
                 Predict what happens next. Earn from your insights.

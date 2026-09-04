@@ -45,6 +45,7 @@ export class AuditLoggingMiddleware {
 
     // Store original res.json to intercept response
     const originalJson = res.json.bind(res);
+    const auditRepo = this.auditRepo;
 
     // Override res.json to capture response data
     res.json = function (body: any): Response {
@@ -56,7 +57,6 @@ export class AuditLoggingMiddleware {
 
         // Log audit entry asynchronously (don't block response)
         if (marketId && req.auditContext.actionType) {
-          const auditRepo = this.auditRepo;
           setImmediate(async () => {
             try {
               // Calculate changed fields for updates
@@ -88,7 +88,7 @@ export class AuditLoggingMiddleware {
               await auditRepo.create({
                 market_id: marketId,
                 admin_user_id: req.user!.userId,
-                action_type: req.auditContext!.actionType,
+                action_type: req.auditContext!.actionType!,
                 changed_fields: changedFields,
                 snapshot_before: req.auditContext!.snapshotBefore,
                 snapshot_after: snapshotAfter,
@@ -114,7 +114,7 @@ export class AuditLoggingMiddleware {
    * Helper to set audit context for create operations
    */
   static forCreate(): (req: Request, res: Response, next: NextFunction) => void {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return (req: Request, _res: Response, next: NextFunction) => {
       req.auditContext = {
         actionType: 'create',
       };
@@ -127,7 +127,7 @@ export class AuditLoggingMiddleware {
    * Requires the existing market to be loaded first
    */
   static forUpdate(getExistingMarket: (req: Request) => Promise<Market | null>): (req: Request, res: Response, next: NextFunction) => Promise<void> {
-    return async (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, _res: Response, next: NextFunction) => {
       try {
         const existingMarket = await getExistingMarket(req);
         
@@ -153,7 +153,7 @@ export class AuditLoggingMiddleware {
    * Requires the existing market to be loaded first
    */
   static forStatusChange(getExistingMarket: (req: Request) => Promise<Market | null>): (req: Request, res: Response, next: NextFunction) => Promise<void> {
-    return async (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, _res: Response, next: NextFunction) => {
       try {
         const existingMarket = await getExistingMarket(req);
         
@@ -179,7 +179,7 @@ export class AuditLoggingMiddleware {
    * Requires the existing market to be loaded first
    */
   static forDelete(getExistingMarket: (req: Request) => Promise<Market | null>): (req: Request, res: Response, next: NextFunction) => Promise<void> {
-    return async (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, _res: Response, next: NextFunction) => {
       try {
         const existingMarket = await getExistingMarket(req);
         

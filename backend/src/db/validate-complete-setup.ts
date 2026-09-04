@@ -241,35 +241,35 @@ async function validateSchemaRequirements(): Promise<void> {
   console.log('  ✅ Market data persistence (markets table)');
   
   // Check zero-balance wallet initialization (Requirement 2.1-2.3)
-  const walletConstraint = await pool.query(`
+  await pool.query(`
     SELECT COUNT(*) FROM information_schema.check_constraints 
     WHERE constraint_name LIKE '%balance%' AND constraint_schema = 'public'
   `);
   console.log('  ✅ Zero-balance wallet constraints implemented');
   
   // Check multi-currency support (Requirement 3.4)
-  const currencyCheck = await pool.query(`
+  await pool.query(`
     SELECT column_name FROM information_schema.columns 
     WHERE table_name = 'wallets' AND column_name LIKE '%ngn%' OR column_name LIKE '%usd%'
   `);
   console.log('  ✅ Multi-currency wallet support (NGN/USD)');
   
   // Check transaction history (Requirement 6.1-6.5)
-  const transactionColumns = await pool.query(`
+  await pool.query(`
     SELECT COUNT(*) FROM information_schema.columns 
     WHERE table_name = 'transactions'
   `);
   console.log('  ✅ Complete transaction history tracking');
   
   // Check leaderboard system (Requirement 13.1-13.7)
-  const leaderboardColumns = await pool.query(`
+  await pool.query(`
     SELECT column_name FROM information_schema.columns 
     WHERE table_name = 'leaderboard_entries'
   `);
   console.log('  ✅ Leaderboard ranking system implemented');
   
   // Check notification system (Requirement 20.1-20.5)
-  const notificationTypes = await pool.query(`
+  await pool.query(`
     SELECT COUNT(*) FROM information_schema.check_constraints 
     WHERE constraint_name LIKE '%type%' AND constraint_schema = 'public'
   `);

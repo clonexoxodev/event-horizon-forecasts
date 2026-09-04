@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -64,6 +64,8 @@ ChartJS.register(
 export default function MarketDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const inviteCode = searchParams.get("code") || undefined;
   const { markets, upsertMarket } = useMarketState();
   const { user, refreshUser, setAuthOpen } = useAuth();
   const [market, setMarket] = useState<Market | null>(null);
@@ -93,7 +95,7 @@ export default function MarketDetail() {
         const cached = readCachedMarket();
         if (cached && (!marketRef.current || marketRef.current.id !== id)) setMarket(cached);
         const [response, historyResponse] = await Promise.all([
-          apiService.getMarket(id),
+          apiService.getMarket(id, inviteCode),
           apiService.getMarketPriceHistory(id).catch(() => null),
         ]);
         if (latestLoadRef.current !== loadId) return;
@@ -122,7 +124,7 @@ export default function MarketDetail() {
       }
     };
     loadMarket();
-  }, [id, navigate, upsertMarket]);
+  }, [id, inviteCode, navigate, upsertMarket]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -160,13 +162,13 @@ export default function MarketDetail() {
   const handleShare = async () => {
     if (!market) return;
     const media = getMarketMedia(market);
-    const url = `${window.location.origin}/market/${market.id}`;
+    const url = `${window.location.origin}/market/${market.id}${market.inviteCode ? `?code=${market.inviteCode}` : ""}`;
     const timeLeft = formatCountdown(market.tradingCloseTime || market.closeTime, market.closesIn);
     const shareText = [
       "FLIPPE market", market.question,
       `YES Price: ${formatNairaPrice(market.yesPrice)}`,
       `NO Price: ${formatNairaPrice(market.noPrice)}`,
-      `Time left: ${timeLeft}`, "Trade on FLIPPE.", url,
+      `Time left: ${timeLeft}`, "Predict on FLIPPE.", url,
     ].join("\n");
     try {
       if (navigator.share) {
@@ -271,7 +273,22 @@ export default function MarketDetail() {
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
                   {marketCategoryLabel}
                 </span>
-                {market.status === "resolved" ? (
+                {market.visibility === "private" && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#6B7280]/10 px-2 py-0.5 text-[10px] font-bold text-[#6B7280]">
+                    <Shield className="h-3 w-3" />
+                    Private pool
+                  </span>
+                )}
+                {market.isPendingReview ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#F59E0B]/10 px-2 py-0.5 text-[10px] font-bold text-[#D97706]">
+                    <Clock className="h-3 w-3" />
+                    Under review
+                  </span>
+                ) : market.isRejected ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#E85D5D]/10 px-2 py-0.5 text-[10px] font-bold text-[#B42318]">
+                    Not approved
+                  </span>
+                ) : market.status === "resolved" ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-[#4F46E5]/10 px-2 py-0.5 text-[10px] font-bold text-[#4F46E5]">
                     <CheckCircle className="h-3 w-3" />
                     Resolved — {market.winningOutcome || market.winning_outcome || market.outcome} Wins
@@ -315,7 +332,7 @@ export default function MarketDetail() {
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             {!activation.isProtected && (
               <>
-                <StatChip icon={Users} value={market.participants || 0} label="trading" />
+                <StatChip icon={Users} value={market.participants || 0} label="predicting" />
                 <StatChip icon={BarChart3} value={market.tradeCount || 0} label="trades" />
               </>
             )}
@@ -392,6 +409,86 @@ export default function MarketDetail() {
               </p>
             </div>
           )}
+
+          {/* Under Review Banner */}
+          {market.isPendingReview && (
+            <div className="mt-3 rounded-xl border border-[#EDC48E] bg-[#FFF7ED] p-4">
+              <div className="flex items-start gap-3">
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#F59E0B] text-white">
+                  <Clock className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-[#101828]">Pool in review</div>
+                  <div className="mt-0.5 text-xs leading-relaxed text-[#6B7280]">
+                    Your pool has been submitted and is being checked before it goes live. No predictions can be placed yet.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Rejected Banner */}
+          {market.isRejected && (
+            <div className="mt-3 rounded-xl border border-[#E85D5D]/20 bg-[#FEF2F2] p-4">
+              <div className="flex items-start gap-3">
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#E85D5D] text-white">
+                  <X className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-[#101828]">Pool not approved</div>
+                  <div className="mt-0.5 text-xs leading-relaxed text-[#6B7280]">
+                    {market.rejectionReason || "This pool did not pass admin review. Stakes were not taken and refunds were not needed."}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Private Pool Join Card */}
+          {market.visibility === "private" && market.inviteCode && (
+            <div className="mt-3 rounded-xl border border-[#C7D2FE] bg-[#EEF2FF]/50 p-4">
+              <div className="flex items-start gap-3">
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#4F46E5] text-white">
+                  <Share2 className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-bold text-[#101828]">Private pool</div>
+                  <p className="mt-0.5 text-xs leading-relaxed text-[#6B7280]">
+                    Only people with the invite code can join. Share the invite link with your pool members.
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/market/${market.id}?code=${market.inviteCode}`)
+                          .then(() => toast.success("Invite link copied"))
+                          .catch(() => toast.error("Could not copy invite link"));
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#4F46E5] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#4338CA]"
+                    >
+                      <Share2 className="h-3 w-3" />
+                      Copy invite link
+                    </button>
+                    <div className="rounded-lg border border-dashed border-[#A5B4FC] bg-white px-3 py-2 text-sm font-black tracking-[0.25em] text-[#4F46E5] select-all">
+                      {market.inviteCode}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Private Pool Join Prompt (invitees) */}
+          {market.visibility === "private" && !market.inviteCode && (
+            <JoinPrivatePoolCard
+              marketId={market.id}
+              inviteCode={inviteCode || ""}
+              onJoined={(joinedMarket) => {
+                setMarket((prev) => (prev ? { ...prev, ...joinedMarket } : prev));
+                upsertMarket(joinedMarket);
+                toast.success("You joined this private pool");
+              }}
+            />
+          )}
         </section>
 
         {/* Price Chart */}
@@ -450,14 +547,14 @@ export default function MarketDetail() {
           {/* Trading Timeline */}
           <ExpandableSection
             icon={Calendar}
-            title="Trading Timeline"
+            title="Prediction Timeline"
             expanded={!!expandedSections["timeline"]}
             onToggle={() => toggleSection("timeline")}
             border
           >
             <div className="space-y-3">
-              <TimelineRow label="Market Created" value={market.createdAt || market.created_at || "—"} active={false} />
-              <TimelineRow label="Trading Closes" value={tradingCloseTime || "—"} active={marketIsActive} highlight />
+              <TimelineRow label="Pool Created" value={market.createdAt || market.created_at || "—"} active={false} />
+              <TimelineRow label="Predictions Close" value={tradingCloseTime || "—"} active={marketIsActive} highlight />
               <TimelineRow label="Resolution Date" value={market.resolutionDate || market.closeTime || "—"} active={false} />
               {market.resolvedAt && <TimelineRow label="Resolved" value={market.resolvedAt} active={false} />}
             </div>
@@ -938,6 +1035,82 @@ const IconButton = ({
     <Icon className="h-4 w-4" />
   </button>
 );
+
+const JoinPrivatePoolCard = ({
+  marketId,
+  inviteCode,
+  onJoined,
+}: {
+  marketId: string;
+  inviteCode: string;
+  onJoined: (market: Market) => void;
+}) => {
+  const { user, setAuthOpen } = useAuth();
+  const [code, setCode] = useState(inviteCode);
+  const [joining, setJoining] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleJoin = async () => {
+    if (!user) {
+      setAuthOpen(true);
+      return;
+    }
+    const trimmed = code.trim().toUpperCase();
+    if (!trimmed) {
+      setError("Enter the pool invite code from the person who invited you.");
+      return;
+    }
+    setJoining(true);
+    setError(null);
+    try {
+      const result = await apiService.joinMarket(marketId, trimmed);
+      onJoined(result.market);
+    } catch (joinError: any) {
+      setError(joinError?.message || "Could not join this pool.");
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 rounded-xl border border-[#C7D2FE] bg-[#EEF2FF]/50 p-4">
+      <div className="flex items-start gap-3">
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#4F46E5] text-white">
+          <Users className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-bold text-[#101828]">Private pool</div>
+          <p className="mt-0.5 text-xs leading-relaxed text-[#6B7280]">
+            This pool is invite-only. Enter the invite code to join and start predicting.
+          </p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <input
+              value={code}
+              onChange={(e) => {
+                setCode(e.target.value.toUpperCase());
+                setError(null);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && handleJoin()}
+              placeholder="INVITE CODE"
+              maxLength={16}
+              aria-label="Invite code"
+              className="h-11 flex-1 rounded-xl border border-[#E5E7EB] bg-white px-4 text-center text-sm font-black tracking-[0.3em] outline-none placeholder:tracking-normal placeholder:text-[#9CA3AF] focus:border-[#4F46E5] focus:ring-4 focus:ring-[#4F46E5]/[0.06]"
+            />
+            <button
+              onClick={handleJoin}
+              disabled={joining}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#4F46E5] px-5 text-sm font-bold text-white transition hover:bg-[#4338CA] disabled:opacity-50"
+            >
+              {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
+              Join pool
+            </button>
+          </div>
+          {error && <p className="mt-2 text-xs font-bold text-[#B42318]">{error}</p>}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ExpandableSection = ({
   icon: Icon,

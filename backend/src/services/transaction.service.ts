@@ -147,8 +147,8 @@ export class TransactionService {
    * Get transactions by reference
    */
   async getTransactionsByReference(
-    referenceId: string,
-    referenceType: 'position' | 'deposit' | 'withdrawal'
+    _referenceId: string,
+    _referenceType: 'position' | 'deposit' | 'withdrawal'
   ): Promise<Transaction[]> {
     // This would require a new repository method
     // For now, we'll return an empty array as a placeholder

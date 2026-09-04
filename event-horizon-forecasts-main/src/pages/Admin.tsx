@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { DashboardView } from "@/components/admin/DashboardView";
 import { MarketsView } from "@/components/admin/MarketsView";
+import { ReviewsView } from "@/components/admin/ReviewsView";
 import { MarketDetailView } from "@/components/admin/MarketDetailView";
 import { CreateMarketView } from "@/components/admin/CreateMarketView";
 import { EditMarketView } from "@/components/admin/EditMarketView";
@@ -72,6 +73,8 @@ const Admin = () => {
         return <DashboardView setView={handleViewChange} setSelectedMarketId={handleMarketSelect} />;
       case "markets":
         return <MarketsView setView={handleViewChange} setSelectedMarketId={handleMarketSelect} />;
+      case "reviews":
+        return <ReviewsView />;
       case "market-detail":
         return selectedMarketId ? (
           <MarketDetailView

@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
+import * as poolEngine from '../src/services/pool-engine';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -290,13 +291,13 @@ const normalizeMarketCategory = (category: unknown): typeof MARKET_CATEGORIES[nu
 };
 
 // Request logging
-app.use((req, res, next) => {
+app.use((req, _res, next) => {
   console.log(`${req.method} ${req.url}`);
   next();
 });
 
 // Health check
-app.get('/api/health', (req: Request, res: Response) => {
+app.get('/api/health', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     message: 'Prediction Platform API is running',
@@ -314,7 +315,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 });
 
 // Root route
-app.get('/', (req: Request, res: Response) => {
+app.get('/', (_req: Request, res: Response) => {
   res.json({
     message: 'Flippe Prediction Platform API',
     status: 'running',
@@ -331,7 +332,7 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 // Root API info
-app.get('/api', (req: Request, res: Response) => {
+app.get('/api', (_req: Request, res: Response) => {
   res.json({
     message: 'Prediction Platform API',
     status: 'running',
@@ -406,6 +407,37 @@ const authenticate = async (req: Request, res: Response, next: NextFunction) => 
       }
     });
   }
+};
+
+// Optional auth: attaches user when a valid token is present, never rejects.
+const optionalAuthenticate = async (req: Request, _res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    const token = req.cookies.auth_token || bearerToken;
+
+    if (!token) return next();
+
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, username, email, role, avatar_url, profile_image_url')
+      .eq('id', decoded.userId)
+      .single();
+
+    if (!error && user) {
+      (req as any).user = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role || 'user',
+        balance: 0
+      };
+    }
+  } catch (error) {
+    // invalid/expired token: treat as anonymous
+  }
+  next();
 };
 
 // Role middleware
@@ -774,7 +806,7 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
  * POST /api/auth/logout
  * Logout user
  */
-app.post('/api/auth/logout', (req: Request, res: Response) => {
+app.post('/api/auth/logout', (_req: Request, res: Response) => {
   res.clearCookie('auth_token', clearAuthCookieOptions);
 
   res.json({
@@ -1207,51 +1239,7 @@ const creditVerifiedDeposit = async (reference: string) => {
 type MarketStatus = 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived' | 'refunded';
 type PredictionSide = 'YES' | 'NO';
 
-const MIN_MARKET_PRICE = 1;
-const MAX_MARKET_PRICE = 99;
-const DEFAULT_ACTIVATION_REQUIREMENTS = {
-  totalPoolSmallestUnit: 1000000,
-  yesPoolSmallestUnit: 200000,
-  noPoolSmallestUnit: 200000,
-  minimumParticipants: 5,
-  protectedMaxStakeSmallestUnit: 100000,
-  buildingMaxStakeSmallestUnit: 100000,
-};
-
-const roundPrice = (value: number) => Math.round(value * 10) / 10;
-const clampPrice = (value: number) => Math.min(MAX_MARKET_PRICE, Math.max(MIN_MARKET_PRICE, roundPrice(value)));
-
-const getActivationState = (market: any) => {
-  if (market.protected_market_enabled === false) {
-    return {
-      activated: true,
-      yesPool: Number(market.yes_volume_smallest_unit || market.yes_pool_smallest_unit || 0),
-      noPool: Number(market.no_volume_smallest_unit || market.no_pool_smallest_unit || 0),
-      totalPool: Number(market.total_volume_smallest_unit || market.pool_amount_smallest_unit || 0),
-      participants: Number(market.participant_count || market.participants || 0),
-      requirements: DEFAULT_ACTIVATION_REQUIREMENTS
-    };
-  }
-  const yesPool = Number(market.yes_volume_smallest_unit || market.yes_pool_smallest_unit || 0);
-  const noPool = Number(market.no_volume_smallest_unit || market.no_pool_smallest_unit || 0);
-  const totalPool = Number(market.total_volume_smallest_unit || market.pool_amount_smallest_unit || yesPool + noPool);
-  const participants = Number(market.participant_count || market.participants || 0);
-  const settings = market.activation_settings || market.protection_settings || {};
-  const requirements = {
-    totalPoolSmallestUnit: Number(market.activation_threshold_smallest_unit ?? settings.totalPoolSmallestUnit ?? DEFAULT_ACTIVATION_REQUIREMENTS.totalPoolSmallestUnit),
-    yesPoolSmallestUnit: Number(market.activation_yes_min_smallest_unit ?? settings.yesPoolSmallestUnit ?? DEFAULT_ACTIVATION_REQUIREMENTS.yesPoolSmallestUnit),
-    noPoolSmallestUnit: Number(market.activation_no_min_smallest_unit ?? settings.noPoolSmallestUnit ?? DEFAULT_ACTIVATION_REQUIREMENTS.noPoolSmallestUnit),
-    minimumParticipants: Number(market.activation_min_participants ?? settings.minimumParticipants ?? DEFAULT_ACTIVATION_REQUIREMENTS.minimumParticipants),
-    protectedMaxStakeSmallestUnit: Number(market.protected_max_stake_smallest_unit ?? settings.protectedMaxStakeSmallestUnit ?? settings.buildingMaxStakeSmallestUnit ?? DEFAULT_ACTIVATION_REQUIREMENTS.protectedMaxStakeSmallestUnit),
-    buildingMaxStakeSmallestUnit: Number(market.protected_max_stake_smallest_unit ?? settings.protectedMaxStakeSmallestUnit ?? settings.buildingMaxStakeSmallestUnit ?? DEFAULT_ACTIVATION_REQUIREMENTS.protectedMaxStakeSmallestUnit),
-  };
-  const activated =
-    totalPool >= requirements.totalPoolSmallestUnit &&
-    yesPool >= requirements.yesPoolSmallestUnit &&
-    noPool >= requirements.noPoolSmallestUnit &&
-    participants >= requirements.minimumParticipants;
-  return { activated, yesPool, noPool, totalPool, participants, requirements };
-};
+const getActivationState = (market: any) => poolEngine.getActivationState(market);
 
 const stripNotificationMetadata = (payload: Record<string, any> | Record<string, any>[]) => {
   if (Array.isArray(payload)) {
@@ -1454,65 +1442,12 @@ const refundUnactivatedMarket = async (market: any, actor?: any) => {
   };
 };
 
-const getStartingPrices = (market: any) => {
-  const yesPrice = clampPrice(Number(market.starting_yes_price ?? market.yes_price ?? 50));
-  return { yesPrice, noPrice: roundPrice(100 - yesPrice) };
-};
+const getStartingPrices = (market: any) => poolEngine.getStartingPrices(market);
 
-const getOwnershipState = (market: any) => {
-  const starting = getStartingPrices(market);
-  const yesVolume = Number(market.yes_volume_smallest_unit ?? market.yes_pool_smallest_unit ?? 0);
-  const noVolume = Number(market.no_volume_smallest_unit ?? market.no_pool_smallest_unit ?? 0);
-  const totalVolume = yesVolume + noVolume;
-  const yesShares = Number(market.total_yes_shares ?? 0);
-  const noShares = Number(market.total_no_shares ?? 0);
+const getOwnershipState = (market: any) => poolEngine.getOwnershipState(market);
 
-  if (totalVolume <= 0) {
-    return { yesPrice: starting.yesPrice, noPrice: starting.noPrice, yesVolume, noVolume, totalVolume, yesShares, noShares };
-  }
-
-  const activityTargetYes = (yesVolume / totalVolume) * 100;
-  const activityWeight = Math.min(0.95, totalVolume / (totalVolume + 500000));
-  const yesPrice = clampPrice((starting.yesPrice * (1 - activityWeight)) + (activityTargetYes * activityWeight));
-  return { yesPrice, noPrice: roundPrice(100 - yesPrice), yesVolume, noVolume, totalVolume, yesShares, noShares };
-};
-
-const calculateOwnershipTrade = (market: any, side: PredictionSide, amountSmallestUnit: number) => {
-  const before = getOwnershipState(market);
-  const entryPrice = side === 'YES' ? before.yesPrice : before.noPrice;
-  const sharesOwned = entryPrice > 0 ? toAmount(amountSmallestUnit) / entryPrice : 0;
-  const nextYesVolume = side === 'YES' ? before.yesVolume + amountSmallestUnit : before.yesVolume;
-  const nextNoVolume = side === 'NO' ? before.noVolume + amountSmallestUnit : before.noVolume;
-  const nextYesShares = side === 'YES' ? before.yesShares + sharesOwned : before.yesShares;
-  const nextNoShares = side === 'NO' ? before.noShares + sharesOwned : before.noShares;
-  const after = getOwnershipState({
-    ...market,
-    yes_volume_smallest_unit: nextYesVolume,
-    no_volume_smallest_unit: nextNoVolume,
-    yes_pool_smallest_unit: nextYesVolume,
-    no_pool_smallest_unit: nextNoVolume,
-    total_yes_shares: nextYesShares,
-    total_no_shares: nextNoShares
-  });
-  const currentPrice = side === 'YES' ? after.yesPrice : after.noPrice;
-  const positionValueSmallestUnit = Math.round(sharesOwned * currentPrice * 100);
-  const sideSharesAfter = side === 'YES' ? nextYesShares : nextNoShares;
-  return {
-    before,
-    after,
-    entryPrice,
-    currentPrice,
-    sharesOwned,
-    positionValueSmallestUnit,
-    ownershipPercent: sideSharesAfter > 0 ? (sharesOwned / sideSharesAfter) * 100 : 0,
-    nextYesVolume,
-    nextNoVolume,
-    nextYesShares,
-    nextNoShares,
-    nextTotalVolume: nextYesVolume + nextNoVolume,
-    priceChange: currentPrice - entryPrice
-  };
-};
+const calculateOwnershipTrade = (market: any, side: PredictionSide, amountSmallestUnit: number) =>
+  poolEngine.calculateOwnershipTrade(market, side, amountSmallestUnit);
 
 const normalizePredictionSide = (side: unknown): PredictionSide | null => {
   const normalizedSide = String(side || '').toUpperCase();
@@ -1525,6 +1460,9 @@ const normalizeMarketStatus = (market: any): MarketStatus => {
   const rawStatus = String(market.status || market.state || 'active');
   if (rawStatus === 'open') return 'active';
   if (rawStatus === 'paused') return 'closed';
+  if (rawStatus === 'submitted' || rawStatus === 'under_review') return 'draft';
+  if (rawStatus === 'approved') return 'active';
+  if (rawStatus === 'rejected') return 'cancelled';
   if (['draft', 'active', 'closed', 'pending_resolution', 'resolved', 'cancelled', 'archived', 'refunded'].includes(rawStatus)) {
     return rawStatus as MarketStatus;
   }
@@ -1766,7 +1704,7 @@ const ensureInitialPriceHistory = async (market: any) => {
   return fetchPriceHistory(market);
 };
 
-const normalizeMarket = (market: any, positionCount = 0, priceHistory: any[] = []) => {
+const normalizeMarket = (market: any, positionCount = 0, priceHistory: any[] = [], options: { includeInviteCode?: boolean } = {}) => {
   const state = getOwnershipState(market);
   const activation = getActivationState(market);
   const totalPoolSmallestUnit = Number(
@@ -1775,6 +1713,7 @@ const normalizeMarket = (market: any, positionCount = 0, priceHistory: any[] = [
   const closeTime = getCloseTime(market);
   const status = displayStatusForMarket(market);
   const starting = getStartingPrices(market);
+  const rawStatus = String(market.status || market.state || 'active');
 
   return {
     id: market.id,
@@ -1825,7 +1764,15 @@ const normalizeMarket = (market: any, positionCount = 0, priceHistory: any[] = [
     activation_no_min_smallest_unit: activation.requirements.noPoolSmallestUnit,
     activation_min_participants: activation.requirements.minimumParticipants,
     protected_max_stake_smallest_unit: activation.requirements.protectedMaxStakeSmallestUnit,
-    priceHistory
+    priceHistory,
+    visibility: market.visibility || 'public',
+    participantLimit: market.participant_limit != null ? Number(market.participant_limit) : null,
+    createdBy: market.created_by || null,
+    reviewState: rawStatus,
+    isPendingReview: rawStatus === 'submitted' || rawStatus === 'under_review',
+    isRejected: rawStatus === 'rejected',
+    rejectionReason: market.rejection_reason || null,
+    ...(options.includeInviteCode && market.visibility === 'private' ? { inviteCode: market.invite_code || null } : {})
   };
 };
 
@@ -2784,19 +2731,495 @@ app.get('/api/wallet/convert', authenticate, async (req: Request, res: Response)
 // MARKET AND USER ACTIVITY ROUTES
 // ============================================================================
 
-app.get('/api/markets', async (_req: Request, res: Response) => {
+const DISCOVERY_LIMIT_MAX = 100;
+
+const discoveryRankScore = (market: any) => {
+  const totalVolume = Number(market.total_volume_smallest_unit ?? market.pool_amount_smallest_unit ?? 0);
+  const participants = Number(market.participant_count ?? market.participants ?? 0);
+  const tradeCount = Number(market.trade_count ?? market.trades ?? 0);
+  const createdMs = new Date(market.created_at || Date.now()).getTime();
+  const ageDays = Math.max(0, (Date.now() - createdMs) / 86400000);
+  const recencyBonus = Math.max(0, 20 - ageDays * 1.5);
+  return (
+    Number(market.base_score ?? 0) +
+    Math.log10(Math.max(1, totalVolume) + 1) * 30 +
+    Math.sqrt(participants) * 6 +
+    Math.min(tradeCount, 200) * 0.2 +
+    (market.is_trending ? 60 : 0) +
+    recencyBonus
+  );
+};
+
+// ============================================================================
+// DISCOVERY ROUTES
+// ============================================================================
+
+const generateInviteCode = () => {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 8; i += 1) {
+    code += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return code;
+};
+
+const normalizeQuestionKey = (question: string) =>
+  String(question || '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+const attachCanonicalEvent = async (marketId: string, question: string, category: string, createdBy: string) => {
   try {
+    const normalizedKey = normalizeQuestionKey(question);
+    if (!normalizedKey) return;
+
+    const { data: existingEvent } = await supabase
+      .from('canonical_events')
+      .select('id')
+      .eq('normalized_key', normalizedKey)
+      .maybeSingle();
+
+    let canonicalEventId = existingEvent?.id;
+    if (!canonicalEventId) {
+      const { data: createdEvent, error } = await supabase
+        .from('canonical_events')
+        .insert({ title: question.trim(), normalized_key: normalizedKey, category, created_by: createdBy })
+        .select('id')
+        .single();
+      if (error && /duplicate|unique/i.test(error.message || '')) {
+        const { data: reFetched } = await supabase
+          .from('canonical_events')
+          .select('id')
+          .eq('normalized_key', normalizedKey)
+          .maybeSingle();
+        canonicalEventId = reFetched?.id;
+      } else if (error) {
+        throw error;
+      } else {
+        canonicalEventId = createdEvent?.id;
+      }
+    }
+
+    if (canonicalEventId) {
+      await supabase.from('market_events').insert({ market_id: marketId, canonical_event_id: canonicalEventId, is_original: true });
+    }
+  } catch (error: any) {
+    console.warn('Canonical event link skipped:', error.message || error);
+  }
+};
+
+/**
+ * POST /api/markets
+ * User market creation.
+ *  - Public markets go through admin review (status 'submitted'), then 'active'.
+ *  - Private markets open immediately ('active') with an invite code; they are
+ *    invisible in public discovery and only joinable through the share link.
+ */
+app.post('/api/markets', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const question = String(req.body.question || '').trim();
+    const rawCategory = String(req.body.category || '').trim();
+    const category = normalizeMarketCategory(rawCategory);
+    const closeDate = req.body.close_date || req.body.closes_at;
+    const tradingCloseDate = req.body.trading_close_at || req.body.trading_close_time || closeDate;
+    const visibility = String(req.body.visibility || 'public') === 'private' ? 'private' : 'public';
+    const currency = req.body.currency || 'NGN';
+    const description = String(req.body.description || '').trim() || null;
+    const rules = String(req.body.resolution_instructions || req.body.rules || req.body.resolution_criteria || '').trim() || description;
+    const resolutionSource = String(req.body.resolution_source || 'Official announcement or public record').trim();
+    const imageUrl = req.body.image_url || null;
+    const videoUrl = req.body.video_url || null;
+    const yesPrice = Number(req.body.starting_yes_price ?? req.body.yes_price ?? 50);
+
+    if (!question || question.length < 5) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Question must be at least 5 characters.' } });
+    }
+    if (question.length > 160) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Question must be under 160 characters.' } });
+    }
+    if (!rawCategory) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Choose a category.' } });
+    }
+    if (!closeDate || new Date(closeDate).getTime() <= Date.now()) {
+      return res.status(400).json({ error: { code: 'INVALID_CLOSE_DATE', message: 'End date must be in the future.' } });
+    }
+    if (!tradingCloseDate || new Date(tradingCloseDate).getTime() <= Date.now()) {
+      return res.status(400).json({ error: { code: 'INVALID_TRADING_CLOSE_DATE', message: 'Prediction close time must be in the future.' } });
+    }
+    if (new Date(tradingCloseDate).getTime() > new Date(closeDate).getTime()) {
+      return res.status(400).json({ error: { code: 'INVALID_TRADING_CLOSE_DATE', message: 'Prediction close time cannot be after the resolution time.' } });
+    }
+    if (!Number.isFinite(yesPrice) || yesPrice < 1 || yesPrice > 99) {
+      return res.status(400).json({ error: { code: 'INVALID_STARTING_PRICES', message: 'Starting YES chance must be between 1 and 99.' } });
+    }
+
+    const minPosition = Math.max(100, Math.round(Number(req.body.min_position_smallest_unit || req.body.min_amount || 0)));
+    const maxPositionRaw = Number(req.body.max_position_smallest_unit || req.body.max_amount || 0);
+    const startStatus = visibility === 'private' ? 'active' : 'submitted';
+    const participantLimit = visibility === 'private' && req.body.participant_limit
+      ? Math.max(1, Math.min(500, Math.round(Number(req.body.participant_limit))))
+      : null;
+
+    const inviteCode = visibility === 'private' ? (String(req.body.invite_code || '').trim() || generateInviteCode()) : null;
+
+    const activationBody = (req.body.activation || req.body.protection || {}) as Record<string, any>;
+    const marketInsertPayload: any = {
+      question,
+      description,
+      category,
+      market_type: req.body.market_type || 'binary',
+      yes_label: req.body.yes_label || 'YES',
+      no_label: req.body.no_label || 'NO',
+      yes_price: yesPrice,
+      no_price: 100 - yesPrice,
+      starting_yes_price: yesPrice,
+      starting_no_price: 100 - yesPrice,
+      close_date: closeDate,
+      closes_at: closeDate,
+      trading_close_at: tradingCloseDate,
+      resolution_date: req.body.resolution_date || closeDate,
+      resolution_source: resolutionSource,
+      resolution_instructions: rules,
+      status: startStatus,
+      state: legacyStateFor(startStatus),
+      currency,
+      image_url: imageUrl,
+      video_url: videoUrl,
+      min_position_smallest_unit: minPosition,
+      max_position_smallest_unit: maxPositionRaw > 0 ? maxPositionRaw : null,
+      created_by: user.id,
+      visibility,
+      invite_code: inviteCode,
+      participant_limit: participantLimit,
+      platform_fee_bps: 0,
+      creator_reward_bps: 0,
+      submitted_at: visibility === 'private' ? null : new Date().toISOString(),
+      pricing_model: 'ownership_shares',
+      pool_amount_smallest_unit: 0,
+      settlement_pool_smallest_unit: 0,
+      seed_liquidity_yes_smallest_unit: 0,
+      seed_liquidity_no_smallest_unit: 0,
+      yes_pool_smallest_unit: 0,
+      no_pool_smallest_unit: 0,
+      yes_volume_smallest_unit: 0,
+      no_volume_smallest_unit: 0,
+      total_yes_shares: 0,
+      total_no_shares: 0,
+      participant_count: 0,
+      trade_count: 0,
+      total_volume_smallest_unit: 0,
+      protected_market_enabled: true,
+      activation_state: 'protected',
+      activation_threshold_smallest_unit: Number(activationBody.totalPoolSmallestUnit ?? activationBody.activation_threshold_smallest_unit ?? poolEngine.DEFAULT_ACTIVATION_REQUIREMENTS.totalPoolSmallestUnit),
+      activation_yes_min_smallest_unit: Number(activationBody.yesPoolSmallestUnit ?? activationBody.activation_yes_min_smallest_unit ?? poolEngine.DEFAULT_ACTIVATION_REQUIREMENTS.yesPoolSmallestUnit),
+      activation_no_min_smallest_unit: Number(activationBody.noPoolSmallestUnit ?? activationBody.activation_no_min_smallest_unit ?? poolEngine.DEFAULT_ACTIVATION_REQUIREMENTS.noPoolSmallestUnit),
+      activation_min_participants: Number(activationBody.minimumParticipants ?? activationBody.activation_min_participants ?? poolEngine.DEFAULT_ACTIVATION_REQUIREMENTS.minimumParticipants),
+      protected_max_stake_smallest_unit: Number(activationBody.protectedMaxStakeSmallestUnit ?? activationBody.protected_max_stake_smallest_unit ?? poolEngine.DEFAULT_ACTIVATION_REQUIREMENTS.protectedMaxStakeSmallestUnit),
+      rules
+    };
+
+    if (visibility === 'private') {
+      // Low default bar so small friend groups can actually activate.
+      marketInsertPayload.activation_threshold_smallest_unit = Number(activationBody.totalPoolSmallestUnit ?? activationBody.activation_threshold_smallest_unit ?? 200000);
+      marketInsertPayload.activation_yes_min_smallest_unit = Number(activationBody.yesPoolSmallestUnit ?? activationBody.activation_yes_min_smallest_unit ?? 50000);
+      marketInsertPayload.activation_no_min_smallest_unit = Number(activationBody.noPoolSmallestUnit ?? activationBody.activation_no_min_smallest_unit ?? 50000);
+      marketInsertPayload.activation_min_participants = Number(activationBody.minimumParticipants ?? activationBody.activation_min_participants ?? 2);
+    }
+
+    let { data: market, error } = await supabase
+      .from('markets')
+      .insert(marketInsertPayload)
+      .select()
+      .single();
+
+    if (error && /visibility|invite_code|participant_limit|platform_fee_bps|creator_reward_bps|submitted_at|starting_yes_price/i.test(error.message || '')) {
+      const fallbackPayload = { ...marketInsertPayload };
+      delete fallbackPayload.visibility;
+      delete fallbackPayload.invite_code;
+      delete fallbackPayload.participant_limit;
+      delete fallbackPayload.platform_fee_bps;
+      delete fallbackPayload.creator_reward_bps;
+      delete fallbackPayload.submitted_at;
+      delete fallbackPayload.starting_yes_price;
+      const fallback = await supabase
+        .from('markets')
+        .insert(fallbackPayload)
+        .select()
+        .single();
+      market = fallback.data;
+      error = fallback.error;
+    }
+
+    if (error) throw error;
+
+    const { error: promoterError } = await supabase.from('market_promoters').insert({
+      market_id: market.id,
+      user_id: user.id,
+      relationship: 'creator',
+      share_code: inviteCode
+    });
+    if (promoterError) {
+      console.warn('Promoter record skipped:', promoterError.message || promoterError);
+    }
+
+    if (visibility === 'private') {
+      const { error: participantError } = await supabase.from('market_participants').insert({ market_id: market.id, user_id: user.id });
+      if (participantError) {
+        console.warn('Creator participants row skipped:', participantError.message || participantError);
+      }
+    }
+
+    await attachCanonicalEvent(market.id, question, category, user.id);
+
+    const noPrice = 100 - yesPrice;
+    await savePriceHistory(market.id, yesPrice, noPrice, 0, 0, 0, 0);
+
+    return res.status(201).json({
+      success: true,
+      market: normalizeMarket(market, 0, [], { includeInviteCode: true }),
+      inviteCode,
+      duplicateWarning: null,
+      message: visibility === 'private'
+        ? 'Private pool created. Share your invite link to let people join.'
+        : 'Your market was submitted for review. It will go live once approved.'
+    });
+  } catch (error: any) {
+    console.error('Market create error:', error);
+    res.status(500).json({
+      error: {
+        code: 'CREATE_MARKET_FAILED',
+        message: error.message || 'Could not create market',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+/**
+ * POST /api/markets/:id/join
+ * Join a private market with its invite code. The creator is auto-added at
+ * creation time; anyone else must present the code to become a participant.
+ */
+app.post('/api/markets/:id/join', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const marketId = String(req.params.id);
+    const inviteCode = String(req.body.invite_code || req.body.code || '').trim().toUpperCase();
+
+    const { data: market, error } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('id', marketId)
+      .single();
+
+    if (error || !market) {
+      return res.status(404).json({ error: { code: 'MARKET_NOT_FOUND', message: 'Market not found.' } });
+    }
+
+    if (String(market.visibility || 'public') !== 'private') {
+      return res.status(400).json({ error: { code: 'NOT_PRIVATE', message: 'This market is public and does not require an invite.' } });
+    }
+
+    if (String(market.status || '') === 'resolved' || market.resolved_at) {
+      return res.status(422).json({ error: { code: 'MARKET_CLOSED', message: 'This pool is already resolved.' } });
+    }
+
+    const expectedCode = String(market.invite_code || '').toUpperCase();
+    if (!expectedCode || expectedCode !== inviteCode) {
+      return res.status(403).json({ error: { code: 'INVALID_INVITE_CODE', message: 'That invite code is not valid for this pool.' } });
+    }
+
+    const { data: membership } = await supabase
+      .from('market_participants')
+      .select('user_id')
+      .eq('market_id', marketId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (membership) {
+      const { count } = await supabase
+        .from('positions')
+        .select('*', { count: 'exact', head: true })
+        .eq('market_id', marketId);
+      const priceHistory = await ensureInitialPriceHistory(market);
+      return res.json({ success: true, alreadyJoined: true, market: normalizeMarket(market, count || 0, priceHistory) });
+    }
+
+    if (market.participant_limit != null) {
+      const { count } = await supabase
+        .from('market_participants')
+        .select('user_id', { count: 'exact', head: true })
+        .eq('market_id', marketId);
+      if (Number(count || 0) >= Number(market.participant_limit)) {
+        return res.status(403).json({ error: { code: 'POOL_FULL', message: 'This private pool has reached its participant limit.' } });
+      }
+    }
+
+    const { error: insertError } = await supabase
+      .from('market_participants')
+      .insert({ market_id: marketId, user_id: user.id });
+    if (insertError && /duplicate|unique/i.test(insertError.message || '')) {
+      // benign race: already a participant
+    } else if (insertError) {
+      throw insertError;
+    }
+
+    const { count } = await supabase
+      .from('positions')
+      .select('*', { count: 'exact', head: true })
+      .eq('market_id', marketId);
+    const priceHistory = await ensureInitialPriceHistory(market);
+    res.json({ success: true, alreadyJoined: false, market: normalizeMarket(market, count || 0, priceHistory) });
+  } catch (error: any) {
+    console.error('Join market error:', error);
+    res.status(500).json({ error: { code: 'JOIN_MARKET_FAILED', message: error.message || 'Could not join pool.' } });
+  }
+});
+
+app.get('/api/markets/duplicates', async (req: Request, res: Response) => {
+  try {
+    const rawQuestion = String(req.query.q || '').trim();
+    if (!rawQuestion) {
+      return res.json({ markets: [], count: 0 });
+    }
+    const normalizedKey = rawQuestion.toLowerCase().replace(/\s+/g, ' ').trim();
+    const { data: markets, error } = await supabase
+      .from('markets')
+      .select('id, question, status, created_at, created_by, visibility')
+      .neq('status', 'rejected')
+      .neq('status', 'archived')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+
+    const matches = (markets || [])
+      .filter((market: any) => {
+        const key = String(market.question || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        return key === normalizedKey || key.includes(normalizedKey) || normalizedKey.includes(key);
+      })
+      .map((market: any) => ({
+        id: market.id,
+        question: market.question,
+        status: market.status,
+        visibility: market.visibility || 'public',
+        createdAt: market.created_at,
+        createdBy: market.created_by
+      }));
+
+    res.json({ markets: matches, count: matches.length });
+  } catch (error: any) {
+    console.error('Duplicate detection error:', error);
+    res.status(500).json({ error: { code: 'DUPLICATE_CHECK_FAILED', message: 'Failed to check for duplicate markets' } });
+  }
+});
+
+app.get('/api/markets/my', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
     const { data: markets, error } = await supabase
       .from('markets')
       .select('*')
+      .eq('created_by', user.id)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
     const autoClosedMarkets = await Promise.all((markets || []).map(autoCloseExpiredMarket));
-    const activeMarkets = autoClosedMarkets.filter((market) => displayStatusForMarket(market) === 'active');
+    const normalizedMarkets = await Promise.all(autoClosedMarkets.map(async (market) => {
+      const { count } = await supabase
+        .from('positions')
+        .select('*', { count: 'exact', head: true })
+        .eq('market_id', market.id);
+      const priceHistory = await ensureInitialPriceHistory(market);
+      return normalizeMarket(market, count || 0, priceHistory, { includeInviteCode: true });
+    }));
 
-    const normalizedMarkets = await Promise.all(activeMarkets.map(async (market) => {
+    res.json({ markets: normalizedMarkets, count: normalizedMarkets.length });
+  } catch (error: any) {
+    console.error('Get my markets error:', error);
+    res.status(500).json({ error: { code: 'GET_MY_MARKETS_FAILED', message: 'Failed to fetch your markets' } });
+  }
+});
+
+app.get('/api/markets', async (req: Request, res: Response) => {
+  try {
+    const {
+      sort,
+      category,
+      q,
+      visibility,
+      status = 'active',
+      limit,
+      offset
+    } = req.query as Record<string, string | undefined>;
+
+    const sortKey = ['new', 'trending', 'popular', 'closing_soon'].includes(sort || '') ? sort as string : 'new';
+    const requestedStatus = String(status || 'active');
+    const rawLimit = Math.max(1, Math.min(DISCOVERY_LIMIT_MAX, Number(limit || 20)));
+    const rawOffset = Math.max(0, Number(offset || 0));
+    const searchTerm = String(q || '').trim();
+
+    let query = supabase
+      .from('markets')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    if (visibility === 'private') {
+      query = query.eq('visibility', 'private');
+    } else if (visibility === 'public') {
+      query = query.eq('visibility', 'public');
+    } else {
+      // Discovery defaults to public markets only; private markets are shared
+      // by link/invite and must never appear in public discovery.
+      query = query.eq('visibility', 'public');
+    }
+
+    const { data: markets, error } = await query;
+    if (error) throw error;
+
+    const autoClosedMarkets = await Promise.all((markets || []).map(autoCloseExpiredMarket));
+
+    let candidates = autoClosedMarkets;
+    if (requestedStatus !== 'all') {
+      candidates = candidates.filter((market) => displayStatusForMarket(market) === requestedStatus);
+    }
+
+    if (category && category !== 'All' && category !== 'all') {
+      const wantedCategory = normalizeMarketCategory(category);
+      candidates = candidates.filter((market) => normalizeMarketCategory(market.category) === wantedCategory);
+    }
+
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      candidates = candidates.filter((market) =>
+        String(market.question || '').toLowerCase().includes(term) ||
+        String(market.description || '').toLowerCase().includes(term) ||
+        String(market.source || '').toLowerCase().includes(term)
+      );
+    }
+
+    const sorted = [...candidates];
+    if (sortKey === 'popular') {
+      sorted.sort((a, b) =>
+        (Number(b.participant_count ?? b.participants ?? 0) - Number(a.participant_count ?? a.participants ?? 0)) ||
+        (Number(b.total_volume_smallest_unit ?? 0) - Number(a.total_volume_smallest_unit ?? 0)) ||
+        (new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      );
+    } else if (sortKey === 'trending') {
+      sorted.sort((a, b) => discoveryRankScore(b) - discoveryRankScore(a) || (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    } else if (sortKey === 'closing_soon') {
+      sorted.sort((a, b) => {
+        const aTime = new Date(getCloseTime(a) || a.created_at || Date.now()).getTime();
+        const bTime = new Date(getCloseTime(b) || b.created_at || Date.now()).getTime();
+        return aTime - bTime;
+      });
+    } else {
+      sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+
+    const paginated = sorted.slice(rawOffset, rawOffset + rawLimit);
+
+    const normalizedMarkets = await Promise.all(paginated.map(async (market) => {
       const { count } = await supabase
         .from('positions')
         .select('*', { count: 'exact', head: true })
@@ -2806,7 +3229,15 @@ app.get('/api/markets', async (_req: Request, res: Response) => {
       return normalizeMarket(market, count || 0, priceHistory);
     }));
 
-    res.json({ markets: normalizedMarkets, count: normalizedMarkets.length });
+    res.json({
+      markets: normalizedMarkets,
+      count: normalizedMarkets.length,
+      total: sorted.length,
+      page: Math.floor(rawOffset / rawLimit) + 1,
+      pages: Math.max(1, Math.ceil(sorted.length / rawLimit)),
+      sort: sortKey,
+      category: category ? normalizeMarketCategory(category) : null
+    });
   } catch (error) {
     console.error('Get markets error:', error);
     res.status(500).json({
@@ -2879,7 +3310,7 @@ app.get('/api/markets/:id/related', async (req: Request, res: Response) => {
   }
 });
 
-app.get('/api/markets/:id', async (req: Request, res: Response) => {
+app.get('/api/markets/:id', optionalAuthenticate, async (req: Request, res: Response) => {
   try {
     const { data: market, error } = await supabase
       .from('markets')
@@ -2899,14 +3330,47 @@ app.get('/api/markets/:id', async (req: Request, res: Response) => {
 
     const currentMarket = await autoCloseExpiredMarket(market);
 
+    // Private markets are only reachable through their share link. When a
+    // folder is requested directly, only the creator or an admin may view it;
+    // non-members are told the market does not exist. A valid invite code
+    // passed as ?code= grants the same viewing access the share link provides.
+    if (String(currentMarket.visibility || 'public') === 'private') {
+      const requester = (req as any).user || null;
+      const urlCode = String(req.query.code || '').trim().toUpperCase();
+      const expectedCode = String(currentMarket.invite_code || '').trim().toUpperCase();
+      const hasValidCode = Boolean(expectedCode) && urlCode === expectedCode;
+      const isStaff = Boolean(requester && (requester.role === 'admin' || requester.role === 'super_admin'));
+      const isCreator = Boolean(requester && String(currentMarket.created_by || '') === String(requester.id));
+
+      if (!hasValidCode && !isStaff && !isCreator) {
+        const { data: membership } = await supabase
+          .from('market_participants')
+          .select('user_id')
+          .eq('market_id', currentMarket.id)
+          .eq('user_id', requester?.id || '')
+          .maybeSingle();
+        if (!requester || !membership) {
+          return res.status(404).json({
+            error: { code: 'MARKET_NOT_FOUND', message: 'Market not found', timestamp: new Date().toISOString() }
+          });
+        }
+      }
+    }
+
     const { count } = await supabase
       .from('positions')
       .select('*', { count: 'exact', head: true })
       .eq('market_id', currentMarket.id);
 
     const priceHistory = await ensureInitialPriceHistory(currentMarket);
+    const requester = (req as any).user || null;
+    const canSeeInvite = Boolean(requester) && (
+      requester.role === 'super_admin' ||
+      requester.role === 'admin' ||
+      String(currentMarket.created_by || '') === String(requester.id)
+    );
 
-    res.json({ market: normalizeMarket(currentMarket, count || 0, priceHistory) });
+    res.json({ market: normalizeMarket(currentMarket, count || 0, priceHistory, { includeInviteCode: canSeeInvite }) });
   } catch (error) {
     console.error('Get market error:', error);
     res.status(500).json({
@@ -3078,6 +3542,20 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
     const amountSmallestUnit = Number(
       req.body.amount_smallest_unit || req.body.amountSmallestUnit || Math.round(Number(req.body.amount || 0) * 100)
     );
+    const idempotencyKey = typeof req.body.idempotency_key === 'string' && req.body.idempotency_key.trim()
+      ? req.body.idempotency_key.trim().slice(0, 64)
+      : null;
+    const canJoinPrivateMarket = async (userId: string, m: any) => {
+      if (String(m.visibility || 'public') !== 'private') return true;
+      if (String(m.created_by || '') === String(userId)) return true;
+      const { data: membership } = await supabase
+        .from('market_participants')
+        .select('user_id')
+        .eq('market_id', m.id)
+        .eq('user_id', userId)
+        .maybeSingle();
+      return Boolean(membership);
+    };
 
     if (!side) {
       return res.status(400).json({
@@ -3116,6 +3594,32 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
     }
 
     const currentMarket = await autoCloseExpiredMarket(market);
+
+    // Idempotent retries: if this client already placed a prediction with the
+    // same idempotency key, return the original result instead of charging again.
+    if (idempotencyKey) {
+      const { data: existingByKey } = await supabase
+        .from('positions')
+        .select('*, markets (*)')
+        .eq('market_id', marketId)
+        .eq('user_id', user.id)
+        .eq('idempotency_key', idempotencyKey)
+        .maybeSingle();
+
+      if (existingByKey) {
+        const { count } = await supabase
+          .from('positions')
+          .select('*', { count: 'exact', head: true })
+          .eq('market_id', marketId);
+        const priceHistory = await ensureInitialPriceHistory(currentMarket);
+        return res.status(200).json({
+          idempotent: true,
+          position: normalizePosition(existingByKey, existingByKey.markets || currentMarket),
+          market: normalizeMarket(currentMarket, count || 0, priceHistory)
+        });
+      }
+    }
+
     const marketStatus = displayStatusForMarket(currentMarket);
     if (marketStatus !== 'active') {
       return res.status(422).json({
@@ -3132,6 +3636,29 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
         error: {
           code: 'TRADING_CLOSED',
           message: 'Prediction window is closed for this market',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    // Private pools: only creators and joined participants may predict.
+    if (!(await canJoinPrivateMarket(user.id, currentMarket))) {
+      return res.status(403).json({
+        error: {
+          code: 'PRIVATE_MARKET',
+          message: 'Join this private pool with its invite link before predicting.',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    // Creators must not profit from their own market (super admins bootstrap
+    // pools and are exempt).
+    if (String(currentMarket.created_by || '') === String(user.id) && user.role !== 'super_admin') {
+      return res.status(403).json({
+        error: {
+          code: 'CREATOR_CANNOT_PREDICT',
+          message: 'You cannot predict on a pool you created.',
           timestamp: new Date().toISOString()
         }
       });
@@ -3222,10 +3749,33 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
         current_value_smallest_unit: trade.positionValueSmallestUnit,
         ownership_percent: trade.ownershipPercent,
         market_question_snapshot: currentMarket.question,
-        market_category_snapshot: normalizeMarketCategory(currentMarket.category)
+        market_category_snapshot: normalizeMarketCategory(currentMarket.category),
+        ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {})
       })
       .select()
       .single();
+
+    if (positionResult.error && idempotencyKey && (/idempotency_key|duplicate|code.*23505/i.test(positionResult.error.message || '') || positionResult.error.code === '23505')) {
+      const { data: existingByKey } = await supabase
+        .from('positions')
+        .select('*, markets (*)')
+        .eq('market_id', marketId)
+        .eq('user_id', user.id)
+        .eq('idempotency_key', idempotencyKey)
+        .maybeSingle();
+      if (existingByKey) {
+        const { count } = await supabase
+          .from('positions')
+          .select('*', { count: 'exact', head: true })
+          .eq('market_id', marketId);
+        const priceHistory = await ensureInitialPriceHistory(currentMarket);
+        return res.status(200).json({
+          idempotent: true,
+          position: normalizePosition(existingByKey, existingByKey.markets || currentMarket),
+          market: normalizeMarket(currentMarket, count || 0, priceHistory)
+        });
+      }
+    }
 
     if (positionResult.error?.message?.includes('entry_price')) {
       positionResult = await supabase
@@ -3784,7 +4334,7 @@ app.post('/api/admin/remove-admin', authenticate, requireRole('super_admin'), as
  * GET /api/admin/list-admins
  * Get list of all admins (super_admin only)
  */
-app.get('/api/admin/list-admins', authenticate, requireRole('super_admin'), async (req: Request, res: Response) => {
+app.get('/api/admin/list-admins', authenticate, requireRole('super_admin'), async (_req: Request, res: Response) => {
   try {
     // Query all users with admin or super_admin role
     const { data: admins, error } = await supabase
@@ -3829,7 +4379,7 @@ app.get('/api/admin/list-admins', authenticate, requireRole('super_admin'), asyn
  * GET /api/admin/analytics
  * Get platform analytics (super_admin only)
  */
-app.get('/api/admin/analytics', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+app.get('/api/admin/analytics', authenticate, requireRole('admin'), async (_req: Request, res: Response) => {
   try {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
@@ -3957,11 +4507,11 @@ const normalizeAdminMarket = (market: any) => ({
   refunded_at: market.refunded_at || null,
   activation_snapshot: market.activation_snapshot || {},
   protected_market_enabled: market.protected_market_enabled !== false,
-  activation_threshold_smallest_unit: Number(market.activation_threshold_smallest_unit || DEFAULT_ACTIVATION_REQUIREMENTS.totalPoolSmallestUnit),
-  activation_yes_min_smallest_unit: Number(market.activation_yes_min_smallest_unit || DEFAULT_ACTIVATION_REQUIREMENTS.yesPoolSmallestUnit),
-  activation_no_min_smallest_unit: Number(market.activation_no_min_smallest_unit || DEFAULT_ACTIVATION_REQUIREMENTS.noPoolSmallestUnit),
-  activation_min_participants: Number(market.activation_min_participants || DEFAULT_ACTIVATION_REQUIREMENTS.minimumParticipants),
-  protected_max_stake_smallest_unit: Number(market.protected_max_stake_smallest_unit || DEFAULT_ACTIVATION_REQUIREMENTS.protectedMaxStakeSmallestUnit),
+  activation_threshold_smallest_unit: Number(market.activation_threshold_smallest_unit || poolEngine.DEFAULT_ACTIVATION_REQUIREMENTS.totalPoolSmallestUnit),
+  activation_yes_min_smallest_unit: Number(market.activation_yes_min_smallest_unit || poolEngine.DEFAULT_ACTIVATION_REQUIREMENTS.yesPoolSmallestUnit),
+  activation_no_min_smallest_unit: Number(market.activation_no_min_smallest_unit || poolEngine.DEFAULT_ACTIVATION_REQUIREMENTS.noPoolSmallestUnit),
+  activation_min_participants: Number(market.activation_min_participants || poolEngine.DEFAULT_ACTIVATION_REQUIREMENTS.minimumParticipants),
+  protected_max_stake_smallest_unit: Number(market.protected_max_stake_smallest_unit || poolEngine.DEFAULT_ACTIVATION_REQUIREMENTS.protectedMaxStakeSmallestUnit),
   pool_amount_smallest_unit: Number(market.pool_amount_smallest_unit || 0),
   total_volume_smallest_unit: Number(market.total_volume_smallest_unit || 0),
   seed_liquidity_yes_smallest_unit: Number(market.seed_liquidity_yes_smallest_unit || 0),
@@ -3995,65 +4545,32 @@ const loadSettlementPositions = async (marketId: string) => {
   return positions || [];
 };
 
-const ownershipSettlementForPosition = (
-  position: any,
-  outcome: PredictionSide,
-  totalWinningShares: number,
-  totalLosingStakeSmallestUnit: number
-) => {
-  const stakeSmallestUnit = Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0);
-  const won = position.side === outcome;
-  const priceAtPurchase = Number(position.price_at_purchase || position.entry_price || 0);
-  const storedShares = Number(position.shares_owned || position.shares_received || 0);
-  const sharesReceived = storedShares > 0
-    ? storedShares
-    : priceAtPurchase > 0
-      ? toAmount(stakeSmallestUnit) / priceAtPurchase
-      : 0;
-  // Pool-safe settlement: price is sentiment/entry math. Winners recover stake
-  // plus pro-rata losing-pool profit, so payouts stay inside locked stakes.
-  const ownershipShare = won && totalWinningShares > 0 ? sharesReceived / totalWinningShares : 0;
-  const poolProfitSmallestUnit = Math.max(0, Math.round(ownershipShare * totalLosingStakeSmallestUnit));
-  const payoutSmallestUnit = won ? stakeSmallestUnit + poolProfitSmallestUnit : 0;
-  const profitSmallestUnit = won ? payoutSmallestUnit - stakeSmallestUnit : -stakeSmallestUnit;
-
-  return {
-    won,
-    stakeSmallestUnit,
-    priceAtPurchase,
-    sharesReceived,
-    ownershipShare,
-    payoutSmallestUnit,
-    profitSmallestUnit
-  };
-};
+const settlementConfigForMarket = (market: any): Partial<poolEngine.SettlementConfig> => ({
+  platformFeeBps: Number(market.platform_fee_bps ?? market.settlement_fee_bps ?? 0),
+  creatorRewardBps: Number(market.creator_reward_bps ?? 0)
+});
 
 const buildSettlementPreview = (market: any, outcome: PredictionSide, allPositions: any[]) => {
-  const winningPositions = allPositions.filter((position: any) => position.side === outcome);
-  const losingPositions = allPositions.filter((position: any) => position.side !== outcome);
-  const totalWinningShares = winningPositions.reduce((sum: number, position: any) => {
-    const stakeSmallestUnit = Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0);
-    const entryPrice = Number(position.price_at_purchase || position.entry_price || 0);
-    const shares = Number(position.shares_owned || position.shares_received || 0) || (entryPrice > 0 ? toAmount(stakeSmallestUnit) / entryPrice : 0);
-    return sum + shares;
-  }, 0);
-  const totalLosingStake = losingPositions.reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0), 0);
-  let settledPositions = allPositions.map((position: any) => {
-    const settlement = ownershipSettlementForPosition(position, outcome, totalWinningShares, totalLosingStake);
-
+  const result = poolEngine.settleMarkets(allPositions, outcome, settlementConfigForMarket(market));
+  const settledPositions = result.positions.map((settlement) => {
+    const position = allPositions.find((candidate: any) => candidate.id === settlement.id);
+    const alreadySettled = Boolean(
+      position &&
+      (position.settled_at || position.resolved_at || ['won', 'lost', 'settled'].includes(String(position.status || '')))
+    );
     return {
-      id: position.id,
-      userId: position.user_id,
-      username: position.username || position.user_id,
-      side: position.side,
-      status: settlement.won ? 'won' : 'lost',
+      id: settlement.id,
+      userId: position?.user_id,
+      username: position?.username || position?.user_id,
+      side: settlement.side,
+      status: settlement.status,
       stakeSmallestUnit: settlement.stakeSmallestUnit,
       priceAtPurchase: settlement.priceAtPurchase,
       sharesReceived: settlement.sharesReceived,
-      ownershipPercent: settlement.ownershipShare * 100,
+      ownershipPercent: settlement.ownershipPercent,
       payoutSmallestUnit: settlement.payoutSmallestUnit,
       profitSmallestUnit: settlement.profitSmallestUnit,
-      alreadySettled: Boolean(position.settled_at || position.resolved_at || ['won', 'lost', 'settled'].includes(String(position.status || ''))),
+      alreadySettled,
       stake: toAmount(settlement.stakeSmallestUnit),
       price: settlement.priceAtPurchase,
       shares: settlement.sharesReceived,
@@ -4061,40 +4578,24 @@ const buildSettlementPreview = (market: any, outcome: PredictionSide, allPositio
       profit: toAmount(settlement.profitSmallestUnit)
     };
   });
-  const totalWinningStake = winningPositions.reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || Math.round(Number(position.stake_amount || 0) * 100) || 0), 0);
-  const maxPayoutSmallestUnit = totalWinningStake + totalLosingStake;
-  let payoutOverflow = settledPositions.reduce((sum: number, position: any) => sum + position.payoutSmallestUnit, 0) - maxPayoutSmallestUnit;
-
-  if (payoutOverflow > 0) {
-    settledPositions = settledPositions.map((position: any) => {
-      if (payoutOverflow <= 0 || position.payoutSmallestUnit <= 0) return position;
-      const reduction = Math.min(payoutOverflow, position.payoutSmallestUnit);
-      payoutOverflow -= reduction;
-      const payoutSmallestUnit = position.payoutSmallestUnit - reduction;
-      const profitSmallestUnit = payoutSmallestUnit - position.stakeSmallestUnit;
-      return {
-        ...position,
-        payoutSmallestUnit,
-        profitSmallestUnit,
-        payout: toAmount(payoutSmallestUnit),
-        profit: toAmount(profitSmallestUnit)
-      };
-    });
-  }
 
   return {
+    rule: result.rule,
     marketId: market.id,
     marketQuestion: market.question,
     winningOutcome: outcome,
-    totalYesStake: toAmount(allPositions.filter((position: any) => position.side === 'YES').reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || 0), 0)),
-    totalNoStake: toAmount(allPositions.filter((position: any) => position.side === 'NO').reduce((sum: number, position: any) => sum + Number(position.amount_smallest_unit || 0), 0)),
-    totalWinningStake: toAmount(totalWinningStake),
-    totalLosingStake: toAmount(totalLosingStake),
-    totalWinningShares,
-    totalWinners: winningPositions.length,
-    totalLosers: losingPositions.length,
-    totalPayout: toAmount(settledPositions.reduce((sum: number, position: any) => sum + position.payoutSmallestUnit, 0)),
-    platformFee: 0,
+    totalYesStake: toAmount(result.totalYesStakeSmallestUnit),
+    totalNoStake: toAmount(result.totalNoStakeSmallestUnit),
+    totalWinningStake: toAmount(result.totalWinningStakeSmallestUnit),
+    totalLosingStake: toAmount(result.totalLosingStakeSmallestUnit),
+    totalWinningShares: result.totalWinningShares,
+    totalWinners: result.totalWinners,
+    totalLosers: result.totalLosers,
+    totalPayout: toAmount(result.totalPayoutSmallestUnit),
+    platformFee: toAmount(result.platformFeeSmallestUnit),
+    platformFeeSmallestUnit: result.platformFeeSmallestUnit,
+    creatorReward: toAmount(result.creatorRewardSmallestUnit),
+    creatorRewardSmallestUnit: result.creatorRewardSmallestUnit,
     positions: settledPositions
   };
 };
@@ -4482,6 +4983,138 @@ app.post('/api/admin/markets/upload-media', authenticate, requireRole('admin'), 
 });
 
 /**
+ * GET /api/admin/reviews
+ * Admin review queue: user-submitted markets awaiting a decision.
+ */
+app.get('/api/admin/reviews', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+    const offset = Math.max(0, Number(req.query.offset) || 0);
+    const statusFilter = String(req.query.status || '').trim();
+    const requestedStatus = statusFilter && /^(submitted|approved|rejected|under_review)$/i.test(statusFilter)
+      ? statusFilter.toLowerCase()
+      : 'submitted';
+
+    const { data: markets, count, error: listError } = await supabase
+      .from('markets')
+      .select('id, question, category, submitted_at, created_by, status, rejection_reason', { count: 'exact' })
+      .eq('status', requestedStatus)
+      .order('submitted_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (listError) throw listError;
+
+    res.json({
+      success: true,
+      reviews: (markets || []).map((market) => ({
+        id: market.id,
+        marketId: market.id,
+        question: market.question,
+        category: normalizeMarketCategory(market.category),
+        status: market.status,
+        rejectionReason: market.rejection_reason || null,
+        createdBy: market.created_by,
+        submittedAt: market.submitted_at || null
+      })),
+      count: Number(count || 0),
+      total: Number(count || 0),
+      limit,
+      offset
+    });
+  } catch (error: any) {
+    console.error('Admin reviews error:', error);
+    res.status(500).json({ success: false, error: { code: 'REVIEWS_FETCH_FAILED', message: 'Could not load review queue.' } });
+  }
+});
+
+/**
+ * POST /api/admin/markets/:id/review
+ * Approve or reject a user-submitted market.
+ */
+app.post('/api/admin/markets/:id/review', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const marketId = String(req.params.id);
+    const decision = String(req.body.decision || req.body.action || '').toLowerCase();
+    const reason = String(req.body.reason || req.body.rejection_reason || '').trim();
+
+    if (!['approve', 'reject'].includes(decision)) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_DECISION', message: 'Decision must be approve or reject.' } });
+    }
+    if (decision === 'reject' && !reason) {
+      return res.status(400).json({ success: false, error: { code: 'REASON_REQUIRED', message: 'A rejection reason is required.' } });
+    }
+
+    const { data: market, error: fetchError } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('id', marketId)
+      .maybeSingle();
+
+    if (fetchError || !market) {
+      return res.status(404).json({ success: false, error: { code: 'MARKET_NOT_FOUND', message: 'Market not found.' } });
+    }
+
+    const isApproved = decision === 'approve';
+    const nowIso = new Date().toISOString();
+    const updatePayload: any = isApproved
+      ? { status: 'active', state: legacyStateFor('active'), reviewed_at: nowIso, approved_at: nowIso, rejected_at: null, rejection_reason: null }
+      : { status: 'rejected', state: legacyStateFor('rejected'), reviewed_at: nowIso, approved_at: null, rejected_at: nowIso, rejection_reason: reason };
+
+    const { data: updated, error: updateError } = await supabase
+      .from('markets')
+      .update(updatePayload)
+      .eq('id', marketId)
+      .select()
+      .single();
+    if (updateError) throw updateError;
+
+    const { error: reviewError } = await supabase
+      .from('market_reviews')
+      .insert({
+        market_id: marketId,
+        reviewer_id: user.id,
+        decision: decision === 'approve' ? 'approved' : 'rejected',
+        reason: reason || null,
+        reviewed_at: nowIso
+      });
+    if (reviewError) {
+      console.warn('Market review record insert skipped:', reviewError.message);
+    }
+
+    // Notify the creator about the decision.
+    try {
+      if (isApproved) {
+        await supabase.from('notifications').insert({
+          user_id: market.created_by,
+          type: 'market_approved',
+          title: 'Your pool is live',
+          message: `"${String(market.question).slice(0, 60)}" was approved and is now open for predictions.`
+        });
+      } else {
+        await supabase.from('notifications').insert({
+          user_id: market.created_by,
+          type: 'market_rejected',
+          title: 'Your pool was not approved',
+          message: String(reason).slice(0, 200)
+        });
+      }
+    } catch (notifyError: any) {
+      console.warn('Review notification skipped:', notifyError.message || notifyError);
+    }
+
+    res.json({
+      success: true,
+      decision: isApproved ? 'approved' : 'rejected',
+      market: normalizeMarket(updated, 0)
+    });
+  } catch (error: any) {
+    console.error('Admin review decision error:', error);
+    res.status(500).json({ success: false, error: { code: 'REVIEW_FAILED', message: 'Could not process review.' } });
+  }
+});
+
+/**
  * POST /api/admin/markets
  * Create an admin market.
  */
@@ -4580,11 +5213,11 @@ app.post('/api/admin/markets', authenticate, requireRole('admin'), async (req: R
         total_volume_smallest_unit: 0,
         protected_market_enabled: req.body.protected_market_enabled !== false,
         activation_state: 'protected',
-        activation_threshold_smallest_unit: Number(req.body.activation_threshold_smallest_unit || DEFAULT_ACTIVATION_REQUIREMENTS.totalPoolSmallestUnit),
-        activation_yes_min_smallest_unit: Number(req.body.activation_yes_min_smallest_unit || DEFAULT_ACTIVATION_REQUIREMENTS.yesPoolSmallestUnit),
-        activation_no_min_smallest_unit: Number(req.body.activation_no_min_smallest_unit || DEFAULT_ACTIVATION_REQUIREMENTS.noPoolSmallestUnit),
-        activation_min_participants: Number(req.body.activation_min_participants || DEFAULT_ACTIVATION_REQUIREMENTS.minimumParticipants),
-        protected_max_stake_smallest_unit: Number(req.body.protected_max_stake_smallest_unit || DEFAULT_ACTIVATION_REQUIREMENTS.protectedMaxStakeSmallestUnit),
+        activation_threshold_smallest_unit: Number(req.body.activation_threshold_smallest_unit || poolEngine.DEFAULT_ACTIVATION_REQUIREMENTS.totalPoolSmallestUnit),
+        activation_yes_min_smallest_unit: Number(req.body.activation_yes_min_smallest_unit || poolEngine.DEFAULT_ACTIVATION_REQUIREMENTS.yesPoolSmallestUnit),
+        activation_no_min_smallest_unit: Number(req.body.activation_no_min_smallest_unit || poolEngine.DEFAULT_ACTIVATION_REQUIREMENTS.noPoolSmallestUnit),
+        activation_min_participants: Number(req.body.activation_min_participants || poolEngine.DEFAULT_ACTIVATION_REQUIREMENTS.minimumParticipants),
+        protected_max_stake_smallest_unit: Number(req.body.protected_max_stake_smallest_unit || poolEngine.DEFAULT_ACTIVATION_REQUIREMENTS.protectedMaxStakeSmallestUnit),
         rules
       };
 
@@ -5048,14 +5681,15 @@ app.post('/api/admin/markets/:marketId/rollback', authenticate, requireRole('adm
 
     for (const position of settledPositions || []) {
       const payout = Number(position.payout_smallest_unit || 0);
-      const stake = Number(position.amount_smallest_unit || 0);
 
       if (payout > 0 && position.user_id) {
-        await supabase.rpc('atomic_refund_to_available', {
+        const refundResult = await supabase.rpc('atomic_refund_to_available', {
           p_user_id: position.user_id,
           p_amount: payout,
           p_currency: position.currency || 'NGN',
-        }).catch(() => {});
+        });
+
+        if (refundResult.error) throw refundResult.error;
       }
 
       await supabase.from('positions').update({
@@ -5273,7 +5907,7 @@ app.get('/api/admin/finance/overview', authenticate, requireRole('admin'), async
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
     const todayIso = startOfToday.toISOString();
-    const [walletsResult, depositsResult, withdrawalsResult, pendingDepositsResult, pendingWithdrawalsResult, todayDepositsResult, todayWithdrawalsResult, todayPredictionsResult, pendingPayoutsResult, refundsResult, transactionsResult] = await Promise.all([
+    const [walletsResult, depositsResult, withdrawalsResult, pendingDepositsResult, pendingWithdrawalsResult, todayDepositsResult, todayWithdrawalsResult, todayPredictionsResult, pendingPayoutsResult, refundsResult] = await Promise.all([
       supabase.from('wallets').select('balance_ngn_kobo, locked_ngn_kobo'),
       supabase.from('deposit_requests').select('amount_smallest_unit').eq('status', 'completed'),
       supabase.from('withdrawal_requests').select('amount_smallest_unit').eq('status', 'completed'),
@@ -5284,7 +5918,6 @@ app.get('/api/admin/finance/overview', authenticate, requireRole('admin'), async
       supabase.from('positions').select('amount_smallest_unit').gte('created_at', todayIso),
       supabase.from('positions').select('id', { count: 'exact', head: true }).eq('status', 'won'),
       supabase.from('transactions').select('amount_smallest_unit').eq('type', 'refund').eq('status', 'completed'),
-      supabase.from('transactions').select('amount_smallest_unit, type, status'),
     ]);
     const sum = (rows?: any[] | null) => (rows || []).reduce((total, row) => total + Number(row.amount_smallest_unit || 0), 0);
     const totalUserBalances = (walletsResult.data || []).reduce((total, wallet) => total + Number(wallet.balance_ngn_kobo || 0), 0);

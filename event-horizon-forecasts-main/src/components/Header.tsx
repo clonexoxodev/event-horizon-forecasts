@@ -1,4 +1,4 @@
-import { Home, Briefcase, Menu, Shield, Wallet } from "lucide-react";
+import { Home, Briefcase, Menu, Shield, Wallet, PlusCircle } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
@@ -8,6 +8,7 @@ import { FlippeSymbol, FlippeWordmark } from "@/components/FlippeBrand";
 const primaryNav = [
   { to: "/", label: "Home", icon: Home },
   { to: "/portfolio", label: "Portfolio", icon: Briefcase },
+  { to: "/create", label: "Create", icon: PlusCircle },
   { to: "/wallet", label: "Wallet", icon: Wallet },
   { to: "/more", label: "More", icon: Menu },
 ];
@@ -99,8 +100,17 @@ export const Header = () => {
       >
         <div className="px-5 pt-7 pb-5">
           <Link to="/" className="flex items-center gap-3" aria-label="FLIPPE home">
-            <FlippeWordmark size="md" tagline="Trade real-world outcomes" />
+            <FlippeWordmark size="md" tagline="Predict real-world outcomes" />
           </Link>
+          <div className="mt-4">
+            <Link
+              to="/create"
+              className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[#4F46E5] text-xs font-bold text-white transition-all duration-200 hover:bg-[#4338CA] hover:shadow-md hover:shadow-[#4F46E5]/20 active:scale-[0.98]"
+            >
+              <PlusCircle className="h-4 w-4" strokeWidth={2.2} />
+              Create a pool
+            </Link>
+          </div>
         </div>
 
         <nav className="flex-1 space-y-0.5 px-3" aria-label="Primary navigation">

@@ -610,7 +610,7 @@ router.get('/:id/related', async (req: Request, res: Response) => {
  * Get popular markets (markets with more than 100 positions)
  * Requirements: 19.1
  */
-router.get('/popular', async (req: Request, res: Response) => {
+router.get('/popular', async (_req: Request, res: Response) => {
   try {
     const popularMarkets = await marketService.getPopularMarkets();
 
@@ -1134,6 +1134,16 @@ router.post('/:id/predictions', authMiddleware.authenticate, async (req: Request
 router.get('/:id/positions', authMiddleware.authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params as { id: string };
+
+    if (!req.user) {
+      return res.status(401).json({
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'User not authenticated',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
 
     // Verify market exists
     const market = await marketService.getMarketById(id);

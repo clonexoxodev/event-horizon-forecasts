@@ -22,7 +22,7 @@ function getSupabaseClient(): SupabaseClient {
   }
 
   // Create Supabase client with service role key (bypasses RLS)
-  supabaseInstance = createClient(supabaseUrl, fallbackKey, {
+  supabaseInstance = createClient(supabaseUrl, fallbackKey!, {
     auth: {
       autoRefreshToken: false,
       persistSession: false
@@ -34,7 +34,7 @@ function getSupabaseClient(): SupabaseClient {
 
 // Export a getter instead of direct instance
 export const supabase = new Proxy({} as SupabaseClient, {
-  get(target, prop) {
+  get(_target, prop) {
     const client = getSupabaseClient();
     return (client as any)[prop];
   }
@@ -45,7 +45,7 @@ export async function testSupabaseConnection(): Promise<boolean> {
   try {
     console.log('Testing Supabase connection...');
     const client = getSupabaseClient();
-    const { data, error } = await client
+    const { error } = await client
       .from('users')
       .select('count')
       .limit(1);
@@ -72,7 +72,7 @@ export async function supabaseQuery<T = any>(
 ): Promise<{ rows: T[]; rowCount: number }> {
   try {
     const client = getSupabaseClient();
-    let query = client.from(table);
+    let query: any = client.from(table);
     
     switch (operation) {
       case 'select':

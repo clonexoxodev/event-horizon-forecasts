@@ -28,6 +28,7 @@ import NotFound from "./pages/NotFound.tsx";
 import About from "./pages/About.tsx";
 import HowItWorks from "./pages/HowItWorks.tsx";
 import Markets from "./pages/Markets.tsx";
+import CreateMarket from "./pages/CreateMarket.tsx";
 import FAQ from "./pages/FAQ.tsx";
 import HelpCenter from "./pages/HelpCenter.tsx";
 import Contact from "./pages/Contact.tsx";
@@ -141,6 +142,7 @@ const App = () => (
                   <Route path="/about" element={<About />} />
                   <Route path="/how-it-works" element={<HowItWorks />} />
                   <Route path="/markets" element={<Markets />} />
+                  <Route path="/create" element={<CreateMarket />} />
                   <Route path="/faq" element={<FAQ />} />
                   <Route path="/help-center" element={<HelpCenter />} />
                   <Route path="/contact" element={<Contact />} />

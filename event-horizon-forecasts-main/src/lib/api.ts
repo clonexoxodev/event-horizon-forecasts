@@ -89,6 +89,14 @@ export type ApiMarket = {
   closeTime: string;
   tradingCloseTime?: string;
   status: 'draft' | 'active' | 'closed' | 'pending_resolution' | 'resolved' | 'cancelled' | 'archived' | 'refunded';
+  visibility?: 'public' | 'private';
+  participantLimit?: number | null;
+  inviteCode?: string | null;
+  createdBy?: string | null;
+  reviewState?: 'submitted' | 'approved' | 'rejected' | null;
+  isPendingReview?: boolean;
+  isRejected?: boolean;
+  rejectionReason?: string | null;
   rules?: string;
   minAmount?: number;
   maxAmount?: number;
@@ -206,6 +214,37 @@ export type AdminCreateMarketInput = {
   activation_no_min_smallest_unit?: number;
   activation_min_participants?: number;
   protected_max_stake_smallest_unit?: number;
+};
+
+export type CreateMarketInput = {
+  question: string;
+  description?: string;
+  rules?: string;
+  category: string;
+  visibility?: 'public' | 'private';
+  close_date?: string;
+  closes_at?: string;
+  trading_close_at?: string;
+  trading_close_time?: string;
+  resolution_date?: string;
+  resolution_source?: string;
+  resolution_instructions?: string;
+  currency?: 'NGN' | 'USD';
+  starting_yes_price?: number;
+  yes_price?: number;
+  image_url?: string;
+  video_url?: string;
+  invite_code?: string;
+  participant_limit?: number;
+  min_position_smallest_unit?: number;
+  max_position_smallest_unit?: number;
+  activation?: {
+    totalPoolSmallestUnit?: number;
+    yesPoolSmallestUnit?: number;
+    noPoolSmallestUnit?: number;
+    minimumParticipants?: number;
+    protectedMaxStakeSmallestUnit?: number;
+  };
 };
 
 export type ApiPosition = {
@@ -568,12 +607,68 @@ class ApiService {
     });
   }
 
-  async getMarkets(): Promise<{ markets: ApiMarket[]; count: number }> {
-    return this.request('/api/markets');
+  async getMarkets(params: { sort?: string; q?: string; category?: string; status?: string; limit?: number; offset?: number } = {}): Promise<{ markets: ApiMarket[]; count: number }> {
+    const query = new URLSearchParams();
+    if (params.sort) query.set('sort', params.sort);
+    if (params.q) query.set('q', params.q);
+    if (params.category) query.set('category', params.category);
+    if (params.status) query.set('status', params.status);
+    if (params.limit) query.set('limit', String(params.limit));
+    if (params.offset) query.set('offset', String(params.offset));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.request(`/api/markets${suffix}`);
   }
 
-  async getMarket(marketId: string): Promise<{ market: ApiMarket }> {
-    return this.request(`/api/markets/${encodeURIComponent(marketId)}`);
+  async getMarket(marketId: string, inviteCode?: string): Promise<{ market: ApiMarket }> {
+    const suffix = inviteCode ? `?code=${encodeURIComponent(inviteCode)}` : '';
+    return this.request(`/api/markets/${encodeURIComponent(marketId)}${suffix}`);
+  }
+
+  async getMarketDuplicates(question: string): Promise<{ markets: ApiMarket[]; count: number }> {
+    return this.request(`/api/markets/duplicates?q=${encodeURIComponent(question)}`);
+  }
+
+  async getMyMarkets(): Promise<{ markets: ApiMarket[]; count: number }> {
+    return this.request('/api/markets/my');
+  }
+
+  async createMarket(data: CreateMarketInput): Promise<{ success: boolean; market: ApiMarket; inviteCode?: string | null; message?: string }> {
+    return this.request('/api/markets', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async joinMarket(marketId: string, inviteCode: string): Promise<{ success: boolean; alreadyJoined?: boolean; market: ApiMarket }> {
+    return this.request(`/api/markets/${encodeURIComponent(marketId)}/join`, {
+      method: 'POST',
+      body: JSON.stringify({ invite_code: inviteCode }),
+    });
+  }
+
+  async getAdminReviews(params: { status?: string; limit?: number; offset?: number } = {}): Promise<{ reviews: Array<{
+    id: string;
+    marketId: string;
+    question: string;
+    category: string;
+    status: string;
+    rejectionReason?: string | null;
+    createdBy?: string;
+    submittedAt?: string;
+  }>; count: number; total: number }> {
+    const query = new URLSearchParams();
+    if (params.status) query.set('status', params.status);
+    if (params.limit) query.set('limit', String(params.limit));
+    if (params.offset) query.set('offset', String(params.offset));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.request(`/api/admin/reviews${suffix}`);
+  }
+
+  async reviewMarket(marketId: string, decision: 'approve' | 'reject', reason?: string) {
+    return this.request<{ success: boolean; decision: 'approved' | 'rejected'; market: AdminMarket }>(`/api/admin/markets/${encodeURIComponent(marketId)}/review`, {
+      method: 'POST',
+      body: JSON.stringify({ decision, reason }),
+    });
   }
 
   async getRelatedMarkets(marketId: string): Promise<{ markets: ApiMarket[]; count: number }> {
@@ -586,9 +681,11 @@ class ApiService {
 
   async placePrediction(
     marketId: string,
-    prediction: { side: 'YES' | 'NO' | 'UP' | 'DOWN'; amount: number; currency?: 'NGN' | 'USD' }
-  ): Promise<{ position: ApiPosition; market: ApiMarket; wallet: ApiWallet; transaction: ApiTransaction; activity: ApiActivity[] }> {
+    prediction: { side: 'YES' | 'NO' | 'UP' | 'DOWN'; amount: number; currency?: 'NGN' | 'USD'; idempotencyKey?: string },
+    _idempotencyKey?: string
+  ): Promise<{ position: ApiPosition; market: ApiMarket; wallet: ApiWallet; transaction: ApiTransaction; activity: ApiActivity[]; idempotent?: boolean }> {
     const currency = prediction.currency || 'NGN';
+    const idempotencyKey = prediction.idempotencyKey || _idempotencyKey;
     return this.request(`/api/markets/${encodeURIComponent(marketId)}/predictions`, {
       method: 'POST',
       body: JSON.stringify({
@@ -596,6 +693,7 @@ class ApiService {
         amount: prediction.amount,
         amountSmallestUnit: toSmallestUnit(prediction.amount),
         currency,
+        ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
       }),
     });
   }

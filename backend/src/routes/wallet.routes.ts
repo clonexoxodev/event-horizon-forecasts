@@ -142,7 +142,7 @@ const verifyPaystackSignature = (req: Request): boolean => {
   if (!secret) return false;
   const signature = req.headers['x-paystack-signature'];
   if (typeof signature !== 'string' || !signature) return false;
-  const hmac = crypto.createHmac('sha256', secret).update(req.rawBody || '').digest('hex');
+  const hmac = crypto.createHmac('sha256', secret).update((req as any).rawBody || '').digest('hex');
   return crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(signature));
 };
 const verifyFlutterwaveSignature = (req: Request): boolean => {
@@ -163,7 +163,7 @@ const verifyMonnifySignature = (req: Request): boolean => {
   if (!secret) return false;
   const signature = req.headers['monnify-signature'];
   if (typeof signature !== 'string' || !signature) return false;
-  const hmac = crypto.createHmac('sha256', secret).update(req.rawBody || '').digest('hex');
+  const hmac = crypto.createHmac('sha256', secret).update((req as any).rawBody || '').digest('hex');
   return crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(signature));
 };
 

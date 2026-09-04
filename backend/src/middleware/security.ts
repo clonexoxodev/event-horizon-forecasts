@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { supabase } from '../db/supabase-client.js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 declare global {

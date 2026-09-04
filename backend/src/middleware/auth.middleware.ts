@@ -94,7 +94,7 @@ export class AuthMiddleware {
   /**
    * Optional authentication middleware (doesn't fail if no token)
    */
-  optionalAuthenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  optionalAuthenticate = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       const authHeader = req.headers.authorization;
       const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : '';

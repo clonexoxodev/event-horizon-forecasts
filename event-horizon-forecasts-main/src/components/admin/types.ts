@@ -3,6 +3,7 @@ import type { AdminMarket, ApiTransaction, WithdrawalRequest, DepositRequest } f
 export type AdminView =
   | "dashboard"
   | "markets"
+  | "reviews"
   | "market-detail"
   | "create-market"
   | "edit-market"

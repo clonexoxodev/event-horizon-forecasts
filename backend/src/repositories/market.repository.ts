@@ -234,12 +234,12 @@ export class MarketRepository {
   /**
    * Transaction support methods (for use with Supabase transactions)
    */
-  async findByIdInTransaction(client: any, id: string): Promise<Market | null> {
+  async findByIdInTransaction(_client: any, id: string): Promise<Market | null> {
     return await this.findById(id);
   }
 
   async updatePoolAmountsInTransaction(
-    client: any,
+    _client: any,
     marketId: string,
     side: 'YES' | 'NO',
     amount: number

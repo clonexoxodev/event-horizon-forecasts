@@ -18,6 +18,7 @@ import {
   Users,
   Zap,
   X,
+  Inbox,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
@@ -34,6 +35,7 @@ const NAV_SECTIONS: { label: string; items: { view: AdminView; icon: typeof Layo
     label: "Operations",
     items: [
       { view: "markets", icon: TrendingUp, label: "Markets" },
+      { view: "reviews", icon: Inbox, label: "Pool Reviews" },
       { view: "settlement-dashboard", icon: Gavel, label: "Settlements" },
       { view: "withdrawals", icon: CreditCard, label: "Withdrawals" },
       { view: "finance", icon: BarChart3, label: "Finance" },
@@ -64,6 +66,7 @@ const NAV_SECTIONS: { label: string; items: { view: AdminView; icon: typeof Layo
 const VIEW_TITLES: Record<AdminView, string> = {
   dashboard: "Dashboard",
   markets: "Markets",
+  reviews: "Pool Reviews",
   "market-detail": "Market Detail",
   "create-market": "Create Market",
   "edit-market": "Edit Market",

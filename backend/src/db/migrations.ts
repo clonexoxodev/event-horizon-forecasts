@@ -77,9 +77,11 @@ async function applyMigration(migration: {
     const sql = readFileSync(migration.path, 'utf-8');
     
     // Extract only the UP migration (before DOWN comment)
-    const upMigration = sql.split('-- DOWN Migration')[0];
+    const [upMigration] = sql.split('-- DOWN Migration');
     
-    await client.query(upMigration);
+    if (upMigration) {
+      await client.query(upMigration);
+    }
 
     // Record migration as applied
     await client.query(
@@ -217,6 +219,11 @@ export async function rollbackLastMigration(): Promise<void> {
     }
 
     const lastMigration = result.rows[0];
+
+    if (!lastMigration) {
+      console.log('No migrations to rollback');
+      return;
+    }
 
     console.log(`\nLast applied migration: ${lastMigration.version}_${lastMigration.name}`);
     console.log('\nWARNING: Automatic rollback is not implemented.');
