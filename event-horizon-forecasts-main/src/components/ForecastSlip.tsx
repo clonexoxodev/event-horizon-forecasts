@@ -329,8 +329,8 @@ function SuccessPhase({
     <div className="flex flex-col p-5 sm:p-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400">Prediction Placed</p>
-          <h2 className="mt-1 text-2xl font-black text-gray-900">You're In!</h2>
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400">Prediction Active</p>
+          <h2 className="mt-1 text-2xl font-black text-gray-900">Your prediction is active</h2>
         </div>
         <button onClick={onDone} aria-label="Close" className="grid h-10 w-10 place-items-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-900">
           <X className="h-5 w-5" />

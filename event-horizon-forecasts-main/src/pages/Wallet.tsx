@@ -36,13 +36,13 @@ type WalletRow = {
   transaction: ApiTransaction;
 };
 
-type TabFilter = "all" | "deposits" | "withdrawals" | "positions" | "payouts";
+type TabFilter = "all" | "deposits" | "withdrawals" | "predictions" | "payouts";
 
 const TABS: { key: TabFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "deposits", label: "Deposits" },
   { key: "withdrawals", label: "Withdrawals" },
-  { key: "positions", label: "Positions" },
+  { key: "predictions", label: "Predictions" },
   { key: "payouts", label: "Payouts" },
 ];
 
@@ -58,7 +58,7 @@ const isPayoutType = (t: string) =>
 const categoryFor = (t: string): TabFilter => {
   if (isDepositType(t)) return "deposits";
   if (isWithdrawalType(t)) return "withdrawals";
-  if (isPositionType(t)) return "positions";
+  if (isPositionType(t)) return "predictions";
   if (isPayoutType(t)) return "payouts";
   return "all";
 };
@@ -269,7 +269,7 @@ export default function Wallet() {
               <div>
                 <h2 className="text-lg font-bold">Transaction History</h2>
                 <p className="text-xs text-[#6B7280]">
-                  All deposits, withdrawals, positions, and payouts.
+                  All deposits, withdrawals, predictions, and payouts.
                 </p>
               </div>
             </div>

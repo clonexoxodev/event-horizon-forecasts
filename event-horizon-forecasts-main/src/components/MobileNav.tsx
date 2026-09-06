@@ -1,15 +1,25 @@
 import { Compass, PlusCircle, Target, User, Wallet } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "@/lib/auth";
 
-const navItems = [
-  { to: "/", icon: Compass, label: "Discover" },
-  { to: "/portfolio", icon: Target, label: "Predictions" },
-  { to: "/create", icon: PlusCircle, label: "Create", prominent: true },
-  { to: "/wallet", icon: Wallet, label: "Wallet" },
-  { to: "/profile", icon: User, label: "Profile" },
-];
+const baseNavItems = [
+  { key: "discover", to: "/", icon: Compass, label: "Discover" },
+  { key: "predictions", to: "/predictions", icon: Target, label: "Predictions", protected: true },
+  { key: "create", to: "/create", icon: PlusCircle, label: "Create", prominent: true, protected: true },
+  { key: "wallet", to: "/wallet", icon: Wallet, label: "Wallet", protected: true },
+  { key: "profile", to: "/profile", icon: User, label: "Profile", protected: true },
+] as const;
 
 export const MobileNav = () => {
+  const { user } = useAuth();
+  const location = useLocation();
+  const signInState = { from: location };
+
+  const navItems = baseNavItems.map((item) => ({
+    ...item,
+    to: item.protected && !user ? "/login" : item.to,
+    state: item.protected && !user ? signInState : undefined,
+  }));
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#E5E7EB]/50 bg-white/85 backdrop-blur-2xl md:hidden"
@@ -23,8 +33,9 @@ export const MobileNav = () => {
         {navItems.map((item) =>
           item.prominent ? (
             <NavLink
-              key={item.to}
+              key={item.key}
               to={item.to}
+              state={item.state}
               aria-label={item.label}
               className={({ isActive }) =>
                 [
@@ -50,8 +61,9 @@ export const MobileNav = () => {
             </NavLink>
           ) : (
             <NavLink
-              key={item.to}
+              key={item.key}
               to={item.to}
+              state={item.state}
               end={item.to === "/"}
               aria-label={item.label}
               className={({ isActive }) =>

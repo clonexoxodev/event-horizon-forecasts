@@ -420,7 +420,7 @@ const InvitationCard = ({
         </h2>
         {market.creatorUsername && (
           <p className="mt-1.5 text-xs font-bold text-[#6B7280]">
-            Private pool by <span className="text-[#4F46E5]">@{market.creatorUsername}</span>
+            Private prediction by <span className="text-[#4F46E5]">@{market.creatorUsername}</span>
           </p>
         )}
       </div>

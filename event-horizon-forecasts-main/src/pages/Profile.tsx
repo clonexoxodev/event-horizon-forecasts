@@ -441,15 +441,15 @@ export default function Profile() {
         {/* ── Trader Progress ── */}
         <TraderProgress stats={stats} positions={positions} />
 
-        {/* ── Recent Positions ── */}
+        {/* ── Recent Predictions ── */}
         <section className="mt-4 rounded-3xl border border-[#E5E7EB] bg-white p-5">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold">Recent Positions</h2>
+              <h2 className="text-lg font-bold">Recent Predictions</h2>
               <p className="text-xs text-[#9CA3AF]">
                 {loading
                   ? "Loading..."
-                  : "Your last 5 market positions"}
+                  : "Your last 5 predictions"}
               </p>
             </div>
             <span className="rounded-full bg-[#EEF2FF] px-3 py-1 text-xs font-bold text-[#4F46E5]">
@@ -462,9 +462,9 @@ export default function Profile() {
               <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-[#EEF2FF]">
                 <LineChart className="h-8 w-8 text-[#4F46E5]" />
               </div>
-              <div className="font-bold text-[#111827]">No positions yet</div>
+              <div className="font-bold text-[#111827]">No predictions yet</div>
               <p className="mt-1 text-sm text-[#9CA3AF]">
-                Browse markets to open your first position.
+                Browse markets to make your first prediction.
               </p>
             </div>
           ) : (

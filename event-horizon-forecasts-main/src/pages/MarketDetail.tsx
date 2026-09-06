@@ -59,8 +59,6 @@ export default function MarketDetail() {
   const [sheetSide, setSheetSide] = useState<"YES" | "NO" | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>("24H");
   const [now, setNow] = useState(Date.now());
-  const [justPredicted, setJustPredicted] = useState<"YES" | "NO" | null>(null);
-  const [showConfetti, setShowConfetti] = useState(false);
   const [showProtectedInfo, setShowProtectedInfo] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const marketsRef = useRef(markets);
@@ -197,9 +195,6 @@ export default function MarketDetail() {
     setMarket(updatedMarket);
     upsertMarket(updatedMarket);
     refreshUser().catch((error) => console.warn("User refresh after trade failed", error));
-    setJustPredicted(selection.side);
-    setShowConfetti(true);
-    setTimeout(() => setShowConfetti(false), 3000);
   };
 
   if (loading && !market) {
@@ -263,7 +258,7 @@ export default function MarketDetail() {
                 {market.visibility === "private" && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-[#6B7280]/10 px-2 py-0.5 text-[10px] font-bold text-[#6B7280]">
                     <Shield className="h-3 w-3" />
-                    Private pool
+                    Private prediction
                   </span>
                 )}
                 {market.isPendingReview ? (
@@ -357,7 +352,7 @@ export default function MarketDetail() {
                 </div>
                 <div>
                   <div className="text-sm font-bold text-[#101828]">Market Refunded</div>
-                  <div className="text-xs text-[#6B7280]">All positions have been refunded to their original wallets.</div>
+                  <div className="text-xs text-[#6B7280]">All predictions have been refunded to their wallets.</div>
                 </div>
               </div>
             </div>
@@ -372,7 +367,7 @@ export default function MarketDetail() {
                 </div>
                 <div>
                   <div className="text-sm font-bold text-[#101828]">Market Cancelled</div>
-                  <div className="text-xs text-[#6B7280]">This market has been cancelled. All positions have been refunded.</div>
+                  <div className="text-xs text-[#6B7280]">This market has been cancelled. All predictions have been refunded.</div>
                 </div>
               </div>
             </div>
@@ -405,9 +400,9 @@ export default function MarketDetail() {
                   <Clock className="h-4 w-4" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-[#101828]">Pool in review</div>
+                  <div className="text-sm font-bold text-[#101828]">In review</div>
                   <div className="mt-0.5 text-xs leading-relaxed text-[#6B7280]">
-                    Your pool has been submitted and is being checked before it goes live. No predictions can be placed yet.
+                    This prediction has been submitted and is being checked before it goes live. No predictions can be placed yet.
                   </div>
                 </div>
               </div>
@@ -422,9 +417,9 @@ export default function MarketDetail() {
                   <X className="h-4 w-4" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-[#101828]">Pool not approved</div>
+                  <div className="text-sm font-bold text-[#101828]">Prediction not approved</div>
                   <div className="mt-0.5 text-xs leading-relaxed text-[#6B7280]">
-                    {market.rejectionReason || "This pool did not pass admin review. Stakes were not taken and refunds were not needed."}
+                    {market.rejectionReason || "This prediction did not pass admin review. Stakes were not taken and refunds were not needed."}
                   </div>
                 </div>
               </div>
@@ -439,9 +434,9 @@ export default function MarketDetail() {
                   <Share2 className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-bold text-[#101828]">Private pool</div>
+                  <div className="text-sm font-bold text-[#101828]">Private prediction</div>
                   <p className="mt-0.5 text-xs leading-relaxed text-[#6B7280]">
-                    Only people with the invite code can join. Share the invite link with your pool members.
+                    Only people with the invite code can join. Share the invite link with your members.
                   </p>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <button
@@ -555,10 +550,10 @@ export default function MarketDetail() {
             onToggle={() => toggleSection("settlement")}
             border
           >
-            <p className="text-sm leading-relaxed text-[#475467]">
-              After resolution, winning positions are settled at the pool payout rate. Losing positions are worth nothing.
-              Settlement is processed automatically once the market resolves.
-            </p>
+<p className="text-sm leading-relaxed text-[#475467]">
+                After resolution, winning predictions are settled at the pool payout rate. Losing predictions are worth nothing.
+                Settlement is processed automatically once the market resolves.
+              </p>
             {market.settlement_status && (
               <div className="mt-3 flex items-center gap-2 rounded-lg bg-[#F8F7F4] p-3">
                 <div className={`h-2 w-2 rounded-full ${market.settlement_status === "completed" ? "bg-[#12B886]" : market.settlement_status === "settling" ? "bg-[#F59E0B] animate-pulse" : "bg-[#9CA3AF]"}`} />
@@ -569,7 +564,7 @@ export default function MarketDetail() {
             )}
             {market.total_settled_positions != null && (
               <div className="mt-2 flex items-center gap-4">
-                <span className="text-[10px] font-bold text-[#9CA3AF]">Settled: {market.total_settled_positions} positions</span>
+                <span className="text-[10px] font-bold text-[#9CA3AF]">Predictions settled: {market.total_settled_positions}</span>
                 {market.total_settled_payout_smallest_unit != null && (
                   <span className="text-[10px] font-bold text-[#9CA3AF]">Payout: {formatNaira(market.total_settled_payout_smallest_unit / 100)}</span>
                 )}
@@ -697,68 +692,6 @@ export default function MarketDetail() {
         onConfirm={handlePredictionConfirm}
       />
 
-      {/* Prediction Placed Success Modal */}
-      {justPredicted && (
-        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/35 p-4 backdrop-blur-[2px]">
-          {showConfetti && (
-            <div className="pointer-events-none absolute inset-0 overflow-hidden">
-              {Array.from({ length: 24 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="confetti-particle absolute"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: "-10%",
-                    width: `${6 + Math.random() * 8}px`,
-                    height: `${6 + Math.random() * 8}px`,
-                    backgroundColor: ["#12B886", "#4F46E5", "#E85D5D", "#F59E0B"][Math.floor(Math.random() * 4)],
-                    borderRadius: Math.random() > 0.5 ? "50%" : "2px",
-                    animation: `confetti-fall ${2 + Math.random() * 2}s ease-in forwards`,
-                    animationDelay: `${Math.random() * 0.5}s`,
-                    transform: `rotate(${Math.random() * 360}deg)`,
-                  }}
-                />
-              ))}
-            </div>
-          )}
-          <div role="alert" aria-live="assertive" className="animate-fade-up relative w-full max-w-sm overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-7 text-center shadow-[0_24px_90px_rgba(17,24,39,0.22)]">
-            <div className={`absolute inset-x-0 top-0 h-1 ${justPredicted === "YES" ? "bg-[#12B886]" : "bg-[#E85D5D]"}`} />
-            <div className="relative mx-auto mb-5">
-              <div className={`mx-auto grid h-16 w-16 place-items-center rounded-full text-white shadow-lg ${justPredicted === "YES" ? "bg-[#12B886] shadow-[#12B886]/25" : "bg-[#E85D5D] shadow-[#E85D5D]/25"}`}>
-                <CheckCircle className="h-8 w-8" />
-              </div>
-            </div>
-            <h3 className="text-2xl font-black text-[#101828]">Prediction Placed!</h3>
-            <div className="mt-3 space-y-2">
-              <p className="text-sm font-bold text-[#6B7280]">
-                You predicted <span className={justPredicted === "YES" ? "text-[#047857]" : "text-[#B42318]"}>{justPredicted}</span>
-              </p>
-              <div className="rounded-lg bg-[#4F46E5]/[0.05] p-2.5">
-                <p className="text-[11px] font-bold leading-relaxed text-[#6B7280]">
-                  Your prediction is active. When the market resolves, the winning side splits the pool. Track it in &ldquo;My Predictions&rdquo;.
-                </p>
-              </div>
-            </div>
-            <p className="mt-1 text-xs text-[#9CA3AF]">Track in My Predictions</p>
-            <div className="mt-6 grid gap-2">
-              <Link
-                to="/portfolio"
-                onClick={() => { setJustPredicted(null); setShowConfetti(false); }}
-                className="flex h-11 items-center justify-center rounded-xl bg-[#4F46E5] text-sm font-bold text-white shadow-lg shadow-[#4F46E5]/20 transition hover:bg-[#4338CA]"
-              >
-                View Predictions
-              </Link>
-              <button
-                onClick={() => { setJustPredicted(null); setShowConfetti(false); }}
-                className="h-11 rounded-xl border border-[#E5E7EB] bg-white text-sm font-bold text-[#344054] transition hover:bg-[#F3F4F6]"
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Protected Market Info Sheet */}
       {showProtectedInfo && (
         <ProtectedMarketInfo
@@ -773,13 +706,6 @@ export default function MarketDetail() {
       )}
 
       <MobileNav />
-
-      <style>{`
-        @keyframes confetti-fall {
-          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-        }
-      `}</style>
     </div>
   );
 }
@@ -1017,9 +943,9 @@ const JoinPrivatePoolCard = ({
           <Users className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-bold text-[#101828]">Private pool</div>
+          <div className="text-sm font-bold text-[#101828]">Private prediction</div>
           <p className="mt-0.5 text-xs leading-relaxed text-[#6B7280]">
-            This pool is invite-only. Enter the invite code to join and start predicting.
+            This prediction is invite-only. Enter the invite code to join and start predicting.
           </p>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
             <input
@@ -1040,7 +966,7 @@ const JoinPrivatePoolCard = ({
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#4F46E5] px-5 text-sm font-bold text-white transition hover:bg-[#4338CA] disabled:opacity-50"
             >
               {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
-              Join pool
+              Join prediction
             </button>
           </div>
           {error && <p className="mt-2 text-xs font-bold text-[#B42318]">{error}</p>}

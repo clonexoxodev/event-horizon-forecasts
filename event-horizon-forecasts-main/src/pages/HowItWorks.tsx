@@ -6,10 +6,10 @@ import { MobileNav } from "@/components/MobileNav";
 const steps = [
   ["Pick a market", "Browse live markets and read the question, category, rules, and closing time.", Search],
   ["Choose YES or NO", "YES and NO show the Crowd View. They always add up to 100.", BarChart3],
-  ["Enter amount", "Set your stake. The prediction panel shows the current price your side will receive.", WalletCards],
-  ["Back your position", "Your wallet is debited and your position is saved to the pool. There is no cashout before resolution.", LockKeyhole],
-  ["Track it", "My Positions shows your pick, amount backed, Crowd View, time left, and status.", Clock],
-  ["Market resolves", "After the deadline, admins resolve using the stated source. Winning positions are settled at 100 per share.", CheckCircle2],
+  ["Enter amount", "Set your stake. The prediction panel shows the price your side will pay.", WalletCards],
+  ["Make your prediction", "Your wallet is debited and your prediction is added to the pool. There is no cashout before resolution.", LockKeyhole],
+  ["Track it", "My Predictions shows your pick, amount staked, Crowd View, time left, and status.", Clock],
+  ["Market resolves", "After the deadline, admins resolve using the stated source. The winning side splits the pool.", CheckCircle2],
 ];
 
 export default function HowItWorks() {
@@ -46,7 +46,7 @@ export default function HowItWorks() {
             <p>Crowd View helps people understand the market. It is not a guarantee of profit and it is not a cashout value.</p>
           </InfoPanel>
           <InfoPanel title="How final payout works">
-            <p>When a market resolves, winning positions are settled at 100 per share. Losing positions are worth 0. Payout depends on the shares you hold and the settlement result.</p>
+            <p>When a market resolves, the winning side splits the pool. Losing predictions are worth 0. Your payout depends on your stake and the size of the winning pool.</p>
             <p>If your side loses, your position settles at zero. If the market is cancelled, eligible stakes should be refunded through the wallet ledger.</p>
           </InfoPanel>
         </section>
@@ -59,7 +59,7 @@ export default function HowItWorks() {
             <Example label="Final payout" value="Calculated after resolution" />
           </div>
           <p className="mt-5 text-sm leading-relaxed text-[#667085]">
-            The amount you finally receive depends on the result and your matched position when the market closes.
+            The amount you finally receive depends on the result and the size of your prediction in the pool when the market closes.
           </p>
         </section>
 

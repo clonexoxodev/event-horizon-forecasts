@@ -50,9 +50,9 @@ type Duplicate = { id: string; question: string; status: string; participants: n
 type Step = 1 | 2 | 3;
 
 const STEPS: { step: Step; label: string }[] = [
-  { step: 1, label: "Audience" },
-  { step: 2, label: "The prediction" },
-  { step: 3, label: "Details & launch" },
+  { step: 1, label: "Who can join" },
+  { step: 2, label: "Question & rules" },
+  { step: 3, label: "Review & launch" },
 ];
 
 const CreateMarket = () => {

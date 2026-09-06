@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Clock, Lock, Search, TrendingUp, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
+import { ArrowRight, Clock, Search, Sparkles, TrendingUp, Zap } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { MarketCard } from "@/components/MarketCard";
-import { getTrendingScore, formatNaira } from "@/lib/markets";
+import { getTrendingScore } from "@/lib/markets";
 import { useMarketState } from "@/lib/market-state";
 import { useAuth } from "@/lib/auth";
 import { categoryMatches, HOME_MARKET_FILTERS, HomeMarketFilter, normalizeCategory } from "@/lib/categories";
@@ -15,6 +15,15 @@ const isLiveMarket = (market: { status?: string; closeTime?: string; tradingClos
   return market.status === "active" && !hasEnded;
 };
 
+const isFeatured = (m: any) => Boolean(m.isTrending || m.is_trending || m.featured || m.featured_level === "featured");
+
+const isEndingSoon = (m: any) => {
+  const closeTime = m.tradingCloseTime || m.closeTime;
+  if (!closeTime) return false;
+  const diff = new Date(closeTime).getTime() - Date.now();
+  return diff > 0 && diff <= 24 * 60 * 60 * 1000;
+};
+
 const Index = () => {
   const { user } = useAuth();
   const [category, setCategory] = useState<HomeMarketFilter>("Trending");
@@ -22,8 +31,6 @@ const Index = () => {
   const [sortMode, setSortMode] = useState<"trending" | "newest" | "closing">("trending");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { markets, loadMarkets, isLoadingMarkets, marketError } = useMarketState();
-
-  const isLoggedIn = !!user;
 
   useEffect(() => { loadMarkets().catch(() => {}); }, [loadMarkets]);
 
@@ -50,7 +57,15 @@ const Index = () => {
   const trimmedSearch = searchQuery.trim();
   const isSearching = trimmedSearch.length > 0;
   const liveMarkets = useMemo(() => markets.filter(isLiveMarket), [markets]);
-  const liveCount = liveMarkets.length;
+
+  const featuredMarkets = useMemo(
+    () => [...liveMarkets].filter(isFeatured).sort((a, b) => getTrendingScore(b) - getTrendingScore(a)).slice(0, 3),
+    [liveMarkets]
+  );
+  const endingSoonMarkets = useMemo(
+    () => [...liveMarkets].filter(isEndingSoon).sort((a, b) => (new Date(a.tradingCloseTime || a.closeTime).getTime() - new Date(b.tradingCloseTime || b.closeTime).getTime())).slice(0, 3),
+    [liveMarkets]
+  );
 
   const filtered = useMemo(() => {
     let next = [...liveMarkets];
@@ -63,7 +78,6 @@ const Index = () => {
         const text = [
           m.question, m.category, normalizeCategory(m.category), m.rules,
           m.source, m.description, (m as any).resolutionSource, (m as any).resolution_source,
-          Array.isArray((m as any).tags) ? (m as any).tags.join(" ") : (m as any).tags,
         ].filter(Boolean).join(" ").toLowerCase();
         return text.includes(q);
       });
@@ -85,128 +99,116 @@ const Index = () => {
 
   const sectionTitle = isSearching
     ? `Results for "${trimmedSearch}"`
-    : category === "Trending" ? "All Markets" : `${category} Markets`;
+    : category === "Trending" ? "All markets" : `${category} markets`;
   const emptyTitle = isSearching
-    ? `No markets found for "${trimmedSearch}"`
-    : category === "Trending" ? "No trending markets yet" : `No ${category} markets yet`;
-  const emptyBody = isSearching ? "Try another keyword or browse all categories." : "Check back soon.";
+    ? `Nothing found for "${trimmedSearch}"`
+    : category === "Trending" ? "No active markets right now" : `No ${category} markets yet`;
+  const emptyBody = isSearching
+    ? "Try a different keyword, or browse all categories below."
+    : "Check back soon — new predictions are added every day.";
 
-  if (!isLoggedIn) {
-    const trendingMarkets = [...liveMarkets]
-      .sort((a, b) => getTrendingScore(b) - getTrendingScore(a))
-      .slice(0, 6);
-
-    return (
-      <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
-        <Header />
-        <main>
-          <section className="relative overflow-hidden bg-gradient-to-br from-[#4F46E5] via-[#6366F1] to-[#818CF8] px-4 py-10 sm:px-6 sm:py-14">
-            <div className="relative mx-auto max-w-3xl text-center">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold text-white backdrop-blur-md">
-                <Zap className="h-4 w-4" />{liveCount} Live Markets
-              </div>
-              <h1 className="font-display text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-                Predict Real-World Outcomes
-              </h1>
-              <p className="mx-auto mt-4 max-w-lg text-base leading-relaxed text-white/80">
-                Predict what happens next. Earn from your insights.
-              </p>
-              <div className="mt-6 flex justify-center gap-3">
-                <Link to="/signup" className="inline-flex items-center gap-2 rounded-2xl bg-white px-7 py-3 text-sm font-bold text-[#4F46E5] shadow-lg transition-all hover:bg-[#F9FAFB] active:scale-[0.98]">
-                  Get Started
-                </Link>
-                <Link to="/how-it-works" className="inline-flex items-center gap-2 rounded-2xl border-2 border-white/30 px-7 py-3 text-sm font-bold text-white transition-all hover:bg-white/10">
-                  How It Works
-                </Link>
-              </div>
-              <div className="mt-4">
-                <Link to="/join" className="inline-flex items-center gap-1.5 text-sm font-semibold text-white/85 underline-offset-4 transition hover:text-white hover:underline">
-                  <Lock className="h-3.5 w-3.5" />
-                  Have an invite code? Join a private prediction
-                </Link>
-              </div>
-            </div>
-          </section>
-
-          <section className="mx-auto max-w-[1320px] px-4 py-8 sm:px-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-[#111827]">Trending Markets</h2>
-              <Link to="/markets" className="text-sm font-semibold text-[#4F46E5] hover:text-[#4338CA]">View All</Link>
-            </div>
-            {isLoadingMarkets && markets.length === 0 ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-56 rounded-2xl border border-[#E5E7EB] bg-white soft-shimmer" />
-                ))}
-              </div>
-            ) : trendingMarkets.length > 0 ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {trendingMarkets.map((m, i) => (
-                  <div key={m.id} className="opacity-0 animate-fade-up" style={{ animationDelay: `${Math.min(i * 60, 300)}ms` }}>
-                    <MarketCard m={m} />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-[#D1D5DB] bg-white/60 p-12 text-center">
-                <p className="text-sm font-semibold text-[#6B7280]">Markets are loading...</p>
-              </div>
-            )}
-          </section>
-        </main>
-        <MobileNav />
-      </div>
-    );
-  }
+  const greeting = user
+    ? `Good ${new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, @${user.username}`
+    : "What do you think is going to happen?";
 
   return (
-    <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
+    <div className="app-bg min-h-screen pb-[calc(72px+env(safe-area-inset-bottom))] text-[#111827] md:pb-0 xl:pl-64">
       <Header />
-      <main className="mx-auto max-w-[1320px] px-4 py-6 sm:px-6 lg:py-8">
+      <main className="mx-auto max-w-[1320px] px-4 py-5 sm:px-6 lg:py-7">
+        {/* Greeting + subtle action for logged-out users */}
+        <section className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#9CA3AF]">FLIPPE</p>
+            <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-[28px]">{greeting}</h1>
+          </div>
+          {!user && (
+            <Link
+              to="/signup"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#C7D2FE] bg-white px-4 py-2 text-xs font-bold text-[#4F46E5] transition hover:bg-[#EEF2FF] active:scale-[0.98]"
+            >
+              Join to predict
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
+        </section>
 
-        <section className="mb-5">
+        {/* Search */}
+        <section className="mb-4">
           <div className="relative group">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#9CA3AF] transition-colors group-focus-within:text-[#4F46E5]" />
             <input
               ref={searchInputRef}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search markets, topics, events..."
+              placeholder="Search questions, topics, categories…"
               aria-label="Search markets"
-              className="h-12 w-full rounded-2xl border border-[#E5E7EB] bg-white pl-11 pr-20 text-sm font-medium text-[#111827] shadow-sm outline-none placeholder:text-[#9CA3AF] focus:border-[#4F46E5] focus:ring-4 focus:ring-[#4F46E5]/[0.06] transition-all duration-200"
+              className="h-12 w-full rounded-2xl border border-[#E5E7EB] bg-white pl-11 pr-16 text-sm font-medium text-[#111827] shadow-sm outline-none placeholder:text-[#9CA3AF] focus:border-[#4F46E5] focus:ring-4 focus:ring-[#4F46E5]/[0.06] transition-all duration-200"
             />
-            <kbd className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-2 py-1 text-[11px] font-semibold text-[#9CA3AF] tabular-nums">
-              Ctrl K
-            </kbd>
+            {!isSearching && (
+              <kbd className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-2 py-1 text-[11px] font-semibold text-[#9CA3AF] tabular-nums hidden sm:block">
+                Ctrl K
+              </kbd>
+            )}
           </div>
         </section>
 
-        <section className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-[#C7D2FE] bg-gradient-to-r from-[#EEF2FF] to-[#F5F3FF] px-4 py-3.5 sm:px-5">
-          <div className="flex items-center gap-3">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#4F46E5]/12 text-[#4F46E5]">
-              <Lock className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[13px] font-bold leading-tight text-[#101828]">Invited to a private prediction?</p>
-              <p className="mt-0.5 text-[11px] font-semibold text-[#6B7280]">Enter the invite code from your invitation.</p>
-            </div>
-          </div>
-          <Link
-            to="/join"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#4F46E5] px-4 py-2.5 text-xs font-bold text-white shadow-sm shadow-[#4F46E5]/25 transition-all hover:bg-[#4338CA] active:scale-[0.97]"
-          >
-            Join by code
-          </Link>
-        </section>
+        {/* Logged-out: one slim, informational line instead of marketing hero */}
+        {!user && (
+          <section className="mb-4 flex items-center gap-2.5 rounded-2xl border border-[#E5E7EB]/70 bg-white/70 px-4 py-2.5 text-[12px] text-[#6B7280]">
+            <Sparkles className="h-4 w-4 shrink-0 text-[#4F46E5]" />
+            <p className="leading-snug">
+              You're browsing live markets. <span className="font-bold text-[#111827]">Pick a side and back it with ₦</span> — create an account the moment you decide to predict.
+            </p>
+          </section>
+        )}
 
+        {/* Featured rail — the distribution concept, separate from "public" */}
+        {!isSearching && featuredMarkets.length > 0 && (
+          <section className="mb-6">
+            <div className="mb-3 flex items-center gap-2">
+              <div className="grid h-7 w-7 place-items-center rounded-lg bg-[#4F46E5]/10 text-[#4F46E5]">
+                <Sparkles className="h-3.5 w-3.5" />
+              </div>
+              <h2 className="text-lg font-black tracking-tight">Featured</h2>
+              <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#4F46E5]">
+                Curated
+              </span>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {featuredMarkets.map((m) => (
+                <MarketCard key={m.id} m={m} featured />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Ending soon mini-rail */}
+        {!isSearching && !featuredMarkets.length && endingSoonMarkets.length > 0 && (
+          <section className="mb-6">
+            <div className="mb-3 flex items-center gap-2">
+              <div className="grid h-7 w-7 place-items-center rounded-lg bg-[#F59E0B]/10 text-[#D97706]">
+                <Clock className="h-3.5 w-3.5" />
+              </div>
+              <h2 className="text-lg font-black tracking-tight">Ending soon</h2>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {endingSoonMarkets.map((m) => (
+                <MarketCard key={m.id} m={m} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Category chips */}
         <section className="mb-4">
           <div
             className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
             style={{ WebkitOverflowScrolling: "touch", scrollBehavior: "smooth" }}
             role="tablist"
+            aria-label="Market categories"
           >
             {HOME_MARKET_FILTERS.map((chip) => {
-              const count = chip === "Trending" ? liveCount : Number(categoryCounts[chip] || 0);
+              const count = chip === "Trending" ? liveMarkets.length : Number(categoryCounts[chip] || 0);
               const isActive = category === chip;
               return (
                 <button
@@ -232,6 +234,7 @@ const Index = () => {
           </div>
         </section>
 
+        {/* Market grid */}
         <section>
           <div className="mb-5 flex items-center justify-between">
             <h2 className="text-lg font-bold tracking-tight text-[#111827]">{sectionTitle}</h2>
@@ -243,11 +246,12 @@ const Index = () => {
               )}
               {!isSearching && (
                 <div className="flex rounded-lg border border-[#E5E7EB] bg-white p-0.5">
-                  {([["trending", TrendingUp], ["newest", Clock], ["closing", Zap]] as const).map(([mode, Icon]) => (
+                  {([["trending", TrendingUp], ["newest", Sparkles], ["closing", Zap]] as const).map(([mode, Icon]) => (
                     <button
                       key={mode}
                       onClick={() => setSortMode(mode)}
                       title={mode === "trending" ? "Trending" : mode === "newest" ? "Newest" : "Closing Soon"}
+                      aria-label={mode === "trending" ? "Sort by trending" : mode === "newest" ? "Sort by newest" : "Sort by closing soon"}
                       className={`rounded-md p-1.5 transition-all ${
                         sortMode === mode ? "bg-[#4F46E5] text-white shadow-sm" : "text-[#9CA3AF] hover:text-[#6B7280]"
                       }`}

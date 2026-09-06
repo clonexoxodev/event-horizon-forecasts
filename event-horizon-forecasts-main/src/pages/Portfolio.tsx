@@ -386,11 +386,11 @@ const PredictionCard = ({ item, now }: { item: PredictionItem; now: number }) =>
       {/* Stats */}
       <div className="mt-3 grid grid-cols-4 gap-2 border-t border-[#F3F4F6] pt-3">
         <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Entry %</div>
+          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">You predicted at</div>
           <div className="mt-0.5 text-xs font-black tabular-nums text-[#111827]">{item.entryPrice > 0 ? `${Math.round(item.entryPrice)}%` : "-"}</div>
         </div>
         <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Current</div>
+          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Now at</div>
           <div className={`mt-0.5 text-xs font-black tabular-nums ${item.currentPrice >= item.entryPrice ? "text-[#047857]" : "text-[#B42318]"}`}>
             {item.currentPrice > 0 ? `${Math.round(item.currentPrice)}%` : "-"}
           </div>

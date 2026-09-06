@@ -133,18 +133,11 @@ const App = () => (
                   <Route path="/login" element={<Login />} />
                   <Route path="/signup" element={<Signup />} />
                   <Route path="/market/:id" element={<MarketDetail />} />
-                  <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
-                  <Route path="/predictions" element={<Navigate to="/portfolio" replace />} />
-                  <Route path="/positions" element={<Navigate to="/portfolio" replace />} />
-                  <Route path="/orders" element={<Navigate to="/portfolio" replace />} />
+                  <Route path="/predictions" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
                   <Route path="/join" element={<JoinPrivate />} />
                   <Route path="/join/:code" element={<JoinPrivate />} />
                   <Route path="/invite/:code" element={<InviteRedirect />} />
                   <Route path="/wallet" element={<Wallet />} />
-                  <Route path="/dashboard" element={<Navigate to="/portfolio" replace />} />
-                  <Route path="/activity" element={<Navigate to="/portfolio" replace />} />
-                  <Route path="/listing/:code" element={<Navigate to="/portfolio" replace />} />
-                  <Route path="/discussion" element={<Navigate to="/" replace />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/support" element={<Support />} />
@@ -163,6 +156,16 @@ const App = () => (
                   <Route path="/risk-disclaimer" element={<RiskDisclaimer />} />
                   <Route path="/responsible-use" element={<RiskDisclaimer />} />
                   <Route path="/transaction-history" element={<ProtectedRoute><TransactionHistory /></ProtectedRoute>} />
+
+                  {/* Legacy aliases — kept only so old links and bookmarks keep working */}
+                  <Route path="/portfolio" element={<Navigate to="/predictions" replace />} />
+                  <Route path="/positions" element={<Navigate to="/predictions" replace />} />
+                  <Route path="/orders" element={<Navigate to="/predictions" replace />} />
+                  <Route path="/dashboard" element={<Navigate to="/predictions" replace />} />
+                  <Route path="/activity" element={<Navigate to="/predictions" replace />} />
+                  <Route path="/listing/:code" element={<Navigate to="/predictions" replace />} />
+                  <Route path="/discussion" element={<Navigate to="/" replace />} />
+
                   <Route
                     path="/admin"
                     element={

@@ -6,7 +6,7 @@ import { MobileNav } from "@/components/MobileNav";
 const principles = [
   ["Simple", "Markets should be understandable in seconds: question, YES/NO Crowd View, amount backed, price, and status.", Target],
   ["Transparent", "Rules, resolution source, wallet movement, and market status should be visible before predictors participate.", Shield],
-  ["Self-settling", "Flippe's design settles from matched market positions, not from hidden company-funded promises.", BarChart3],
+  ["Self-settling", "Flippe's design settles from the predictions in each market's pool, not from hidden company-funded promises.", BarChart3],
   ["Responsible", "Final payout is only known after resolution. Predictors should size positions carefully and never treat outcomes as guaranteed income.", CheckCircle2],
 ];
 

@@ -19,15 +19,15 @@ const faqs = [
       ["How do YES and NO work?", "YES and NO show the Crowd View. If YES is 61, NO is 39. Together they always add up to 100."],
       ["Why do YES and NO always add up to 100?", "A market resolves to one of the two outcomes. The two prices are shown as opposite sides of the same position."],
       ["What happens when I back a side?", "Your wallet is debited, your stake is placed into the pool, and your position is recorded immediately."],
-      ["What are units?", "Units are the number of shares your position receives based on the pool distribution. The main idea is simple: you backed a side at a price."],
+      ["What are units?", "Units measure how much of a side your stake covers in the pool. The main idea is simple: you backed a side at a price."],
       ["Why does the Crowd View change?", "Crowd View changes as other predictors back YES or NO. It is not withdrawable money and it is not guaranteed profit."],
     ],
   },
   {
     section: "Payouts and resolution",
     items: [
-      ["How is final payout calculated?", "If your side is correct, your matched shares settle at 100 each. The exact amount is finalized only after resolution."],
-      ["Is any payout guaranteed before resolution?", "No. Anything shown before resolution is only informational. Final payout depends on the result and matched positions."],
+      ["How is final payout calculated?", "If your side is correct, the pool is split among winning predictions. The exact amount is finalized only after resolution."],
+      ["Is any payout guaranteed before resolution?", "No. Anything shown before resolution is only informational. Final payout depends on the result and the size of the winning pool."],
       ["When do I receive winnings?", "Winnings are credited after the market closes and an admin resolves the outcome using the stated source."],
       ["How are markets resolved?", "Each market has rules and a resolution source. Admins use those rules to resolve YES, NO, or cancel/refund if the market cannot resolve fairly."],
       ["What happens if a market is cancelled?", "The platform should refund eligible stakes according to the market status and wallet ledger."],
@@ -39,8 +39,8 @@ const faqs = [
     items: [
       ["How do deposits work?", "Deposits create a pending request. Wallet balance should only increase after admin approval or future payment-provider confirmation."],
       ["How do withdrawals work?", "Withdrawals create a request. Funds move out of available balance while the request is reviewed."],
-      ["Can I withdraw money in active markets?", "No. Money committed to active positions is not available to withdraw until the market is resolved or refunded."],
-      ["Why should I use Flippe responsibly?", "Positions involve risk. Do not use money needed for bills, school fees, rent, food, emergencies, or debt."],
+      ["Can I withdraw money in active markets?", "No. Money committed to active predictions is not available to withdraw until the market is resolved or refunded."],
+      ["Why should I use Flippe responsibly?", "Predictions involve risk. Do not use money needed for bills, school fees, rent, food, emergencies, or debt."],
     ],
   },
 ];

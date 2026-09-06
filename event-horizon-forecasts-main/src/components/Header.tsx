@@ -1,5 +1,5 @@
 import { Compass, Shield, Target, User, Wallet, PlusCircle } from "lucide-react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -7,7 +7,7 @@ import { FlippeSymbol, FlippeWordmark } from "@/components/FlippeBrand";
 
 const primaryNav = [
   { to: "/", label: "Discover", icon: Compass },
-  { to: "/portfolio", label: "My Predictions", icon: Target },
+  { to: "/predictions", label: "My Predictions", icon: Target },
   { to: "/create", label: "Create", icon: PlusCircle },
   { to: "/wallet", label: "Wallet", icon: Wallet },
   { to: "/profile", label: "Profile", icon: User },
@@ -15,7 +15,9 @@ const primaryNav = [
 
 export const Header = () => {
   const { user, isAdmin, isSuperAdmin } = useAuth();
+  const location = useLocation();
   const adminPath = isSuperAdmin() ? "/super-admin" : "/admin";
+  const signInState = { from: location };
 
   return (
     <>
@@ -43,6 +45,7 @@ export const Header = () => {
             {user && <NotificationBell />}
             <Link
               to={user ? "/profile" : "/login"}
+              state={user ? undefined : signInState}
               aria-label={user ? "Account" : "Log in"}
               className="grid h-8 w-8 place-items-center overflow-hidden rounded-full border border-[#E5E7EB]/80 bg-[#F9FAFB] text-[11px] font-bold text-[#374151] transition-all duration-200 hover:border-[#4F46E5]/30 hover:shadow-sm"
             >
@@ -78,11 +81,12 @@ export const Header = () => {
             </Link>
           )}
           {user && <NotificationBell />}
-          <Link
-            to={user ? "/profile" : "/login"}
-            aria-label={user ? "Account" : "Log in"}
-            className="grid h-9 w-9 place-items-center overflow-hidden rounded-full border border-[#E5E7EB]/80 bg-[#F9FAFB] text-sm font-bold text-[#374151] transition-all duration-200 hover:border-[#4F46E5]/30 hover:shadow-sm"
-          >
+<Link
+              to={user ? "/profile" : "/login"}
+              state={user ? undefined : signInState}
+              aria-label={user ? "Account" : "Log in"}
+              className="grid h-9 w-9 place-items-center overflow-hidden rounded-full border border-[#E5E7EB]/80 bg-[#F9FAFB] text-sm font-bold text-[#374151] transition-all duration-200 hover:border-[#4F46E5]/30 hover:shadow-sm"
+            >
             {user?.avatarUrl ? (
               <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
             ) : (
@@ -155,6 +159,7 @@ export const Header = () => {
           )}
         </nav>
 
+        {user ? (
         <div className="mx-3 mb-3 rounded-xl border border-[#E5E7EB]/70 bg-gradient-to-br from-[#F9FAFB] to-[#F3F4F6]/80 p-4">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#9CA3AF]">
@@ -163,7 +168,7 @@ export const Header = () => {
             <Wallet className="h-3.5 w-3.5 text-[#4F46E5]" strokeWidth={2.5} />
           </div>
           <div className="mt-2 text-xl font-black tracking-tight text-[#111827]">
-            {formatNaira(user?.balance || 0)}
+            {formatNaira(user.balance)}
           </div>
           <Link
             to="/wallet"
@@ -173,10 +178,23 @@ export const Header = () => {
             Add funds
           </Link>
         </div>
+      ) : (
+        <div className="mx-3 mb-3 rounded-xl border border-[#E5E7EB]/70 bg-[#F9FAFB] p-4 text-center">
+          <div className="text-[11px] font-bold text-[#6B7280]">Sign in to start predicting</div>
+          <Link
+            to="/login"
+            state={signInState}
+            className="mt-3 flex h-9 items-center justify-center rounded-lg bg-[#4F46E5] text-xs font-bold text-white transition-all duration-200 hover:bg-[#4338CA]"
+          >
+            Sign in
+          </Link>
+        </div>
+      )}
 
         <div className="border-t border-[#E5E7EB]/50 px-3 py-3">
           <Link
             to={user ? "/profile" : "/login"}
+            state={user ? undefined : signInState}
             aria-label={user ? "Account settings" : "Log in"}
             className="flex items-center gap-3 rounded-xl p-2 transition-all duration-200 hover:bg-[#F9FAFB]"
           >

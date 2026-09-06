@@ -24,7 +24,7 @@ export default function RiskDisclaimer() {
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#E85D5D]">Responsible Use</p>
               <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">Predict carefully. Risk is real.</h1>
               <p className="mt-3 max-w-3xl text-base leading-relaxed text-[#E85D5D]/80">
-                Positions can resolve against you. Final payout is not known until resolution, and active positions are not withdrawable cash.
+                Predictions can resolve against you. Final payout is not known until resolution, and active predictions are not withdrawable cash.
               </p>
             </div>
           </div>
