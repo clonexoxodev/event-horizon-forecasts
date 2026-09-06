@@ -162,5 +162,5 @@ export const DepositModal = ({
 const providerLabel = (provider?: string) => {
   if (provider === "flutterwave") return "Flutterwave";
   if (provider === "monnify") return "Monnify";
-  return "Paystack";
+  return "Flutterwave";
 };

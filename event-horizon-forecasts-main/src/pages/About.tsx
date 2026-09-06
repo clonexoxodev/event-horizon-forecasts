@@ -7,7 +7,7 @@ const principles = [
   ["Simple", "Markets should be understandable in seconds: question, YES/NO Crowd View, amount backed, price, and status.", Target],
   ["Transparent", "Rules, resolution source, wallet movement, and market status should be visible before predictors participate.", Shield],
   ["Self-settling", "Flippe's design settles from the predictions in each market's pool, not from hidden company-funded promises.", BarChart3],
-  ["Responsible", "Final payout is only known after resolution. Predictors should size positions carefully and never treat outcomes as guaranteed income.", CheckCircle2],
+  ["Responsible", "Final payout is only known after resolution. Predictors should size their stakes carefully and never treat outcomes as guaranteed income.", CheckCircle2],
 ];
 
 export default function About() {
@@ -37,7 +37,7 @@ export default function About() {
 
         <section className="mt-8 grid gap-6 lg:grid-cols-2">
           <Panel title="What Flippe is">
-            <p>A platform for taking positions on outcomes of public events.</p>
+            <p>A platform for making predictions on the outcomes of public events.</p>
             <p>A wallet-linked experience where predictors pick a side, track open positions, and wait for resolution.</p>
             <p>A product designed to make market rules, pool predictions, Crowd View, and resolution status easier to understand.</p>
           </Panel>

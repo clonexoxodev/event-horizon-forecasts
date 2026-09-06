@@ -382,7 +382,7 @@ export const SettlementDashboardView = ({
                   <Th>Status</Th>
                   <Th>Settlement</Th>
                   <Th>Winner</Th>
-                  <Th className="text-right">Positions</Th>
+                  <Th className="text-right">Predictions</Th>
                   <Th className="text-right">Payout</Th>
                   <Th>Updated</Th>
                   <Th className="text-right">Actions</Th>

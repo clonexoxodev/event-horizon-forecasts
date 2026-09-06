@@ -113,8 +113,8 @@ export const RiskCenterView = () => {
           <div className="grid gap-6 xl:grid-cols-2">
             <Card>
               <SectionHeader
-                title="Top Open Positions"
-                description="Largest active positions across the platform"
+                title="Top Open Predictions"
+                description="Largest active predictions across the platform"
               />
               {data.topPositions.length === 0 ? (
                 <div className="grid min-h-[120px] place-items-center rounded-2xl border border-dashed border-gray-300 bg-gray-50/50 p-8 text-center">

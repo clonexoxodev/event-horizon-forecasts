@@ -48,7 +48,7 @@ export default function RiskDisclaimer() {
             <p>Flippe is for informed trading. It is not a source of guaranteed income.</p>
           </Panel>
           <Panel title="No payout is guaranteed early">
-            <p>Any estimate before resolution is informational only and can change as the pool distribution and positions change.</p>
+            <p>Any estimate before resolution is informational only and can change as the pool distribution changes.</p>
             <p>Final results and final payout are determined only when the market closes and resolves using the stated source.</p>
           </Panel>
           <Panel title="Markets can go against you">

@@ -29,8 +29,8 @@ interface ExportOption {
 const EXPORT_OPTIONS: ExportOption[] = [
   {
     type: "positions",
-    label: "Positions",
-    description: "All user positions with stakes and payouts",
+    label: "Predictions",
+    description: "All user predictions with stakes and payouts",
   },
   {
     type: "markets",

@@ -584,7 +584,7 @@ export default function MarketDetail() {
               <div className="space-y-3">
                 <p className="text-sm leading-relaxed text-[#475467]">
                   This market is currently in protection mode. Until the market reaches its activation thresholds,
-                  all positions are eligible for a full refund if the market does not go live.
+                  all predictions are eligible for a full refund if the market does not go live.
                 </p>
                 <div className="rounded-xl border border-[#C7D2FE] bg-[#EEF2FF]/60 p-3">
                   <div className="mb-2 flex items-center justify-between">

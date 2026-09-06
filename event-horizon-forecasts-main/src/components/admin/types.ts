@@ -249,6 +249,7 @@ export type SystemHealth = {
   uptime: number;
 };
 
+/** Per-market analytics — prices are prediction-market prices (0–100 scale). */
 export type MarketAnalytics = {
   totalPositions: number;
   matchedPositions: number;

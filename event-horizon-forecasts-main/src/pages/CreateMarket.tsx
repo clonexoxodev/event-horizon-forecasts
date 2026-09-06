@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
-import { Check, CheckCircle2, ChevronLeft, Info, Link2, Loader2, Plus, RefreshCw, Shield, Users, Eye, EyeOff } from "lucide-react";
+import { Check, CheckCircle2, ChevronLeft, Clock, Info, Link2, Loader2, Plus, RefreshCw, Shield, Users, Eye, EyeOff } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { MARKET_CATEGORIES } from "@/lib/categories";
@@ -655,9 +655,45 @@ const CreateMarket = () => {
                   </button>
                 </p>
               )}
-            </div>
-          </>
-        )}
+                  </div>
+
+                  {questionDraft.length >= 5 && (
+                    <section className="overflow-hidden rounded-3xl border border-[#E5E7EB] bg-white">
+                      <div className="flex items-center justify-between gap-2 border-b border-[#F3F4F6] px-5 py-3">
+                        <p className="text-[11px] font-black uppercase tracking-wider text-[#9CA3AF]">Preview</p>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                          visibility === "private" ? "bg-amber-100 text-amber-700" : "bg-[#EEF2FF] text-[#4F46E5]"
+                        }`}>
+                          {visibility === "private" ? <EyeOff className="h-2.5 w-2.5" /> : <Eye className="h-2.5 w-2.5" />}
+                          {visibility === "private" ? "Private" : "Public"}
+                        </span>
+                      </div>
+                      <div className="p-5">
+                        <h3 className="text-[15px] font-bold leading-snug text-[#111827]">{questionDraft}</h3>
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+                          <div className="rounded-2xl border border-[#12B886]/20 bg-[#12B886]/[0.05] p-3 text-center">
+                            <div className="text-xl font-black tabular-nums text-[#12B886]">YES {yesChance}%</div>
+                            <div className="mt-0.5 text-[10px] font-bold text-[#6B7280]">Predict YES</div>
+                          </div>
+                          <div className="rounded-2xl border border-[#E85D5D]/20 bg-[#E85D5D]/[0.05] p-3 text-center">
+                            <div className="text-xl font-black tabular-nums text-[#E85D5D]">NO {100 - yesChance}%</div>
+                            <div className="mt-0.5 text-[10px] font-bold text-[#6B7280]">Predict NO</div>
+                          </div>
+                        </div>
+                        <div className="mt-4 flex items-center justify-between text-xs text-[#6B7280]">
+                          <span className="inline-flex items-center gap-1 font-bold capitalize">
+                            {category}
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[#9CA3AF]">
+                            <Clock className="h-3 w-3" />
+                            Closes {new Date(deadline).toLocaleDateString("en-NG", { day: "numeric", month: "short" })}
+                          </span>
+                        </div>
+                      </div>
+                    </section>
+                  )}
+                </>
+              )}
       </main>
       <MobileNav />
     </div>

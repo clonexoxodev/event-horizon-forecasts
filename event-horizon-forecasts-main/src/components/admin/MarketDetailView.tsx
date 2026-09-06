@@ -823,7 +823,7 @@ export const MarketDetailView = ({
                   </Badge>
                 </InfoRow>
                 {market.total_settled_positions !== undefined && market.total_settled_positions > 0 && (
-                  <InfoRow label="Positions settled">
+                  <InfoRow label="Predictions settled">
                     {market.total_settled_positions}
                   </InfoRow>
                 )}

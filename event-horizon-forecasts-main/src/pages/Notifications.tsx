@@ -121,7 +121,7 @@ export default function Notifications() {
               No notifications yet
             </h3>
             <p className="mt-2 max-w-xs mx-auto text-sm text-[#9CA3AF]">
-              When you place predictions, make deposits, or win positions, updates
+              When you place predictions, make deposits, or win payouts, updates
               will appear here.
             </p>
           </div>

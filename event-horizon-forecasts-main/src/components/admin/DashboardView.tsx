@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   BarChart3,
+  CheckCircle2,
   Clock,
   Eye,
   Gavel,
@@ -86,34 +87,10 @@ export const DashboardView = ({
   const todayVolume = s.todayVolume ?? s.todayVolume ?? 0;
   const totalVolume = s.totalVolume ?? 0;
 
+  const hasAttention = pendingWithdrawalsCount > 0 || pendingResolutionsCount > 0;
+
   return (
     <div className="space-y-6">
-      {/* Quick Actions */}
-      {!loading && (
-        <div className="flex flex-wrap gap-2">
-          {[
-            { view: "analytics" as AdminView, icon: Activity, label: "Analytics" },
-            { view: "search" as AdminView, icon: Search, label: "Search" },
-            { view: "export" as AdminView, icon: Download, label: "Export" },
-            { view: "risk-center" as AdminView, icon: AlertTriangle, label: "Risk" },
-            { view: "system-health" as AdminView, icon: RefreshCw, label: "Health" },
-          ].map(({ view: v, icon: Icon, label }) => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-indigo-200 hover:text-indigo-600"
-            >
-              <Icon className="h-3 w-3" />
-              {label}
-            </button>
-          ))}
-          <span className="ml-auto flex items-center gap-1 text-[10px] text-gray-400">
-            <RefreshCw className="h-3 w-3" />
-            {formatRelativeTime(lastRefresh)}
-          </span>
-        </div>
-      )}
-
       {loading ? (
         <>
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -128,7 +105,72 @@ export const DashboardView = ({
         </>
       ) : (
         <>
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          {/* ── Attention Strip ── */}
+          {hasAttention ? (
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+              {pendingWithdrawalsCount > 0 && (
+                <button
+                  onClick={() => setView("withdrawals")}
+                  className="flex items-center gap-4 rounded-2xl border-2 border-amber-200 bg-amber-50 p-5 text-left transition hover:border-amber-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
+                >
+                  <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-600">
+                    <AlertTriangle className="h-7 w-7" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold uppercase tracking-wider text-amber-700">
+                      Pending Withdrawals
+                    </div>
+                    <div className="mt-1 text-3xl font-black text-amber-900">
+                      {pendingWithdrawalsCount}
+                    </div>
+                    <div className="mt-1 text-xs font-semibold text-amber-600">
+                      Needs review
+                    </div>
+                  </div>
+                  <div className="shrink-0 rounded-xl bg-amber-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-amber-700">
+                    Review
+                  </div>
+                </button>
+              )}
+              {pendingResolutionsCount > 0 && (
+                <button
+                  onClick={() => setView("markets")}
+                  className="flex items-center gap-4 rounded-2xl border-2 border-red-200 bg-red-50 p-5 text-left transition hover:border-red-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+                >
+                  <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-red-100 text-red-600">
+                    <Clock className="h-7 w-7" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold uppercase tracking-wider text-red-700">
+                      Pending Resolutions
+                    </div>
+                    <div className="mt-1 text-3xl font-black text-red-900">
+                      {pendingResolutionsCount}
+                    </div>
+                    <div className="mt-1 text-xs font-semibold text-red-600">
+                      Needs resolution
+                    </div>
+                  </div>
+                  <div className="shrink-0 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700">
+                    Review
+                  </div>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5">
+              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-600">
+                <CheckCircle2 className="h-7 w-7" />
+              </div>
+              <div>
+                <div className="text-sm font-bold text-emerald-900">All clear</div>
+                <div className="text-xs text-emerald-700">Nothing needs your attention right now.</div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Stats Row ── */}
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard
               icon={<Users className="h-4 w-4" />}
               label="Total Users"
@@ -140,43 +182,6 @@ export const DashboardView = ({
               label="Active Markets"
               value={activeMarkets.toLocaleString()}
               tone="green"
-            />
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => setView("withdrawals")}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setView("withdrawals");
-                }
-              }}
-              className="cursor-pointer rounded-xl border border-gray-200 bg-white p-4 transition hover:border-indigo-200 hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-            >
-              <div className="flex items-center gap-3">
-                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-amber-50 text-amber-600">
-                  <AlertTriangle className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-semibold text-gray-500">
-                    Pending Withdrawals
-                  </div>
-                  <div className="mt-0.5 text-xl font-black text-gray-900">
-                    {pendingWithdrawalsCount}
-                  </div>
-                  {pendingWithdrawalsCount > 0 && (
-                    <div className="mt-0.5 text-[11px] font-medium text-amber-600">
-                      Click to review
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            <MetricCard
-              icon={<Clock className="h-4 w-4" />}
-              label="Pending Resolutions"
-              value={pendingResolutionsCount.toLocaleString()}
-              tone={pendingResolutionsCount > 0 ? "red" : "neutral"}
             />
             <MetricCard
               icon={<Wallet className="h-4 w-4" />}
@@ -191,6 +196,7 @@ export const DashboardView = ({
             />
           </div>
 
+          {/* ── Two-Column Lists ── */}
           <div className="grid gap-6 xl:grid-cols-2">
             <div className="space-y-4">
               <SectionHeader
@@ -231,7 +237,7 @@ export const DashboardView = ({
                             <span>·</span>
                             <span>{formatNaira(marketVolume(market))}</span>
                             <span>·</span>
-                            <span>{market.participant_count ?? 0} traders</span>
+                            <span>{market.participant_count ?? 0} predictors</span>
                           </div>
                         </div>
                         <button
@@ -333,6 +339,30 @@ export const DashboardView = ({
                 </div>
               )}
             </div>
+          </div>
+
+          {/* ── Quick Actions ── */}
+          <div className="flex flex-wrap gap-2">
+            {[
+              { view: "analytics" as AdminView, icon: Activity, label: "Analytics" },
+              { view: "search" as AdminView, icon: Search, label: "Search" },
+              { view: "export" as AdminView, icon: Download, label: "Export" },
+              { view: "risk-center" as AdminView, icon: AlertTriangle, label: "Risk" },
+              { view: "system-health" as AdminView, icon: RefreshCw, label: "Health" },
+            ].map(({ view: v, icon: Icon, label }) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-indigo-200 hover:text-indigo-600"
+              >
+                <Icon className="h-3 w-3" />
+                {label}
+              </button>
+            ))}
+            <span className="ml-auto flex items-center gap-1 text-[10px] text-gray-400">
+              <RefreshCw className="h-3 w-3" />
+              {formatRelativeTime(lastRefresh)}
+            </span>
           </div>
         </>
       )}

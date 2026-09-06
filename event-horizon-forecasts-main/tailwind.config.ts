@@ -17,7 +17,7 @@ export default {
         // Flippe product palette
         charcoal: "hsl(210, 33%, 5%)",
         graphite: "hsl(214, 16%, 60%)",
-        "off-white": "hsl(211, 33%, 9%)",
+        "off-white": "hsl(36, 22%, 96%)",
         purple: {
           DEFAULT: "hsl(243, 75%, 59%)",
           soft: "hsl(243, 75%, 96%)",

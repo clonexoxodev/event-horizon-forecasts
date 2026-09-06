@@ -98,7 +98,7 @@ export function AnalyticsView() {
               icon={<Activity className="h-4 w-4" />}
               label="Today's Predictions"
               value={(stats?.predictions?.today ?? 0).toLocaleString()}
-              sub="Positions placed today"
+              sub="Predictions placed today"
               tone="indigo"
             />
             <MetricCard
