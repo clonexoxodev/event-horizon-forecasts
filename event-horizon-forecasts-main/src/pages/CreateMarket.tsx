@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { z } from "zod";
 import { Check, CheckCircle2, ChevronLeft, Info, Link2, Loader2, Plus, RefreshCw, Shield, Users, Eye, EyeOff } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
@@ -10,13 +11,29 @@ import { toast } from "sonner";
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
+const createMarketSchema = z.object({
+  question: z.string().trim().min(5, "Write a clear prediction question (at least 5 characters)."),
+  description: z.string().trim().max(2000, "Description is too long.").optional(),
+  rules: z.string().trim().max(4000, "Resolution rules are too long.").optional(),
+  category: z.string().min(1, "Choose a category."),
+  visibility: z.enum(["public", "private"]),
+  resolvesAt: z.string().refine((v) => {
+    const t = new Date(v).getTime();
+    return Number.isFinite(t) && t > Date.now();
+  }, "Resolution time must be in the future."),
+  yesChance: z.number().int().min(1).max(99, "Starting probability must be between 1% and 99%."),
+  minAmount: z.number().min(100, "Minimum entry must be at least ₦100."),
+  participantLimit: z.number().int().min(2).max(500).optional(),
+  inviteCode: z.string().trim().regex(/^[A-Z2-9]{4,16}$/i, "Invite code must be 4–16 letters/numbers without confusing characters.").optional(),
+});
+
+type CreateMarketFormData = z.infer<typeof createMarketSchema>;
+
 const generateInviteCode = () => {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-  for (let i = 0; i < 8; i += 1) {
-    code += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-  return code;
+  const randomValues = new Uint8Array(8);
+  crypto.getRandomValues(randomValues);
+  return Array.from(randomValues, (v) => alphabet[v % alphabet.length]).join("");
 };
 
 const toLocalDateTime = (date: Date) => {
@@ -127,6 +144,25 @@ const CreateMarket = () => {
 
     if (duplicates.length > 0) {
       toast.error("A very similar pool already exists. Review the suggestions below first.");
+      return;
+    }
+
+    const parsed = createMarketSchema.safeParse({
+      question: questionDraft,
+      description: description.trim() || undefined,
+      rules: rules.trim(),
+      category,
+      visibility,
+      resolvesAt: new Date(deadline).toISOString(),
+      yesChance,
+      minAmount,
+      participantLimit: visibility === "private" ? Math.max(2, Math.min(500, Math.round(participantLimit))) : undefined,
+      inviteCode: visibility === "private" ? inviteCode : undefined,
+    });
+
+    if (!parsed.success) {
+      const firstError = parsed.error.issues[0];
+      toast.error(firstError?.message || "Please fix the highlighted details before launching.");
       return;
     }
 

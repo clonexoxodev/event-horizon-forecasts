@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useMotionValue, useSpring, useTransform, motion } from "framer-motion";
 
 type AnimatedNumberProps = {
   value: number;
@@ -8,55 +9,32 @@ type AnimatedNumberProps = {
   prefix?: string;
 };
 
-export const AnimatedNumber = ({ 
-  value, 
-  duration = 500, 
-  className = "", 
+export const AnimatedNumber = ({
+  value,
+  duration = 500,
+  className = "",
   suffix = "",
-  prefix = ""
+  prefix = "",
 }: AnimatedNumberProps) => {
-  const [displayValue, setDisplayValue] = useState(value);
-  const prevValueRef = useRef(value);
-  const animationRef = useRef<number>();
+  const motionValue = useMotionValue(value);
+  const spring = useSpring(motionValue, { duration, bounce: 0 });
+  const display = useTransform(spring, (v) => Math.round(v));
+  const spanRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    const startValue = prevValueRef.current;
-    const endValue = value;
-    const startTime = Date.now();
+    motionValue.set(value);
+  }, [value, motionValue]);
 
-    const animate = () => {
-      const now = Date.now();
-      const progress = Math.min((now - startTime) / duration, 1);
-      
-      // Easing function (ease-out)
-      const easeOut = 1 - Math.pow(1 - progress, 3);
-      
-      const currentValue = startValue + (endValue - startValue) * easeOut;
-      setDisplayValue(currentValue);
-
-      if (progress < 1) {
-        animationRef.current = requestAnimationFrame(animate);
-      } else {
-        prevValueRef.current = endValue;
-      }
-    };
-
-    if (startValue !== endValue) {
-      animationRef.current = requestAnimationFrame(animate);
-    }
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [value, duration]);
-
-  const formattedValue = Math.round(displayValue);
+  useEffect(() => {
+    const unsubscribe = display.on("change", (v) => {
+      if (spanRef.current) spanRef.current.textContent = `${prefix}${v}${suffix}`;
+    });
+    return unsubscribe;
+  }, [display, prefix, suffix]);
 
   return (
-    <span className={className}>
-      {prefix}{formattedValue}{suffix}
-    </span>
+    <motion.span ref={spanRef} className={className}>
+      {prefix}{Math.round(value)}{suffix}
+    </motion.span>
   );
 };

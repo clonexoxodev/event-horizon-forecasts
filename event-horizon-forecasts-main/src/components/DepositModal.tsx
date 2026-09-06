@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { ArrowDownRight, CheckCircle, Loader2, ShieldCheck, X } from "lucide-react";
+import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
 import apiService from "@/lib/api";
 import { formatNaira } from "@/lib/markets";
 
@@ -22,7 +22,6 @@ export const DepositModal = ({
 }: DepositModalProps) => {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
 
   const quickAmounts = [
     { value: 500, label: "500" },
@@ -38,17 +37,12 @@ export const DepositModal = ({
     setLoading(true);
     try {
       const session = await apiService.createPaymentSession(numAmount);
-      toast({
-        title: "Opening secure checkout",
+      toast.success(`Opening secure checkout`, {
         description: `Continue on ${providerLabel(session.provider)} to add ${formatNaira(numAmount)}.`,
       });
       window.location.href = session.authorizationUrl;
     } catch (error: any) {
-      toast({
-        title: "Could not start payment",
-        description: error.message || "Please try again.",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Please try again.", { description: "Could not start payment" });
       setLoading(false);
     }
   };

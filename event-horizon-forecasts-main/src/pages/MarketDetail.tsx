@@ -1,18 +1,14 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
-  CategoryScale,
-  Chart as ChartJS,
-  Filler,
-  Legend,
-  LinearScale,
-  LineElement,
-  PointElement,
-  Tooltip as ChartTooltip,
-  type ChartData,
-  type ChartOptions,
-} from "chart.js";
-import { Line } from "react-chartjs-2";
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   ArrowLeft,
   BarChart3,
@@ -50,16 +46,6 @@ import {
 } from "@/lib/markets";
 
 type Timeframe = "1H" | "24H" | "7D" | "ALL";
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Filler,
-  ChartTooltip,
-  Legend
-);
 
 export default function MarketDetail() {
   const { id } = useParams();
@@ -799,7 +785,7 @@ export default function MarketDetail() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Chart Component
+   Chart Component (Recharts)
    ═══════════════════════════════════════════════════════════════ */
 
 const Chart = ({
@@ -843,133 +829,16 @@ const Chart = ({
     return previous ? [previous, latest] : savedHistory.slice(-2);
   }, [savedHistory, timeframe]);
 
-  const chartData = useMemo<ChartData<"line">>(() => {
-    const labels = filteredHistory.map((point) => formatAxisTime(point.time, timeframe));
-    return {
-      labels,
-      datasets: [
-        {
-          label: "YES",
-          data: filteredHistory.map((point) => point.yesPrice),
-          borderColor: "#12B886",
-          backgroundColor: (context: any) => {
-            const chart = context.chart;
-            const { ctx, chartArea } = chart;
-            if (!chartArea) return "rgba(18,184,134,0.08)";
-            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-            gradient.addColorStop(0, "rgba(18,184,134,0.18)");
-            gradient.addColorStop(0.5, "rgba(18,184,134,0.06)");
-            gradient.addColorStop(1, "rgba(18,184,134,0.0)");
-            return gradient;
-          },
-          borderWidth: 2.5,
-          pointRadius: filteredHistory.length === 1 ? 4 : 0,
-          pointHoverRadius: 5,
-          pointHoverBackgroundColor: "#12B886",
-          pointHoverBorderColor: "#ffffff",
-          pointHoverBorderWidth: 2,
-          pointBackgroundColor: "#12B886",
-          pointBorderColor: "#ffffff",
-          pointBorderWidth: 2,
-          tension: 0.38,
-          fill: true,
-        },
-        {
-          label: "NO",
-          data: filteredHistory.map((point) => point.noPrice),
-          borderColor: "#E85D5D",
-          backgroundColor: "rgba(232,93,93,0.04)",
-          borderWidth: 2,
-          pointRadius: filteredHistory.length === 1 ? 4 : 0,
-          pointHoverRadius: 5,
-          pointHoverBackgroundColor: "#E85D5D",
-          pointHoverBorderColor: "#ffffff",
-          pointHoverBorderWidth: 2,
-          pointBackgroundColor: "#E85D5D",
-          pointBorderColor: "#ffffff",
-          pointBorderWidth: 2,
-          tension: 0.38,
-          fill: false,
-          borderDash: [5, 3],
-        },
-      ],
-    };
+  const chartData = useMemo(() => {
+    return filteredHistory.map((point) => ({
+      time: formatAxisTime(point.time, timeframe),
+      YES: point.yesPrice,
+      NO: point.noPrice,
+      _raw: point,
+    }));
   }, [filteredHistory, timeframe]);
 
-  const chartOptions = useMemo<ChartOptions<"line">>(
-    () => ({
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: { duration: 600, easing: "easeOutQuart" },
-      interaction: { mode: "nearest", intersect: false },
-      onHover: (_event, elements) => {
-        const canvas = _event.native?.target as HTMLCanvasElement | null;
-        if (canvas) {
-          canvas.style.cursor = elements.length > 0 ? "pointer" : "default";
-        }
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          enabled: true,
-          displayColors: true,
-          backgroundColor: "rgba(17, 24, 39, 0.9)",
-          cornerRadius: 8,
-          padding: 8,
-          titleFont: { weight: "600", size: 11 },
-          titleColor: "#F9FAFB",
-          bodyColor: "#D1D5DB",
-          bodyFont: { size: 11, weight: 600 },
-          boxPadding: 4,
-          callbacks: {
-            title: (items) => {
-              const point = filteredHistory[items[0]?.dataIndex ?? 0];
-              return point ? formatChartTime(point.timestamp) : "";
-            },
-            label: (item) => `${item.dataset.label}: ${formatNairaPrice(Number(item.raw || 0))}`,
-            afterBody: (items) => {
-              const point = filteredHistory[items[0]?.dataIndex ?? 0];
-              if (!point) return [];
-              return [
-                `Pool change: ${formatNaira(point.volume || 0)}`,
-                `Predictions: ${point.tradeCount || 0}`,
-              ];
-            },
-          },
-        },
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          border: { display: false },
-          ticks: {
-            color: "rgba(139,152,168,0.82)",
-            maxRotation: 0,
-            autoSkip: true,
-            maxTicksLimit: 5,
-            font: { size: 10, weight: 700 },
-          },
-        },
-        y: {
-          min: 0,
-          max: 100,
-          position: "right",
-          grid: { color: "rgba(148,163,184,0.08)" },
-          border: { display: false },
-          ticks: {
-            stepSize: 25,
-            color: "rgba(139,152,168,0.82)",
-            callback: (value) => `${value}`,
-            font: { size: 10, weight: 800 },
-          },
-        },
-      },
-    }),
-    [filteredHistory]
-  );
-
   const emptyHistory = savedHistory.length === 0;
-  const currentYes = clampCrowdValue(Number(market.yesPrice || 50));
 
   if (emptyHistory) {
     return (
@@ -987,11 +856,79 @@ const Chart = ({
     );
   }
 
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (!active || !payload?.length) return null;
+    const raw = payload[0]?.payload?._raw;
+    return (
+      <div className="grid min-w-[10rem] gap-1.5 rounded-lg border border-[#E5E7EB] bg-[#111827] px-2.5 py-2 text-[11px] shadow-xl">
+        {raw && (
+          <div className="font-semibold text-[#F9FAFB]">{formatChartTime(raw.timestamp)}</div>
+        )}
+        {payload.map((entry: any) => (
+          <div key={entry.dataKey} className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-1.5">
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: entry.color }}
+              />
+              <span className="font-semibold text-[#D1D5DB]">{entry.dataKey}</span>
+            </span>
+            <span className="font-bold text-[#F9FAFB]">{formatNairaPrice(Number(entry.value || 0))}</span>
+          </div>
+        ))}
+        {raw && (
+          <div className="mt-1 space-y-0.5 border-t border-[#374151] pt-1.5 text-[10px] text-[#9CA3AF]">
+            <div>Pool change: {formatNaira(raw.volume || 0)}</div>
+            <div>Predictions: {raw.tradeCount || 0}</div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div>
       <div className="relative overflow-hidden rounded-xl border border-[#E5E7EB] bg-white p-3">
         <div className="h-[220px] w-full sm:h-[300px]">
-          <Line data={chartData} options={chartOptions} />
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
+              <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.08)" />
+              <XAxis
+                dataKey="time"
+                tick={{ fill: "rgba(139,152,168,0.82)", fontSize: 10, fontWeight: 700 }}
+                tickLine={false}
+                axisLine={false}
+                interval="preserveStartEnd"
+                minTickGap={30}
+              />
+              <YAxis
+                domain={[0, 100]}
+                tick={{ fill: "rgba(139,152,168,0.82)", fontSize: 10, fontWeight: 800 }}
+                tickLine={false}
+                axisLine={false}
+                tickCount={5}
+                width={30}
+              />
+              <RechartsTooltip content={<CustomTooltip />} />
+              <Line
+                type="monotone"
+                dataKey="YES"
+                stroke="#12B886"
+                strokeWidth={2.5}
+                dot={filteredHistory.length === 1 ? { r: 4, fill: "#12B886", stroke: "#fff", strokeWidth: 2 } : false}
+                activeDot={{ r: 5, fill: "#12B886", stroke: "#fff", strokeWidth: 2 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="NO"
+                stroke="#E85D5D"
+                strokeWidth={2}
+                strokeDasharray="5 3"
+                dot={filteredHistory.length === 1 ? { r: 4, fill: "#E85D5D", stroke: "#fff", strokeWidth: 2 } : false}
+                activeDot={{ r: 5, fill: "#E85D5D", stroke: "#fff", strokeWidth: 2 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>

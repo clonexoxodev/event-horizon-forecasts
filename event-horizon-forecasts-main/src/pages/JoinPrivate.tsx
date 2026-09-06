@@ -9,9 +9,11 @@ import {
   CheckCircle2,
   ClipboardPaste,
   Clock,
+  Download,
   Loader2,
   Lock,
   ScanLine,
+  Share2,
   Sparkles,
   Target,
   Users,
@@ -170,6 +172,24 @@ const JoinPrivate = () => {
     }
   };
 
+  const handleShareInvite = async () => {
+    if (!shareLink) return;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `FLIPPE invite: ${state.phase === "found" || state.phase === "inactive" ? state.market.question : "join a private prediction"}`,
+          text: `Join my private FLIPPE prediction pool. Invite code: ${codeInput}`,
+          url: shareLink,
+        });
+        return;
+      }
+      await navigator.clipboard.writeText(shareLink);
+      toast.success("Invite link copied");
+    } catch (error: any) {
+      if (error?.name !== "AbortError") toast.error("Could not share the invite link");
+    }
+  };
+
   const reset = () => {
     setState({ phase: "idle" });
     setCodeInput("");
@@ -291,6 +311,7 @@ const JoinPrivate = () => {
             shareLink={shareLink}
             joining={state.phase === "joining"}
             onCopy={copyInviteLink}
+            onShare={handleShareInvite}
             onEnter={() => handleJoin(state.market, codeInput)}
             onBack={reset}
           />
@@ -342,6 +363,7 @@ const InvitationCard = ({
   shareLink,
   joining,
   onCopy,
+  onShare,
   onEnter,
   onBack,
 }: {
@@ -350,11 +372,41 @@ const InvitationCard = ({
   shareLink: string;
   joining: boolean;
   onCopy: () => void;
+  onShare: () => void;
   onEnter: () => void;
   onBack: () => void;
 }) => {
   const closeTime = market.tradingCloseTime || market.closeTime;
   const limitLabel = market.participantLimit != null ? `${market.participantCount} / ${market.participantLimit} joined` : `${market.participantCount} joined`;
+
+  const downloadQr = () => {
+    const canvas = document.createElement("canvas");
+    const svgEl = document.querySelector<SVGElement>("[data-invite-qr]");
+    if (!svgEl) {
+      toast.error("QR not ready to download");
+      return;
+    }
+    const xml = new XMLSerializer().serializeToString(svgEl);
+    const svgBlob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    img.onload = () => {
+      canvas.width = 480;
+      canvas.height = 480;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 20, 20, canvas.width - 40, canvas.height - 40);
+      URL.revokeObjectURL(url);
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = `flippe-invite-${code}.png`;
+      a.click();
+      toast.success("QR code downloaded");
+    };
+    img.src = url;
+  };
 
   return (
     <section className="overflow-hidden rounded-3xl border border-[#C7D2FE] bg-white shadow-[0_18px_48px_rgba(17,24,39,0.08)]">
@@ -396,9 +448,16 @@ const InvitationCard = ({
           <div className="min-w-0">
             <div className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">Invite code</div>
             <div className="mt-0.5 text-lg font-black tracking-[0.3em] text-[#4F46E5] select-all">{code}</div>
+            <button
+              onClick={downloadQr}
+              className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-bold text-[#4F46E5] transition hover:underline"
+            >
+              <Download className="h-3 w-3" />
+              Download QR
+            </button>
           </div>
           <div className="ml-3 flex shrink-0 items-center gap-2 rounded-xl p-1.5" aria-label="QR code for this invite">
-            <QRCodeSVG value={shareLink} size={64} level="M" marginSize={1} aria-label="Invite link QR code" />
+            <QRCodeSVG data-invite-qr value={shareLink} size={64} level="M" marginSize={1} aria-label="Invite link QR code" />
           </div>
         </div>
 
@@ -409,6 +468,13 @@ const InvitationCard = ({
           >
             <ClipboardPaste className="h-3.5 w-3.5" />
             Copy invite link
+          </button>
+          <button
+            onClick={onShare}
+            className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white text-xs font-bold text-[#374151] transition hover:border-[#C7D2FE] hover:bg-[#EEF2FF] hover:text-[#4F46E5]"
+          >
+            <Share2 className="h-3.5 w-3.5" />
+            Share
           </button>
           <button
             onClick={onBack}

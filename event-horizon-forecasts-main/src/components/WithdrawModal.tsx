@@ -14,7 +14,7 @@ import {
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import apiService from "@/lib/api";
 import { formatNaira } from "@/lib/markets";
 
@@ -65,7 +65,7 @@ export const WithdrawModal = ({
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [reference, setReference] = useState("");
-  const { toast } = useToast();
+
 
   const quickAmounts = [500, 1000, 5000, 10000];
   const numAmount = Number.parseFloat(amount) || 0;
@@ -110,16 +110,11 @@ export const WithdrawModal = ({
       setReference(response.withdrawalRequest.reference);
       setSuccess(true);
       onSaved?.();
-      toast({
-        title: "Withdrawal submitted",
+      toast.success("Withdrawal submitted", {
         description: "Your withdrawal request is awaiting review.",
       });
     } catch (error: any) {
-      toast({
-        title: "Withdraw failed",
-        description: error.message || "Please try again.",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Please try again.", { description: "Withdraw failed" });
     } finally {
       setLoading(false);
     }
@@ -141,7 +136,7 @@ export const WithdrawModal = ({
   const handleCopyReference = () => {
     if (reference) {
       navigator.clipboard.writeText(reference);
-      toast({ title: "Reference copied" });
+      toast.success("Reference copied");
     }
   };
 
