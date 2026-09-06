@@ -67,7 +67,7 @@ export default function HelpCenter() {
             <h2 className="text-3xl font-bold text-[#111827] mb-8">Popular Topics</h2>
             <div className="space-y-4">
               <a href="/how-it-works" className="block p-5 bg-white rounded-2xl border border-[#E5E7EB] shadow-sm hover:border-[#4F46E5]/30 hover:shadow-md transition-all">
-                <h3 className="font-semibold text-[#111827] mb-1">How do I make my first trade?</h3>
+                <h3 className="font-semibold text-[#111827] mb-1">How do I make my first prediction?</h3>
                 <p className="text-sm text-[#667085]">Learn how to browse markets and place your first position.</p>
               </a>
               <a href="/faq" className="block p-5 bg-white rounded-2xl border border-[#E5E7EB] shadow-sm hover:border-[#4F46E5]/30 hover:shadow-md transition-all">

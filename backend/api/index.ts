@@ -3140,6 +3140,101 @@ app.get('/api/markets/my', authenticate, async (req: Request, res: Response) => 
   }
 });
 
+/**
+ * GET /api/markets/invite/:code
+ * Resolve a private pool invite code to a lightweight market preview so the
+ * "Join a private prediction" journey can show what a user is being invited to.
+ * Shares the same access rule as the share link: knowing the code is enough.
+ * Invalid codes, public pools, and resolvable-then-closed pools do not leak
+ * pool details beyond a resolved/closed status.
+ */
+app.get('/api/markets/invite/:code', async (req: Request, res: Response) => {
+  try {
+    const code = String(req.params.code || '').trim().toUpperCase();
+    if (!code || code.length < 4) {
+      return res.status(404).json({ error: { code: 'INVITE_NOT_FOUND', message: 'No private pool matches that invite code.' } });
+    }
+
+    const { data: markets, error } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('invite_code', code)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+
+    const candidate = (markets || []).find((m: any) => String(m.visibility || '').toLowerCase() === 'private');
+    if (!candidate) {
+      return res.status(404).json({ error: { code: 'INVITE_NOT_FOUND', message: 'No private pool matches that invite code.' } });
+    }
+
+    const status = displayStatusForMarket(candidate);
+
+    if (status !== 'active') {
+      return res.json({
+        market: {
+          id: candidate.id,
+          question: candidate.question,
+          category: normalizeMarketCategory(candidate.category),
+          visibility: 'private',
+          status,
+          isActive: false,
+          participantCount: 0,
+          participantLimit: null,
+          minAmount: 0,
+          maxAmount: 0,
+          closeTime: null,
+          tradingCloseTime: null,
+          creatorUsername: null,
+          createdBy: null,
+        },
+      });
+    }
+
+    const { count } = await supabase
+      .from('market_participants')
+      .select('user_id', { count: 'exact', head: true })
+      .eq('market_id', candidate.id);
+
+    let creatorUsername: string | null = null;
+    if (candidate.created_by) {
+      const { data: creator } = await supabase
+        .from('users')
+        .select('username')
+        .eq('id', candidate.created_by)
+        .maybeSingle();
+      creatorUsername = creator?.username || null;
+    }
+
+    const minPosition = Number(candidate.min_position_smallest_unit || 0);
+    const maxPosition = Number(candidate.max_position_smallest_unit || 0);
+    const participantCount = Number(count || 0);
+
+    res.json({
+      market: {
+        id: candidate.id,
+        question: candidate.question,
+        category: normalizeMarketCategory(candidate.category),
+        visibility: 'private',
+        status,
+        isActive: true,
+        participantCount,
+        participantLimit: candidate.participant_limit != null ? Number(candidate.participant_limit) : null,
+        minAmount: minPosition > 0 ? minPosition / 100 : 0,
+        maxAmount: maxPosition > 0 ? maxPosition / 100 : 0,
+        closeTime: getCloseTime(candidate) || candidate.resolution_date || null,
+        tradingCloseTime: candidate.trading_close_at || null,
+        creatorUsername,
+        createdBy: candidate.created_by || null,
+      },
+    });
+  } catch (error: any) {
+    console.error('Invite lookup error:', error);
+    res.status(500).json({ error: { code: 'INVITE_LOOKUP_FAILED', message: 'Could not look up that invite code.' } });
+  }
+});
+
 app.get('/api/markets', async (req: Request, res: Response) => {
   try {
     const {

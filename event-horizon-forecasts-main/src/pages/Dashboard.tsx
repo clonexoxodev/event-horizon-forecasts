@@ -67,7 +67,7 @@ const getLevelIcon = (levelName: string) => {
     case "Sharp Thinker": return Zap;
     case "Analyst": return BarChart3;
     case "Expert": return Award;
-    case "Elite Trader": return Medal;
+    case "Top Predictor": return Medal;
     case "Market Master": return Trophy;
     default: return Shield;
   }
@@ -202,7 +202,7 @@ const Dashboard = () => {
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">{getGreeting()}</p>
               <h1 className="mt-0.5 text-xl font-black tracking-tight sm:text-2xl">
-                {user.name || user.username || "Trader"}
+                {user.name || user.username || "Predictor"}
               </h1>
             </div>
             <div className="flex items-center gap-1.5">
@@ -359,10 +359,10 @@ const Dashboard = () => {
               <EmptyState
                 icon={LineChart}
                 title="No positions yet"
-                body="Start trading to build your portfolio."
+                body="Start predicting to build your portfolio."
                 action={
                   <Link to="/" className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#4F46E5] px-4 text-sm font-bold text-white hover:bg-[#4338CA]">
-                    Make your first trade <ArrowRight className="h-3.5 w-3.5" />
+                    Make your first prediction <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 }
               />
@@ -974,7 +974,7 @@ const PositionDetailModal = ({
               </div>
               {shares > 0 && <Metric label="Units" value={shares.toFixed(2)} />}
               <div className="text-xs font-bold text-[#6B7280]">
-                Traded {position.side} with {formatNaira(position.stake)} on {new Date(position.createdAt).toLocaleString()}.
+                Predicted {position.side} with {formatNaira(position.stake)} on {new Date(position.createdAt).toLocaleString()}.
               </div>
               {rules && <p className="text-xs leading-relaxed text-[#6B7280]">{rules}</p>}
               {resolutionSource && <p className="text-[10px] font-bold text-[#9CA3AF]">Source: {resolutionSource}</p>}
@@ -1014,17 +1014,17 @@ const getAchievements = ({
   level: string;
   rank: number | null;
 }): Achievement[] => [
-  { icon: Target, title: "First Trade", description: "", unlocked: totalPredictions >= 1 },
+  { icon: Target, title: "First Prediction", description: "", unlocked: totalPredictions >= 1 },
   { icon: Trophy, title: "First Win", description: "", unlocked: wins >= 1 },
   { icon: Flame, title: "3 Win Streak", description: "", unlocked: currentStreak >= 3 || bestStreak >= 3 },
   { icon: Flame, title: "5 Win Streak", description: "", unlocked: currentStreak >= 5 || bestStreak >= 5 },
-  { icon: CheckCircle, title: "10 Trades", description: "", unlocked: totalPredictions >= 10 },
-  { icon: CheckCircle, title: "50 Trades", description: "", unlocked: totalPredictions >= 50 },
+  { icon: CheckCircle, title: "10 Predictions", description: "", unlocked: totalPredictions >= 10 },
+  { icon: CheckCircle, title: "50 Predictions", description: "", unlocked: totalPredictions >= 50 },
   { icon: Award, title: "60% Accuracy", description: "", unlocked: accuracy >= 60 },
   { icon: Award, title: "70% Accuracy", description: "", unlocked: accuracy >= 70 },
   { icon: Medal, title: "Top 100", description: "", unlocked: Boolean(rank && rank <= 100) },
   { icon: Trophy, title: "Top 10", description: "", unlocked: Boolean(rank && rank <= 10) },
-  { icon: Medal, title: "Elite Trader", description: "", unlocked: ["Elite Trader", "Market Master"].includes(level) },
+  { icon: Medal, title: "Top Predictor", description: "", unlocked: ["Top Predictor", "Market Master"].includes(level) },
 ];
 
 /* ═══════════════════════════════════════════════════════════════

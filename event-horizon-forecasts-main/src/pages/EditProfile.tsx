@@ -76,7 +76,7 @@ export default function EditProfile() {
       <Header />
       <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6 lg:py-8">
         <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#667085]">Edit profile</p>
-        <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Your trader profile</h1>
+        <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Your predictor profile</h1>
         <section className="mt-6 rounded-2xl border border-[#E5E7EB] bg-white p-5">
           <div className="mb-6 flex items-center gap-4">
             <div className="grid h-20 w-20 overflow-hidden rounded-full border border-[#E5E7EB] bg-[#F3F4F6] text-3xl font-black">

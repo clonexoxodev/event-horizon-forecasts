@@ -13,7 +13,7 @@ export const Hero = () => {
           Prediction markets for Africa
         </span>
         <h1 className="mt-6 text-4xl font-black leading-tight tracking-tight text-[#101828] sm:text-5xl md:text-6xl">
-          Trade opinions on the future.
+          Predict what happens next.
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-base font-medium leading-7 text-[#475467] sm:text-lg">
           FLIPPE turns real-world questions into markets you can back with confidence. Pick a side, stake your view, and earn when you're right. Every market is refund-protected until it goes live.
@@ -36,7 +36,7 @@ export const Hero = () => {
 
         <div className="mx-auto mt-12 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-3">
           <Feature icon={<ShieldCheck className="h-5 w-5" />} title="Refund Protected" body="Stakes return automatically if a market never goes live." ariaLabel="Refund protection feature" />
-          <Feature icon={<TrendingUp className="h-5 w-5" />} title="Live prices" body="Crowd View moves with every trade, in real time." ariaLabel="Live pricing feature" />
+          <Feature icon={<TrendingUp className="h-5 w-5" />} title="Live probabilities" body="Crowd View moves with every prediction, in real time." ariaLabel="Live probability feature" />
           <Feature icon={<Users className="h-5 w-5" />} title="Community intelligence" body="See where others stand before you back a side." ariaLabel="Community intelligence feature" />
         </div>
       </div>

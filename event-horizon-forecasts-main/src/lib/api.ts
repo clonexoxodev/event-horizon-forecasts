@@ -129,6 +129,23 @@ export type ApiMarket = {
 
 export type ApiPriceHistoryPoint = NonNullable<ApiMarket['priceHistory']>[number];
 
+export type InviteMarketPreview = {
+  id: string;
+  question: string;
+  category: string;
+  visibility?: 'private' | 'public';
+  status: string;
+  isActive: boolean;
+  participantCount: number;
+  participantLimit: number | null;
+  minAmount: number;
+  maxAmount: number;
+  closeTime: string | null;
+  tradingCloseTime: string | null;
+  creatorUsername: string | null;
+  createdBy: string | null;
+};
+
 export type AdminMarket = {
   id: string;
   question: string;
@@ -644,6 +661,10 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ invite_code: inviteCode }),
     });
+  }
+
+  async getMarketByInviteCode(code: string): Promise<{ market: InviteMarketPreview }> {
+    return this.request(`/api/markets/invite/${encodeURIComponent(code.trim().toUpperCase())}`);
   }
 
   async getAdminReviews(params: { status?: string; limit?: number; offset?: number } = {}): Promise<{ reviews: Array<{

@@ -1,10 +1,11 @@
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { useEffect } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { ForecastSlipProvider, useForecastSlip } from "@/lib/forecast-slip";
+import type { ForecastSelection } from "@/lib/forecast-slip";
 import { MarketStateProvider, useMarketState } from "@/lib/market-state";
 import { NotificationProvider, useNotificationHelpers } from "@/lib/notification-context";
 import { AuthModal } from "@/components/AuthModal";
@@ -37,6 +38,7 @@ import Privacy from "./pages/Privacy.tsx";
 import RiskDisclaimer from "./pages/RiskDisclaimer.tsx";
 import TransactionHistory from "./pages/TransactionHistory.tsx";
 import Notifications from "./pages/Notifications.tsx";
+import JoinPrivate from "./pages/JoinPrivate.tsx";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -46,15 +48,23 @@ const ScrollToTop = () => {
   return null;
 };
 
+const InviteRedirect = () => {
+  const { code } = useParams<{ code: string }>();
+  return <Navigate to={`/join?code=${encodeURIComponent(code || "")}`} replace />;
+};
+
 const ForecastSlipContainer = () => {
   const { selection, closeForecastSlip } = useForecastSlip();
   const { upsertMarket } = useMarketState();
   const { user, refreshUser } = useAuth();
   const { notifyForecastConfirmed, notifyWalletLow } = useNotificationHelpers();
 
-  const handleConfirm = async (selection: { marketId: string; marketQuestion: string; side: "YES" | "NO"; marketIcon?: string }, amount: number) => {
+  const handleConfirm = async (selection: ForecastSelection, amount: number) => {
     if (!user) {
       throw new Error("User not authenticated");
+    }
+    if (selection.side !== "YES" && selection.side !== "NO") {
+      throw new Error("Only YES/NO predictions are supported");
     }
 
     const result = await apiService.placePrediction(selection.marketId, {
@@ -126,8 +136,12 @@ const App = () => (
                   <Route path="/signup" element={<Signup />} />
                   <Route path="/market/:id" element={<MarketDetail />} />
                   <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
+                  <Route path="/predictions" element={<Navigate to="/portfolio" replace />} />
                   <Route path="/positions" element={<Navigate to="/portfolio" replace />} />
                   <Route path="/orders" element={<Navigate to="/portfolio" replace />} />
+                  <Route path="/join" element={<JoinPrivate />} />
+                  <Route path="/join/:code" element={<JoinPrivate />} />
+                  <Route path="/invite/:code" element={<InviteRedirect />} />
                   <Route path="/wallet" element={<Wallet />} />
                   <Route path="/dashboard" element={<Navigate to="/portfolio" replace />} />
                   <Route path="/activity" element={<Navigate to="/portfolio" replace />} />

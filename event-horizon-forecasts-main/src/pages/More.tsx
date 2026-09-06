@@ -185,7 +185,7 @@ export default function More() {
             >
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Log out of Flippi?</AlertDialogTitle>
+                  <AlertDialogTitle>Log out of FLIPPE?</AlertDialogTitle>
                   <AlertDialogDescription>
                     You will be signed out and redirected to the login page.
                   </AlertDialogDescription>
@@ -206,7 +206,7 @@ export default function More() {
 
         {/* ── Version ── */}
         <p className="mt-6 pb-4 text-center text-[10px] font-bold uppercase tracking-widest text-[#D1D5DB]">
-          FLIPPI {APP_VERSION}
+          FLIPPE {APP_VERSION}
         </p>
       </main>
       <MobileNav />

@@ -24,7 +24,7 @@ export default function Privacy() {
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#4F46E5]">Privacy</p>
               <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">Privacy notice</h1>
               <p className="mt-3 max-w-3xl text-base leading-relaxed text-[#667085]">
-                This page explains the account, wallet, and market data Flippe uses to run its prediction exchange safely.
+                This page explains the account, wallet, and market data Flippe uses to run its prediction markets safely.
               </p>
             </div>
           </div>
@@ -44,7 +44,7 @@ export default function Privacy() {
 
         <section className="mt-8 grid gap-6 lg:grid-cols-2">
           <Panel icon={Lock} title="How data may be used">
-            <p>To keep traders logged in, show wallet balances, place predictions, process deposits and withdrawals, resolve markets, prevent abuse, and improve app reliability.</p>
+            <p>To keep predictors logged in, show wallet balances, place predictions, process deposits and withdrawals, resolve markets, prevent abuse, and improve app reliability.</p>
             <p>Financial ledger records may need to be retained for accounting, dispute, security, or legal reasons.</p>
           </Panel>
           <Panel icon={EyeOff} title="Public and private activity">
@@ -56,7 +56,7 @@ export default function Privacy() {
             <p>No system can promise perfect security. Flippe should keep account, wallet, and admin access controls under regular review.</p>
           </Panel>
           <Panel icon={Database} title="Contact details">
-            <p>Traders can use the Contact or Support pages for privacy and account questions.</p>
+            <p>Predictors can use the Contact or Support pages for privacy and account questions.</p>
             <Link to="/contact" className="mt-4 inline-flex rounded-2xl border border-[#E5E7EB] bg-white px-5 py-2.5 text-sm font-semibold text-[#101828] transition hover:border-[#4F46E5]/40 hover:bg-[#F9FAFB]">Contact</Link>
           </Panel>
         </section>

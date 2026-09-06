@@ -3,7 +3,7 @@ export const LEVELS = [
   { name: "Sharp Thinker", score: 5 },
   { name: "Analyst", score: 18 },
   { name: "Expert", score: 40 },
-  { name: "Elite Trader", score: 70 },
+  { name: "Top Predictor", score: 70 },
   { name: "Market Master", score: 120 },
 ] as const;
 

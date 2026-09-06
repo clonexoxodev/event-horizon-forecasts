@@ -4,16 +4,16 @@ import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 
 const terms = [
-  ["Eligibility", "Traders must be legally eligible to use Flippe in their location and must follow any age, identity, and account requirements that apply."],
-  ["Account responsibility", "Traders are responsible for keeping login details secure and for activity performed through their account."],
+  ["Eligibility", "Predictors must be legally eligible to use Flippe in their location and must follow any age, identity, and account requirements that apply."],
+  ["Account responsibility", "Predictors are responsible for keeping login details secure and for activity performed through their account."],
   ["Wallet and balances", "Wallet balances, pending deposits, withdrawals, position stakes, payouts, refunds, and adjustments should be recorded in the transaction ledger."],
-  ["Market participation", "Traders should read the market question, rules, close time, and resolution source before locking a position."],
+  ["Market participation", "Predictors should read the market question, rules, close time, and resolution source before locking a position."],
   ["Market resolution", "Markets resolve using the stated source and rules. If the market cannot resolve fairly, cancellation and refund logic may apply."],
-  ["Disputes", "Traders can raise a dispute if a market appears incorrectly resolved, unclear, or unsupported by the stated source."],
+  ["Disputes", "Predictors can raise a dispute if a market appears incorrectly resolved, unclear, or unsupported by the stated source."],
   ["Prohibited activity", "Market manipulation, fraud, abuse, multiple-account misuse, automated abuse, and attempts to bypass limits are not allowed."],
   ["No guaranteed profit", "Any payout estimate before resolution is informational only. Flippe does not guarantee profit or income."],
   ["Platform changes", "Features, supported markets, deposit/withdrawal methods, and operational rules may change as the product develops."],
-  ["Contact and support", "Traders can use Support for account questions, wallet questions, and market disputes."],
+  ["Contact and support", "Predictors can use Support for account questions, wallet questions, and market disputes."],
 ];
 
 export default function Terms() {
@@ -57,7 +57,7 @@ export default function Terms() {
         <section className="mt-8 rounded-3xl border border-[#E5E7EB] bg-white p-8 shadow-sm">
           <h2 className="text-xl font-bold">Before locking a position</h2>
           <p className="mt-3 text-sm leading-relaxed text-[#667085]">
-            By participating in a market, a trader should understand that positions involve risk, early estimates are not guaranteed, and final payout depends on market resolution and matched positions.
+            By participating in a market, a predictor should understand that positions involve risk, early estimates are not guaranteed, and final payout depends on market resolution and matched positions.
           </p>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <Link to="/responsible-use" className="rounded-2xl bg-[#4F46E5] px-6 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-[#4338CA] hover:shadow-md">Responsible Use</Link>

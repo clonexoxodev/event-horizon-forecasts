@@ -19,7 +19,7 @@ import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { useAuth } from "@/lib/auth";
 import apiService, { type ApiPosition } from "@/lib/api";
-import { formatCountdown, formatNaira, formatNairaPrice } from "@/lib/markets";
+import { formatCountdown, formatNaira } from "@/lib/markets";
 import { DelayedFlippeLoader } from "@/components/FlippeBrand";
 
 type PredictionTab = "all" | "active" | "won" | "lost" | "refunded" | "cancelled";
@@ -33,9 +33,11 @@ type PredictionItem = {
   displayStatus: string;
   statusColor: string;
   entryPrice: number;
+  currentPrice: number;
   stake: number;
   sharesReceived: number;
   currentValue: number;
+  estimatedPayout: number;
   pnl: number;
   isWinner: boolean | null;
   createdAt: string;
@@ -78,7 +80,10 @@ const positionToItem = (pos: ApiPosition, now: number): PredictionItem => {
   const entry = Number(pos.entryPrice || 0);
   const stake = Number(pos.stake || 0);
   const currentValue = Number(pos.currentValue || pos.positionValue || 0);
-  const pnl = currentValue > 0 ? currentValue - stake : 0;
+  const estimatedPayout = Number(pos.estimatedPayout ?? pos.projectedPayout ?? 0);
+  const pnl = Number(
+    pos.estimatedProfit ?? pos.projectedProfit ?? pos.unrealizedPnl ?? (pos.isWinner && pos.finalPayout ? pos.finalPayout - stake : 0)
+  );
   return {
     id: pos.id,
     marketId: pos.marketId,
@@ -88,9 +93,11 @@ const positionToItem = (pos: ApiPosition, now: number): PredictionItem => {
     displayStatus: ns.display,
     statusColor: ns.color,
     entryPrice: entry,
+    currentPrice: Number(pos.currentPrice || 0),
     stake,
     sharesReceived: Number(pos.sharesReceived || pos.sharesOwned || 0),
     currentValue,
+    estimatedPayout,
     pnl,
     isWinner: pos.isWinner ?? null,
     createdAt: pos.createdAt,
@@ -161,6 +168,17 @@ export default function Portfolio() {
     return result;
   }, [items, activeTab, searchQuery]);
 
+  const summary = useMemo(() => {
+    const totalStaked = items.reduce((sum, i) => sum + i.stake, 0);
+    const active = items.filter((i) => i.normalizedStatus === "active").length;
+    const won = items.filter((i) => i.normalizedStatus === "won").length;
+    const lost = items.filter((i) => i.normalizedStatus === "lost").length;
+    const refunded = items.filter((i) => i.normalizedStatus === "refunded").length;
+    const totalPayout = items.filter((i) => i.normalizedStatus === "won").reduce((sum, i) => sum + (i.estimatedPayout || i.currentValue || 0), 0);
+    const activePayout = items.filter((i) => i.normalizedStatus === "active").reduce((sum, i) => sum + (i.estimatedPayout || 0), 0);
+    return { totalStaked, active, won, lost, refunded, totalPayout, activePayout };
+  }, [items]);
+
   if (authLoading) {
     return (
       <div className="app-bg min-h-screen text-[#111827] xl:pl-64">
@@ -207,6 +225,38 @@ export default function Portfolio() {
             </p>
           </div>
         </div>
+
+        {/* Summary */}
+        {items.length > 0 && (
+          <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="rounded-2xl border border-[#E5E7EB] bg-white p-3.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">Total Staked</div>
+              <div className="mt-1 text-base font-black tabular-nums text-[#111827]">{formatNaira(summary.totalStaked)}</div>
+            </div>
+            <div className="rounded-2xl border border-[#E5E7EB] bg-white p-3.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">Active</div>
+              <div className="mt-1 text-base font-black tabular-nums text-[#4F46E5]">{summary.active}</div>
+              {summary.activePayout > 0 && (
+                <div className="mt-0.5 text-[10px] font-bold tabular-nums text-[#6B7280]">Est. {formatNaira(summary.activePayout)}</div>
+              )}
+            </div>
+            <div className="rounded-2xl border border-[#E5E7EB] bg-white p-3.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">Won</div>
+              <div className="mt-1 text-base font-black tabular-nums text-[#047857]">{summary.won}</div>
+              {summary.totalPayout > 0 && (
+                <div className="mt-0.5 text-[10px] font-bold tabular-nums text-[#6B7280]">Payout {formatNaira(summary.totalPayout)}</div>
+              )}
+            </div>
+            <div className="rounded-2xl border border-[#E5E7EB] bg-white p-3.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">Lost / Refunded</div>
+              <div className="mt-1 text-base font-black tabular-nums text-[#111827]">
+                <span className="text-[#B42318]">{summary.lost}</span>
+                {" / "}
+                <span className="text-[#B45309]">{summary.refunded}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Search */}
         {items.length > 0 && (
@@ -336,22 +386,24 @@ const PredictionCard = ({ item, now }: { item: PredictionItem; now: number }) =>
       {/* Stats */}
       <div className="mt-3 grid grid-cols-4 gap-2 border-t border-[#F3F4F6] pt-3">
         <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Entry</div>
-          <div className="mt-0.5 text-xs font-bold text-[#111827]">{item.entryPrice ? formatNairaPrice(item.entryPrice) : "-"}</div>
+          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Entry %</div>
+          <div className="mt-0.5 text-xs font-black tabular-nums text-[#111827]">{item.entryPrice > 0 ? `${Math.round(item.entryPrice)}%` : "-"}</div>
         </div>
         <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Stake</div>
-          <div className="mt-0.5 text-xs font-bold text-[#111827]">{formatNaira(item.stake)}</div>
-        </div>
-        <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">P&L</div>
-          <div className={`mt-0.5 text-xs font-bold ${item.pnl >= 0 ? "text-[#12B886]" : "text-[#E85D5D]"}`}>
-            {item.pnl >= 0 ? "+" : ""}{formatNaira(item.pnl)}
+          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Current</div>
+          <div className={`mt-0.5 text-xs font-black tabular-nums ${item.currentPrice >= item.entryPrice ? "text-[#047857]" : "text-[#B42318]"}`}>
+            {item.currentPrice > 0 ? `${Math.round(item.currentPrice)}%` : "-"}
           </div>
         </div>
         <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Value</div>
-          <div className="mt-0.5 text-xs font-bold text-[#111827]">{item.currentValue > 0 ? formatNaira(item.currentValue) : "-"}</div>
+          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Stake</div>
+          <div className="mt-0.5 text-xs font-bold tabular-nums text-[#111827]">{formatNaira(item.stake)}</div>
+        </div>
+        <div>
+          <div className="text-[9px] font-bold uppercase tracking-wider text-[#9CA3AF]">Est. Payout</div>
+          <div className={`mt-0.5 text-xs font-bold tabular-nums ${item.estimatedPayout > item.stake ? "text-[#047857]" : "text-[#111827]"}`}>
+            {item.estimatedPayout > 0 ? formatNaira(item.estimatedPayout) : item.normalizedStatus === "active" ? "—" : "-"}
+          </div>
         </div>
       </div>
 

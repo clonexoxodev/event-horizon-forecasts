@@ -109,7 +109,7 @@ const Positions = () => {
               <LineChart className="h-5 w-5" />
             </div>
             <h1 className="text-xl font-black tracking-tight">Track your positions</h1>
-            <p className="mt-1.5 text-sm text-[#9CA3AF]">Log in to see your matched trades, P&L, and results.</p>
+            <p className="mt-1.5 text-sm text-[#9CA3AF]">Log in to see your predictions, P&L, and results.</p>
             <Link to="/login" className="mt-4 inline-flex h-10 items-center rounded-xl bg-[#4F46E5] px-5 text-sm font-bold text-white hover:bg-[#4338CA]">
               Log in
             </Link>

@@ -165,10 +165,11 @@ export default function MarketDetail() {
     const url = `${window.location.origin}/market/${market.id}${market.inviteCode ? `?code=${market.inviteCode}` : ""}`;
     const timeLeft = formatCountdown(market.tradingCloseTime || market.closeTime, market.closesIn);
     const shareText = [
-      "FLIPPE market", market.question,
-      `YES Price: ${formatNairaPrice(market.yesPrice)}`,
-      `NO Price: ${formatNairaPrice(market.noPrice)}`,
-      `Time left: ${timeLeft}`, "Predict on FLIPPE.", url,
+      "FLIPPE · prediction market",
+      market.question,
+      `YES ${Math.round(market.yesPrice)}% probability`,
+      `NO ${Math.round(market.noPrice)}% probability`,
+      `Closes ${timeLeft}`, "Predict the outcome.", url,
     ].join("\n");
     try {
       if (navigator.share) {
@@ -333,7 +334,7 @@ export default function MarketDetail() {
             {!activation.isProtected && (
               <>
                 <StatChip icon={Users} value={market.participants || 0} label="predicting" />
-                <StatChip icon={BarChart3} value={market.tradeCount || 0} label="trades" />
+                <StatChip icon={BarChart3} value={market.tradeCount || 0} label="predictions" />
               </>
             )}
             <span className="inline-flex items-center gap-1 rounded-full bg-[#F3F4F6] px-2.5 py-1 text-[10px] font-bold text-[#9CA3AF]">
@@ -495,8 +496,8 @@ export default function MarketDetail() {
         <section className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
           <div className="mb-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-base font-bold text-[#101828]">Price History</h2>
-              <p className="mt-0.5 text-[10px] font-bold text-[#9CA3AF]">How YES and NO prices have moved over time</p>
+              <h2 className="text-base font-bold text-[#101828]">Probability History</h2>
+              <p className="mt-0.5 text-[10px] font-bold text-[#9CA3AF]">How the market's YES and NO probability has changed over time</p>
             </div>
             <div className="flex w-fit rounded-lg bg-[#F3F4F6] p-0.5">
               {(["1H", "24H", "7D", "ALL"] as Timeframe[]).map((item) => (
@@ -664,33 +665,33 @@ export default function MarketDetail() {
           <div className="hidden flex-1 items-center justify-center gap-6 sm:flex">
             <div className="flex items-baseline gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">YES</span>
-              <span className="text-sm font-bold tabular-nums text-[#047857]">{formatNairaPrice(market.yesPrice)}</span>
+              <span className="text-sm font-bold tabular-nums text-[#047857]">{Math.round(market.yesPrice)}%</span>
             </div>
             <div className="h-4 w-px bg-[#E5E7EB]" />
             <div className="flex items-baseline gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">NO</span>
-              <span className="text-sm font-bold tabular-nums text-[#B42318]">{formatNairaPrice(market.noPrice)}</span>
+              <span className="text-sm font-bold tabular-nums text-[#B42318]">{Math.round(market.noPrice)}%</span>
             </div>
           </div>
           <div className="flex flex-1 gap-2 sm:flex-none sm:w-[320px]">
             <button
               disabled={!marketIsActive}
-              aria-label={`Predict YES at ${formatNairaPrice(market.yesPrice)}`}
+              aria-label={`Predict YES at ${Math.round(market.yesPrice)}% probability`}
               onClick={() => setSheetSide("YES")}
               className="group flex-1 h-12 rounded-xl bg-[#12B886] text-sm font-bold text-white transition-all duration-150 hover:bg-[#0ea371] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#D1D5DB] disabled:text-[#9CA3AF]"
             >
               <span className="flex items-center justify-center gap-1.5">
-                <span className="hidden sm:inline">Predict</span> YES {formatNairaPrice(market.yesPrice)}
+                <span className="hidden sm:inline">Predict</span> YES {Math.round(market.yesPrice)}%
               </span>
             </button>
             <button
               disabled={!marketIsActive}
-              aria-label={`Predict NO at ${formatNairaPrice(market.noPrice)}`}
+              aria-label={`Predict NO at ${Math.round(market.noPrice)}% probability`}
               onClick={() => setSheetSide("NO")}
               className="group flex-1 h-12 rounded-xl bg-[#E85D5D] text-sm font-bold text-white transition-all duration-150 hover:bg-[#d94c4c] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#D1D5DB] disabled:text-[#9CA3AF]"
             >
               <span className="flex items-center justify-center gap-1.5">
-                <span className="hidden sm:inline">Predict</span> NO {formatNairaPrice(market.noPrice)}
+                <span className="hidden sm:inline">Predict</span> NO {Math.round(market.noPrice)}%
               </span>
             </button>
           </div>
@@ -930,8 +931,8 @@ const Chart = ({
               const point = filteredHistory[items[0]?.dataIndex ?? 0];
               if (!point) return [];
               return [
-                `Volume: ${formatNaira(point.volume || 0)}`,
-                `Trades: ${point.tradeCount || 0}`,
+                `Pool change: ${formatNaira(point.volume || 0)}`,
+                `Predictions: ${point.tradeCount || 0}`,
               ];
             },
           },

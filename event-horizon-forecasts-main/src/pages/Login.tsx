@@ -64,7 +64,7 @@ export default function Login() {
             </Link>
 
             <p className="mb-1.5 text-center text-sm font-medium text-[#6B7280]">
-              Trade real-world outcomes
+              Predict real-world outcomes
             </p>
 
             <h1 className="mb-8 text-center text-2xl font-extrabold tracking-tight text-[#111827]">

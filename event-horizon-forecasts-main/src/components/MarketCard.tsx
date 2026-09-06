@@ -1,18 +1,22 @@
-import { Clock, Play, Shield, TrendingUp, Users } from "lucide-react";
+import { Clock, Lock, Shield, TrendingUp, Users } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Market,
   formatCountdown,
   formatNaira,
-  formatNairaPrice,
   getMarketActivation,
   getMarketCategoryLabel,
   getMarketMedia,
 } from "@/lib/markets";
 import { useForecastSlip } from "@/lib/forecast-slip";
-import { AnimatedNumber } from "@/components/AnimatedNumber";
-import { ProtectedMarketInfo, ProtectedMarketTooltip } from "@/components/ProtectedMarketInfo";
+import { ProtectedMarketInfo } from "@/components/ProtectedMarketInfo";
+
+const clampPercent = (value: number | undefined) => {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return 50;
+  return Math.max(1, Math.min(99, n));
+};
 
 export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolean }) => {
   const { openForecastSlip } = useForecastSlip();
@@ -25,6 +29,9 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
   const activation = getMarketActivation(m);
   const [showProtectedInfo, setShowProtectedInfo] = useState(false);
 
+  const yesPercent = clampPercent(m.yesPrice);
+  const noPercent = 100 - yesPercent;
+
   const openSide = (event: React.MouseEvent, side: "YES" | "NO") => {
     event.preventDefault();
     event.stopPropagation();
@@ -34,7 +41,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
       marketQuestion: m.question,
       marketIcon: m.icon,
       side,
-      currentPrice: side === "YES" ? m.yesPrice : m.noPrice,
+      currentPrice: side === "YES" ? yesPercent : noPercent,
       participants: m.participants,
       minAmount: m.minAmount,
       maxAmount: m.maxAmount,
@@ -50,7 +57,7 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
     }
   };
 
-  const nairaSymbol = formatNairaPrice(0).replace("0", "");
+  const poolAmount = Number(m.totalVolume ?? 0) || 0;
 
   return (
     <>
@@ -59,11 +66,11 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
         tabIndex={0}
         onClick={openMarket}
         onKeyDown={handleKeyDown}
-        aria-label={`${m.question}. ${isLive ? (activation.isProtected ? "Refund protected" : "Live trading") : "Trading closed"}. YES price ${nairaSymbol}${Math.round(m.yesPrice)}, NO price ${nairaSymbol}${Math.round(m.noPrice)}.`}
-        className="group block rounded-2xl border border-[#E5E7EB] bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#4F46E5]/15 hover:shadow-[0_6px_24px_rgba(17,24,39,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4F46E5] active:translate-y-0 active:shadow-sm overflow-hidden"
+        aria-label={`${m.question}. Market probability ${yesPercent}% YES, ${noPercent}% NO. ${isLive ? (activation.isProtected ? "Refund protected." : "Open for predictions.") : "Predictions closed."} ${formatNaira(poolAmount)} in the pool from ${m.participants || 0} participants.`}
+        className="group block overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#4F46E5]/15 hover:shadow-[0_6px_24px_rgba(17,24,39,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4F46E5] active:translate-y-0 active:shadow-sm"
       >
         {media.src && (
-          <div className={`relative ${compact ? "h-28" : "h-36"} w-full overflow-hidden bg-[#F3F4F6]`}>
+          <div className={`relative ${compact ? "h-24" : "h-32"} w-full overflow-hidden bg-[#F3F4F6]`}>
             {media.type === "video" ? (
               <video
                 src={media.src}
@@ -84,15 +91,15 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
                 aria-hidden="true"
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-black/5 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-black/5 to-transparent" />
 
-            {media.type === "video" && (
-              <div className="absolute right-2.5 top-2.5 grid h-7 w-7 place-items-center rounded-full bg-black/40 text-white backdrop-blur-md">
-                <Play className="h-3 w-3 fill-current" aria-hidden="true" />
-              </div>
-            )}
-
-            <div className="absolute left-2.5 top-2.5">
+            <div className="absolute left-2.5 top-2.5 flex flex-wrap items-center gap-1.5">
+              {m.visibility === "private" && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold text-[#4F46E5] shadow-sm backdrop-blur-md">
+                  <Lock className="h-2.5 w-2.5" aria-hidden="true" />
+                  Private
+                </span>
+              )}
               {isLive && activation.isProtected ? (
                 <button
                   onClick={(e) => {
@@ -100,7 +107,8 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
                     e.preventDefault();
                     setShowProtectedInfo(true);
                   }}
-                  className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#4F46E5] shadow-sm backdrop-blur-md"
+                  className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold text-[#4F46E5] shadow-sm backdrop-blur-md"
+                  aria-label="Learn about Refund Protected markets"
                 >
                   <Shield className="h-2.5 w-2.5" aria-hidden="true" />
                   Protected
@@ -120,9 +128,10 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
               )}
             </div>
 
-            <div className="absolute bottom-0 left-0 right-0 p-3 pt-8 bg-gradient-to-t from-black/30 to-transparent">
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/20 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
-                {categoryLabel}
+            <div className="absolute bottom-0 right-2.5 pb-2.5">
+              <span className="inline-flex items-center gap-1 rounded-full bg-black/35 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-md">
+                <Clock className="h-2.5 w-2.5" aria-hidden="true" />
+                {formatCountdown(tradingCloseTime, m.closesIn)}
               </span>
             </div>
           </div>
@@ -131,18 +140,17 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
         <div className="p-4">
           {!media.src && (
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
-                {categoryLabel}
-              </span>
-              <span className="flex items-center gap-1 text-[10px] font-bold text-[#9CA3AF]">
-                <Clock className="h-2.5 w-2.5" aria-hidden="true" />
-                {formatCountdown(tradingCloseTime, m.closesIn)}
-              </span>
-            </div>
-          )}
-
-          {media.src && (
-            <div className="mb-1.5 flex items-center justify-end">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
+                  {categoryLabel}
+                </span>
+                {m.visibility === "private" && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[10px] font-bold text-[#4F46E5]">
+                    <Lock className="h-2.5 w-2.5" aria-hidden="true" />
+                    Private
+                  </span>
+                )}
+              </div>
               <span className="flex items-center gap-1 text-[10px] font-bold text-[#9CA3AF]">
                 <Clock className="h-2.5 w-2.5" aria-hidden="true" />
                 {formatCountdown(tradingCloseTime, m.closesIn)}
@@ -154,42 +162,70 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
             {m.question}
           </h3>
 
-          <div className="mt-3 grid grid-cols-2 gap-2" role="group" aria-label="Trading options">
-            <PriceButton
-              label="YES"
-              value={m.yesPrice}
-              tone="green"
-              disabled={!isLive}
+          <div className="mt-3">
+            <div className="flex items-center justify-between text-xs font-black tabular-nums">
+              <span className="text-[#047857]">YES {yesPercent}%</span>
+              <span className="text-[#B42318]">NO {noPercent}%</span>
+            </div>
+            <div
+              className="mt-1.5 flex h-2.5 overflow-hidden rounded-full bg-[#F3F4F6]"
+              role="img"
+              aria-label={`Market probability: ${yesPercent}% YES, ${noPercent}% NO`}
+            >
+              <div
+                className="h-full rounded-l-full bg-[#12B886] transition-all duration-500"
+                style={{ width: `${yesPercent}%` }}
+              />
+              <div
+                className="h-full rounded-r-full bg-[#E85D5D] transition-all duration-500"
+                style={{ width: `${noPercent}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2" role="group" aria-label="Prediction options">
+            <button
+              type="button"
               onClick={(event) => openSide(event, "YES")}
-              nairaSymbol={nairaSymbol}
-            />
-            <PriceButton
-              label="NO"
-              value={m.noPrice}
-              tone="red"
               disabled={!isLive}
+              aria-label={`Predict YES at ${yesPercent}%`}
+              className={`relative rounded-xl border-2 px-3 py-2 text-left transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 ${
+                "border-[#12B886]/25 bg-[#12B886]/[0.06] text-[#047857] hover:border-[#12B886]/40 hover:bg-[#12B886]/12 hover:shadow-[0_2px_8px_rgba(18,184,134,0.12)]"
+              }`}
+            >
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-[#6B7280]">Predict YES</span>
+              <span className="mt-0.5 block text-[15px] font-black tabular-nums">{yesPercent}%</span>
+            </button>
+            <button
+              type="button"
               onClick={(event) => openSide(event, "NO")}
-              nairaSymbol={nairaSymbol}
-            />
+              disabled={!isLive}
+              aria-label={`Predict NO at ${noPercent}%`}
+              className={`relative rounded-xl border-2 px-3 py-2 text-left transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 ${
+                "border-[#E85D5D]/25 bg-[#E85D5D]/[0.06] text-[#B42318] hover:border-[#E85D5D]/40 hover:bg-[#E85D5D]/12 hover:shadow-[0_2px_8px_rgba(232,93,93,0.12)]"
+              }`}
+            >
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-[#6B7280]">Predict NO</span>
+              <span className="mt-0.5 block text-[15px] font-black tabular-nums">{noPercent}%</span>
+            </button>
           </div>
 
           <div className="mt-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {activation.isProtected ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[10px] font-bold text-[#6B7280]">
+                <TrendingUp className="h-2.5 w-2.5" aria-hidden="true" />
+                {formatNaira(poolAmount)} pool
+              </span>
+              {activation.isProtected && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-[#4F46E5]/8 px-2 py-0.5 text-[10px] font-bold text-[#4F46E5]">
                   <Shield className="h-2.5 w-2.5" aria-hidden="true" />
-                  {activation.progress}% protected
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[10px] font-bold text-[#6B7280]">
-                  <TrendingUp className="h-2.5 w-2.5" aria-hidden="true" />
-                  {formatNaira(m.totalVolume || 0)}
+                  {Math.round(activation.progress)}% protected
                 </span>
               )}
             </div>
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#9CA3AF]">
               <Users className="h-2.5 w-2.5" aria-hidden="true" />
-              {(m.participants || 0).toLocaleString()} traders
+              {m.participants ? `${m.participants} predicting` : "No one yet"}
             </span>
           </div>
         </div>
@@ -209,36 +245,3 @@ export const MarketCard = ({ m, compact = false }: { m: Market; compact?: boolea
     </>
   );
 };
-
-const PriceButton = ({
-  label,
-  value,
-  tone,
-  disabled = false,
-  onClick,
-  nairaSymbol,
-}: {
-  label: string;
-  value: number;
-  tone: "green" | "red";
-  disabled?: boolean;
-  onClick: (event: React.MouseEvent) => void;
-  nairaSymbol: string;
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    disabled={disabled}
-    aria-label={`${label} at ${Math.round(value)}%`}
-    className={`relative rounded-xl border-2 px-3 py-2.5 text-left transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 ${
-      tone === "green"
-        ? "border-[#12B886]/25 bg-[#12B886]/[0.06] text-[#047857] hover:border-[#12B886]/40 hover:bg-[#12B886]/12 hover:shadow-[0_2px_8px_rgba(18,184,134,0.12)]"
-        : "border-[#E85D5D]/25 bg-[#E85D5D]/[0.06] text-[#B42318] hover:border-[#E85D5D]/40 hover:bg-[#E85D5D]/12 hover:shadow-[0_2px_8px_rgba(232,93,93,0.12)]"
-    }`}
-  >
-    <span className="block text-[10px] font-bold uppercase tracking-wider text-[#6B7280]">{label}</span>
-    <span className="mt-0.5 block text-[15px] font-black">
-      <AnimatedNumber value={value} prefix={nairaSymbol} />
-    </span>
-  </button>
-);

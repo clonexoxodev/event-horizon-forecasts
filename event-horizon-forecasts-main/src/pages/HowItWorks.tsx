@@ -42,7 +42,7 @@ export default function HowItWorks() {
 
         <section className="mt-8 grid gap-6 lg:grid-cols-2">
           <InfoPanel title="How Crowd View moves">
-            <p>YES and NO show what the crowd currently thinks based on real user activity. If more traders back YES, YES can rise and NO falls. If more traders back NO, NO can rise and YES falls.</p>
+            <p>YES and NO show what the crowd currently thinks based on real user activity. If more predictors back YES, YES can rise and NO falls. If more predictors back NO, NO can rise and YES falls.</p>
             <p>Crowd View helps people understand the market. It is not a guarantee of profit and it is not a cashout value.</p>
           </InfoPanel>
           <InfoPanel title="How final payout works">

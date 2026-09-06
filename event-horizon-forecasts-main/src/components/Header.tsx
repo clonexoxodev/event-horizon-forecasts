@@ -1,4 +1,4 @@
-import { Home, Briefcase, Menu, Shield, Wallet, PlusCircle } from "lucide-react";
+import { Compass, Shield, Target, User, Wallet, PlusCircle } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
@@ -6,11 +6,11 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { FlippeSymbol, FlippeWordmark } from "@/components/FlippeBrand";
 
 const primaryNav = [
-  { to: "/", label: "Home", icon: Home },
-  { to: "/portfolio", label: "Portfolio", icon: Briefcase },
+  { to: "/", label: "Discover", icon: Compass },
+  { to: "/portfolio", label: "My Predictions", icon: Target },
   { to: "/create", label: "Create", icon: PlusCircle },
   { to: "/wallet", label: "Wallet", icon: Wallet },
-  { to: "/more", label: "More", icon: Menu },
+  { to: "/profile", label: "Profile", icon: User },
 ];
 
 export const Header = () => {
@@ -42,7 +42,7 @@ export const Header = () => {
             )}
             {user && <NotificationBell />}
             <Link
-              to={user ? "/more" : "/login"}
+              to={user ? "/profile" : "/login"}
               aria-label={user ? "Account" : "Log in"}
               className="grid h-8 w-8 place-items-center overflow-hidden rounded-full border border-[#E5E7EB]/80 bg-[#F9FAFB] text-[11px] font-bold text-[#374151] transition-all duration-200 hover:border-[#4F46E5]/30 hover:shadow-sm"
             >
@@ -79,7 +79,7 @@ export const Header = () => {
           )}
           {user && <NotificationBell />}
           <Link
-            to={user ? "/more" : "/login"}
+            to={user ? "/profile" : "/login"}
             aria-label={user ? "Account" : "Log in"}
             className="grid h-9 w-9 place-items-center overflow-hidden rounded-full border border-[#E5E7EB]/80 bg-[#F9FAFB] text-sm font-bold text-[#374151] transition-all duration-200 hover:border-[#4F46E5]/30 hover:shadow-sm"
           >
@@ -108,7 +108,7 @@ export const Header = () => {
               className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[#4F46E5] text-xs font-bold text-white transition-all duration-200 hover:bg-[#4338CA] hover:shadow-md hover:shadow-[#4F46E5]/20 active:scale-[0.98]"
             >
               <PlusCircle className="h-4 w-4" strokeWidth={2.2} />
-              Create a pool
+              Create a prediction
             </Link>
           </div>
         </div>
@@ -176,7 +176,7 @@ export const Header = () => {
 
         <div className="border-t border-[#E5E7EB]/50 px-3 py-3">
           <Link
-            to={user ? "/more" : "/login"}
+            to={user ? "/profile" : "/login"}
             aria-label={user ? "Account settings" : "Log in"}
             className="flex items-center gap-3 rounded-xl p-2 transition-all duration-200 hover:bg-[#F9FAFB]"
           >

@@ -58,23 +58,23 @@ const emptyStats: ApiProfileStats = {
 
 const ACHIEVEMENTS = [
   {
-    id: "first_trade",
-    label: "First Trade",
+    id: "first_prediction",
+    label: "First Prediction",
     description: "Placed your first position",
     icon: Zap,
     check: (s: ApiProfileStats) => s.totalPredictions >= 1,
   },
   {
-    id: "ten_trades",
-    label: "Active Trader",
-    description: "Completed 10 trades",
+    id: "ten_predictions",
+    label: "Active Predictor",
+    description: "Completed 10 predictions",
     icon: TrendingUp,
     check: (s: ApiProfileStats) => s.totalPredictions >= 10,
   },
   {
-    id: "fifty_trades",
+    id: "fifty_predictions",
     label: "Market Veteran",
-    description: "Completed 50 trades",
+    description: "Completed 50 predictions",
     icon: Crown,
     check: (s: ApiProfileStats) => s.totalPredictions >= 50,
   },
@@ -309,11 +309,11 @@ export default function Profile() {
         {/* ── Stats Grid ── */}
         <section
           className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3"
-          aria-label="Trading statistics"
+          aria-label="Prediction statistics"
         >
           <StatCard
             icon={LineChart}
-            label="Total Trades"
+            label="Total Predictions"
             value={String(stats.totalPredictions)}
           />
           <StatCard
@@ -530,7 +530,7 @@ export default function Profile() {
           </button>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Log out of Flippi?</AlertDialogTitle>
+              <AlertDialogTitle>Log out of FLIPPE?</AlertDialogTitle>
               <AlertDialogDescription>
                 You will be signed out and redirected to the login page.
               </AlertDialogDescription>
@@ -614,7 +614,7 @@ const TraderProgress = ({ stats, positions }: { stats: ApiProfileStats; position
             <Medal className="h-4 w-4" />
           </div>
           <div className="text-left">
-            <div className="text-sm font-bold text-[#111827]">Trader Progress</div>
+            <div className="text-sm font-bold text-[#111827]">Prediction Progress</div>
             <div className="text-[10px] font-bold text-[#9CA3AF]">
               {level === nextLevel ? "Max level reached" : `${ptsToNext} pts to ${nextLevel}`}
             </div>

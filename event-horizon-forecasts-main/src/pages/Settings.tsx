@@ -169,7 +169,7 @@ export default function Settings() {
           <Card>
             <CardHeader icon={Info} title="About" />
             <div className="space-y-2">
-              <InfoRow icon={Info} label="App version" value="Flippi v1.0.0" />
+              <InfoRow icon={Info} label="App version" value="Flippe v1.0.0" />
               <LinkRow
                 icon={ExternalLink}
                 label="Terms of service"

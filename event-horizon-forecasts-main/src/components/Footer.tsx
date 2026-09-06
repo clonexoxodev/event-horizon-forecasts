@@ -17,10 +17,10 @@ export const Footer = () => {
       <div className="mx-auto flex max-w-[1280px] flex-col gap-8 px-6 py-10 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-sm">
           <Link to="/" className="flex items-center gap-2 text-xl font-black">
-            <FlippeWordmark tagline="Trade real-world outcomes" />
+            <FlippeWordmark tagline="Predict real-world outcomes" />
           </Link>
           <p className="mt-3 text-sm leading-6 text-[#9CA3AF]">
-            Trade on real-world outcomes with transparent markets and clear history.
+            Predict on real-world outcomes with transparent markets and clear history.
           </p>
         </div>
 

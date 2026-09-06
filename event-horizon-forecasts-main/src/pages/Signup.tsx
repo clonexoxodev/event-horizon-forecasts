@@ -122,7 +122,7 @@ export default function Signup() {
             </Link>
 
             <p className="mb-1.5 text-center text-sm font-medium text-[#6B7280]">
-              Join thousands of traders
+              Join thousands of predictors
             </p>
 
             <h1 className="mb-8 text-center text-2xl font-extrabold tracking-tight text-[#111827]">

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 
-type ForecastSelection = {
+export type ForecastSelection = {
   marketId: string;
   marketQuestion: string;
   marketIcon: string;

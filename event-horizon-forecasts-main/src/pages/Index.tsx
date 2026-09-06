@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Clock, Search, TrendingUp, Zap } from "lucide-react";
+import { Clock, Lock, Search, TrendingUp, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
@@ -7,7 +7,7 @@ import { MarketCard } from "@/components/MarketCard";
 import { getTrendingScore, formatNaira } from "@/lib/markets";
 import { useMarketState } from "@/lib/market-state";
 import { useAuth } from "@/lib/auth";
-import { categoryMatches, HOME_MARKET_FILTERS, normalizeCategory } from "@/lib/categories";
+import { categoryMatches, HOME_MARKET_FILTERS, HomeMarketFilter, normalizeCategory } from "@/lib/categories";
 
 const isLiveMarket = (market: { status?: string; closeTime?: string; tradingCloseTime?: string }) => {
   const closeTime = market.tradingCloseTime || market.closeTime;
@@ -17,7 +17,7 @@ const isLiveMarket = (market: { status?: string; closeTime?: string; tradingClos
 
 const Index = () => {
   const { user } = useAuth();
-  const [category, setCategory] = useState<string>("Trending");
+  const [category, setCategory] = useState<HomeMarketFilter>("Trending");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<"trending" | "newest" | "closing">("trending");
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -119,6 +119,12 @@ const Index = () => {
                   How It Works
                 </Link>
               </div>
+              <div className="mt-4">
+                <Link to="/join" className="inline-flex items-center gap-1.5 text-sm font-semibold text-white/85 underline-offset-4 transition hover:text-white hover:underline">
+                  <Lock className="h-3.5 w-3.5" />
+                  Have an invite code? Join a private prediction
+                </Link>
+              </div>
             </div>
           </section>
 
@@ -173,6 +179,24 @@ const Index = () => {
               Ctrl K
             </kbd>
           </div>
+        </section>
+
+        <section className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-[#C7D2FE] bg-gradient-to-r from-[#EEF2FF] to-[#F5F3FF] px-4 py-3.5 sm:px-5">
+          <div className="flex items-center gap-3">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#4F46E5]/12 text-[#4F46E5]">
+              <Lock className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[13px] font-bold leading-tight text-[#101828]">Invited to a private prediction?</p>
+              <p className="mt-0.5 text-[11px] font-semibold text-[#6B7280]">Enter the invite code from your invitation.</p>
+            </div>
+          </div>
+          <Link
+            to="/join"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#4F46E5] px-4 py-2.5 text-xs font-bold text-white shadow-sm shadow-[#4F46E5]/25 transition-all hover:bg-[#4338CA] active:scale-[0.97]"
+          >
+            Join by code
+          </Link>
         </section>
 
         <section className="mb-4">
