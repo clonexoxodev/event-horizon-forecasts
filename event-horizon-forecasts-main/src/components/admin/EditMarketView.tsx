@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { apiService, type AdminMarket, type AdminCreateMarketInput } from "@/lib/api";
 import { Card, InputField, SectionHeader, SelectField, SkeletonCard } from "./ui";
+import { MediaUploadField } from "./MediaUploadField";
 import { toDateTimeLocal, getErrorMessage } from "./utils";
 
 const CATEGORIES = [
@@ -315,12 +316,11 @@ export const EditMarketView = ({
             disabled={isReadOnly}
           />
           <div className="md:col-span-2">
-            <InputField
-              label="Image URL"
+            <MediaUploadField
+              label="Banner image"
               value={imageUrl}
               onChange={setImageUrl}
-              placeholder="https://example.com/image.png"
-              hint="Optional banner image for the market"
+              hint="Uploaded to FLIPPE storage and shown on the market card."
               disabled={isReadOnly}
             />
           </div>

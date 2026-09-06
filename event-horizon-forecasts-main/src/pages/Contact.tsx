@@ -1,7 +1,7 @@
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { Footer } from "@/components/Footer";
-import { Mail, MessageCircle, Twitter, Send } from "lucide-react";
+import { Mail, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -127,24 +127,6 @@ export default function Contact() {
                 <p className="text-sm text-[#667085]">
                   Support requests are reviewed as part of Flippe V1 operations.
                 </p>
-              </div>
-
-              <div className="rounded-3xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
-                <h3 className="font-bold text-[#101828] mb-4">Follow Us</h3>
-                <div className="flex gap-2">
-                  <a
-                    href="#"
-                    className="w-10 h-10 rounded-2xl border border-[#E5E7EB] grid place-items-center text-[#667085] hover:text-[#101828] hover:border-[#4F46E5]/40 hover:bg-[#F9FAFB] transition-all"
-                  >
-                    <Twitter className="w-4 h-4" />
-                  </a>
-                  <a
-                    href="#"
-                    className="w-10 h-10 rounded-2xl border border-[#E5E7EB] grid place-items-center text-[#667085] hover:text-[#101828] hover:border-[#4F46E5]/40 hover:bg-[#F9FAFB] transition-all"
-                  >
-                    <Send className="w-4 h-4" />
-                  </a>
-                </div>
               </div>
             </div>
           </div>

@@ -4,10 +4,12 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   BarChart3,
+  Check,
   RefreshCcw,
   Search,
   TrendingUp,
   Wallet,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiService, type ApiTransaction, type DepositRequest } from "@/lib/api";
@@ -62,6 +64,7 @@ export const FinanceView = () => {
   const [deposits, setDeposits] = useState<DepositRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [txLoading, setTxLoading] = useState(true);
+  const [processingDeposit, setProcessingDeposit] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -127,6 +130,31 @@ export const FinanceView = () => {
   const totalRefunds = o.total_refunds ?? o.totalRefunds ?? 0;
   const todayVolume = o.today_volume ?? o.todayVolume ?? 0;
   const platformRevenue = o.platform_revenue ?? o.platformRevenue ?? 0;
+
+  const handleDepositAction = async (deposit: DepositRequest, action: "approve" | "reject") => {
+    const confirmMessage =
+      action === "approve"
+        ? "Approve this deposit? Funds will be credited to the user's wallet."
+        : "Reject this deposit? The pending funds will not be credited.";
+    if (!window.confirm(confirmMessage)) return;
+    setProcessingDeposit(deposit.id);
+    try {
+      if (action === "approve") {
+        await apiService.approveAdminDeposit(deposit.id);
+        toast.success("Deposit approved and funds credited.");
+      } else {
+        await apiService.rejectAdminDeposit(deposit.id);
+        toast.success("Deposit rejected.");
+      }
+      const depositsRes = await apiService.listAdminFinanceDeposits("pending");
+      setDeposits(depositsRes.deposits || []);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Action failed";
+      toast.error(message);
+    } finally {
+      setProcessingDeposit(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -288,7 +316,33 @@ export const FinanceView = () => {
                         <span className="font-mono">{d.reference || "—"}</span>
                       </div>
                     </div>
-                    <Badge variant="warning">{statusLabel(d.status)}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="warning">{statusLabel(d.status)}</Badge>
+                      <button
+                        type="button"
+                        onClick={() => handleDepositAction(d, "approve")}
+                        disabled={processingDeposit === d.id}
+                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Approve deposit"
+                      >
+                        {processingDeposit === d.id ? (
+                          <RefreshCcw className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Check className="h-3.5 w-3.5" />
+                        )}
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDepositAction(d, "reject")}
+                        disabled={processingDeposit === d.id}
+                        className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Reject deposit"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        Reject
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

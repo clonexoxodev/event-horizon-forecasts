@@ -374,7 +374,7 @@ const authenticate = async (req: Request, res: Response, next: NextFunction) => 
     // Fetch user from database to get current role
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, email, role, avatar_url, profile_image_url')
+      .select('id, username, email, role, avatar_url, profile_image_url, account_status, suspension_reason')
       .eq('id', decoded.userId)
       .single();
 
@@ -383,6 +383,16 @@ const authenticate = async (req: Request, res: Response, next: NextFunction) => 
         error: {
           code: 'UNAUTHORIZED',
           message: 'User not found',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    if (user.account_status === 'suspended') {
+      return res.status(403).json({
+        error: {
+          code: 'ACCOUNT_SUSPENDED',
+          message: user.suspension_reason || 'Your account has been suspended.',
           timestamp: new Date().toISOString()
         }
       });
@@ -421,11 +431,11 @@ const optionalAuthenticate = async (req: Request, _res: Response, next: NextFunc
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, email, role, avatar_url, profile_image_url')
+      .select('id, username, email, role, avatar_url, profile_image_url, account_status')
       .eq('id', decoded.userId)
       .single();
 
-    if (!error && user) {
+    if (!error && user && user.account_status !== 'suspended') {
       (req as any).user = {
         id: user.id,
         username: user.username,
@@ -2339,7 +2349,7 @@ app.post('/api/wallet/deposit', authenticate, rateLimitMiddleware(DEPOSIT_RATE),
   }
 });
 
-app.post('/api/wallet/withdrawal-request', authenticate, rateLimitMiddleware(WITHDRAWAL_RATE), async (req: Request, res: Response) => {
+const createWithdrawalRequestHandler = async (req: Request, res: Response) => {
   let createdTransactionId: string | null = null;
   let reservedWalletId: string | null = null;
   let rollbackUserId: string | null = null;
@@ -2446,11 +2456,14 @@ app.post('/api/wallet/withdrawal-request', authenticate, rateLimitMiddleware(WIT
   } catch (error) {
     console.error('Withdrawal request error:', error);
     if (reservedWalletId && rollbackUserId) {
-      await supabase.rpc('atomic_unlock_from_order', {
+      const { error: unlockError } = await supabase.rpc('atomic_unlock_from_order', {
         p_user_id: rollbackUserId,
         p_amount: rollbackAmount,
         p_currency: 'NGN',
       });
+      if (unlockError) {
+        console.error('Withdrawal rollback unlock failed (funds may remain locked):', unlockError.message || unlockError);
+      }
     }
     if (createdTransactionId) {
       await supabase.from('transactions').update({
@@ -2462,151 +2475,13 @@ app.post('/api/wallet/withdrawal-request', authenticate, rateLimitMiddleware(WIT
     const message = error instanceof Error ? error.message : 'Failed to create withdrawal request.';
     res.status(500).json({ error: { code: 'WITHDRAWAL_REQUEST_FAILED', message, timestamp: new Date().toISOString() } });
   }
-});
+};
 
-/**
- * POST /api/wallet/withdraw
- * Withdraw funds
- */
-app.post('/api/wallet/withdraw', authenticate, rateLimitMiddleware(WITHDRAWAL_RATE), async (req: Request, res: Response) => {
-  try {
-    const user = (req as any).user;
-    const { amount, currency } = req.body;
-    const amountSmallestUnit = Number(
-      req.body.amount_smallest_unit || req.body.amountSmallestUnit || Math.round(Number(amount || 0) * 100)
-    );
-
-    if (!Number.isFinite(amountSmallestUnit) || amountSmallestUnit <= 0) {
-      return res.status(400).json({
-        error: {
-          code: 'INVALID_AMOUNT',
-          message: 'Amount must be greater than 0',
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
-
-    const validCurrency = currency || 'NGN';
-    if (validCurrency !== 'NGN' && validCurrency !== 'USD') {
-      return res.status(400).json({
-        error: {
-          code: 'INVALID_CURRENCY',
-          message: 'Currency must be NGN or USD',
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
-
-    // Get current wallet
-    const { data: wallet, error: walletError } = await supabase
-      .from('wallets')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
-    if (walletError || !wallet) {
-      return res.status(404).json({
-        error: {
-          code: 'WALLET_NOT_FOUND',
-          message: 'Wallet not found',
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
-
-    // Check sufficient balance
-    const availableField = validCurrency === 'NGN' ? 'available_ngn_kobo' : 'available_usd_cents';
-    if (wallet[availableField] < amountSmallestUnit) {
-      return res.status(422).json({
-        error: {
-          code: 'INSUFFICIENT_BALANCE',
-          message: 'Insufficient balance',
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
-
-    const { data: updatedWallet, error: updateError } = await supabase
-      .from('wallets')
-      .update({
-        [availableField]: wallet[availableField] - amountSmallestUnit
-      })
-      .eq('user_id', user.id)
-      .select()
-      .single();
-
-    if (updateError) {
-      console.error('Wallet update error:', updateError);
-      return res.status(500).json({
-        error: {
-          code: 'WITHDRAWAL_FAILED',
-          message: 'Failed to process withdrawal',
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
-
-    const { data: transaction, error: transactionError } = await supabase
-      .from('transactions')
-      .insert({
-        user_id: user.id,
-        wallet_id: wallet.id,
-        type: 'withdrawal',
-        amount_smallest_unit: amountSmallestUnit,
-        currency: validCurrency,
-        direction: 'OUT',
-        status: 'pending',
-        metadata: {
-          destination: req.body.destination || 'bank_account',
-          withdrawalStatus: 'pending_review',
-          note: 'Money reserved while withdrawal is reviewed'
-        }
-      })
-      .select()
-      .single();
-
-    if (transactionError || !transaction) {
-      console.error('Withdrawal transaction error:', transactionError);
-      return res.status(500).json({
-        error: {
-          code: 'WITHDRAWAL_FAILED',
-          message: 'Failed to create withdrawal request',
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
-
-    res.json({
-      message: 'Withdrawal request saved',
-      wallet: {
-        balanceNgn: updatedWallet.balance_ngn_kobo / 100,
-        balanceUsd: updatedWallet.balance_usd_cents / 100,
-        availableNgn: updatedWallet.available_ngn_kobo / 100,
-        availableUsd: updatedWallet.available_usd_cents / 100
-      },
-      transaction: {
-        id: transaction.id,
-        type: transaction.type,
-        amount: transaction.amount_smallest_unit / 100,
-        amountSmallestUnit: transaction.amount_smallest_unit,
-        currency: transaction.currency,
-        direction: transaction.direction,
-        status: transaction.status,
-        metadata: transaction.metadata,
-        createdAt: transaction.created_at
-      }
-    });
-  } catch (error) {
-    console.error('Withdrawal error:', error);
-    res.status(500).json({
-      error: {
-        code: 'WITHDRAWAL_FAILED',
-        message: 'Failed to process withdrawal',
-        timestamp: new Date().toISOString()
-      }
-    });
-  }
-});
+app.post('/api/wallet/withdrawal-request', authenticate, rateLimitMiddleware(WITHDRAWAL_RATE), createWithdrawalRequestHandler);
+// Legacy /api/wallet/withdraw previously debited available balance without a
+// withdrawal_request or reservation, silently orphaning funds with no admin
+// approval path. It now uses the exact same reserved-request flow.
+app.post('/api/wallet/withdraw', authenticate, rateLimitMiddleware(WITHDRAWAL_RATE), createWithdrawalRequestHandler);
 
 /**
  * GET /api/wallet/transactions
@@ -3106,6 +2981,93 @@ app.get('/api/markets/duplicates', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Duplicate detection error:', error);
     res.status(500).json({ error: { code: 'DUPLICATE_CHECK_FAILED', message: 'Failed to check for duplicate markets' } });
+  }
+});
+
+/**
+ * POST /api/markets/upload-media
+ * Upload a cover image (or short video) for a user-created market.
+ * Returns a public Supabase Storage URL to store on the market.
+ */
+app.post('/api/markets/upload-media', authenticate, (req: Request, res: Response, next: NextFunction) => {
+  upload.single('media')(req, res, (uploadError: any) => {
+    if (uploadError) {
+      const isFileSizeError = uploadError.code === 'LIMIT_FILE_SIZE';
+      res.status(400).json({
+        success: false,
+        error: {
+          code: isFileSizeError ? 'FILE_TOO_LARGE' : 'INVALID_FILE',
+          message: isFileSizeError ? 'Media file must be under 30MB.' : uploadError.message,
+          timestamp: new Date().toISOString()
+        }
+      });
+      return;
+    }
+    next();
+  });
+}, async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'NO_FILE_UPLOADED',
+          message: 'Choose an image or short video first.',
+          timestamp: new Date().toISOString()
+        }
+      });
+      return;
+    }
+
+    const mediaType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
+    const bucket = mediaType === 'video' ? 'market-videos' : 'market-images';
+    const extension = req.file.originalname.split('.').pop() || (mediaType === 'video' ? 'mp4' : 'jpg');
+    const safeName = `${mediaType}-user-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+
+    await ensurePublicStorageBucket(bucket, mediaType);
+
+    const { error } = await supabase.storage
+      .from(bucket)
+      .upload(safeName, req.file.buffer, {
+        contentType: req.file.mimetype,
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (error) {
+      console.error('Market media upload error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'UPLOAD_FAILED',
+          message: `Could not upload ${mediaType}. Check the ${bucket} Supabase Storage bucket.`,
+          details: error.message,
+          timestamp: new Date().toISOString()
+        }
+      });
+      return;
+    }
+
+    const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(safeName);
+
+    res.json({
+      success: true,
+      media_type: mediaType,
+      url: publicUrlData.publicUrl,
+      [`${mediaType}_url`]: publicUrlData.publicUrl
+    });
+    return;
+  } catch (error: any) {
+    console.error('Market media upload route error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'UPLOAD_FAILED',
+        message: 'Could not upload media',
+        timestamp: new Date().toISOString()
+      }
+    });
+    return;
   }
 });
 
@@ -6324,45 +6286,6 @@ app.get('/api/admin/markets/:marketId', authenticate, requireRole('admin'), asyn
   } catch (error: any) {
     console.error('Admin market detail error:', error);
     res.status(500).json({ success: false, error: { code: 'MARKET_DETAIL_FAILED', message: 'Could not load market.' } });
-  }
-});
-
-/**
- * POST /api/admin/markets/:marketId/refund
- * Refund an unactivated market (shortcut via dedicated endpoint).
- */
-app.post('/api/admin/markets/:marketId/refund', authenticate, requireRole('admin'), async (req: Request, res: Response) => {
-  try {
-    const user = (req as any).user;
-    const { data: market, error: findError } = await supabase
-      .from('markets')
-      .select('*')
-      .eq('id', req.params.marketId)
-      .single();
-
-    if (findError || !market) {
-      return res.status(404).json({ success: false, error: { code: 'MARKET_NOT_FOUND', message: 'Market not found.' } });
-    }
-
-    const result = await refundUnactivatedMarket(
-      { ...market, status: displayStatusForMarket(market), state: 'closed' },
-      user
-    );
-
-    res.json({
-      success: true,
-      market: normalizeAdminMarket(result.market),
-      summary: {
-        alreadyRefunded: result.alreadyRefunded,
-        refundedCount: result.refundedCount,
-        refundedAmount: toAmount(result.refundedSmallestUnit),
-        refundedSmallestUnit: result.refundedSmallestUnit,
-        reason: req.body?.reason || 'Admin-initiated refund'
-      }
-    });
-  } catch (error: any) {
-    console.error('Admin market refund error:', error);
-    res.status(500).json({ success: false, error: { code: 'REFUND_MARKET_FAILED', message: error.message || 'Could not refund market.' } });
   }
 });
 

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Card, InputField, SectionHeader, SelectField } from "./ui";
+import { MediaUploadField } from "./MediaUploadField";
 import { apiService, type AdminCreateMarketInput } from "@/lib/api";
 
 const CATEGORIES = [
@@ -57,6 +58,7 @@ export const CreateMarketView = ({
 
     if (!question.trim()) errs.question = "Question is required";
     if (!category) errs.category = "Category is required";
+    if (!imageUrl.trim()) errs.media = "A banner image is required";
 
     if (!closeDate) {
       errs.closeDate = "Close date is required";
@@ -215,12 +217,13 @@ export const CreateMarketView = ({
             placeholder="No"
           />
           <div className="md:col-span-2">
-            <InputField
-              label="Image URL"
+            <MediaUploadField
+              label="Banner image"
               value={imageUrl}
               onChange={setImageUrl}
-              placeholder="https://example.com/image.png"
-              hint="Optional banner image for the market"
+              required
+              hint="Uploaded to FLIPPE storage and shown on the market card."
+              error={errors.media}
             />
           </div>
           <div className="md:col-span-2">

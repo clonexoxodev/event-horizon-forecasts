@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
-import { Check, CheckCircle2, ChevronLeft, Clock, Info, Link2, Loader2, Plus, RefreshCw, Shield, Users, Eye, EyeOff } from "lucide-react";
+import { Check, CheckCircle2, ChevronLeft, Clock, Info, ImagePlus, Link2, Loader2, Plus, RefreshCw, Shield, Users, Eye, EyeOff, X } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
 import { MARKET_CATEGORIES } from "@/lib/categories";
@@ -73,6 +73,8 @@ const CreateMarket = () => {
   const [created, setCreated] = useState<{ marketId: string; question: string; inviteCode: string | null; message: string } | null>(null);
   const [duplicates, setDuplicates] = useState<Duplicate[]>([]);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+  const [coverImage, setCoverImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const duplicateTimerRef = useRef<number | null>(null);
 
   const selectedCategory = MARKET_CATEGORIES.find((c) => c.value === category);
@@ -104,6 +106,28 @@ const CreateMarket = () => {
       if (value.trim().length >= 8) checkDuplicates(value);
       else setDuplicates([]);
     }, 500);
+  };
+
+  const handleCoverImage = async (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Choose an image file for your cover (JPG, PNG, WEBP).");
+      return;
+    }
+    if (file.size > 30 * 1024 * 1024) {
+      toast.error("Cover image must be under 30MB.");
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const result = await apiService.uploadMarketMedia(file);
+      setCoverImage(result.url);
+      toast.success("Cover image added");
+    } catch (error: any) {
+      toast.error(error?.message || "Could not upload cover image");
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const buildShareUrl = (marketId: string) => {
@@ -190,6 +214,7 @@ const CreateMarket = () => {
         min_position_smallest_unit: Math.max(100, Math.round(minAmount * 100)),
         participant_limit: visibility === "private" ? Math.max(2, Math.min(500, Math.round(participantLimit))) : undefined,
         invite_code: visibility === "private" ? inviteCode : undefined,
+        image_url: coverImage || undefined,
         activation: {
           totalPoolSmallestUnit: visibility === "private" ? 200000 : 500000,
           yesPoolSmallestUnit: visibility === "private" ? 50000 : 100000,
@@ -472,6 +497,38 @@ const CreateMarket = () => {
                       placeholder="Add context, sources, or background for predictors."
                       className="mt-2 w-full resize-none rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm font-medium outline-none placeholder:text-[#9CA3AF] focus:border-[#4F46E5] focus:ring-4 focus:ring-[#4F46E5]/[0.06]"
                     />
+
+                    <div className="mt-5">
+                      <span className="block text-sm font-bold text-[#111827]">Cover image (optional)</span>
+                      {coverImage ? (
+                        <div className="relative mt-2 overflow-hidden rounded-2xl border border-[#E5E7EB]">
+                          <img src={coverImage} alt="Cover preview" className="h-44 w-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setCoverImage(null)}
+                            className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-xl bg-white/90 text-[#111827] shadow transition hover:bg-white"
+                            aria-label="Remove cover image"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-[#C7D2FE] bg-[#F9FAFB] px-4 py-6 text-sm font-semibold text-[#6B7280] transition hover:bg-[#EEF2FF] hover:text-[#4F46E5]">
+                          <ImagePlus className="h-5 w-5" />
+                          {uploadingImage ? "Uploading..." : "Upload a cover image"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploadingImage}
+                            onChange={(e) => handleCoverImage(e.target.files?.[0])}
+                          />
+                        </label>
+                      )}
+                      <p className="mt-1.5 text-xs text-[#9CA3AF]">
+                        Adds a visual header when the prediction is shown in Discover.
+                      </p>
+                    </div>
                   </section>
                 </>
               )}
@@ -669,6 +726,13 @@ const CreateMarket = () => {
                         </span>
                       </div>
                       <div className="p-5">
+                        {coverImage && (
+                          <img
+                            src={coverImage}
+                            alt="Cover preview"
+                            className="mb-4 h-40 w-full rounded-2xl border border-[#E5E7EB] object-cover"
+                          />
+                        )}
                         <h3 className="text-[15px] font-bold leading-snug text-[#111827]">{questionDraft}</h3>
                         <div className="mt-4 grid grid-cols-2 gap-2">
                           <div className="rounded-2xl border border-[#12B886]/20 bg-[#12B886]/[0.05] p-3 text-center">

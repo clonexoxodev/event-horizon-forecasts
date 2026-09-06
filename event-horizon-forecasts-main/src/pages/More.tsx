@@ -114,7 +114,7 @@ export default function More() {
 
           <Group title="Learn">
             <Item
-              to="/about"
+              to="/how-it-works"
               icon={BookOpen}
               label="How It Works"
               subtitle="How market trading works"

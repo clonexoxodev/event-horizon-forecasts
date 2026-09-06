@@ -1,4 +1,4 @@
-import { Compass, PlusCircle, Target, User, Wallet } from "lucide-react";
+import { Compass, MoreHorizontal, PlusCircle, Target, User, Wallet } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 
@@ -8,6 +8,7 @@ const baseNavItems = [
   { key: "create", to: "/create", icon: PlusCircle, label: "Create", prominent: true, protected: true },
   { key: "wallet", to: "/wallet", icon: Wallet, label: "Wallet", protected: true },
   { key: "profile", to: "/profile", icon: User, label: "Profile", protected: true },
+  { key: "more", to: "/more", icon: MoreHorizontal, label: "More", protected: true },
 ] as const;
 
 export const MobileNav = () => {
@@ -29,7 +30,7 @@ export const MobileNav = () => {
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
       }}
     >
-      <div className="grid h-16 grid-cols-5 px-1 pt-1.5">
+      <div className="grid h-16 grid-cols-6 px-1 pt-1.5">
         {navItems.map((item) =>
           item.prominent ? (
             <NavLink

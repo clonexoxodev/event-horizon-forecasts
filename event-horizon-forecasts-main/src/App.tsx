@@ -19,6 +19,7 @@ import MarketDetail from "./pages/MarketDetail.tsx";
 import Portfolio from "./pages/Portfolio.tsx";
 import Wallet from "./pages/Wallet.tsx";
 import Profile from "./pages/Profile.tsx";
+import Achievements from "./pages/Achievements.tsx";
 import Settings from "./pages/Settings.tsx";
 import Support from "./pages/Support.tsx";
 import EditProfile from "./pages/EditProfile.tsx";
@@ -137,17 +138,18 @@ const App = () => (
                   <Route path="/join" element={<JoinPrivate />} />
                   <Route path="/join/:code" element={<JoinPrivate />} />
                   <Route path="/invite/:code" element={<InviteRedirect />} />
-                  <Route path="/wallet" element={<Wallet />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
+                  <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                  <Route path="/achievements" element={<ProtectedRoute><Achievements /></ProtectedRoute>} />
+                  <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                   <Route path="/support" element={<Support />} />
-                  <Route path="/edit-profile" element={<EditProfile />} />
-                  <Route path="/more" element={<More />} />
+                  <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
+                  <Route path="/more" element={<ProtectedRoute><More /></ProtectedRoute>} />
                   <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
                   <Route path="/about" element={<About />} />
                   <Route path="/how-it-works" element={<HowItWorks />} />
                   <Route path="/markets" element={<Markets />} />
-                  <Route path="/create" element={<CreateMarket />} />
+                  <Route path="/create" element={<ProtectedRoute><CreateMarket /></ProtectedRoute>} />
                   <Route path="/faq" element={<FAQ />} />
                   <Route path="/help-center" element={<HelpCenter />} />
                   <Route path="/contact" element={<Contact />} />

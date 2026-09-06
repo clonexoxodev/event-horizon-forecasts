@@ -26,7 +26,7 @@ export const RiskCenterView = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await apiService.getAdminRiskCenter();
+      const res = await apiService.getRiskCenter();
       setData(res.risk as RiskCenterData);
     } catch {
       toast.error("Failed to load risk data");

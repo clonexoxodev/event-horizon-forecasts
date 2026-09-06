@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { getCategoryLabel } from "@/lib/categories";
 import { LEVELS } from "@/lib/levels";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
+import { ACHIEVEMENTS, getEarnedAchievements } from "@/lib/achievements";
 import {
   getCurrentWinStreak, getBestWinStreak, getScore, getTraderLevel,
   getLevelProgress, getNextLevel,
@@ -55,51 +56,6 @@ const emptyStats: ApiProfileStats = {
   level: "",
   totalRankedUsers: 0,
 };
-
-const ACHIEVEMENTS = [
-  {
-    id: "first_prediction",
-    label: "First Prediction",
-    description: "Placed your first position",
-    icon: Zap,
-    check: (s: ApiProfileStats) => s.totalPredictions >= 1,
-  },
-  {
-    id: "ten_predictions",
-    label: "Active Predictor",
-    description: "Completed 10 predictions",
-    icon: TrendingUp,
-    check: (s: ApiProfileStats) => s.totalPredictions >= 10,
-  },
-  {
-    id: "fifty_predictions",
-    label: "Market Veteran",
-    description: "Completed 50 predictions",
-    icon: Crown,
-    check: (s: ApiProfileStats) => s.totalPredictions >= 50,
-  },
-  {
-    id: "win_streak",
-    label: "On Fire",
-    description: "Achieved 70%+ win rate",
-    icon: Trophy,
-    check: (s: ApiProfileStats) => s.totalPredictions >= 5 && s.winRate >= 70,
-  },
-  {
-    id: "high_earner",
-    label: "Big Earner",
-    description: "Earned over 100,000",
-    icon: Award,
-    check: (s: ApiProfileStats) => s.totalEarnings >= 100000,
-  },
-  {
-    id: "top_rank",
-    label: "Top Ranked",
-    description: "Reached top 10 on leaderboard",
-    icon: Target,
-    check: (s: ApiProfileStats) => s.rank > 0 && s.rank <= 10,
-  },
-];
 
 export default function Profile() {
   const { user, refreshUser, logout, isLoading: authLoading } = useAuth();
@@ -210,7 +166,9 @@ export default function Profile() {
       : LEVELS[LEVELS.length - 1].score;
   const progress = Math.min((score / nextThreshold) * 100, 100);
 
-  const earnedAchievements = ACHIEVEMENTS.filter((a) => a.check(stats));
+  const earnedAchievements = getEarnedAchievements({ stats, positions });
+  const earnedCount = earnedAchievements.length;
+  const totalCount = ACHIEVEMENTS.length;
 
   return (
     <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
@@ -400,15 +358,23 @@ export default function Profile() {
 
         {/* ── Achievement Badges ── */}
         <section className="mt-4 rounded-3xl border border-[#E5E7EB] bg-white p-5">
-          <div className="mb-4">
-            <h2 className="text-lg font-bold">Achievements</h2>
-            <p className="text-xs text-[#9CA3AF]">
-              {earnedAchievements.length} of {ACHIEVEMENTS.length} unlocked
-            </p>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold">Achievements</h2>
+              <p className="text-xs text-[#9CA3AF]">
+                {earnedCount} of {totalCount} unlocked
+              </p>
+            </div>
+            <Link
+              to="/achievements"
+              className="rounded-full bg-[#EEF2FF] px-3 py-1.5 text-xs font-bold text-[#4F46E5] transition hover:bg-[#E0E7FF]"
+            >
+              View all
+            </Link>
           </div>
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-            {ACHIEVEMENTS.map((achievement) => {
-              const earned = achievement.check(stats);
+            {ACHIEVEMENTS.slice(0, 6).map((achievement) => {
+              const earned = earnedAchievements.some((a) => a.id === achievement.id);
               const AIcon = achievement.icon;
               return (
                 <div

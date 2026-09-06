@@ -67,7 +67,7 @@ export const MarketHealthIndicators = ({ market, variant = "compact" }: MarketHe
             <span className="text-xs text-graphite font-medium">Participants</span>
           </div>
           <div className="font-bold text-lg text-charcoal">{market.participants}</div>
-          <div className="text-xs text-graphite mt-0.5">Active traders</div>
+          <div className="text-xs text-graphite mt-0.5">Active predictors</div>
         </div>
       </div>
 

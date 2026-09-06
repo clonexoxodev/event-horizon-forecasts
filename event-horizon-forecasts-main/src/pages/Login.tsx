@@ -155,6 +155,7 @@ export default function Login() {
               Don't have an account?{" "}
               <Link
                 to="/signup"
+                state={{ from: location.state?.from }}
                 className="font-bold text-[#4F46E5] transition-colors hover:text-[#6366F1]"
               >
                 Create one free

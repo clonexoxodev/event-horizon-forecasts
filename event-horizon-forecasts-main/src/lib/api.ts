@@ -904,7 +904,13 @@ class ApiService {
 
   async uploadMarketMedia(file: File) {
     const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
-    return this.uploadAdminMarketMedia(file, mediaType);
+    const formData = new FormData();
+    formData.append('media', file);
+    formData.append('mediaType', mediaType);
+    return this.request<{ success: boolean; url: string; media_type: 'image' | 'video' }>('/api/markets/upload-media', {
+      method: 'POST',
+      body: formData,
+    });
   }
 
   async uploadProfilePicture(file: File) {

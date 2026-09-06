@@ -1,4 +1,4 @@
-import { Compass, Shield, Target, User, Wallet, PlusCircle } from "lucide-react";
+import { Compass, MoreHorizontal, Shield, Target, User, Wallet, PlusCircle } from "lucide-react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
@@ -11,6 +11,7 @@ const primaryNav = [
   { to: "/create", label: "Create", icon: PlusCircle },
   { to: "/wallet", label: "Wallet", icon: Wallet },
   { to: "/profile", label: "Profile", icon: User },
+  { to: "/more", label: "More", icon: MoreHorizontal },
 ];
 
 export const Header = () => {

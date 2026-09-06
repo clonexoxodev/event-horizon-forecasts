@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   CheckCircle,
@@ -39,6 +39,8 @@ function getPasswordStrength(password: string): {
 
 export default function Signup() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as any)?.from?.pathname || "/";
   const { signup } = useAuth();
   const [showPass, setShowPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
@@ -104,7 +106,7 @@ export default function Signup() {
       } else {
         setSuccess(true);
         redirectTimer.current = setTimeout(() => {
-          navigate("/");
+          navigate(from, { replace: true });
         }, 1500);
       }
     } finally {
