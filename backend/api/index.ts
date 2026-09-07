@@ -1501,8 +1501,25 @@ const displayStatusForMarket = (market: any): MarketStatus => {
 const legacyStateFor = (status: string) => {
   if (status === 'active') return 'active';
   if (status === 'resolved') return 'resolved';
-  if (status === 'archived') return 'archived';
   return 'closed';
+};
+
+/**
+ * Guarantees the DB invariant resolution_after_close (resolution_date > close_date)
+ * is satisfied. If the caller supplies no resolution_date, or one that is not
+ * strictly after close_date, derives it as close_date + RESOLUTION_MARGIN_MS.
+ * This is the root-cause guard for the constraint failure that blocked market
+ * creation when the client sent equal close/resolution times.
+ */
+const RESOLUTION_MARGIN_MS = 2 * 60 * 1000; // 2 minutes after close
+
+const ensureResolutionAfterClose = (resolutionDate: unknown, closeDate: unknown): string => {
+  const closeMs = new Date(String(closeDate)).getTime();
+  const resMs = resolutionDate ? new Date(String(resolutionDate)).getTime() : NaN;
+  if (!Number.isFinite(resMs) || !Number.isFinite(closeMs) || resMs <= closeMs) {
+    return new Date(closeMs + RESOLUTION_MARGIN_MS).toISOString();
+  }
+  return new Date(resMs).toISOString();
 };
 
 const autoCloseExpiredMarket = async (market: any) => {
@@ -2748,7 +2765,7 @@ app.post('/api/markets', authenticate, async (req: Request, res: Response) => {
       close_date: closeDate,
       closes_at: closeDate,
       trading_close_at: tradingCloseDate,
-      resolution_date: req.body.resolution_date || closeDate,
+      resolution_date: ensureResolutionAfterClose(req.body.resolution_date, closeDate),
       resolution_source: resolutionSource,
       resolution_instructions: rules,
       status: startStatus,
@@ -5237,7 +5254,7 @@ app.post('/api/admin/markets', authenticate, requireRole('admin'), async (req: R
         close_date: closeDate,
         closes_at: closeDate,
         trading_close_at: tradingCloseDate,
-        resolution_date: req.body.resolution_date || closeDate,
+        resolution_date: ensureResolutionAfterClose(req.body.resolution_date, closeDate),
         resolution_source: resolutionSource,
         resolution_instructions: rules,
         status,
@@ -5345,6 +5362,11 @@ app.put('/api/admin/markets/:marketId', authenticate, requireRole('admin'), asyn
       delete updateData.trading_close_date;
     }
     if (updateData.status) updateData.state = legacyStateFor(updateData.status);
+    if (updateData.close_date || updateData.resolution_date) {
+      const effectiveClose = updateData.close_date || existingMarket.close_date || existingMarket.closes_at || existingMarket.trading_close_at;
+      const currentResolution = updateData.resolution_date || existingMarket.resolution_date;
+      updateData.resolution_date = ensureResolutionAfterClose(currentResolution, effectiveClose);
+    }
 
     const { data: market, error } = await supabase
       .from('markets')

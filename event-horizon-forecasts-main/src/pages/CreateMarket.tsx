@@ -206,7 +206,6 @@ const CreateMarket = () => {
         close_date: new Date(deadline).toISOString(),
         closes_at: new Date(deadline).toISOString(),
         trading_close_at: new Date(deadline - ONE_HOUR_MS).toISOString(),
-        resolution_date: new Date(deadline).toISOString(),
         resolution_source: "Official announcement or public record",
         resolution_instructions: rules.trim(),
         starting_yes_price: yesChance,
