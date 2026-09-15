@@ -8,6 +8,7 @@ import multer from 'multer';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 import * as poolEngine from '../src/services/pool-engine';
+import * as verificationEngine from '../src/services/verification';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -252,6 +253,7 @@ const ensurePublicStorageBucket = async (bucket: string, mediaType: 'image' | 'v
 const MARKET_CATEGORIES = [
   'Sports',
   'Crypto',
+  'Verifiable knowledge/facts',
   'Politics',
   'Economy',
   'Entertainment',
@@ -269,6 +271,12 @@ const CATEGORY_ALIASES: Record<string, typeof MARKET_CATEGORIES[number]> = {
   economy: 'Economy',
   cryptocurrency: 'Crypto',
   crypto: 'Crypto',
+  facts: 'Verifiable knowledge/facts',
+  knowledge: 'Verifiable knowledge/facts',
+  verifiable: 'Verifiable knowledge/facts',
+  verifiable_knowledge: 'Verifiable knowledge/facts',
+  verifiable_knowledge_facts: 'Verifiable knowledge/facts',
+  'verifiable knowledge/facts': 'Verifiable knowledge/facts',
   tech: 'Technology',
   technology: 'Technology',
   companies: 'Business',
@@ -2705,6 +2713,23 @@ const attachCanonicalEvent = async (marketId: string, question: string, category
 app.post('/api/markets', authenticate, async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
+    const isArgumentRequest = req.body.pricing_model === 'fixed'
+      || req.body.verification_method
+      || req.body.verification_source
+      || req.body.stake_amount_smallest_unit != null
+      || (req.body.verification && typeof req.body.verification === 'object');
+    if (isArgumentRequest) {
+      const created = await createArgumentMarket(user, req.body);
+      return res.status(201).json({
+        success: true,
+        market: normalizeMarket(created.market, 0, []),
+        verification: created.verification,
+        resolution: created.described,
+        stakeSmallestUnit: created.stake,
+        stake: toAmount(created.stake),
+        message: 'Your argument is live with a fixed stake and an automatic verification contract.'
+      });
+    }
     const question = String(req.body.question || '').trim();
     const rawCategory = String(req.body.category || '').trim();
     const category = normalizeMarketCategory(rawCategory);
@@ -2873,6 +2898,15 @@ app.post('/api/markets', authenticate, async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Market create error:', error);
+    if (error?.errorCode) {
+      return res.status(error.statusCode || 500).json({
+        error: {
+          code: error.errorCode,
+          message: error.message || 'Could not create argument',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
     res.status(500).json({
       error: {
         code: 'CREATE_MARKET_FAILED',
@@ -3381,6 +3415,801 @@ app.get('/api/markets/:id/related', async (req: Request, res: Response) => {
   }
 });
 
+const ARGUMENT_VERIFIABLE_CATEGORIES = ['Sports', 'Crypto', 'Verifiable knowledge/facts'];
+const ARGUMENT_MIN_STAKE_SMALLEST_UNIT = 100;
+
+const makeHttpError = (statusCode: number, code: string, message: string): Error & { statusCode: number; errorCode: string } => {
+  const error: any = new Error(message);
+  error.statusCode = statusCode;
+  error.errorCode = code;
+  return error;
+};
+
+const recordArgumentAttempt = async (
+  marketId: string,
+  method: string,
+  status: string,
+  payload: { outcome?: string | null; evidence?: unknown; errorMessage?: string; attemptNumber?: number } = {}
+) => {
+  const { error } = await supabase
+    .from('verification_attempts')
+    .insert({
+      market_id: marketId,
+      method,
+      status,
+      outcome: payload.outcome || null,
+      evidence: payload.evidence != null ? payload.evidence : null,
+      error_message: payload.errorMessage || null,
+      attempt_number: payload.attemptNumber ?? 1
+    });
+  if (error) {
+    console.warn('Verification attempt audit insert skipped:', error.message || error);
+  }
+};
+
+const patchArgumentVerification = async (marketId: string, patch: Record<string, unknown>) => {
+  const { data, error } = await supabase
+    .from('markets')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', marketId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+const loadArgumentPositions = async (marketId: string) => {
+  const { data, error } = await supabase
+    .from('positions')
+    .select('*')
+    .eq('market_id', marketId);
+  if (error) throw error;
+  return data || [];
+};
+
+const countActiveArgumentSides = (positions: any[]) => {
+  const active = (positions || []).filter((position) =>
+    !['refunded', 'cancelled', 'sold', 'won', 'lost', 'settled'].includes(String(position.status || '').toLowerCase())
+  );
+  const yes = active.filter((position) => String(position.side || '').toUpperCase() === 'YES').length;
+  const no = active.filter((position) => String(position.side || '').toUpperCase() === 'NO').length;
+  return { yes, no, total: active.length, active };
+};
+
+const settleArgumentMarket = async (market: any, outcome: verificationEngine.YesNo) => {
+  const status = normalizeMarketStatus(market);
+  if (status === 'resolved' || market.resolved_at) {
+    return { alreadyResolved: true, market };
+  }
+  const currentSource = String(market.resolution_source || '');
+  const resolutionSource = currentSource && currentSource !== 'Official announcement or public record'
+    ? currentSource
+    : `FLIPPE auto-verification (${String(market.verification_method || 'unknown')})`;
+  const { data: closed, error: closeError } = await supabase
+    .from('markets')
+    .update({
+      status: 'pending_resolution',
+      state: 'closed',
+      resolution_source: resolutionSource,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', market.id)
+    .not('status', 'in', '("resolved","refunded")')
+    .select()
+    .maybeSingle();
+  if (closeError) {
+    console.warn('Failed to mark argument pending_resolution:', closeError.message || closeError);
+  }
+  const updatedMarket = closed || { ...market, status: 'pending_resolution', state: 'closed', resolution_source: resolutionSource };
+  try {
+    const result = await resolveMarketWithPayouts(updatedMarket, outcome, { id: null });
+    return { alreadyResolved: false, market: result.market };
+  } catch (error: any) {
+    const settled = normalizeMarketStatus(updatedMarket) === 'resolved' || Boolean(updatedMarket.resolved_at);
+    const message = String(error?.message || error || '');
+    if (settled && /already|resolved|settlement/i.test(message)) {
+      return { alreadyResolved: true, market: updatedMarket };
+    }
+    throw error;
+  }
+};
+
+const refundArgumentMarket = async (market: any, reason: string) => {
+  const status = normalizeMarketStatus(market);
+  if (status === 'refunded' || market.refunded_at) {
+    return { market, alreadyRefunded: true, refundedCount: 0, refundedSmallestUnit: 0 };
+  }
+  if (status === 'resolved' || market.resolved_at) {
+    throw new Error('Resolved arguments cannot be refunded.');
+  }
+  const marketStatus = displayStatusForMarket(market);
+  if (!['closed', 'pending_resolution'].includes(marketStatus)) {
+    throw new Error('Argument must be closed before refunds can run.');
+  }
+  const now = new Date().toISOString();
+  const positions = await loadArgumentPositions(market.id);
+  let refundedCount = 0;
+  let refundedSmallestUnit = 0;
+
+  for (const position of positions) {
+    const positionStatus = String(position.status || '').toLowerCase();
+    if (position.resolved_at || position.settled_at || ['won', 'lost', 'settled', 'refunded'].includes(positionStatus)) {
+      continue;
+    }
+    const refundAmount = Number(position.amount_smallest_unit || 0);
+    if (refundAmount <= 0) continue;
+
+    const { data: existingRefund } = await supabase
+      .from('transactions')
+      .select('id')
+      .eq('position_id', position.id)
+      .eq('type', 'refund')
+      .eq('status', 'completed')
+      .maybeSingle();
+    if (existingRefund) continue;
+
+    const { data: refundedWallet, error: refundError } = await supabase
+      .rpc('atomic_refund_to_available', {
+        p_user_id: position.user_id,
+        p_amount: refundAmount,
+        p_currency: position.currency || 'NGN',
+      })
+      .maybeSingle<{ id: string }>();
+    if (refundError || !refundedWallet) throw refundError || new Error('Refund failed');
+
+    let { error: positionUpdateError } = await supabase
+      .from('positions')
+      .update({
+        status: 'refunded',
+        is_winner: null,
+        payout_smallest_unit: refundAmount,
+        final_payout_smallest_unit: refundAmount,
+        settlement_payout_smallest_unit: refundAmount,
+        settlement_profit_smallest_unit: 0,
+        profit_smallest_unit: 0,
+        resolved_at: now,
+        settled_at: now,
+        market_question_snapshot: market.question,
+        market_category_snapshot: normalizeMarketCategory(market.category)
+      })
+      .eq('id', position.id);
+
+    if (positionUpdateError && /settled_at|settlement_payout_smallest_unit|settlement_profit_smallest_unit|profit_smallest_unit|market_question_snapshot|market_category_snapshot/i.test(positionUpdateError.message || '')) {
+      const retry = await supabase
+        .from('positions')
+        .update({
+          status: 'refunded',
+          is_winner: null,
+          payout_smallest_unit: refundAmount,
+          final_payout_smallest_unit: refundAmount,
+          resolved_at: now
+        })
+        .eq('id', position.id);
+      positionUpdateError = retry.error;
+    }
+    if (positionUpdateError) throw positionUpdateError;
+
+    await supabase
+      .from('transactions')
+      .insert({
+        user_id: position.user_id,
+        wallet_id: refundedWallet.id,
+        type: 'refund',
+        amount_smallest_unit: refundAmount,
+        currency: position.currency || 'NGN',
+        direction: 'IN',
+        reference_id: position.id,
+        reference_type: 'position',
+        market_id: market.id,
+        position_id: position.id,
+        status: 'completed',
+        description: `Argument refund: ${market.question}`,
+        metadata: {
+          marketId: market.id,
+          marketQuestion: market.question,
+          reason,
+          verificationStatus: market.verification_status || null
+        }
+      });
+
+    await insertNotificationSafely({
+      user_id: position.user_id,
+      type: 'refund',
+      title: 'Argument stake refunded',
+      message: reason === 'VERIFICATION_FAILED'
+        ? `"${market.question}" could not be verified, so your stake was refunded.`
+        : `"${market.question}" did not get opposing participants by the deadline, so your stake was refunded.`,
+      reference_id: market.id,
+      reference_type: 'market',
+      metadata: {
+        marketId: market.id,
+        marketQuestion: market.question,
+        refundSmallestUnit: refundAmount,
+        reason
+      }
+    }, 'Argument refund notification');
+
+    refundedCount += 1;
+    refundedSmallestUnit += refundAmount;
+  }
+
+  let { data: updatedMarket, error: marketError }: { data: any; error: any } = await supabase
+    .from('markets')
+    .update({
+      status: 'refunded',
+      state: 'closed',
+      activation_state: 'refunded',
+      refunded_at: now,
+      payout_status: 'completed',
+      payout_completed_at: now,
+      verification_status: market.verification_status === 'unverifiable' ? 'unverifiable' : (market.verification_status || null),
+      updated_at: now
+    })
+    .eq('id', market.id)
+    .not('status', 'in', '("resolved","refunded")')
+    .select()
+    .single();
+
+  if (marketError && /payout_status|payout_completed_at|activation_snapshot|activation_state|refunded_at|verification_status/i.test(marketError.message || '')) {
+    const retry = await supabase
+      .from('markets')
+      .update({
+        status: 'refunded',
+        state: 'closed',
+        refunded_at: now,
+        verification_status: market.verification_status === 'unverifiable' ? 'unverifiable' : (market.verification_status || null),
+        updated_at: now
+      })
+      .eq('id', market.id)
+      .not('status', 'in', '("resolved","refunded")')
+      .select()
+      .single();
+    updatedMarket = retry.data;
+    marketError = retry.error;
+  }
+  if (marketError) throw marketError;
+
+  return {
+    market: updatedMarket || { ...market, status: 'refunded', activation_state: 'refunded', refunded_at: now },
+    alreadyRefunded: false,
+    refundedCount,
+    refundedSmallestUnit
+  };
+};
+
+const markArgumentVerificationFailed = async (market: any, errorMessage: string, evidence?: unknown) => {
+  const attempts = Number(market.verification_attempt_count || 0) + 1;
+  await recordArgumentAttempt(market.id, String(market.verification_method || 'unknown'), 'failed', {
+    errorMessage,
+    evidence,
+    attemptNumber: attempts
+  });
+  const status = attempts >= verificationEngine.MAX_VERIFICATION_ATTEMPTS ? 'unverifiable' : 'failed';
+  await patchArgumentVerification(market.id, {
+    verification_attempt_count: attempts,
+    verification_status: status,
+    last_verification_attempt_at: new Date().toISOString(),
+    ...(evidence !== undefined && evidence !== null ? { verification_evidence: evidence } : {})
+  });
+  if (attempts >= verificationEngine.MAX_VERIFICATION_ATTEMPTS) {
+    await refundArgumentMarket({ ...market, verification_status: status }, 'VERIFICATION_FAILED');
+    return { refunded: true };
+  }
+  return { refunded: false };
+};
+
+const runArgumentVerification = async (market: any) => {
+  const contract = verificationEngine.contractFromMarket(market);
+  if (!contract) {
+    await markArgumentVerificationFailed(market, 'Invalid or missing verification contract.');
+    return;
+  }
+  let raw: unknown = null;
+  if (verificationEngine.requiresExternalData(contract)) {
+    raw = await verificationEngine.fetchRawEvidence(contract);
+  }
+  if (raw === null && contract.method !== 'factual') {
+    await markArgumentVerificationFailed(market, 'Could not reach verification source.');
+    return;
+  }
+  const evaluation = verificationEngine.evaluateContract(contract, raw);
+  if (!evaluation.outcome) {
+    await markArgumentVerificationFailed(market, evaluation.failureReason || 'Verification returned no YES/NO outcome.', evaluation.evidence);
+    return;
+  }
+  const attempts = Number(market.verification_attempt_count || 0) + 1;
+  await recordArgumentAttempt(market.id, contract.method, 'verified', {
+    outcome: evaluation.outcome,
+    evidence: evaluation.evidence,
+    attemptNumber: attempts
+  });
+  const freshMarket = await patchArgumentVerification(market.id, {
+    verification_attempt_count: attempts,
+    verification_status: 'verified',
+    verified_outcome: evaluation.outcome,
+    verification_evidence: evaluation.evidence != null ? evaluation.evidence : null,
+    verified_at: new Date().toISOString(),
+    last_verification_attempt_at: new Date().toISOString()
+  });
+  await settleArgumentMarket(freshMarket, evaluation.outcome);
+};
+
+const runArgumentLifecycle = async (rawMarket: any) => {
+  if (!verificationEngine.isFixedArgument(rawMarket)) return { changed: false, market: rawMarket };
+  const initialStatus = normalizeMarketStatus(rawMarket);
+  if (initialStatus === 'resolved' || initialStatus === 'refunded' || rawMarket.resolved_at || rawMarket.refunded_at) {
+    return { changed: false, market: rawMarket };
+  }
+  const current = await autoCloseExpiredMarket(rawMarket);
+  if (!['closed', 'pending_resolution'].includes(displayStatusForMarket(current))) {
+    return { changed: false, market: current };
+  }
+  const positions = await loadArgumentPositions(current.id);
+  const sides = countActiveArgumentSides(positions);
+  const mode = verificationEngine.argumentMode(current);
+  if (mode === '1v1') {
+    if (sides.total !== 2) {
+      await refundArgumentMarket(current, 'ARGUMENT_NO_OPPONENT');
+      return { changed: true, market: { ...current, status: 'refunded', refunded_at: new Date().toISOString() } };
+    }
+  } else if (sides.yes < 1 || sides.no < 1) {
+    await refundArgumentMarket(current, 'ARGUMENT_ONE_SIDED');
+    return { changed: true, market: { ...current, status: 'refunded', refunded_at: new Date().toISOString() } };
+  }
+  const decision = verificationEngine.verificationDecision(current);
+  if (!decision.shouldAttempt) return { changed: false, market: current };
+  await runArgumentVerification(current);
+  return { changed: true, market: current };
+};
+
+const createArgumentMarket = async (user: any, body: any) => {
+  const statement = String(body.question || body.statement || '').trim();
+  if (statement.length < 5) throw makeHttpError(400, 'VALIDATION_ERROR', 'Question must be at least 5 characters.');
+  if (statement.length > 160) throw makeHttpError(400, 'VALIDATION_ERROR', 'Question must be under 160 characters.');
+  const question = verificationEngine.questionFromStatement(statement);
+  const category = normalizeMarketCategory(String(body.category || '').trim());
+  if (!ARGUMENT_VERIFIABLE_CATEGORIES.includes(category)) {
+    throw makeHttpError(422, 'CATEGORY_NOT_VERIFIABLE', `Arguments are only supported in verifiable categories: ${ARGUMENT_VERIFIABLE_CATEGORIES.join(', ')}.`);
+  }
+  const stake = Math.round(Number(body.stake_amount_smallest_unit ?? body.stakeSmallestUnit ?? body.stake ?? 0));
+  if (!Number.isFinite(stake) || !Number.isInteger(stake) || stake <= 0) {
+    throw makeHttpError(400, 'INVALID_STAKE', 'Stake must be a positive whole number of kobo.');
+  }
+  if (stake < ARGUMENT_MIN_STAKE_SMALLEST_UNIT) {
+    throw makeHttpError(400, 'INVALID_STAKE', `Minimum stake is ${toAmount(ARGUMENT_MIN_STAKE_SMALLEST_UNIT).toLocaleString()} NGN.`);
+  }
+  const closeDate = body.close_date || body.closes_at;
+  const tradingCloseDate = body.trading_close_at || body.trading_close_time || closeDate;
+  if (!closeDate || new Date(closeDate).getTime() <= Date.now()) {
+    throw makeHttpError(400, 'INVALID_CLOSE_DATE', 'End date must be in the future.');
+  }
+  if (!tradingCloseDate || new Date(tradingCloseDate).getTime() <= Date.now()) {
+    throw makeHttpError(400, 'INVALID_TRADING_CLOSE_DATE', 'Joining close time must be in the future.');
+  }
+  if (new Date(tradingCloseDate).getTime() > new Date(closeDate).getTime()) {
+    throw makeHttpError(400, 'INVALID_TRADING_CLOSE_DATE', 'Joining close time cannot be after the resolution time.');
+  }
+  const verification = body.verification && typeof body.verification === 'object' ? body.verification : {};
+  const classification = verificationEngine.classifyContract({
+    category,
+    method: body.verification_method ?? verification.method,
+    mode: body.mode ?? verification.mode,
+    source: body.verification_source ?? verification.source,
+    params: body.verification_params ?? verification.params ?? verification
+  });
+  if (!classification.ok || !classification.contract) {
+    throw makeHttpError(422, 'VERIFICATION_UNSUPPORTED', classification.reason || 'This argument cannot be auto-verified.');
+  }
+  const contract = classification.contract;
+  const described = verificationEngine.describeContract(contract);
+  const description = String(body.description || '').trim() || null;
+  const rules = String(body.resolution_instructions || body.rules || '').trim() || description;
+
+  const payload: any = {
+    question,
+    description,
+    category,
+    market_type: 'binary',
+    yes_label: 'YES',
+    no_label: 'NO',
+    yes_price: 50,
+    no_price: 50,
+    starting_yes_price: 50,
+    starting_no_price: 50,
+    close_date: closeDate,
+    closes_at: closeDate,
+    trading_close_at: tradingCloseDate,
+    resolution_date: ensureResolutionAfterClose(body.resolution_date, closeDate),
+    resolution_source: String(body.resolution_source || 'FLIPPE auto-verification').trim(),
+    resolution_instructions: rules,
+    status: 'active',
+    state: 'active',
+    currency: body.currency || 'NGN',
+    image_url: body.image_url || null,
+    video_url: body.video_url || null,
+    min_position_smallest_unit: stake,
+    max_position_smallest_unit: stake,
+    created_by: user.id,
+    visibility: 'public',
+    platform_fee_bps: 0,
+    creator_reward_bps: 0,
+    submitted_at: new Date().toISOString(),
+    pricing_model: 'fixed',
+    protected_market_enabled: false,
+    activation_state: 'live',
+    activation_threshold_smallest_unit: 0,
+    activation_yes_min_smallest_unit: 0,
+    activation_no_min_smallest_unit: 0,
+    activation_min_participants: 0,
+    protected_max_stake_smallest_unit: stake,
+    pool_amount_smallest_unit: 0,
+    settlement_pool_smallest_unit: 0,
+    seed_liquidity_yes_smallest_unit: 0,
+    seed_liquidity_no_smallest_unit: 0,
+    yes_pool_smallest_unit: 0,
+    no_pool_smallest_unit: 0,
+    yes_volume_smallest_unit: 0,
+    no_volume_smallest_unit: 0,
+    total_yes_shares: 0,
+    total_no_shares: 0,
+    participant_count: 0,
+    trade_count: 0,
+    total_volume_smallest_unit: 0,
+    stake_amount_smallest_unit: stake,
+    verification_method: verificationEngine.toDbMethod(contract.method),
+    verification_source: contract.source,
+    verification_params: contract.params,
+    verification_status: 'pending',
+    verification_attempt_count: 0,
+    rules
+  };
+  if (contract.mode === '1v1') payload.participant_limit = 2;
+
+  let inserted = await supabase.from('markets').insert(payload).select().single();
+  if (inserted.error && /visibility|invite_code|participant_limit|submitted_at|starting_yes_price/i.test(inserted.error.message || '')) {
+    const fallback = { ...payload };
+    delete fallback.visibility;
+    delete fallback.participant_limit;
+    delete fallback.submitted_at;
+    delete fallback.starting_yes_price;
+    inserted = await supabase.from('markets').insert(fallback).select().single();
+  }
+  if (inserted.error) throw inserted.error;
+  const market = inserted.data;
+
+  await supabase.from('market_promoters').insert({ market_id: market.id, user_id: user.id, relationship: 'creator', share_code: null });
+  await attachCanonicalEvent(market.id, question, category, user.id);
+  await savePriceHistory(market.id, 50, 50, 0, 0, 0, 0);
+
+  return {
+    market,
+    verification: { method: contract.method, source: contract.source, params: contract.params, mode: contract.mode },
+    described,
+    stake
+  };
+};
+
+const createArgumentPosition = async (res: Response, market: any, user: any, side: string, idempotencyKey: string | null, currency: string) => {
+  if (side !== 'YES' && side !== 'NO') {
+    return res.status(400).json({ error: { code: 'INVALID_SIDE', message: 'Arguments only support YES or NO sides.', timestamp: new Date().toISOString() } });
+  }
+  if (displayStatusForMarket(market) !== 'active') {
+    return res.status(422).json({ error: { code: 'MARKET_NOT_ACTIVE', message: 'This argument is not accepting participants.', timestamp: new Date().toISOString() } });
+  }
+  if (isMarketPastTradingClose(market)) {
+    return res.status(422).json({ error: { code: 'TRADING_CLOSED', message: 'Joining has closed for this argument.', timestamp: new Date().toISOString() } });
+  }
+  const amount = verificationEngine.fixedStake(market);
+  if (amount <= 0) throw new Error('Argument stake is misconfigured.');
+  const mode = verificationEngine.argumentMode(market);
+
+  const { data: existing, error: existingError } = await supabase
+    .from('positions')
+    .select('id, side, status')
+    .eq('market_id', market.id)
+    .eq('user_id', user.id);
+  if (existingError) throw existingError;
+  const openExisting = (existing || []).find((p: any) =>
+    !['refunded', 'cancelled', 'sold', 'won', 'lost', 'settled'].includes(String(p.status || '').toLowerCase())
+  );
+  if (openExisting) {
+    return res.status(409).json({ error: { code: 'ALREADY_PARTICIPATING', message: 'You already have an active position on this argument. One position per argument.', timestamp: new Date().toISOString() } });
+  }
+
+  const { data: allPositions } = await supabase
+    .from('positions')
+    .select('user_id, side, status')
+    .eq('market_id', market.id);
+  const openPositions = (allPositions || []).filter((p: any) =>
+    !['refunded', 'cancelled', 'sold', 'won', 'lost', 'settled'].includes(String(p.status || '').toLowerCase())
+  );
+  if (mode === '1v1') {
+    if (openPositions.length >= 2) {
+      return res.status(409).json({ error: { code: 'ARGUMENT_FULL', message: 'This 1v1 argument already has two participants.', timestamp: new Date().toISOString() } });
+    }
+    const other = openPositions.find((p: any) => String(p.user_id) !== String(user.id));
+    if (other && String(other.side || '').toUpperCase() === side) {
+      return res.status(409).json({ error: { code: 'SIDE_TAKEN', message: 'The other participant already holds that side. Pick the opposing side.', timestamp: new Date().toISOString() } });
+    }
+  }
+
+  const { data: preTradeWallet } = await supabase
+    .from('wallets')
+    .select('available_ngn_kobo')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (Number(preTradeWallet?.available_ngn_kobo || 0) < amount) {
+    return res.status(422).json({ error: { code: 'INSUFFICIENT_BALANCE', message: 'Insufficient available balance', timestamp: new Date().toISOString() } });
+  }
+
+  const shares = toAmount(amount) / 50;
+  let positionResult = await supabase
+    .from('positions')
+    .insert({
+      user_id: user.id,
+      market_id: market.id,
+      side,
+      amount_smallest_unit: amount,
+      stake_amount: toAmount(amount),
+      currency,
+      potential_return_smallest_unit: 0,
+      estimated_payout_smallest_unit: null,
+      estimated_profit_smallest_unit: null,
+      estimated_payout_at_purchase: null,
+      estimated_profit_at_purchase: null,
+      shares_received: shares,
+      shares_owned: shares,
+      price_at_purchase: 50,
+      entry_price: 50,
+      current_price: 50,
+      current_value_smallest_unit: amount,
+      ownership_percent: 0,
+      one_position_only: true,
+      market_question_snapshot: market.question,
+      market_category_snapshot: normalizeMarketCategory(market.category),
+      ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {})
+    })
+    .select()
+    .single();
+
+  if (positionResult.error && positionResult.error.code === '23505' && /positions_one_position_uniq/i.test(positionResult.error.message || '')) {
+    return res.status(409).json({ error: { code: 'ALREADY_PARTICIPATING', message: 'You already have an active position on this argument. One position per argument.', timestamp: new Date().toISOString() } });
+  }
+  if (positionResult.error && idempotencyKey && (/idempotency_key|duplicate|code.*23505/i.test(positionResult.error.message || '') || positionResult.error.code === '23505')) {
+    const { data: existingByKey } = await supabase
+      .from('positions')
+      .select('*, markets (*)')
+      .eq('market_id', market.id)
+      .eq('user_id', user.id)
+      .eq('idempotency_key', idempotencyKey)
+      .maybeSingle();
+    if (existingByKey) {
+      const priceHistory = await ensureInitialPriceHistory(market);
+      return res.status(200).json({ idempotent: true, position: normalizePosition(existingByKey, existingByKey.markets || market), market: normalizeMarket(market, 0, priceHistory) });
+    }
+  }
+  if (positionResult.error?.message?.includes('entry_price')) {
+    positionResult = await supabase
+      .from('positions')
+      .insert({
+        user_id: user.id,
+        market_id: market.id,
+        side,
+        amount_smallest_unit: amount,
+        stake_amount: toAmount(amount),
+        currency,
+        shares_received: shares,
+        price_at_purchase: 50,
+        potential_return_smallest_unit: 0,
+        one_position_only: true,
+        market_question_snapshot: market.question,
+        market_category_snapshot: normalizeMarketCategory(market.category)
+      })
+      .select()
+      .single();
+  }
+  if (positionResult.error || !positionResult.data) throw positionResult.error;
+  const position = { ...positionResult.data, entry_price: 50 };
+
+  const { data: debitedWallet, error: debitError } = await supabase
+    .rpc('atomic_decrement_available', {
+      p_user_id: user.id,
+      p_amount: amount,
+      p_currency: currency || 'NGN',
+    })
+    .maybeSingle<{ id: string; user_id: string; balance_ngn_kobo: number; balance_usd_cents: number; available_ngn_kobo: number; available_usd_cents: number }>();
+  if (debitError || !debitedWallet) {
+    await supabase.from('positions').delete().eq('id', position.id);
+    return res.status(!debitedWallet ? 422 : 500).json({
+      error: {
+        code: !debitedWallet ? 'INSUFFICIENT_BALANCE' : 'WALLET_DEBIT_FAILED',
+        message: !debitedWallet ? 'Insufficient available balance' : 'Wallet debit failed',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+
+  const yesCurrent = Number(market.yes_volume_smallest_unit || market.yes_pool_smallest_unit || 0);
+  const noCurrent = Number(market.no_volume_smallest_unit || market.no_pool_smallest_unit || 0);
+  const nextYes = side === 'YES' ? yesCurrent + amount : yesCurrent;
+  const nextNo = side === 'NO' ? noCurrent + amount : noCurrent;
+  const currentVolume = Number(market.total_volume_smallest_unit || 0);
+  const nextTotal = currentVolume + amount;
+  const { data: allAfter } = await supabase
+    .from('positions')
+    .select('user_id')
+    .eq('market_id', market.id);
+  const participantCount = new Set((allAfter || []).map((row: any) => String(row.user_id))).size;
+
+  const marketUpdatePayload: any = {
+    yes_pool_smallest_unit: nextYes,
+    no_pool_smallest_unit: nextNo,
+    yes_volume_smallest_unit: nextYes,
+    no_volume_smallest_unit: nextNo,
+    pool_amount_smallest_unit: nextTotal,
+    settlement_pool_smallest_unit: nextTotal,
+    total_volume_smallest_unit: nextTotal,
+    participant_count: participantCount,
+    trade_count: Number(market.trade_count || 0) + 1,
+    total_yes_shares: Number(market.total_yes_shares || 0) + (side === 'YES' ? shares : 0),
+    total_no_shares: Number(market.total_no_shares || 0) + (side === 'NO' ? shares : 0),
+    activation_state: 'live',
+    activation_snapshot: {
+      totalPoolSmallestUnit: nextTotal,
+      yesPoolSmallestUnit: nextYes,
+      noPoolSmallestUnit: nextNo,
+      participants: participantCount,
+      requirements: getActivationState(market).requirements
+    },
+    updated_at: new Date().toISOString()
+  };
+
+  let { data: updatedMarket, error: marketUpdateError }: { data: any; error: any } = await supabase
+    .from('markets')
+    .update(marketUpdatePayload)
+    .eq('id', market.id)
+    .select()
+    .single();
+  if (marketUpdateError && /activation_state|activation_snapshot|settlement_pool_smallest_unit|total_yes_shares|total_no_shares/i.test(marketUpdateError.message || '')) {
+    const fallbackPayload = { ...marketUpdatePayload };
+    delete fallbackPayload.activation_state;
+    delete fallbackPayload.activation_snapshot;
+    const retry = await supabase
+      .from('markets')
+      .update(fallbackPayload)
+      .eq('id', market.id)
+      .select()
+      .single();
+    updatedMarket = retry.data;
+    marketUpdateError = retry.error;
+  }
+  if (marketUpdateError || !updatedMarket) throw marketUpdateError;
+
+  await supabase.from('market_trades').insert({
+    market_id: market.id,
+    user_id: user.id,
+    position_id: position.id,
+    side,
+    amount_smallest_unit: amount,
+    price_before: 50,
+    price_after: 50,
+    yes_price_after: 50,
+    no_price_after: 50,
+    currency
+  });
+
+  await savePriceHistory(market.id, 50, 50, nextYes, nextNo, nextTotal, Number(market.trade_count || 0) + 1, side, amount);
+  await supabase.from('market_activity_events').insert({
+    market_id: market.id,
+    user_id: user.id,
+    position_id: position.id,
+    event_type: side === 'YES' ? 'bought_yes' : 'bought_no',
+    side,
+    amount_smallest_unit: amount,
+    price: 50,
+    shares,
+    position_value_smallest_unit: amount,
+    metadata: {
+      marketQuestion: market.question,
+      isFixedArgument: true,
+      mode,
+      stakeSmallestUnit: amount
+    }
+  });
+
+  const { data: transaction } = await supabase
+    .from('transactions')
+    .insert({
+      user_id: user.id,
+      wallet_id: debitedWallet.id,
+      type: 'position_entry',
+      amount_smallest_unit: amount,
+      currency,
+      direction: 'OUT',
+      reference_id: position.id,
+      reference_type: 'position',
+      market_id: market.id,
+      position_id: position.id,
+      status: 'completed',
+      metadata: {
+        marketId: market.id,
+        marketQuestion: market.question,
+        category: normalizeMarketCategory(market.category),
+        side,
+        entryPrice: 50,
+        isFixedArgument: true,
+        mode
+      }
+    })
+    .select()
+    .single();
+
+  await insertNotificationSafely({
+    user_id: user.id,
+    type: 'forecast_confirmed',
+    title: 'Position placed',
+    message: `Your ${side} position on "${market.question}" is active (stake ${toAmount(amount).toLocaleString()} ${currency}).`,
+    reference_id: market.id,
+    reference_type: 'market',
+    metadata: {
+      marketId: market.id,
+      marketQuestion: market.question,
+      side,
+      amount: toAmount(amount)
+    }
+  }, 'Argument position notification');
+
+  if (mode === '1v1' && participantCount >= 2) {
+    await supabase
+      .from('markets')
+      .update({ trading_close_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', market.id);
+  }
+
+  const priceHistory = await ensureInitialPriceHistory(market);
+  const activity = transaction ? [{
+    id: transaction.id,
+    type: transaction.type,
+    label: String(transaction.type).replace(/_/g, ' '),
+    amount: toAmount(transaction.amount_smallest_unit),
+    currency: transaction.currency,
+    direction: transaction.direction,
+    status: transaction.status,
+    createdAt: transaction.created_at
+  }] : [];
+
+  return res.status(201).json({
+    position: normalizePosition(position, updatedMarket),
+    market: normalizeMarket(updatedMarket, participantCount, priceHistory),
+    wallet: {
+      id: debitedWallet.id,
+      userId: debitedWallet.user_id,
+      balanceNgn: toAmount(debitedWallet.balance_ngn_kobo),
+      balanceUsd: toAmount(debitedWallet.balance_usd_cents),
+      availableNgn: toAmount(debitedWallet.available_ngn_kobo),
+      availableUsd: toAmount(debitedWallet.available_usd_cents),
+      balanceNgnKobo: debitedWallet.balance_ngn_kobo,
+      balanceUsdCents: debitedWallet.balance_usd_cents,
+      availableNgnKobo: debitedWallet.available_ngn_kobo,
+      availableUsdCents: debitedWallet.available_usd_cents
+    },
+    transaction: transaction ? {
+      id: transaction.id,
+      type: transaction.type,
+      amount: toAmount(transaction.amount_smallest_unit),
+      amountSmallestUnit: transaction.amount_smallest_unit,
+      currency: transaction.currency,
+      direction: transaction.direction,
+      referenceId: transaction.reference_id,
+      referenceType: transaction.reference_type,
+      status: transaction.status,
+      metadata: transaction.metadata,
+      createdAt: transaction.created_at
+    } : null,
+    activity
+  });
+};
+
 app.get('/api/markets/:id', optionalAuthenticate, async (req: Request, res: Response) => {
   try {
     const { data: market, error } = await supabase
@@ -3399,7 +4228,12 @@ app.get('/api/markets/:id', optionalAuthenticate, async (req: Request, res: Resp
       });
     }
 
-    const currentMarket = await autoCloseExpiredMarket(market);
+    let currentMarket = await autoCloseExpiredMarket(market);
+
+    if (verificationEngine.isFixedArgument(currentMarket)) {
+      const lifecycle = await runArgumentLifecycle(currentMarket);
+      if (lifecycle.changed && lifecycle.market) currentMarket = lifecycle.market;
+    }
 
     // Private markets are only reachable through their share link. When a
     // folder is requested directly, only the creator or an admin may view it;
@@ -3664,7 +4498,12 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
       });
     }
 
-    const currentMarket = await autoCloseExpiredMarket(market);
+    let currentMarket = await autoCloseExpiredMarket(market);
+
+    if (verificationEngine.isFixedArgument(currentMarket)) {
+      const lifecycle = await runArgumentLifecycle(currentMarket);
+      if (lifecycle.changed && lifecycle.market) currentMarket = lifecycle.market;
+    }
 
     // Idempotent retries: if this client already placed a prediction with the
     // same idempotency key, return the original result instead of charging again.
@@ -3724,8 +4563,11 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
     }
 
     // Creators must not profit from their own market (super admins bootstrap
-    // pools and are exempt).
-    if (String(currentMarket.created_by || '') === String(user.id) && user.role !== 'super_admin') {
+    // pools and are exempt). Argument creators are regular participants since
+    // arguments have no overseers and settle automatically.
+    if (String(currentMarket.created_by || '') === String(user.id)
+      && user.role !== 'super_admin'
+      && !verificationEngine.isFixedArgument(currentMarket)) {
       return res.status(403).json({
         error: {
           code: 'CREATOR_CANNOT_PREDICT',
@@ -3733,6 +4575,10 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
           timestamp: new Date().toISOString()
         }
       });
+    }
+
+    if (verificationEngine.isFixedArgument(currentMarket)) {
+      return createArgumentPosition(res, currentMarket, user, side, idempotencyKey, currency);
     }
 
     const minPosition = Number(currentMarket.min_position_smallest_unit || 0);
@@ -5441,6 +6287,10 @@ app.post('/api/admin/markets/:marketId/resolve', authenticate, requireRole('admi
       });
     }
 
+    if (verificationEngine.isFixedArgument(market)) {
+      return res.status(422).json({ success: false, error: { code: 'ARGUMENT_AUTO_VERIFY_ONLY', message: 'Arguments resolve automatically through their verification contract and cannot be resolved manually.' } });
+    }
+
     const result = await resolveMarketWithPayouts(market, outcome, user);
     res.json({ success: true, market: normalizeAdminMarket(result.market), summary: result.payoutSummary });
   } catch (error: any) {
@@ -5482,6 +6332,10 @@ app.patch('/api/admin/markets/:marketId/status', authenticate, requireRole('admi
         return res.status(400).json({ success: false, error: { code: 'OUTCOME_REQUIRED', message: 'Choose YES or NO before resolving.' } });
       }
 
+      if (verificationEngine.isFixedArgument(existingMarket)) {
+        return res.status(422).json({ success: false, error: { code: 'ARGUMENT_AUTO_VERIFY_ONLY', message: 'Arguments resolve automatically through their verification contract and cannot be resolved manually.' } });
+      }
+
       const result = await resolveMarketWithPayouts(
         { ...existingMarket, resolution_source: req.body.resolution_source || existingMarket.resolution_source },
         requestedOutcome,
@@ -5492,6 +6346,10 @@ app.patch('/api/admin/markets/:marketId/status', authenticate, requireRole('admi
     }
 
     if (requestedStatus === 'refunded') {
+      if (verificationEngine.isFixedArgument(existingMarket)) {
+        return res.status(422).json({ success: false, error: { code: 'ARGUMENT_AUTO_REFUND_ONLY', message: 'Arguments refund automatically when they cannot be verified or lack opposing participants.' } });
+      }
+
       const result = await refundUnactivatedMarket(
         { ...existingMarket, status: displayStatusForMarket(existingMarket), state: 'closed' },
         user
@@ -7460,6 +8318,42 @@ app.get('/api/admin/permissions', authenticate, requireRole('admin'), async (req
   } catch (error: any) {
     console.error('Permissions error:', error);
     res.status(500).json({ error: { code: 'PERMISSIONS_FAILED', message: 'Could not load permissions.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// 17. POST /api/verification/run-pending
+app.post('/api/verification/run-pending', authenticate, requireRole('admin'), async (_req: Request, res: Response) => {
+  try {
+    const { data: pending, error } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('pricing_model', 'fixed')
+      .not('verification_method', 'is', null)
+      .neq('verification_status', 'verified')
+      .lte('resolution_date', new Date().toISOString())
+      .order('created_at', { ascending: true })
+      .limit(50);
+    if (error) throw error;
+    const results = [];
+    for (const market of pending || []) {
+      try {
+        const result = await runArgumentLifecycle(market);
+        results.push({
+          id: market.id,
+          question: market.question,
+          changed: result.changed,
+          statusAfter: result.market ? displayStatusForMarket(result.market) : null,
+          error: null
+        });
+      } catch (marketError: any) {
+        console.error('Argument lifecycle error for', market.id, marketError?.message || marketError);
+        results.push({ id: market.id, question: market.question, changed: false, statusAfter: displayStatusForMarket(market), error: String(marketError?.message || marketError) });
+      }
+    }
+    res.json({ success: true, processed: (pending || []).length, results });
+  } catch (error: any) {
+    console.error('Run pending verification error:', error);
+    res.status(500).json({ success: false, error: { code: 'RUN_VERIFICATION_FAILED', message: error.message || 'Failed to process pending arguments.' } });
   }
 });
 
