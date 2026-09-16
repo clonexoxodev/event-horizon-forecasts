@@ -79,12 +79,37 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Capture raw body for webhook signature verification before JSON parsing
-app.use(express.json({
+const jsonBodyParser = express.json({
   verify: (req: any, _res: any, buf: any) => {
     (req as any).rawBody = buf;
   },
-}));
+});
+app.use((req: Request, res: Response, next: NextFunction) => {
+  let pre: unknown;
+  try {
+    pre = (req as any).body;
+  } catch (e) {
+    return next(e as Error);
+  }
+  if (pre !== undefined && pre !== null) {
+    const r = req as any;
+    if (typeof pre === 'string') {
+      r.rawBody = Buffer.from(pre, 'utf8');
+      if (pre.length > 0) {
+        try { r.body = JSON.parse(pre); } catch { r.body = pre; }
+      } else {
+        r.body = {};
+      }
+    } else if (Buffer.isBuffer(pre)) {
+      r.rawBody = pre;
+      try { r.body = JSON.parse(pre.toString('utf8')); } catch { r.body = pre; }
+    } else {
+      r.rawBody = Buffer.from(JSON.stringify(pre), 'utf8');
+    }
+    return next();
+  }
+  jsonBodyParser(req, res, next);
+});
 app.use(cookieParser());
 
 // Input sanitization - strip XSS vectors from string values
