@@ -662,10 +662,31 @@ app.post('/api/auth/signup', async (req: Request, res: Response) => {
     const password_hash = await bcrypt.hash(password, 12);
     const role = normalizedEmail === PRIMARY_SUPER_ADMIN_EMAIL ? 'super_admin' : 'user';
 
-    // Create user
+    // Step 1: Create auth user first (satisfies public.users.id → auth.users(id) FK)
+    const { data: authUser, error: authUserError } = await supabase.auth.admin.createUser({
+      email: normalizedEmail,
+      password,
+      email_confirm: true
+    });
+
+    if (authUserError) {
+      console.error('Auth user creation error:', authUserError);
+      return res.status(500).json({
+        error: {
+          code: 'REGISTRATION_FAILED',
+          message: 'Failed to create user',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const authUserId = authUser.user.id;
+
+    // Step 2: Create public.users row with auth user ID
     const { data: newUser, error: userError } = await supabase
       .from('users')
       .insert({
+        id: authUserId,
         username: normalizedUsername,
         email: normalizedEmail,
         password_hash,
