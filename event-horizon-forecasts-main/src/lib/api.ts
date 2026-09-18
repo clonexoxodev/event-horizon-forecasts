@@ -125,6 +125,26 @@ export type ApiMarket = {
   total_refunded_smallest_unit?: number;
   refundedAt?: string | null;
   priceHistory?: Array<{ timestamp: string; yesPrice: number; noPrice: number; volume?: number; tradeCount?: number; side?: 'YES' | 'NO' | null; amount?: number }>;
+  // Fixed-argument fields (FLIPPE football arguments)
+  pricingModel?: string | null;
+  isFixedArgument?: boolean;
+  stakeSmallestUnit?: number | null;
+  participationFormat?: '1v1' | 'group' | 'unlimited' | null;
+  fixtureId?: number | null;
+  matchSnapshot?: MatchSnapshot | null;
+  joinDeadlineAt?: string | null;
+  minParticipants?: number | null;
+  questionSource?: 'user' | 'ai' | string | null;
+  aiQuestionMeta?: Record<string, any> | null;
+  cancelledAt?: string | null;
+  cancellationReason?: string | null;
+  verificationMethod?: string | null;
+  verificationSource?: string | null;
+  verificationParams?: Record<string, any> | null;
+  verificationStatus?: string | null;
+  verifiedOutcome?: string | null;
+  verifiedAt?: string | null;
+  createdBy?: string | null;
 };
 
 export type ApiPriceHistoryPoint = NonNullable<ApiMarket['priceHistory']>[number];
@@ -300,6 +320,68 @@ export type ApiPosition = {
   listingCode?: string;
   askingPrice?: number;
   listedAt?: string;
+  // Argument metadata (fixed arguments)
+  marketPricingModel?: string | null;
+  isFixedArgument?: boolean;
+  fixtureId?: number | null;
+  participationFormat?: '1v1' | 'group' | 'unlimited' | null;
+  participants?: number;
+  stakeSmallestUnit?: number | null;
+  matchSnapshot?: MatchSnapshot | null;
+  opinion?: string | null;
+  marketCreatedBy?: string | null;
+};
+
+export type MatchSnapshot = {
+  fixtureId: number;
+  league?: { id?: number; name?: string; country?: string; logo?: string | null } | null;
+  home?: { id?: number | null; name: string; logo?: string | null } | null;
+  away?: { id?: number | null; name: string; logo?: string | null } | null;
+  kickoff?: string | null;
+  venue?: string | null;
+  statusShort?: string | null;
+  score?: { home: number | null; away: number | null } | null;
+};
+
+export type NormalizedFixture = {
+  id: number;
+  kickoff: string | null;
+  statusShort: string | null;
+  statusLong: string | null;
+  league: { id?: number; name: string; country?: string; logo?: string | null } | null;
+  home: { id?: number | null; name: string; logo?: string | null } | null;
+  away: { id?: number | null; name: string; logo?: string | null } | null;
+  score: { home: number | null; away: number | null } | null;
+  minute?: number | null;
+  venue?: string | null;
+  metadata?: Record<string, any>;
+};
+
+export type ApiParticipant = {
+  id: string;
+  userId: string;
+  username: string;
+  avatarUrl?: string | null;
+  side: 'YES' | 'NO';
+  stakeSmallestUnit: number;
+  opinion?: string | null;
+  status: string;
+  createdAt: string;
+  resolvedAt?: string | null;
+  isViewer: boolean;
+};
+
+export type ApiArgument = ApiMarket & {
+  participants?: ApiParticipant[];
+};
+
+export type ApiFootballMatchBundle = {
+  fixture: NormalizedFixture | null;
+  events?: any[];
+  stats?: any[];
+  lineups?: any[];
+  configured: boolean;
+  publicArguments?: ApiMarket[];
 };
 
 export type ApiWallet = {
@@ -702,7 +784,7 @@ class ApiService {
 
   async placePrediction(
     marketId: string,
-    prediction: { side: 'YES' | 'NO' | 'UP' | 'DOWN'; amount: number; currency?: 'NGN' | 'USD'; idempotencyKey?: string },
+    prediction: { side: 'YES' | 'NO' | 'UP' | 'DOWN'; amount: number; currency?: 'NGN' | 'USD'; idempotencyKey?: string; opinion?: string },
     _idempotencyKey?: string
   ): Promise<{ position: ApiPosition; market: ApiMarket; wallet: ApiWallet; transaction: ApiTransaction; activity: ApiActivity[]; idempotent?: boolean }> {
     const currency = prediction.currency || 'NGN';
@@ -715,12 +797,80 @@ class ApiService {
         amountSmallestUnit: toSmallestUnit(prediction.amount),
         currency,
         ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
+        ...(prediction.opinion ? { opinion: prediction.opinion } : {}),
       }),
     });
   }
 
   async getPositions(): Promise<{ positions: ApiPosition[]; count: number }> {
     return this.request('/api/positions');
+  }
+
+  async getFootballMatches(params: { live?: boolean; upcoming?: boolean; date?: string; days?: number } = {}): Promise<{ fixtures: NormalizedFixture[]; configured: boolean; generatedAt: string }> {
+    const query = new URLSearchParams();
+    if (params.live) query.set('live', '1');
+    if (params.upcoming) query.set('upcoming', '1');
+    if (params.date) query.set('date', params.date);
+    if (params.days) query.set('days', String(params.days));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.request(`/api/football/matches${suffix}`);
+  }
+
+  async getFootballMatch(fixtureId: number): Promise<ApiFootballMatchBundle> {
+    return this.request(`/api/football/matches/${encodeURIComponent(String(fixtureId))}`);
+  }
+
+  async getArguments(params: { fixtureId?: number; format?: '1v1' | 'group' | 'unlimited'; status?: 'active' | 'resolved' | 'refunded'; limit?: number; offset?: number } = {}): Promise<{ arguments: ApiMarket[] }> {
+    const query = new URLSearchParams();
+    if (params.fixtureId) query.set('fixtureId', String(params.fixtureId));
+    if (params.format) query.set('format', params.format);
+    if (params.status) query.set('status', params.status);
+    if (params.limit) query.set('limit', String(params.limit));
+    if (params.offset) query.set('offset', String(params.offset));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.request(`/api/arguments${suffix}`);
+  }
+
+  async getArgument(marketId: string): Promise<{ argument: ApiArgument; liveFixture: NormalizedFixture | null; footballConfigured: boolean }> {
+    return this.request(`/api/arguments/${encodeURIComponent(marketId)}`);
+  }
+
+  async createArgument(data: {
+    question: string;
+    fixture_id: number;
+    participation_format: '1v1' | 'group' | 'unlimited';
+    condition?: string;
+    participant_limit?: number;
+    stake_amount_smallest_unit: number;
+    currency?: 'NGN';
+    description?: string;
+    resolution_instructions?: string;
+  }): Promise<{ success: boolean; market: ApiMarket; message: string }> {
+    return this.request('/api/markets', {
+      method: 'POST',
+      body: JSON.stringify({ pricing_model: 'fixed', ...data }),
+    });
+  }
+
+  async suggestQuestions(fixtureId: number): Promise<{ suggestions: Array<{ question: string; condition: string; label?: string }>; configured: boolean; aiAvailable: boolean; model: string }> {
+    return this.request('/api/ai/questions/suggest', {
+      method: 'POST',
+      body: JSON.stringify({ fixtureId }),
+    });
+  }
+
+  async restructureQuestion(fixtureId: number, text: string): Promise<{ draft: { question?: string; condition?: string; verifiable?: boolean; reason?: string; confidence?: number; source?: string }; configured: boolean; aiAvailable: boolean; model: string }> {
+    return this.request('/api/ai/questions/restructure', {
+      method: 'POST',
+      body: JSON.stringify({ fixtureId, text }),
+    });
+  }
+
+  async cancelArgument(marketId: string, reason?: string): Promise<{ success: boolean; message?: string }> {
+    return this.request(`/api/markets/${encodeURIComponent(marketId)}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
   }
 
   async getWallet(): Promise<WalletResponse> {

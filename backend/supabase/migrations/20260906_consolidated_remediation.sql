@@ -1213,8 +1213,8 @@ BEGIN
   IF p_currency = 'USD' THEN
     RETURN QUERY
     UPDATE wallets SET
-      balance_usd_cents = balance_usd_cents + p_amount,
-      available_usd_cents = available_usd_cents + p_amount,
+      balance_usd_cents = wallets.balance_usd_cents + p_amount,
+      available_usd_cents = wallets.available_usd_cents + p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
     RETURNING
@@ -1226,9 +1226,9 @@ BEGIN
   ELSE
     RETURN QUERY
     UPDATE wallets SET
-      balance_ngn_kobo = balance_ngn_kobo + p_amount,
-      available_ngn_kobo = available_ngn_kobo + p_amount,
-      total_deposited_ngn_kobo = total_deposited_ngn_kobo + p_amount,
+      balance_ngn_kobo = wallets.balance_ngn_kobo + p_amount,
+      available_ngn_kobo = wallets.available_ngn_kobo + p_amount,
+      total_deposited_ngn_kobo = wallets.total_deposited_ngn_kobo + p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
     RETURNING
@@ -1256,8 +1256,8 @@ BEGIN
   IF p_currency = 'USD' THEN
     RETURN QUERY
     UPDATE wallets SET
-      available_usd_cents = available_usd_cents - p_amount,
-      locked_usd_cents = locked_usd_cents + p_amount,
+      available_usd_cents = wallets.available_usd_cents - p_amount,
+      locked_usd_cents = wallets.locked_usd_cents + p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
       AND wallets.available_usd_cents >= p_amount
@@ -1270,8 +1270,8 @@ BEGIN
   ELSE
     RETURN QUERY
     UPDATE wallets SET
-      available_ngn_kobo = available_ngn_kobo - p_amount,
-      locked_ngn_kobo = locked_ngn_kobo + p_amount,
+      available_ngn_kobo = wallets.available_ngn_kobo - p_amount,
+      locked_ngn_kobo = wallets.locked_ngn_kobo + p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
       AND wallets.available_ngn_kobo >= p_amount
@@ -1300,8 +1300,8 @@ BEGIN
   IF p_currency = 'USD' THEN
     RETURN QUERY
     UPDATE wallets SET
-      balance_usd_cents = balance_usd_cents - p_amount,
-      locked_usd_cents = locked_usd_cents - p_amount,
+      balance_usd_cents = wallets.balance_usd_cents - p_amount,
+      locked_usd_cents = wallets.locked_usd_cents - p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
       AND wallets.locked_usd_cents >= p_amount
@@ -1314,9 +1314,9 @@ BEGIN
   ELSE
     RETURN QUERY
     UPDATE wallets SET
-      balance_ngn_kobo = balance_ngn_kobo - p_amount,
-      locked_ngn_kobo = locked_ngn_kobo - p_amount,
-      total_withdrawn_ngn_kobo = total_withdrawn_ngn_kobo + p_amount,
+      balance_ngn_kobo = wallets.balance_ngn_kobo - p_amount,
+      locked_ngn_kobo = wallets.locked_ngn_kobo - p_amount,
+      total_withdrawn_ngn_kobo = wallets.total_withdrawn_ngn_kobo + p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
       AND wallets.locked_ngn_kobo >= p_amount
@@ -1345,8 +1345,8 @@ BEGIN
   IF p_currency = 'USD' THEN
     RETURN QUERY
     UPDATE wallets SET
-      locked_usd_cents = locked_usd_cents - p_amount,
-      available_usd_cents = available_usd_cents + p_amount,
+      locked_usd_cents = wallets.locked_usd_cents - p_amount,
+      available_usd_cents = wallets.available_usd_cents + p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
       AND wallets.locked_usd_cents >= p_amount
@@ -1359,8 +1359,8 @@ BEGIN
   ELSE
     RETURN QUERY
     UPDATE wallets SET
-      locked_ngn_kobo = locked_ngn_kobo - p_amount,
-      available_ngn_kobo = available_ngn_kobo + p_amount,
+      locked_ngn_kobo = wallets.locked_ngn_kobo - p_amount,
+      available_ngn_kobo = wallets.available_ngn_kobo + p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
       AND wallets.locked_ngn_kobo >= p_amount
@@ -1389,7 +1389,7 @@ BEGIN
   IF p_currency = 'USD' THEN
     RETURN QUERY
     UPDATE wallets SET
-      available_usd_cents = available_usd_cents - p_amount,
+      available_usd_cents = wallets.available_usd_cents - p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
       AND wallets.available_usd_cents >= p_amount
@@ -1402,7 +1402,7 @@ BEGIN
   ELSE
     RETURN QUERY
     UPDATE wallets SET
-      available_ngn_kobo = available_ngn_kobo - p_amount,
+      available_ngn_kobo = wallets.available_ngn_kobo - p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
       AND wallets.available_ngn_kobo >= p_amount
@@ -1430,7 +1430,7 @@ BEGIN
   IF p_currency = 'USD' THEN
     RETURN QUERY
     UPDATE wallets SET
-      available_usd_cents = available_usd_cents + p_amount,
+      available_usd_cents = wallets.available_usd_cents + p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
     RETURNING
@@ -1441,7 +1441,7 @@ BEGIN
   ELSE
     RETURN QUERY
     UPDATE wallets SET
-      available_ngn_kobo = available_ngn_kobo + p_amount,
+      available_ngn_kobo = wallets.available_ngn_kobo + p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
     RETURNING
@@ -1468,8 +1468,8 @@ BEGIN
   IF p_currency = 'USD' THEN
     RETURN QUERY
     UPDATE wallets SET
-      locked_usd_cents = locked_usd_cents - p_amount,
-      available_usd_cents = available_usd_cents + p_amount,
+      locked_usd_cents = wallets.locked_usd_cents - p_amount,
+      available_usd_cents = wallets.available_usd_cents + p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
       AND wallets.locked_usd_cents >= p_amount
@@ -1482,8 +1482,8 @@ BEGIN
   ELSE
     RETURN QUERY
     UPDATE wallets SET
-      locked_ngn_kobo = locked_ngn_kobo - p_amount,
-      available_ngn_kobo = available_ngn_kobo + p_amount,
+      locked_ngn_kobo = wallets.locked_ngn_kobo - p_amount,
+      available_ngn_kobo = wallets.available_ngn_kobo + p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
       AND wallets.locked_ngn_kobo >= p_amount
@@ -1513,9 +1513,9 @@ BEGIN
   IF p_currency = 'USD' THEN
     RETURN QUERY
     UPDATE wallets SET
-      available_usd_cents = available_usd_cents + p_payout,
-      balance_usd_cents = balance_usd_cents + GREATEST(0, p_profit),
-      total_winnings_usd_cents = total_winnings_usd_cents + GREATEST(0, p_profit),
+      available_usd_cents = wallets.available_usd_cents + p_payout,
+      balance_usd_cents = wallets.balance_usd_cents + GREATEST(0, p_profit),
+      total_winnings_usd_cents = wallets.total_winnings_usd_cents + GREATEST(0, p_profit),
       updated_at = now()
     WHERE wallets.user_id = p_user_id
     RETURNING
@@ -1527,9 +1527,9 @@ BEGIN
   ELSE
     RETURN QUERY
     UPDATE wallets SET
-      available_ngn_kobo = available_ngn_kobo + p_payout,
-      balance_ngn_kobo = balance_ngn_kobo + GREATEST(0, p_profit),
-      total_winnings_ngn_kobo = total_winnings_ngn_kobo + GREATEST(0, p_profit),
+      available_ngn_kobo = wallets.available_ngn_kobo + p_payout,
+      balance_ngn_kobo = wallets.balance_ngn_kobo + GREATEST(0, p_profit),
+      total_winnings_ngn_kobo = wallets.total_winnings_ngn_kobo + GREATEST(0, p_profit),
       updated_at = now()
     WHERE wallets.user_id = p_user_id
     RETURNING
@@ -1556,7 +1556,7 @@ BEGIN
   IF p_currency = 'USD' THEN
     RETURN QUERY
     UPDATE wallets SET
-      balance_usd_cents = GREATEST(0, balance_usd_cents - p_stake),
+      balance_usd_cents = GREATEST(0, wallets.balance_usd_cents - p_stake),
       updated_at = now()
     WHERE wallets.user_id = p_user_id
     RETURNING
@@ -1567,7 +1567,7 @@ BEGIN
   ELSE
     RETURN QUERY
     UPDATE wallets SET
-      balance_ngn_kobo = GREATEST(0, balance_ngn_kobo - p_stake),
+      balance_ngn_kobo = GREATEST(0, wallets.balance_ngn_kobo - p_stake),
       updated_at = now()
     WHERE wallets.user_id = p_user_id
     RETURNING

@@ -1,5 +1,5 @@
--- ============================================================================
--- FLIPPE SETTLEMENT ENGINE — SPRINT 4 MIGRATION
+﻿-- ============================================================================
+-- FLIPPE SETTLEMENT ENGINE â€” SPRINT 4 MIGRATION
 -- Version: 1.0
 -- Date: 2026-07-21
 --
@@ -114,13 +114,13 @@ BEGIN
   IF p_currency = 'USD' THEN
     RETURN QUERY
     UPDATE wallets SET
-      locked_usd_cents = GREATEST(0, locked_usd_cents - p_stake),
-      balance_usd_cents = balance_usd_cents + p_profit,
-      available_usd_cents = available_usd_cents + p_payout,
-      total_winnings_usd_cents = total_winnings_usd_cents + p_payout,
+      locked_usd_cents = GREATEST(0, wallets.locked_usd_cents - p_stake),
+      balance_usd_cents = wallets.balance_usd_cents + p_profit,
+      available_usd_cents = wallets.available_usd_cents + p_payout,
+      total_winnings_usd_cents = wallets.total_winnings_usd_cents + p_payout,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
-      AND locked_usd_cents >= p_stake
+      AND wallets.locked_usd_cents >= p_stake
     RETURNING
       wallets.id, wallets.user_id,
       wallets.balance_ngn_kobo, wallets.available_ngn_kobo,
@@ -128,13 +128,13 @@ BEGIN
   ELSE
     RETURN QUERY
     UPDATE wallets SET
-      locked_ngn_kobo = GREATEST(0, locked_ngn_kobo - p_stake),
-      balance_ngn_kobo = balance_ngn_kobo + p_profit,
-      available_ngn_kobo = available_ngn_kobo + p_payout,
-      total_winnings_ngn_kobo = total_winnings_ngn_kobo + p_payout,
+      locked_ngn_kobo = GREATEST(0, wallets.locked_ngn_kobo - p_stake),
+      balance_ngn_kobo = wallets.balance_ngn_kobo + p_profit,
+      available_ngn_kobo = wallets.available_ngn_kobo + p_payout,
+      total_winnings_ngn_kobo = wallets.total_winnings_ngn_kobo + p_payout,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
-      AND locked_ngn_kobo >= p_stake
+      AND wallets.locked_ngn_kobo >= p_stake
     RETURNING
       wallets.id, wallets.user_id,
       wallets.balance_ngn_kobo, wallets.available_ngn_kobo,
@@ -160,10 +160,10 @@ BEGIN
   IF p_currency = 'USD' THEN
     RETURN QUERY
     UPDATE wallets SET
-      locked_usd_cents = GREATEST(0, locked_usd_cents - p_stake),
+      locked_usd_cents = GREATEST(0, wallets.locked_usd_cents - p_stake),
       updated_at = now()
     WHERE wallets.user_id = p_user_id
-      AND locked_usd_cents >= p_stake
+      AND wallets.locked_usd_cents >= p_stake
     RETURNING
       wallets.id, wallets.user_id,
       wallets.balance_ngn_kobo, wallets.available_ngn_kobo,
@@ -171,10 +171,10 @@ BEGIN
   ELSE
     RETURN QUERY
     UPDATE wallets SET
-      locked_ngn_kobo = GREATEST(0, locked_ngn_kobo - p_stake),
+      locked_ngn_kobo = GREATEST(0, wallets.locked_ngn_kobo - p_stake),
       updated_at = now()
     WHERE wallets.user_id = p_user_id
-      AND locked_ngn_kobo >= p_stake
+      AND wallets.locked_ngn_kobo >= p_stake
     RETURNING
       wallets.id, wallets.user_id,
       wallets.balance_ngn_kobo, wallets.available_ngn_kobo,
@@ -200,11 +200,11 @@ BEGIN
   IF p_currency = 'USD' THEN
     RETURN QUERY
     UPDATE wallets SET
-      locked_usd_cents = GREATEST(0, locked_usd_cents - p_amount),
-      available_usd_cents = available_usd_cents + p_amount,
+      locked_usd_cents = GREATEST(0, wallets.locked_usd_cents - p_amount),
+      available_usd_cents = wallets.available_usd_cents + p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
-      AND locked_usd_cents >= p_amount
+      AND wallets.locked_usd_cents >= p_amount
     RETURNING
       wallets.id, wallets.user_id,
       wallets.balance_ngn_kobo, wallets.available_ngn_kobo,
@@ -212,11 +212,11 @@ BEGIN
   ELSE
     RETURN QUERY
     UPDATE wallets SET
-      locked_ngn_kobo = GREATEST(0, locked_ngn_kobo - p_amount),
-      available_ngn_kobo = available_ngn_kobo + p_amount,
+      locked_ngn_kobo = GREATEST(0, wallets.locked_ngn_kobo - p_amount),
+      available_ngn_kobo = wallets.available_ngn_kobo + p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
-      AND locked_ngn_kobo >= p_amount
+      AND wallets.locked_ngn_kobo >= p_amount
     RETURNING
       wallets.id, wallets.user_id,
       wallets.balance_ngn_kobo, wallets.available_ngn_kobo,
@@ -244,13 +244,13 @@ BEGIN
   IF p_currency = 'USD' THEN
     RETURN QUERY
     UPDATE wallets SET
-      locked_usd_cents = GREATEST(0, locked_usd_cents - p_stake),
-      balance_usd_cents = balance_usd_cents + p_payout,
-      available_usd_cents = available_usd_cents + GREATEST(0, p_profit),
-      total_winnings_usd_cents = total_winnings_usd_cents + GREATEST(0, p_profit),
+      locked_usd_cents = GREATEST(0, wallets.locked_usd_cents - p_stake),
+      balance_usd_cents = wallets.balance_usd_cents + p_payout,
+      available_usd_cents = wallets.available_usd_cents + GREATEST(0, p_profit),
+      total_winnings_usd_cents = wallets.total_winnings_usd_cents + GREATEST(0, p_profit),
       updated_at = now()
     WHERE wallets.user_id = p_user_id
-      AND locked_usd_cents >= p_stake
+      AND wallets.locked_usd_cents >= p_stake
     RETURNING
       wallets.id, wallets.user_id,
       wallets.balance_ngn_kobo, wallets.available_ngn_kobo,
@@ -258,13 +258,13 @@ BEGIN
   ELSE
     RETURN QUERY
     UPDATE wallets SET
-      locked_ngn_kobo = GREATEST(0, locked_ngn_kobo - p_stake),
-      balance_ngn_kobo = balance_ngn_kobo + p_payout,
-      available_ngn_kobo = available_ngn_kobo + GREATEST(0, p_profit),
-      total_winnings_ngn_kobo = total_winnings_ngn_kobo + GREATEST(0, p_profit),
+      locked_ngn_kobo = GREATEST(0, wallets.locked_ngn_kobo - p_stake),
+      balance_ngn_kobo = wallets.balance_ngn_kobo + p_payout,
+      available_ngn_kobo = wallets.available_ngn_kobo + GREATEST(0, p_profit),
+      total_winnings_ngn_kobo = wallets.total_winnings_ngn_kobo + GREATEST(0, p_profit),
       updated_at = now()
     WHERE wallets.user_id = p_user_id
-      AND locked_ngn_kobo >= p_stake
+      AND wallets.locked_ngn_kobo >= p_stake
     RETURNING
       wallets.id, wallets.user_id,
       wallets.balance_ngn_kobo, wallets.available_ngn_kobo,
@@ -404,3 +404,4 @@ GRANT SELECT ON settlement_audit_log TO authenticated;
 -- ALTER TABLE markets DROP COLUMN IF EXISTS settlement_started_at;
 -- ALTER TABLE markets DROP CONSTRAINT IF EXISTS markets_settlement_status_check;
 -- ALTER TABLE markets DROP COLUMN IF EXISTS settlement_status;
+

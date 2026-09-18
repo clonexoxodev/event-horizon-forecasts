@@ -43,13 +43,13 @@ export default function More() {
   };
 
   return (
-    <div className="app-bg min-h-screen pb-24 text-[#111827] md:pb-0 xl:pl-64">
+    <div className="app-bg min-h-screen pb-24 text-flippe-text md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-3xl px-4 py-5 sm:px-6 lg:py-8">
         {/* ── User Card ── */}
-        <section className="rounded-3xl border border-[#E5E7EB] bg-white p-5">
+        <section className="surface rounded-3xl p-5">
           <div className="flex items-center gap-4">
-            <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-[#E5E7EB] bg-[#EEF2FF] text-lg font-black text-[#4F46E5] shadow-sm">
+            <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-flippe-border bg-flippe-accent/10 text-lg font-black text-flippe-accent shadow-sm">
               {user?.avatarUrl ? (
                 <img
                   src={user.avatarUrl}
@@ -62,26 +62,26 @@ export default function More() {
             </div>
             <div className="min-w-0 flex-1">
               {isLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin text-[#4F46E5]" />
+                <Loader2 className="h-5 w-5 animate-spin text-flippe-accent" />
               ) : user ? (
                 <>
-                  <div className="text-sm font-black text-[#111827]">
+                  <div className="text-sm font-black text-flippe-text">
                     {user.name || user.username}
                   </div>
-                  <div className="text-xs text-[#9CA3AF]">
+                  <div className="text-xs text-flippe-muted">
                     @{user.username}
                   </div>
-                  <div className="mt-1 text-xs font-bold text-[#4F46E5]">
+                  <div className="mt-1 text-xs font-bold text-flippe-accent">
                     {formatNaira(user.balance)} available
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="text-sm font-black text-[#111827]">
+                  <div className="text-sm font-black text-flippe-text">
                     Guest
                   </div>
-                  <div className="text-xs text-[#9CA3AF]">
-                    Sign in to start trading
+                  <div className="text-xs text-flippe-muted">
+                    Sign in to start arguing
                   </div>
                 </>
               )}
@@ -117,7 +117,7 @@ export default function More() {
               to="/how-it-works"
               icon={BookOpen}
               label="How It Works"
-              subtitle="How market trading works"
+              subtitle="How arguments are settled"
             />
             <Item
               to="/faq"
@@ -174,7 +174,7 @@ export default function More() {
           <>
             <button
               onClick={() => setShowLogoutDialog(true)}
-              className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#E85D5D]/20 bg-[#FEF2F2] text-sm font-bold text-[#E85D5D] transition hover:bg-red-100"
+              className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-coral/30 bg-coral/10 text-sm font-bold text-coral transition hover:bg-coral/15"
             >
               <LogOut className="h-4 w-4" />
               Log out
@@ -205,7 +205,7 @@ export default function More() {
         )}
 
         {/* ── Version ── */}
-        <p className="mt-6 pb-4 text-center text-[10px] font-bold uppercase tracking-widest text-[#D1D5DB]">
+        <p className="mt-6 pb-4 text-center text-[10px] font-bold uppercase tracking-widest text-flippe-muted">
           FLIPPE {APP_VERSION}
         </p>
       </main>
@@ -228,7 +228,7 @@ const Group = ({
     <nav
       role="navigation"
       aria-label={title}
-      className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white"
+      className="overflow-hidden rounded-2xl border border-flippe-border bg-flippe-surface"
     >
       {children}
     </nav>
@@ -248,15 +248,15 @@ const Item = ({
 }) => (
   <Link
     to={to}
-    className="group flex items-center gap-3 border-b border-[#F3F4F6] px-4 py-3.5 transition last:border-b-0 hover:bg-[#F9FAFB]"
+    className="group flex items-center gap-3 border-b border-flippe-border px-4 py-3.5 transition last:border-b-0 hover:bg-flippe-surface-2"
   >
-    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#F3F4F6] text-[#9CA3AF] transition-colors group-hover:bg-[#EEF2FF] group-hover:text-[#4F46E5]">
+    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-flippe-surface-2 text-flippe-muted transition-colors group-hover:bg-flippe-accent/10 group-hover:text-flippe-accent">
       <Icon className="h-4 w-4" />
     </div>
     <div className="min-w-0 flex-1">
-      <div className="text-sm font-bold text-[#111827]">{label}</div>
-      <div className="text-[11px] text-[#9CA3AF]">{subtitle}</div>
+      <div className="text-sm font-bold text-flippe-text">{label}</div>
+      <div className="text-[11px] text-flippe-muted">{subtitle}</div>
     </div>
-    <ChevronRight className="h-4 w-4 shrink-0 text-[#D1D5DB] transition group-hover:translate-x-0.5 group-hover:text-[#9CA3AF]" />
+    <ChevronRight className="h-4 w-4 shrink-0 text-flippe-border transition group-hover:translate-x-0.5 group-hover:text-flippe-muted" />
   </Link>
 );

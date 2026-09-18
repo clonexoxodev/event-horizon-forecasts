@@ -1,303 +1,239 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Clock, Search, Sparkles, TrendingUp, Zap } from "lucide-react";
+import { ArrowRight, Loader2, Radio, RefreshCw, Trophy } from "lucide-react";
 import { Header } from "@/components/Header";
 import { MobileNav } from "@/components/MobileNav";
-import { MarketCard } from "@/components/MarketCard";
-import { getTrendingScore } from "@/lib/markets";
-import { useMarketState } from "@/lib/market-state";
+import { FootballMatchCard } from "@/components/FootballMatchCard";
+import { ArgumentCard } from "@/components/ArgumentCard";
+import apiService, { type ApiMarket, type NormalizedFixture } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { categoryMatches, HOME_MARKET_FILTERS, HomeMarketFilter, normalizeCategory } from "@/lib/categories";
+import { cn } from "@/lib/utils";
 
-const isLiveMarket = (market: { status?: string; closeTime?: string; tradingCloseTime?: string }) => {
-  const closeTime = market.tradingCloseTime || market.closeTime;
-  const hasEnded = closeTime ? new Date(closeTime).getTime() <= Date.now() : false;
-  return market.status === "active" && !hasEnded;
-};
-
-const isFeatured = (m: any) => Boolean(m.isTrending || m.is_trending || m.featured || m.featured_level === "featured");
-
-const isEndingSoon = (m: any) => {
-  const closeTime = m.tradingCloseTime || m.closeTime;
-  if (!closeTime) return false;
-  const diff = new Date(closeTime).getTime() - Date.now();
-  return diff > 0 && diff <= 24 * 60 * 60 * 1000;
-};
+type MatchTab = "live" | "upcoming";
 
 const Index = () => {
   const { user } = useAuth();
-  const [category, setCategory] = useState<HomeMarketFilter>("Trending");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortMode, setSortMode] = useState<"trending" | "newest" | "closing">("trending");
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const { markets, loadMarkets, isLoadingMarkets, marketError } = useMarketState();
+  const [tab, setTab] = useState<MatchTab>("upcoming");
+  const [live, setLive] = useState<NormalizedFixture[]>([]);
+  const [upcoming, setUpcoming] = useState<NormalizedFixture[]>([]);
+  const [publicArguments, setPublicArguments] = useState<ApiMarket[]>([]);
+  const [footballConfigured, setFootballConfigured] = useState(true);
+  const [loadingMatches, setLoadingMatches] = useState(true);
+  const [loadingArguments, setLoadingArguments] = useState(true);
+  const [matchesError, setMatchesError] = useState<string | null>(null);
 
-  useEffect(() => { loadMarkets().catch(() => {}); }, [loadMarkets]);
-
-  useEffect(() => {
-    const refresh = window.setInterval(() => {
-      if (document.visibilityState === "visible") loadMarkets({ force: true }).catch(() => {});
-    }, 15000);
-    return () => window.clearInterval(refresh);
-  }, [loadMarkets]);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const tag = (document.activeElement?.tagName || "").toLowerCase();
-      const inInput = tag === "input" || tag === "textarea" || tag === "select";
-      if ((e.key === "k" && (e.ctrlKey || e.metaKey)) || (e.key === "/" && !inInput)) {
-        e.preventDefault();
-        searchInputRef.current?.focus();
+  const loadMatches = useCallback(async () => {
+    setLoadingMatches(true);
+    setMatchesError(null);
+    try {
+      const [liveRes, upcomingRes] = await Promise.allSettled([
+        apiService.getFootballMatches({ live: true }),
+        apiService.getFootballMatches({ upcoming: true, days: 3 }),
+      ]);
+      const liveOk = liveRes.status === "fulfilled";
+      const upOk = upcomingRes.status === "fulfilled";
+      if (liveOk) {
+        setLive(liveRes.value.fixtures || []);
+        if (liveRes.value.configured !== undefined) setFootballConfigured(liveRes.value.configured);
       }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+      if (upOk) {
+        setUpcoming(upcomingRes.value.fixtures || []);
+        if (upcomingRes.value.configured !== undefined) setFootballConfigured(upcomingRes.value.configured);
+      }
+      if (!liveOk && !upOk) {
+        setMatchesError("Could not load football matches.");
+      }
+    } finally {
+      setLoadingMatches(false);
+    }
   }, []);
 
-  const trimmedSearch = searchQuery.trim();
-  const isSearching = trimmedSearch.length > 0;
-  const liveMarkets = useMemo(() => markets.filter(isLiveMarket), [markets]);
-
-  const featuredMarkets = useMemo(
-    () => [...liveMarkets].filter(isFeatured).sort((a, b) => getTrendingScore(b) - getTrendingScore(a)).slice(0, 3),
-    [liveMarkets]
-  );
-  const endingSoonMarkets = useMemo(
-    () => [...liveMarkets].filter(isEndingSoon).sort((a, b) => (new Date(a.tradingCloseTime || a.closeTime).getTime() - new Date(b.tradingCloseTime || b.closeTime).getTime())).slice(0, 3),
-    [liveMarkets]
-  );
-
-  const filtered = useMemo(() => {
-    let next = [...liveMarkets];
-    if (!isSearching && category !== "Trending") {
-      next = next.filter((m) => categoryMatches(m.category, category));
+  const loadArguments = useCallback(async () => {
+    setLoadingArguments(true);
+    try {
+      const res = await apiService.getArguments({ status: "active", limit: 12 });
+      setPublicArguments(res.arguments || []);
+    } catch {
+      setPublicArguments([]);
+    } finally {
+      setLoadingArguments(false);
     }
-    if (isSearching) {
-      const q = trimmedSearch.toLowerCase();
-      next = next.filter((m) => {
-        const text = [
-          m.question, m.category, normalizeCategory(m.category), m.rules,
-          m.source, m.description, (m as any).resolutionSource, (m as any).resolution_source,
-        ].filter(Boolean).join(" ").toLowerCase();
-        return text.includes(q);
-      });
-    }
-    if (sortMode === "trending") next.sort((a, b) => getTrendingScore(b) - getTrendingScore(a));
-    else if (sortMode === "newest") next.sort((a, b) => new Date(b.closeTime).getTime() - new Date(a.closeTime).getTime());
-    else if (sortMode === "closing") next.sort((a, b) => new Date(a.closeTime).getTime() - new Date(b.closeTime).getTime());
-    return next;
-  }, [liveMarkets, category, isSearching, trimmedSearch, sortMode]);
+  }, []);
 
-  const categoryCounts = useMemo(() => {
-    const counts: Partial<Record<string, number>> = { Trending: liveMarkets.length };
-    liveMarkets.forEach((m) => {
-      const n = normalizeCategory(m.category);
-      counts[n] = (counts[n] || 0) + 1;
-    });
-    return counts;
-  }, [liveMarkets]);
+  const didInit = useRef(false);
+  useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
+    loadMatches();
+    loadArguments();
+    const refresh = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        loadMatches();
+        loadArguments();
+      }
+    }, 30000);
+    return () => window.clearInterval(refresh);
+  }, [loadMatches, loadArguments]);
 
-  const sectionTitle = isSearching
-    ? `Results for "${trimmedSearch}"`
-    : category === "Trending" ? "All markets" : `${category} markets`;
-  const emptyTitle = isSearching
-    ? `Nothing found for "${trimmedSearch}"`
-    : category === "Trending" ? "No active markets right now" : `No ${category} markets yet`;
-  const emptyBody = isSearching
-    ? "Try a different keyword, or browse all categories below."
-    : "Check back soon — new predictions are added every day.";
+  const visibleMatches = tab === "live" ? live : upcoming;
 
   const greeting = user
     ? `Good ${new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, @${user.username}`
-    : "What do you think is going to happen?";
+    : "Settle arguments with football";
 
   return (
-    <div className="app-bg min-h-screen pb-[calc(72px+env(safe-area-inset-bottom))] text-[#111827] md:pb-0 xl:pl-64">
+    <div className="app-bg min-h-screen pb-[calc(72px+env(safe-area-inset-bottom))] text-flippe-text md:pb-0 xl:pl-64">
       <Header />
       <main className="mx-auto max-w-[1320px] px-4 py-5 sm:px-6 lg:py-7">
-        {/* Greeting + subtle action for logged-out users */}
         <section className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#9CA3AF]">FLIPPE</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-flippe-accent">FLIPPE</p>
             <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-[28px]">{greeting}</h1>
+            <p className="mt-1 text-sm text-flippe-muted">
+              Pick a match, make a claim, back it with a stake. The score settles it.
+            </p>
           </div>
           {!user && (
             <Link
               to="/signup"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#C7D2FE] bg-white px-4 py-2 text-xs font-bold text-[#4F46E5] transition hover:bg-[#EEF2FF] active:scale-[0.98]"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-flippe-accent/30 bg-flippe-surface-2 px-4 py-2 text-xs font-bold text-flippe-accent transition hover:bg-flippe-accent/10 active:scale-[0.98]"
             >
-              Join to predict
+              Create an account
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           )}
         </section>
 
-        {/* Search */}
+        {/* Match tabs */}
         <section className="mb-4">
-          <div className="relative group">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#9CA3AF] transition-colors group-focus-within:text-[#4F46E5]" />
-            <input
-              ref={searchInputRef}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search questions, topics, categories…"
-              aria-label="Search markets"
-              className="h-12 w-full rounded-2xl border border-[#E5E7EB] bg-white pl-11 pr-16 text-sm font-medium text-[#111827] shadow-sm outline-none placeholder:text-[#9CA3AF] focus:border-[#4F46E5] focus:ring-4 focus:ring-[#4F46E5]/[0.06] transition-all duration-200"
-            />
-            {!isSearching && (
-              <kbd className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-2 py-1 text-[11px] font-semibold text-[#9CA3AF] tabular-nums hidden sm:block">
-                Ctrl K
-              </kbd>
-            )}
-          </div>
-        </section>
-
-        {/* Logged-out: one slim, informational line instead of marketing hero */}
-        {!user && (
-          <section className="mb-4 flex items-center gap-2.5 rounded-2xl border border-[#E5E7EB]/70 bg-white/70 px-4 py-2.5 text-[12px] text-[#6B7280]">
-            <Sparkles className="h-4 w-4 shrink-0 text-[#4F46E5]" />
-            <p className="leading-snug">
-              You're browsing live markets. <span className="font-bold text-[#111827]">Pick a side and back it with ₦</span> — create an account the moment you decide to predict.
-            </p>
-          </section>
-        )}
-
-        {/* Featured rail — the distribution concept, separate from "public" */}
-        {!isSearching && featuredMarkets.length > 0 && (
-          <section className="mb-6">
-            <div className="mb-3 flex items-center gap-2">
-              <div className="grid h-7 w-7 place-items-center rounded-lg bg-[#4F46E5]/10 text-[#4F46E5]">
-                <Sparkles className="h-3.5 w-3.5" />
-              </div>
-              <h2 className="text-lg font-black tracking-tight">Featured</h2>
-              <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#4F46E5]">
-                Curated
-              </span>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {featuredMarkets.map((m) => (
-                <MarketCard key={m.id} m={m} featured />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Ending soon mini-rail */}
-        {!isSearching && !featuredMarkets.length && endingSoonMarkets.length > 0 && (
-          <section className="mb-6">
-            <div className="mb-3 flex items-center gap-2">
-              <div className="grid h-7 w-7 place-items-center rounded-lg bg-[#F59E0B]/10 text-[#D97706]">
-                <Clock className="h-3.5 w-3.5" />
-              </div>
-              <h2 className="text-lg font-black tracking-tight">Ending soon</h2>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {endingSoonMarkets.map((m) => (
-                <MarketCard key={m.id} m={m} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Category chips */}
-        <section className="mb-4">
-          <div
-            className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
-            style={{ WebkitOverflowScrolling: "touch", scrollBehavior: "smooth" }}
-            role="tablist"
-            aria-label="Market categories"
-          >
-            {HOME_MARKET_FILTERS.map((chip) => {
-              const count = chip === "Trending" ? liveMarkets.length : Number(categoryCounts[chip] || 0);
-              const isActive = category === chip;
-              return (
+          <div className="flex items-center justify-between gap-2">
+            <div
+              className="flex gap-2 rounded-2xl border border-flippe-border bg-flippe-surface p-1"
+              role="tablist"
+              aria-label="Football matches"
+            >
+              {(["upcoming", "live"] as MatchTab[]).map((key) => (
                 <button
-                  key={chip}
-                  onClick={() => setCategory(chip)}
+                  key={key}
                   role="tab"
-                  aria-selected={isActive}
-                  className={`relative shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold transition-all duration-200 ${
-                    isActive
-                      ? "bg-[#4F46E5] text-white shadow-[0_2px_12px_rgba(79,70,229,0.3)]"
-                      : "border border-[#E5E7EB] bg-white text-[#6B7280] hover:border-[#C7D2FE] hover:bg-[#EEF2FF] hover:text-[#4F46E5]"
-                  }`}
+                  aria-selected={tab === key}
+                  onClick={() => setTab(key)}
+                  className={cn(
+                    "relative shrink-0 rounded-xl px-4 py-2 text-[13px] font-semibold transition-all duration-200",
+                    tab === key
+                      ? "bg-flippe-accent text-flippe-onaccent shadow-[0_2px_12px_rgba(18,184,134,0.35)]"
+                      : "text-flippe-muted hover:text-flippe-text"
+                  )}
                 >
-                  {chip}
-                  {count > 0 && !isActive && (
-                    <span className="ml-1.5 rounded-full bg-[#F3F4F6] px-1.5 py-0.5 text-[10px] font-bold tabular-nums">
-                      {count}
+                  {key === "live" ? (
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                      Live
                     </span>
+                  ) : (
+                    "Upcoming"
                   )}
                 </button>
-              );
-            })}
+              ))}
+            </div>
+            <button
+              onClick={() => {
+                loadMatches();
+                loadArguments();
+              }}
+              disabled={loadingMatches}
+              aria-label="Refresh matches"
+              className="grid h-9 w-9 place-items-center rounded-xl border border-flippe-border bg-flippe-surface text-flippe-muted transition hover:text-flippe-text disabled:opacity-50"
+            >
+              <RefreshCw className={cn("h-4 w-4", loadingMatches && "animate-spin")} />
+            </button>
           </div>
         </section>
 
-        {/* Market grid */}
-        <section>
-          <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-lg font-bold tracking-tight text-[#111827]">{sectionTitle}</h2>
-            <div className="flex items-center gap-2">
-              {!isSearching && filtered.length > 0 && (
-                <span className="rounded-full bg-[#EEF2FF] px-2.5 py-1 text-xs font-bold text-[#4F46E5] tabular-nums">
-                  {filtered.length}
-                </span>
-              )}
-              {!isSearching && (
-                <div className="flex rounded-lg border border-[#E5E7EB] bg-white p-0.5">
-                  {([["trending", TrendingUp], ["newest", Sparkles], ["closing", Zap]] as const).map(([mode, Icon]) => (
-                    <button
-                      key={mode}
-                      onClick={() => setSortMode(mode)}
-                      title={mode === "trending" ? "Trending" : mode === "newest" ? "Newest" : "Closing Soon"}
-                      aria-label={mode === "trending" ? "Sort by trending" : mode === "newest" ? "Sort by newest" : "Sort by closing soon"}
-                      className={`rounded-md p-1.5 transition-all ${
-                        sortMode === mode ? "bg-[#4F46E5] text-white shadow-sm" : "text-[#9CA3AF] hover:text-[#6B7280]"
-                      }`}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {isLoadingMarkets && markets.length === 0 ? (
+        {/* Matches */}
+        <section className="mb-8">
+          {loadingMatches ? (
             <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="h-56 rounded-2xl border border-[#E5E7EB] bg-white soft-shimmer" />
+                <div key={i} className="h-44 rounded-2xl border border-flippe-border bg-flippe-surface soft-shimmer" />
               ))}
             </div>
-          ) : marketError && filtered.length === 0 ? (
-            <div className="rounded-2xl border border-[#E5E7EB] bg-white p-12 text-center">
-              <h3 className="text-base font-bold text-[#111827]">Could not load markets</h3>
-              <p className="mt-1.5 text-sm text-[#6B7280]">{marketError}</p>
+          ) : matchesError ? (
+            <div className="surface rounded-2xl p-10 text-center">
+              <h3 className="text-base font-bold">Could not load matches</h3>
+              <p className="mt-1.5 text-sm text-flippe-muted">{matchesError}</p>
               <button
-                onClick={() => loadMarkets({ force: true })}
-                className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-6 py-2.5 text-sm font-bold text-[#111827] transition hover:bg-[#F3F4F6]"
+                onClick={loadMatches}
+                className="mt-5 inline-flex items-center gap-2 rounded-xl border border-flippe-border px-6 py-2.5 text-sm font-bold text-flippe-text transition hover:bg-flippe-surface-2"
               >
+                <RefreshCw className="h-4 w-4" />
                 Retry
               </button>
             </div>
-          ) : filtered.length > 0 ? (
+          ) : visibleMatches.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3" role="list">
-              {filtered.map((m, i) => (
-                <div
-                  key={m.id}
-                  role="listitem"
-                  className="opacity-0 animate-fade-up"
-                  style={{ animationDelay: `${Math.min(i * 50, 400)}ms` }}
-                >
-                  <MarketCard m={m} />
-                </div>
+              {visibleMatches.map((m) => (
+                <FootballMatchCard key={m.id} fixture={m} />
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-[#D1D5DB] bg-white/60 p-14 text-center">
-              <h3 className="text-base font-bold text-[#111827]">{emptyTitle}</h3>
-              <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-[#9CA3AF]">{emptyBody}</p>
+            <div className="surface rounded-2xl border border-dashed p-12 text-center">
+              <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-flippe-surface-2">
+                {footballConfigured ? <Radio className="h-6 w-6 text-flippe-accent" /> : <Trophy className="h-6 w-6 text-flippe-muted" />}
+              </div>
+              <h3 className="text-base font-bold">
+                {tab === "live" ? "No matches live right now" : "No upcoming matches yet"}
+              </h3>
+              <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-flippe-muted">
+                {footballConfigured
+                  ? "Live match data will appear here as soon as fixtures kick off. Check back soon."
+                  : "We're wiring up live football results. Once connected, matches will appear here and you can start arguments on real games."}
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* Public arguments */}
+        <section>
+          <div className="mb-4 flex items-center gap-2">
+            <div className="grid h-7 w-7 place-items-center rounded-lg bg-flippe-accent/10 text-flippe-accent">
+              <Trophy className="h-3.5 w-3.5" />
+            </div>
+            <h2 className="text-lg font-black tracking-tight">Public Arguments</h2>
+            {publicArguments.length > 0 && (
+              <span className="rounded-full bg-flippe-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-flippe-accent">
+                {publicArguments.length}
+              </span>
+            )}
+          </div>
+
+          {loadingArguments ? (
+            <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-40 rounded-2xl border border-flippe-border bg-flippe-surface soft-shimmer" />
+              ))}
+            </div>
+          ) : publicArguments.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3" role="list">
+              {publicArguments.map((a) => (
+                <ArgumentCard key={a.id} argument={a} />
+              ))}
+            </div>
+          ) : (
+            <div className="surface rounded-2xl border border-dashed p-12 text-center">
+              <h3 className="text-base font-bold">No public arguments yet</h3>
+              <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-flippe-muted">
+                Be the first — open a match above and start an argument with a stake.
+              </p>
+              {tab === "live" && live.length === 0 && upcoming.length > 0 && (
+                <Link
+                  to="/"
+                  onClick={() => setTab("upcoming")}
+                  className="mt-5 inline-flex items-center gap-2 rounded-xl bg-flippe-accent px-6 py-2.5 text-sm font-bold text-flippe-onaccent transition hover:bg-flippe-accent-strong"
+                >
+                  See upcoming matches
+                </Link>
+              )}
             </div>
           )}
         </section>

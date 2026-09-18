@@ -30,6 +30,20 @@ export default {
           DEFAULT: "hsl(0, 74%, 64%)",
           soft: "hsl(0, 45%, 14%)",
         },
+
+        // FLIPPE MVP — dark premium surface + bright green/teal accent
+        flippe: {
+          bg: "hsl(222, 35%, 5%)",
+          surface: "hsl(217, 28%, 9%)",
+          "surface-2": "hsl(218, 26%, 13%)",
+          border: "hsl(220, 18%, 18%)",
+          text: "hsl(0, 0%, 96%)",
+          muted: "hsl(218, 12%, 58%)",
+          accent: "hsl(158, 76%, 45%)",
+          "accent-strong": "hsl(159, 82%, 38%)",
+          "accent-soft": "hsl(158, 45%, 12%)",
+          onaccent: "hsl(210, 40%, 8%)",
+        },
         
         // Existing theme colors (maintained for compatibility)
         border: "hsl(var(--border))",

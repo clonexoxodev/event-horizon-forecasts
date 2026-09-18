@@ -90,9 +90,9 @@
 
 @layer base {
   :root {
-    /* Flippe Exchange Design System */
+    /* Flippe Exchange Design System — FLIPPE MVP dark theme */
     --color-charcoal: 221 39% 11%;
-    --color-graphite: 214 16% 60%;
+    --color-graphite: 218 12% 58%;
     --color-off-white: 36 22% 96%;
     --color-purple: 243 75% 59%;
     --color-purple-soft: 243 75% 96%;
@@ -100,64 +100,64 @@
     --color-emerald-soft: 158 55% 14%;
     --color-coral: 0 74% 64%;
     --color-coral-soft: 0 45% 14%;
-    --color-border-subtle: 220 13% 91%;
-    --color-muted-text: 220 9% 46%;
-    --color-surface: 0 0% 100%;
-    --color-surface-secondary: 220 20% 97%;
-    
-    /* Existing theme colors (maintained for compatibility) */
-    --background: 36 22% 96%;
-    --foreground: 221 39% 11%;
+    --color-border-subtle: 220 18% 18%;
+    --color-muted-text: 218 12% 58%;
+    --color-surface: 217 28% 9%;
+    --color-surface-secondary: 218 26% 13%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 221 39% 11%;
+    /* Shadcn tokens — dark premium mapping */
+    --background: 222 35% 5%;
+    --foreground: 0 0% 96%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 221 39% 11%;
+    --card: 217 28% 9%;
+    --card-foreground: 0 0% 96%;
 
-    --primary: 243 75% 59%;
-    --primary-foreground: 0 0% 100%;
+    --popover: 217 28% 9%;
+    --popover-foreground: 0 0% 96%;
 
-    --secondary: 220 20% 97%;
-    --secondary-foreground: 221 39% 11%;
+    --primary: 158 76% 45%;
+    --primary-foreground: 210 40% 8%;
 
-    --muted: 220 20% 97%;
-    --muted-foreground: 220 9% 46%;
+    --secondary: 218 26% 13%;
+    --secondary-foreground: 0 0% 96%;
 
-    --accent: 243 75% 96%;
-    --accent-foreground: 243 75% 38%;
+    --muted: 218 26% 13%;
+    --muted-foreground: 218 12% 58%;
 
-    --success: 158 76% 40%;
-    --success-foreground: 0 0% 100%;
-    --success-soft: 142 50% 95%;
+    --accent: 158 45% 12%;
+    --accent-foreground: 158 76% 62%;
+
+    --success: 158 76% 45%;
+    --success-foreground: 210 40% 8%;
+    --success-soft: 158 45% 12%;
 
     --danger: 0 74% 64%;
     --danger-foreground: 0 0% 100%;
-    --danger-soft: 350 70% 95%;
+    --danger-soft: 350 45% 14%;
 
     --highlight: 38 92% 50%;
 
     --destructive: 0 74% 64%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 243 75% 59%;
+    --border: 220 18% 18%;
+    --input: 220 18% 18%;
+    --ring: 158 76% 45%;
 
     --radius: 0.875rem;
 
-    /* Premium Shadows - Refined for depth */
-    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
-    --shadow-elevated: 0 8px 16px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.03);
-    --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
-    --shadow-modal: 0 24px 48px rgba(0, 0, 0, 0.10), 0 8px 16px rgba(0, 0, 0, 0.06);
-    --shadow-glow-purple: 0 0 0 3px hsl(158 100% 33% / 0.12);
-    --shadow-glow-emerald: 0 0 0 3px hsl(158 76% 40% / 0.12);
-    --shadow-glow-coral: 0 0 0 3px hsl(0 74% 64% / 0.12);
+    /* Premium Shadows - refined for depth on dark */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-elevated: 0 8px 16px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+    --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35);
+    --shadow-modal: 0 24px 48px rgba(0, 0, 0, 0.6), 0 8px 16px rgba(0, 0, 0, 0.4);
+    --shadow-glow-purple: 0 0 0 3px hsl(158 100% 45% / 0.16);
+    --shadow-glow-emerald: 0 0 0 3px hsl(158 76% 45% / 0.16);
+    --shadow-glow-coral: 0 0 0 3px hsl(0 74% 64% / 0.16);
 
-    /* Premium Transitions - Refined timing */
+    /* Premium Transitions - refined timing */
     --transition-micro: all 120ms cubic-bezier(0.4, 0, 0.2, 1);
     --transition-fast: all 180ms cubic-bezier(0.4, 0, 0.2, 1);
     --transition-normal: all 280ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -165,7 +165,7 @@
     --transition-smooth: var(--transition-fast);
     --transition-bounce: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
     
-    /* Premium Spacing - Refined scale (4px base) */
+    /* Premium Spacing - refined scale (4px base) */
     --space-0: 0px;
     --space-px: 1px;
     --space-0-5: 2px;
@@ -189,7 +189,7 @@
     --space-20: 80px;
     --space-24: 96px;
     
-    /* Typography Scale - Refined */
+    /* Typography Scale - refined */
     --font-size-xs: 0.6875rem;    /* 11px */
     --font-size-sm: 0.8125rem;    /* 13px */
     --font-size-base: 0.9375rem;  /* 15px */
@@ -200,14 +200,14 @@
     --font-size-3xl: 1.875rem;    /* 30px */
     --font-size-4xl: 2.25rem;     /* 36px */
     
-    /* Line Heights - Refined */
+    /* Line Heights - refined */
     --line-height-tight: 1.25;
     --line-height-snug: 1.375;
     --line-height-normal: 1.5;
     --line-height-relaxed: 1.625;
     --line-height-loose: 1.75;
     
-    /* Letter Spacing - Refined */
+    /* Letter Spacing - refined */
     --letter-spacing-tighter: 0em;
     --letter-spacing-tight: 0em;
     --letter-spacing-normal: 0em;
@@ -241,23 +241,24 @@
 @layer utilities {
   .app-bg {
     background:
-      radial-gradient(circle at 12% -8%, rgba(79, 70, 229, 0.10), transparent 26rem),
-      radial-gradient(circle at 88% 6%, rgba(18, 184, 134, 0.08), transparent 24rem),
-      linear-gradient(180deg, #f8f7f4 0%, #f3f4f6 100%);
+      radial-gradient(circle at 12% -8%, rgba(18, 184, 134, 0.10), transparent 26rem),
+      radial-gradient(circle at 88% 6%, rgba(18, 184, 134, 0.06), transparent 24rem),
+      linear-gradient(180deg, #0a0e14 0%, #0d1420 100%);
+    color: #f9fafb;
   }
 
   .surface {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
+    background: hsl(217 28% 9%);
+    border: 1px solid hsl(220 18% 18%);
   }
 
   .surface-raised {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 18px 48px rgba(17, 24, 39, 0.08);
+    background: hsl(217 28% 10%);
+    border: 1px solid hsl(220 18% 20%);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
   }
 
-  .muted-copy { color: #6b7280; }
+  .muted-copy { color: #9ca3af; }
   .price-up { color: #12b886; }
   .price-down { color: #e85d5d; }
 
@@ -268,7 +269,7 @@
   .pressable:active { transform: translateY(0) scale(0.99); }
 
   .soft-shimmer {
-    background: linear-gradient(90deg, #ffffff 0%, #f3f4f6 45%, #ffffff 90%);
+    background: linear-gradient(90deg, hsl(217 28% 9%) 0%, hsl(218 26% 14%) 45%, hsl(217 28% 9%) 90%);
     background-size: 220% 100%;
     animation: shimmer 1.3s ease-in-out infinite;
   }
@@ -350,7 +351,7 @@
 
   /* Glass Effect - Refined */
   .glass {
-    background: hsl(30 18% 98% / 0.90);
+    background: hsl(217 28% 10% / 0.88);
     backdrop-filter: blur(12px) saturate(180%);
     -webkit-backdrop-filter: blur(12px) saturate(180%);
   }
@@ -362,8 +363,8 @@
   }
   
   /* Border Refinements */
-  .border-subtle { border-color: hsl(220 13% 91%); }
-  .border-soft { border-color: hsl(220 13% 93%); }
+  .border-subtle { border-color: hsl(220 18% 18%); }
+  .border-soft { border-color: hsl(220 18% 20%); }
   
   /* Interaction States */
   .interactive {

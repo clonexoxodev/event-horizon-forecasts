@@ -23,7 +23,7 @@ import { DepositModal } from "@/components/DepositModal";
 import { WithdrawModal } from "@/components/WithdrawModal";
 import { useAuth } from "@/lib/auth";
 import { formatNaira } from "@/lib/markets";
-import apiService, { type ApiTransaction } from "@/lib/api";
+import apiService, { type ApiPosition, type ApiTransaction } from "@/lib/api";
 import { toast } from "sonner";
 
 type WalletRow = {
@@ -68,6 +68,7 @@ export default function Wallet() {
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [transactions, setTransactions] = useState<WalletRow[]>([]);
+  const [positions, setPositions] = useState<ApiPosition[]>([]);
   const [walletSnapshot, setWalletSnapshot] = useState<{
     availableNgn?: number;
     lockedNgn?: number;
@@ -84,11 +85,13 @@ export default function Wallet() {
 
     setHistoryLoading(true);
     try {
-      const [walletResponse, response] = await Promise.all([
+      const [walletResponse, response, positionsResponse] = await Promise.all([
         apiService.getWallet().catch(() => null),
         apiService.getTransactions(),
+        apiService.getPositions().catch(() => ({ positions: [], count: 0 })),
       ]);
       if (walletResponse?.wallet) setWalletSnapshot(walletResponse.wallet);
+      setPositions(positionsResponse?.positions || []);
       setTransactions(
         response.transactions.map((tx) => ({
           id: tx.id,
@@ -142,6 +145,11 @@ export default function Wallet() {
   const ngnBalance = walletSnapshot?.availableNgn ?? user?.balance ?? 0;
   const lockedBalance = walletSnapshot?.lockedNgn ?? 0;
   const hasLockedFunds = lockedBalance > 0;
+  const committedBalance = positions.reduce((sum, pos) => {
+    if (["won", "lost", "refunded", "cancelled", "settled", "sold"].includes(String(pos.status || "").toLowerCase())) return sum;
+    return sum + Number(pos.stake || 0);
+  }, 0);
+  const hasCommittedFunds = committedBalance > 0;
 
   const filteredTransactions =
     activeTab === "all"
@@ -244,6 +252,15 @@ export default function Wallet() {
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-white/50" title="These funds are committed to active predictions and will be available when markets resolve">Locked in predictions</span>
                     <span className="ml-2 text-xs font-bold text-white/80">{formatNaira(lockedBalance)}</span>
+                  </div>
+                </div>
+              )}
+              {hasCommittedFunds && (
+                <div className="mt-3 flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2.5 backdrop-blur-sm">
+                  <Clock className="h-3.5 w-3.5 text-white/60" />
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/50" title="The total you have committed to active predictions across markets">Committed to predictions</span>
+                    <span className="ml-2 text-xs font-bold text-white/80">{formatNaira(committedBalance)}</span>
                   </div>
                 </div>
               )}

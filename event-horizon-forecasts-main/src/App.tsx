@@ -39,6 +39,9 @@ import RiskDisclaimer from "./pages/RiskDisclaimer.tsx";
 import TransactionHistory from "./pages/TransactionHistory.tsx";
 import Notifications from "./pages/Notifications.tsx";
 import JoinPrivate from "./pages/JoinPrivate.tsx";
+import FixtureDetail from "./pages/FixtureDetail.tsx";
+import ArgumentDetail from "./pages/ArgumentDetail.tsx";
+import MyArguments from "./pages/MyArguments.tsx";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -133,6 +136,9 @@ const App = () => (
                   <Route path="/" element={<Index />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/signup" element={<Signup />} />
+                  <Route path="/football/:fixtureId" element={<FixtureDetail />} />
+                  <Route path="/argument/:id" element={<ArgumentDetail />} />
+                  <Route path="/my-arguments" element={<ProtectedRoute><MyArguments /></ProtectedRoute>} />
                   <Route path="/market/:id" element={<MarketDetail />} />
                   <Route path="/predictions" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
                   <Route path="/join" element={<JoinPrivate />} />

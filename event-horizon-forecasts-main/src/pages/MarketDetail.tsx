@@ -180,10 +180,12 @@ export default function MarketDetail() {
     if (currentActivation.isProtected && amount > currentActivation.requirements.protectedMaxStake) {
       throw new Error(`Protected markets are limited to ${formatNaira(currentActivation.requirements.protectedMaxStake)} per user until they go live.`);
     }
+    const idempotencyKey = `pred_${market!.id}_${user.id}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const result = await apiService.placePrediction(selection.marketId, {
       side: selection.side,
       amount,
       currency: "NGN",
+      idempotencyKey,
     });
     const historyResponse = await apiService.getMarketPriceHistory(selection.marketId).catch(() => null);
     const updatedMarket = {
@@ -687,6 +689,15 @@ export default function MarketDetail() {
           side: sheetSide,
           marketIcon: getMarketMedia(market).imageUrl,
           currentPrice: sheetSide === "YES" ? market.yesPrice : market.noPrice,
+          participants: market.participants,
+          minAmount: market.minAmount,
+          maxAmount: market.maxAmount,
+          marketStatus: market.status,
+          closeTime: market.closeTime,
+          tradingCloseTime: market.tradingCloseTime,
+          protectedMarketEnabled: market.protectedMarketEnabled,
+          activationThreshold: activation.requirements.participants,
+          activationProgress: activation.progress,
         } : null}
         onClose={closeSheet}
         onConfirm={handlePredictionConfirm}

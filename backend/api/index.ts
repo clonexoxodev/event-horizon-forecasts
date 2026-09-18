@@ -9,6 +9,9 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 import * as poolEngine from '../src/services/pool-engine';
 import * as verificationEngine from '../src/services/verification';
+import * as footballService from '../src/services/football/footballService';
+import * as footballQuestions from '../src/services/ai/questionService';
+import { DEFAULT_GROQ_MODEL, isGroqConfigured } from '../src/services/ai/groqClient';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -22,6 +25,36 @@ function requireEnv(name: string): string {
 const supabaseUrl = requireEnv('SUPABASE_URL');
 const supabaseKey = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Persist the API-Football cache in Postgres so the free request quota is
+// respected across serverless cold starts. Failures are non-fatal.
+footballService.configureFootballCache({
+  async get(key: string) {
+    try {
+      const { data } = await supabase
+        .from('football_fixtures_cache')
+        .select('payload, expires_at')
+        .eq('cache_key', key)
+        .maybeSingle();
+      if (!data) return null;
+      return { payload: (data as any).payload, expiresAt: String((data as any).expires_at) };
+    } catch {
+      return null;
+    }
+  },
+  async set(key: string, payload: unknown, expiresAt: string) {
+    try {
+      await supabase
+        .from('football_fixtures_cache')
+        .upsert(
+          { cache_key: key, payload, expires_at: expiresAt, fetched_at: new Date().toISOString() },
+          { onConflict: 'cache_key' }
+        );
+    } catch {
+      // Best-effort only.
+    }
+  },
+});
 
 // JWT Secret
 const JWT_SECRET = requireEnv('JWT_SECRET');
@@ -1827,6 +1860,24 @@ const normalizeMarket = (market: any, positionCount = 0, priceHistory: any[] = [
     priceHistory,
     visibility: market.visibility || 'public',
     participantLimit: market.participant_limit != null ? Number(market.participant_limit) : null,
+    pricingModel: market.pricing_model || null,
+    isFixedArgument: verificationEngine.isFixedArgument(market),
+    stakeSmallestUnit: market.pricing_model === 'fixed' ? Number(market.stake_amount_smallest_unit || market.min_position_smallest_unit || 0) : null,
+    participationFormat: market.participation_format || null,
+    fixtureId: market.fixture_id != null ? Number(market.fixture_id) : null,
+    matchSnapshot: market.match_snapshot || null,
+    joinDeadlineAt: market.join_deadline_at || null,
+    minParticipants: market.min_participants != null ? Number(market.min_participants) : null,
+    questionSource: market.question_source || 'user',
+    aiQuestionMeta: market.ai_question_meta || null,
+    cancelledAt: market.cancelled_at || null,
+    cancellationReason: market.cancellation_reason || null,
+    verificationMethod: market.verification_method || null,
+    verificationSource: market.verification_source || null,
+    verificationParams: market.verification_params || null,
+    verificationStatus: market.verification_status || null,
+    verifiedOutcome: market.verified_outcome || null,
+    verifiedAt: market.verified_at || null,
     createdBy: market.created_by || null,
     reviewState: rawStatus,
     isPendingReview: rawStatus === 'submitted' || rawStatus === 'under_review',
@@ -1904,7 +1955,17 @@ const normalizePosition = (position: any, market: any) => {
     payout: toAmount(position.payout_smallest_unit),
     resolvedAt: position.resolved_at || null,
     createdAt: position.created_at,
-    isListed: false
+    isListed: false,
+    // Argument metadata (populated from the joined market row).
+    marketPricingModel: normalizedMarket.pricingModel,
+    isFixedArgument: normalizedMarket.isFixedArgument,
+    fixtureId: normalizedMarket.fixtureId,
+    participationFormat: normalizedMarket.participationFormat,
+    participants: normalizedMarket.participants,
+    stakeSmallestUnit: normalizedMarket.stakeSmallestUnit,
+    matchSnapshot: normalizedMarket.matchSnapshot || null,
+    opinion: position.opinion || null,
+    marketCreatedBy: normalizedMarket.createdBy || null
   };
 };
 
@@ -3731,7 +3792,17 @@ const runArgumentVerification = async (market: any) => {
   }
   let raw: unknown = null;
   if (verificationEngine.requiresExternalData(contract)) {
-    raw = await verificationEngine.fetchRawEvidence(contract);
+    const fixtureId = Number((contract.params as any).fixtureId);
+    if (contract.method === 'sport_event' && Number.isFinite(fixtureId) && fixtureId > 0) {
+      const evidence = await footballService.getMatchEvidence(fixtureId);
+      if (!evidence || !evidence.finished) {
+        await markArgumentVerificationFailed(market, evidence ? 'Match is not finished yet.' : 'Could not reach football data source.');
+        return;
+      }
+      raw = evidence;
+    } else {
+      raw = await verificationEngine.fetchRawEvidence(contract);
+    }
   }
   if (raw === null && contract.method !== 'factual') {
     await markArgumentVerificationFailed(market, 'Could not reach verification source.');
@@ -3772,13 +3843,16 @@ const runArgumentLifecycle = async (rawMarket: any) => {
   const positions = await loadArgumentPositions(current.id);
   const sides = countActiveArgumentSides(positions);
   const mode = verificationEngine.argumentMode(current);
+  const participationFormat = String(current.participation_format || (mode === '1v1' ? '1v1' : 'unlimited')).toLowerCase();
+  const minParticipants = Math.max(2, Number(current.min_participants || 2));
   if (mode === '1v1') {
     if (sides.total !== 2) {
       await refundArgumentMarket(current, 'ARGUMENT_NO_OPPONENT');
       return { changed: true, market: { ...current, status: 'refunded', refunded_at: new Date().toISOString() } };
     }
-  } else if (sides.yes < 1 || sides.no < 1) {
-    await refundArgumentMarket(current, 'ARGUMENT_ONE_SIDED');
+  } else if ((participationFormat === 'group' && sides.total < minParticipants) || sides.yes < 1 || sides.no < 1) {
+    const reason = sides.yes < 1 || sides.no < 1 ? 'ARGUMENT_ONE_SIDED' : 'ARGUMENT_MIN_PARTICIPANTS';
+    await refundArgumentMarket(current, reason);
     return { changed: true, market: { ...current, status: 'refunded', refunded_at: new Date().toISOString() } };
   }
   const decision = verificationEngine.verificationDecision(current);
@@ -3803,8 +3877,184 @@ const createArgumentMarket = async (user: any, body: any) => {
   if (stake < ARGUMENT_MIN_STAKE_SMALLEST_UNIT) {
     throw makeHttpError(400, 'INVALID_STAKE', `Minimum stake is ${toAmount(ARGUMENT_MIN_STAKE_SMALLEST_UNIT).toLocaleString()} NGN.`);
   }
-  const closeDate = body.close_date || body.closes_at;
-  const tradingCloseDate = body.trading_close_at || body.trading_close_time || closeDate;
+
+  // ── Football-bound argument ────────────────────────────────────────────
+  const fixtureIdRaw = body.fixture_id != null ? Number(body.fixture_id) : null;
+  const isFootball = fixtureIdRaw !== null && Number.isFinite(fixtureIdRaw);
+  let fixture: import('../src/services/football/footballService').NormalizedFixture | null = null;
+  let participationFormat: '1v1' | 'group' | 'unlimited' = 'unlimited';
+  let contract: import('../src/services/verification').VerificationContract;
+  let described = { yes: 'YES if the claim is true', no: 'NO if the claim is false' };
+
+  if (isFootball) {
+    fixture = await footballService.getFixtureById(fixtureIdRaw as number);
+    if (!fixture) throw makeHttpError(404, 'FIXTURE_NOT_FOUND', 'Football fixture not found or football data is unavailable.');
+
+    const rawFormat = String(body.participation_format || '').toLowerCase();
+    if (rawFormat === '1v1' || rawFormat === 'one_on_one' || rawFormat === 'one-v-one') participationFormat = '1v1';
+    else if (rawFormat === 'group') participationFormat = 'group';
+    else if (rawFormat === 'unlimited' || rawFormat === '') participationFormat = 'unlimited';
+    else throw makeHttpError(400, 'INVALID_PARTICIPATION_FORMAT', 'participation_format must be 1v1, group or unlimited.');
+
+    const rawCondition = String(body.condition || (body.verification_params && (body.verification_params as any).condition) || '').trim();
+    let condition = rawCondition;
+    let questionSource = String(body.question_source || 'user').trim();
+    let aiQuestionMeta = body.ai_question_meta && typeof body.ai_question_meta === 'object' ? body.ai_question_meta : {};
+
+    if (!condition && fixture) {
+      const restructured = await footballQuestions.restructureQuestion(fixture, statement);
+      if (restructured.verifiable && restructured.condition) {
+        condition = restructured.condition;
+        questionSource = 'ai';
+        aiQuestionMeta = {
+          model: DEFAULT_GROQ_MODEL,
+          confidence: restructured.confidence,
+          reasoning: restructured.reasoning,
+          source: restructured.source,
+        };
+      }
+    }
+    if (!condition) {
+      throw makeHttpError(422, 'INVALID_CONDITION', 'Provide a condition such as home_win, away_win, draw, total_over_2.5 or home_gte_1. Or provide a question we can map automatically.');
+    }
+
+    const built = footballQuestions.buildFootballContract(
+      fixture,
+      condition,
+      participationFormat === '1v1' ? '1v1' : 'group'
+    );
+    if (!built.ok) throw makeHttpError(422, 'INVALID_CONDITION', built.reason);
+
+    // Use the football contract as the source of truth.
+    const verificationParams = built.contract.params;
+    contract = {
+      method: 'sport_event',
+      mode: participationFormat === '1v1' ? '1v1' : 'group',
+      source: null,
+      params: verificationParams,
+    };
+    described = built.contract.described;
+
+    // Default dates from fixture kickoff when not explicitly supplied.
+    const kickoff = fixture.kickoff ? new Date(fixture.kickoff) : null;
+    const joinDeadline = body.join_deadline_at
+      ? new Date(body.join_deadline_at).getTime()
+      : kickoff ? kickoff.getTime() : null;
+    const defaultCloseDate = body.close_date || body.closes_at
+      || (kickoff ? new Date(kickoff.getTime() + 6 * 3600_000).toISOString() : null);
+    const defaultTradingCloseDate = body.trading_close_at || body.trading_close_time
+      || (joinDeadline ? new Date(Math.min(joinDeadline, Date.now() + 365 * 86_400_000)).toISOString() : defaultCloseDate);
+
+    if (!defaultCloseDate || new Date(defaultCloseDate).getTime() <= Date.now()) {
+      throw makeHttpError(400, 'INVALID_CLOSE_DATE', 'End date must be in the future.');
+    }
+    if (!defaultTradingCloseDate || new Date(defaultTradingCloseDate).getTime() <= Date.now()) {
+      throw makeHttpError(400, 'INVALID_TRADING_CLOSE_DATE', 'Joining close time must be in the future.');
+    }
+    if (new Date(defaultTradingCloseDate).getTime() > new Date(defaultCloseDate).getTime()) {
+      throw makeHttpError(400, 'INVALID_TRADING_CLOSE_DATE', 'Joining close time cannot be after the resolution time.');
+    }
+
+    const description = String(body.description || '').trim() || null;
+    const rules = String(body.resolution_instructions || body.rules || '').trim() || description;
+
+    const payload: any = {
+      question,
+      description,
+      category,
+      market_type: 'binary',
+      yes_label: 'YES',
+      no_label: 'NO',
+      yes_price: 50,
+      no_price: 50,
+      starting_yes_price: 50,
+      starting_no_price: 50,
+      close_date: defaultCloseDate,
+      closes_at: defaultCloseDate,
+      trading_close_at: defaultTradingCloseDate,
+      join_deadline_at: new Date(Math.min(new Date(defaultTradingCloseDate).getTime(), joinDeadline || Date.now())).toISOString(),
+      resolution_date: ensureResolutionAfterClose(body.resolution_date, defaultCloseDate),
+      resolution_source: String(body.resolution_source || `Football match ${fixture.home.name} vs ${fixture.away.name}`).trim(),
+      resolution_instructions: rules,
+      status: 'active',
+      state: 'active',
+      currency: body.currency || 'NGN',
+      image_url: body.image_url || (fixture.home.logo || fixture.away.logo || null),
+      video_url: body.video_url || null,
+      min_position_smallest_unit: stake,
+      max_position_smallest_unit: stake,
+      created_by: user.id,
+      visibility: 'public',
+      platform_fee_bps: 0,
+      creator_reward_bps: 0,
+      submitted_at: new Date().toISOString(),
+      pricing_model: 'fixed',
+      protected_market_enabled: false,
+      activation_state: 'live',
+      activation_threshold_smallest_unit: 0,
+      activation_yes_min_smallest_unit: 0,
+      activation_no_min_smallest_unit: 0,
+      activation_min_participants: 0,
+      protected_max_stake_smallest_unit: stake,
+      pool_amount_smallest_unit: 0,
+      settlement_pool_smallest_unit: 0,
+      seed_liquidity_yes_smallest_unit: 0,
+      seed_liquidity_no_smallest_unit: 0,
+      yes_pool_smallest_unit: 0,
+      no_pool_smallest_unit: 0,
+      yes_volume_smallest_unit: 0,
+      no_volume_smallest_unit: 0,
+      total_yes_shares: 0,
+      total_no_shares: 0,
+      participant_count: 0,
+      trade_count: 0,
+      total_volume_smallest_unit: 0,
+      stake_amount_smallest_unit: stake,
+      verification_method: verificationEngine.toDbMethod(contract.method),
+      verification_source: contract.source,
+      verification_params: contract.params,
+      verification_status: 'pending',
+      verification_attempt_count: 0,
+      rules,
+      participation_format: participationFormat,
+      fixture_id: fixture.id,
+      match_snapshot: footballService.snapshotFromFixture(fixture),
+      min_participants: participationFormat === '1v1' ? 2 : Number(body.min_participants || 2),
+      question_source: questionSource,
+      ai_question_meta: aiQuestionMeta,
+    };
+    if (participationFormat === '1v1') payload.participant_limit = 2;
+    else if (participationFormat === 'group') {
+      const limit = Math.max(3, Math.min(100, Math.round(Number(body.participant_limit || 10))));
+      payload.participant_limit = limit;
+      payload.min_participants = Math.max(2, Math.min(limit, payload.min_participants || 2));
+    }
+
+    let inserted = await supabase.from('markets').insert(payload).select().single();
+    if (inserted.error && /visibility|invite_code|participant_limit|submitted_at|starting_yes_price/i.test(inserted.error.message || '')) {
+      const fallback = { ...payload };
+      delete fallback.visibility;
+      delete fallback.participant_limit;
+      delete fallback.submitted_at;
+      delete fallback.starting_yes_price;
+      inserted = await supabase.from('markets').insert(fallback).select().single();
+    }
+    if (inserted.error) throw inserted.error;
+    const market = inserted.data;
+    await supabase.from('market_promoters').insert({ market_id: market.id, user_id: user.id, relationship: 'creator', share_code: null });
+    await attachCanonicalEvent(market.id, question, category, user.id);
+    await savePriceHistory(market.id, 50, 50, 0, 0, 0, 0);
+    return {
+      market,
+      verification: { method: contract.method, source: contract.source, params: contract.params, mode: contract.mode },
+      described,
+      stake,
+    };
+  }
+
+  // ── General / legacy non-football argument ─────────────────────────────
+  let closeDate = body.close_date || body.closes_at;
+  let tradingCloseDate = body.trading_close_at || body.trading_close_time || closeDate;
   if (!closeDate || new Date(closeDate).getTime() <= Date.now()) {
     throw makeHttpError(400, 'INVALID_CLOSE_DATE', 'End date must be in the future.');
   }
@@ -3825,8 +4075,8 @@ const createArgumentMarket = async (user: any, body: any) => {
   if (!classification.ok || !classification.contract) {
     throw makeHttpError(422, 'VERIFICATION_UNSUPPORTED', classification.reason || 'This argument cannot be auto-verified.');
   }
-  const contract = classification.contract;
-  const described = verificationEngine.describeContract(contract);
+  contract = classification.contract;
+  described = verificationEngine.describeContract(contract);
   const description = String(body.description || '').trim() || null;
   const rules = String(body.resolution_instructions || body.rules || '').trim() || description;
 
@@ -3914,7 +4164,7 @@ const createArgumentMarket = async (user: any, body: any) => {
   };
 };
 
-const createArgumentPosition = async (res: Response, market: any, user: any, side: string, idempotencyKey: string | null, currency: string) => {
+const createArgumentPosition = async (res: Response, market: any, user: any, side: string, idempotencyKey: string | null, currency: string, opinionRaw?: unknown) => {
   if (side !== 'YES' && side !== 'NO') {
     return res.status(400).json({ error: { code: 'INVALID_SIDE', message: 'Arguments only support YES or NO sides.', timestamp: new Date().toISOString() } });
   }
@@ -3927,6 +4177,8 @@ const createArgumentPosition = async (res: Response, market: any, user: any, sid
   const amount = verificationEngine.fixedStake(market);
   if (amount <= 0) throw new Error('Argument stake is misconfigured.');
   const mode = verificationEngine.argumentMode(market);
+  const participationFormat = String(market.participation_format || (mode === '1v1' ? '1v1' : 'unlimited')).toLowerCase();
+  const opinion = typeof opinionRaw === 'string' ? opinionRaw.trim().slice(0, 500) || null : null;
 
   const { data: existing, error: existingError } = await supabase
     .from('positions')
@@ -3948,7 +4200,8 @@ const createArgumentPosition = async (res: Response, market: any, user: any, sid
   const openPositions = (allPositions || []).filter((p: any) =>
     !['refunded', 'cancelled', 'sold', 'won', 'lost', 'settled'].includes(String(p.status || '').toLowerCase())
   );
-  if (mode === '1v1') {
+  const maxParticipants = Number(market.participant_limit) || 0;
+  if (participationFormat === '1v1') {
     if (openPositions.length >= 2) {
       return res.status(409).json({ error: { code: 'ARGUMENT_FULL', message: 'This 1v1 argument already has two participants.', timestamp: new Date().toISOString() } });
     }
@@ -3956,6 +4209,8 @@ const createArgumentPosition = async (res: Response, market: any, user: any, sid
     if (other && String(other.side || '').toUpperCase() === side) {
       return res.status(409).json({ error: { code: 'SIDE_TAKEN', message: 'The other participant already holds that side. Pick the opposing side.', timestamp: new Date().toISOString() } });
     }
+  } else if (participationFormat === 'group' && maxParticipants > 0 && openPositions.length >= maxParticipants) {
+    return res.status(409).json({ error: { code: 'ARGUMENT_FULL', message: `This group argument is full (${maxParticipants} participants).`, timestamp: new Date().toISOString() } });
   }
 
   const { data: preTradeWallet } = await supabase
@@ -3992,6 +4247,7 @@ const createArgumentPosition = async (res: Response, market: any, user: any, sid
       one_position_only: true,
       market_question_snapshot: market.question,
       market_category_snapshot: normalizeMarketCategory(market.category),
+      ...(opinion ? { opinion } : {}),
       ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {})
     })
     .select()
@@ -4028,7 +4284,8 @@ const createArgumentPosition = async (res: Response, market: any, user: any, sid
         potential_return_smallest_unit: 0,
         one_position_only: true,
         market_question_snapshot: market.question,
-        market_category_snapshot: normalizeMarketCategory(market.category)
+        market_category_snapshot: normalizeMarketCategory(market.category),
+        ...(opinion ? { opinion } : {})
       })
       .select()
       .single();
@@ -4603,7 +4860,7 @@ app.post('/api/markets/:id/predictions', authenticate, async (req: Request, res:
     }
 
     if (verificationEngine.isFixedArgument(currentMarket)) {
-      return createArgumentPosition(res, currentMarket, user, side, idempotencyKey, currency);
+      return createArgumentPosition(res, currentMarket, user, side, idempotencyKey, currency, req.body.opinion || req.body.reasoning);
     }
 
     const minPosition = Number(currentMarket.min_position_smallest_unit || 0);
@@ -8379,6 +8636,348 @@ app.post('/api/verification/run-pending', authenticate, requireRole('admin'), as
   } catch (error: any) {
     console.error('Run pending verification error:', error);
     res.status(500).json({ success: false, error: { code: 'RUN_VERIFICATION_FAILED', message: error.message || 'Failed to process pending arguments.' } });
+  }
+});
+
+// ============================================================================
+// FLIPPE MVP — FOOTBALL MATCHES + AUTO-SETTLEMENT TICK
+// ============================================================================
+
+// GET /api/football/matches?live=1 | upcoming=1 | date=YYYY-MM-DD
+app.get('/api/football/matches', async (req: Request, res: Response) => {
+  try {
+    const live = req.query.live === '1' || req.query.live === 'true';
+    const upcoming = req.query.upcoming === '1' || req.query.upcoming === 'true';
+    const date = String(req.query.date || '').trim();
+    let fixtures: import('../src/services/football/footballService').NormalizedFixture[] = [];
+    if (live) fixtures = await footballService.getLiveFixtures();
+    else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) fixtures = await footballService.getFixturesByDate(date);
+    else if (upcoming) fixtures = await footballService.getUpcomingFixtures(Number(req.query.days) || 7);
+    else fixtures = await footballService.getUpcomingFixtures(Number(req.query.days) || 3);
+    res.json({
+      fixtures,
+      configured: footballService.isFootballConfigured(),
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('Football matches error:', error?.message || error);
+    res.status(Number(error?.statusCode) || 500).json({
+      error: { code: 'FOOTBALL_FETCH_FAILED', message: error?.message || 'Failed to load football matches.', timestamp: new Date().toISOString() }
+    });
+  }
+});
+
+// GET /api/football/matches/:fixtureId — fixture + events + stats + lineups + arguments
+app.get('/api/football/matches/:fixtureId', async (req: Request, res: Response) => {
+  try {
+    const fixtureId = Number(req.params.fixtureId);
+    if (!Number.isFinite(fixtureId) || fixtureId <= 0) {
+      return res.status(400).json({ error: { code: 'INVALID_FIXTURE_ID', message: 'Invalid fixture id.', timestamp: new Date().toISOString() } });
+    }
+    const bundle = await footballService.getMatchBundle(fixtureId);
+    if (!bundle.fixture) {
+      return res.status(404).json({ error: { code: 'FIXTURE_NOT_FOUND', message: 'Football fixture not found.', timestamp: new Date().toISOString() } });
+    }
+    const { data: related } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('fixture_id', fixtureId)
+      .eq('pricing_model', 'fixed')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    res.json({
+      ...bundle,
+      configured: footballService.isFootballConfigured(),
+      publicArguments: (related || []).map((market: any) => normalizeMarket(market)),
+    });
+  } catch (error: any) {
+    console.error('Football match bundle error:', error?.message || error);
+    res.status(Number(error?.statusCode) || 500).json({
+      error: { code: 'FOOTBALL_BUNDLE_FAILED', message: error?.message || 'Failed to load the football match.', timestamp: new Date().toISOString() }
+    });
+  }
+});
+
+// POST /api/ai/questions/suggest — body: { fixtureId }
+app.post('/api/ai/questions/suggest', async (req: Request, res: Response) => {
+  try {
+    const fixtureId = Number(req.body.fixtureId);
+    if (!Number.isFinite(fixtureId) || fixtureId <= 0) {
+      return res.status(400).json({ error: { code: 'INVALID_FIXTURE_ID', message: 'Invalid fixture id.', timestamp: new Date().toISOString() } });
+    }
+    const fixture = await footballService.getFixtureById(fixtureId);
+    if (!fixture) {
+      return res.status(404).json({ error: { code: 'FIXTURE_NOT_FOUND', message: 'Football fixture not found.', timestamp: new Date().toISOString() } });
+    }
+    const suggestions = await footballQuestions.suggestQuestions(fixture);
+    res.json({
+      suggestions,
+      configured: isGroqConfigured(),
+      aiAvailable: isGroqConfigured(),
+      model: DEFAULT_GROQ_MODEL,
+    });
+  } catch (error: any) {
+    console.error('Question suggestions error:', error?.message || error);
+    res.status(500).json({ error: { code: 'SUGGESTIONS_FAILED', message: error?.message || 'Failed to suggest questions.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// POST /api/ai/questions/restructure — body: { fixtureId, text }
+app.post('/api/ai/questions/restructure', async (req: Request, res: Response) => {
+  try {
+    const fixtureId = Number(req.body.fixtureId);
+    const text = String(req.body.text || req.body.question || '').trim();
+    if (!Number.isFinite(fixtureId) || fixtureId <= 0) {
+      return res.status(400).json({ error: { code: 'INVALID_FIXTURE_ID', message: 'Invalid fixture id.', timestamp: new Date().toISOString() } });
+    }
+    if (!text) {
+      return res.status(400).json({ error: { code: 'ARGUMENT_TEXT_REQUIRED', message: 'Describe your argument in a sentence.', timestamp: new Date().toISOString() } });
+    }
+    const fixture = await footballService.getFixtureById(fixtureId);
+    if (!fixture) {
+      return res.status(404).json({ error: { code: 'FIXTURE_NOT_FOUND', message: 'Football fixture not found.', timestamp: new Date().toISOString() } });
+    }
+    const draft = await footballQuestions.restructureQuestion(fixture, text);
+    res.json({ draft, configured: isGroqConfigured(), aiAvailable: isGroqConfigured(), model: DEFAULT_GROQ_MODEL });
+  } catch (error: any) {
+    console.error('Question restructure error:', error?.message || error);
+    res.status(500).json({ error: { code: 'RESTRUCTURE_FAILED', message: error?.message || 'Failed to restructure the argument.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// GET /api/arguments — public argument discovery
+// Query: fixtureId, format (1v1|group|unlimited), status (active|resolved), limit, offset
+app.get('/api/arguments', async (req: Request, res: Response) => {
+  try {
+    const fixtureId = req.query.fixtureId ? Number(req.query.fixtureId) : null;
+    const format = String(req.query.format || '').trim() || null;
+    const status = String(req.query.status || 'active').trim();
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
+    const offset = Math.max(0, Number(req.query.offset) || 0);
+
+    let query = supabase.from('markets').select('*').eq('pricing_model', 'fixed');
+    if (Number.isFinite(fixtureId) && (fixtureId as number) > 0) query = query.eq('fixture_id', fixtureId as number);
+    if (format && ['1v1', 'group', 'unlimited'].includes(format)) query = query.eq('participation_format', format);
+    if (status === 'active') query = query.eq('status', 'active');
+    else if (status === 'resolved') query = query.in('status', ['pending_resolution', 'resolved']);
+    else if (status === 'refunded') query = query.eq('status', 'refunded');
+
+    const { data, error } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    if (error) throw error;
+    res.json({ arguments: (data || []).map((market: any) => normalizeMarket(market)) });
+  } catch (error: any) {
+    console.error('Arguments discovery error:', error?.message || error);
+    res.status(500).json({ error: { code: 'ARGUMENTS_FAILED', message: error?.message || 'Failed to load arguments.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// GET /api/arguments/:id — argument detail with participants + live fixture refresh
+app.get('/api/arguments/:id', optionalAuthenticate, async (req: Request, res: Response) => {
+  try {
+    const { data: market, error } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!market || !verificationEngine.isFixedArgument(market)) {
+      return res.status(404).json({ error: { code: 'ARGUMENT_NOT_FOUND', message: 'Argument not found.', timestamp: new Date().toISOString() } });
+    }
+
+    const { data: positions } = await supabase
+      .from('positions')
+      .select('id, user_id, side, amount_smallest_unit, opinion, status, created_at, resolved_at')
+      .eq('market_id', market.id);
+    const userIds = Array.from(new Set((positions || []).map((p: any) => p.user_id).filter(Boolean)));
+    const { data: usersData } = userIds.length > 0
+      ? await supabase.from('users').select('id, username, avatar_url').in('id', userIds)
+      : { data: [] as any[] };
+    const userById = new Map((usersData || []).map((u: any) => [u.id, u]));
+    const viewer = (req as any).user;
+
+    let liveFixture: import('../src/services/football/footballService').NormalizedFixture | null = null;
+    if (market.fixture_id) {
+      liveFixture = await footballService.getFixtureById(Number(market.fixture_id));
+    }
+
+    res.json({
+      argument: {
+        ...normalizeMarket(market, positions ? positions.length : 0),
+        participants: (positions || []).map((p: any) => ({
+          id: p.id,
+          userId: p.user_id,
+          username: userById.get(p.user_id)?.username || 'User',
+          avatarUrl: userById.get(p.user_id)?.avatar_url || null,
+          side: p.side,
+          stakeSmallestUnit: Number(p.amount_smallest_unit || 0),
+          opinion: p.opinion || null,
+          status: p.status || 'active',
+          createdAt: p.created_at,
+          resolvedAt: p.resolved_at,
+          isViewer: viewer ? String(viewer.id) === String(p.user_id) : false,
+        })),
+      },
+      liveFixture,
+      footballConfigured: footballService.isFootballConfigured(),
+    });
+  } catch (error: any) {
+    console.error('Argument detail error:', error?.message || error);
+    res.status(500).json({ error: { code: 'ARGUMENT_DETAIL_FAILED', message: error?.message || 'Failed to load the argument.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// POST /api/markets/:id/cancel — creator cancels before an opponent joins
+app.post('/api/markets/:id/cancel', authenticate, async (req: Request, res: Response) => {
+  try {
+    const marketId = String(req.params.id);
+    const user = (req as any).user;
+    const { data: market, error } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('id', marketId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!market || !verificationEngine.isFixedArgument(market)) {
+      return res.status(404).json({ error: { code: 'ARGUMENT_NOT_FOUND', message: 'Argument not found.', timestamp: new Date().toISOString() } });
+    }
+    if (String(market.created_by || '') !== String(user.id)) {
+      return res.status(403).json({ error: { code: 'NOT_CREATOR', message: 'Only the creator can cancel an argument.', timestamp: new Date().toISOString() } });
+    }
+    const status = displayStatusForMarket(market);
+    if (status !== 'active') {
+      return res.status(422).json({ error: { code: 'ARGUMENT_NOT_ACTIVE', message: 'Only live arguments can be cancelled.', timestamp: new Date().toISOString() } });
+    }
+    const { data: positions } = await supabase
+      .from('positions')
+      .select('*')
+      .eq('market_id', marketId);
+    const open = (positions || []).filter((p: any) =>
+      !['refunded', 'cancelled', 'sold', 'won', 'lost', 'settled'].includes(String(p.status || '').toLowerCase())
+    );
+    const opponents = open.filter((p: any) => String(p.user_id) !== String(user.id));
+    if (opponents.length > 0) {
+      return res.status(409).json({ error: { code: 'CANNOT_CANCEL', message: 'Another participant has already joined. The argument can no longer be cancelled.', timestamp: new Date().toISOString() } });
+    }
+    const reason = String(req.body.reason || 'CANCELLED_BY_CREATOR').trim().slice(0, 200) || 'CANCELLED_BY_CREATOR';
+    const nowIso = new Date().toISOString();
+    let refundedCount = 0;
+    let refundedSmallestUnit = 0;
+
+    for (const position of open) {
+      const refundAmount = Number(position.amount_smallest_unit || 0);
+      if (refundAmount <= 0) continue;
+      const { data: refundedWallet, error: refundError } = await supabase
+        .rpc('atomic_refund_to_available', {
+          p_user_id: position.user_id,
+          p_amount: refundAmount,
+          p_currency: position.currency || 'NGN',
+        })
+        .maybeSingle<{ id: string }>();
+      if (refundError || !refundedWallet) throw refundError || new Error('Refund failed');
+      let { error: positionUpdateError } = await supabase
+        .from('positions')
+        .update({
+          status: 'cancelled',
+          is_winner: null,
+          payout_smallest_unit: refundAmount,
+          resolved_at: nowIso,
+          settled_at: nowIso,
+        })
+        .eq('id', position.id);
+      if (positionUpdateError && /settled_at/i.test(positionUpdateError.message || '')) {
+        ({ error: positionUpdateError } = await supabase
+          .from('positions')
+          .update({ status: 'cancelled', is_winner: null, payout_smallest_unit: refundAmount, resolved_at: nowIso })
+          .eq('id', position.id));
+      }
+      if (positionUpdateError) throw positionUpdateError;
+      await supabase.from('transactions').insert({
+        user_id: position.user_id,
+        wallet_id: refundedWallet.id,
+        type: 'refund',
+        amount_smallest_unit: refundAmount,
+        currency: position.currency || 'NGN',
+        direction: 'IN',
+        reference_id: position.id,
+        reference_type: 'position',
+        market_id: marketId,
+        position_id: position.id,
+        status: 'completed',
+        description: `Argument cancelled by creator: ${market.question}`,
+        metadata: { marketId, marketQuestion: market.question, reason, cancellation: true },
+      });
+      refundedCount += 1;
+      refundedSmallestUnit += refundAmount;
+    }
+
+    let { data: updatedMarket, error: marketError }: { data: any; error: any } = await supabase
+      .from('markets')
+      .update({
+        status: 'refunded',
+        state: 'closed',
+        activation_state: 'refunded',
+        refunded_at: nowIso,
+        cancelled_at: nowIso,
+        cancellation_reason: reason,
+        updated_at: nowIso,
+      })
+      .eq('id', marketId)
+      .select()
+      .single();
+    if (marketError && /activation_state|refunded_at|cancelled_at|cancellation_reason/i.test(marketError.message || '')) {
+      const retry = await supabase
+        .from('markets')
+        .update({ status: 'refunded', state: 'closed', refunded_at: nowIso, updated_at: nowIso })
+        .eq('id', marketId)
+        .select()
+        .single();
+      updatedMarket = retry.data;
+      marketError = retry.error;
+    }
+    if (marketError) throw marketError;
+
+    res.json({
+      success: true,
+      market: normalizeMarket(updatedMarket || { ...market, status: 'refunded' }),
+      refundedCount,
+      refundedSmallestUnit,
+    });
+  } catch (error: any) {
+    console.error('Cancel argument error:', error?.message || error);
+    res.status(Number(error?.statusCode) || 500).json({ error: { code: 'CANCEL_ARGUMENT_FAILED', message: error?.message || 'Failed to cancel the argument.', timestamp: new Date().toISOString() } });
+  }
+});
+
+// POST /api/verification/tick — process due argument lifecycles (auto-settlement).
+// Idempotent and self-limiting; safe for the frontend to poll.
+app.post('/api/verification/tick', async (_req: Request, res: Response) => {
+  try {
+    const { data: due, error } = await supabase
+      .from('markets')
+      .select('*')
+      .eq('pricing_model', 'fixed')
+      .not('verification_method', 'is', null)
+      .neq('verification_status', 'verified')
+      .lte('resolution_date', new Date().toISOString())
+      .order('created_at', { ascending: true })
+      .limit(20);
+    if (error) throw error;
+    const results = [];
+    for (const market of due || []) {
+      try {
+        const result = await runArgumentLifecycle(market);
+        results.push({ id: market.id, changed: result.changed, statusAfter: result.market ? displayStatusForMarket(result.market) : null, error: null });
+      } catch (marketError: any) {
+        console.error('Tick lifecycle error for', market.id, marketError?.message || marketError);
+        results.push({ id: market.id, changed: false, statusAfter: displayStatusForMarket(market), error: String(marketError?.message || marketError) });
+      }
+    }
+    res.json({ success: true, processed: (due || []).length, results });
+  } catch (error: any) {
+    console.error('Verification tick error:', error);
+    res.status(500).json({ success: false, error: { code: 'VERIFICATION_TICK_FAILED', message: error.message || 'Failed to run verification tick.' } });
   }
 });
 

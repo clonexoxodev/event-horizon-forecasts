@@ -31,8 +31,8 @@ BEGIN
   IF p_currency = 'USD' THEN
     RETURN QUERY
     UPDATE wallets SET
-      locked_usd_cents = locked_usd_cents - p_amount,
-      available_usd_cents = available_usd_cents + p_amount,
+      locked_usd_cents = wallets.locked_usd_cents - p_amount,
+      available_usd_cents = wallets.available_usd_cents + p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
       AND wallets.locked_usd_cents >= p_amount
@@ -45,8 +45,8 @@ BEGIN
   ELSE
     RETURN QUERY
     UPDATE wallets SET
-      locked_ngn_kobo = locked_ngn_kobo - p_amount,
-      available_ngn_kobo = available_ngn_kobo + p_amount,
+      locked_ngn_kobo = wallets.locked_ngn_kobo - p_amount,
+      available_ngn_kobo = wallets.available_ngn_kobo + p_amount,
       updated_at = now()
     WHERE wallets.user_id = p_user_id
       AND wallets.locked_ngn_kobo >= p_amount
